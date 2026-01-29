@@ -67,6 +67,8 @@ def send_prompt(prompt: str, verbose: bool = False) -> str:
     # Get available tools
     tools_schemas = get_all_tool_schemas() if TOOLS_AVAILABLE else []
     
+    console = Console()
+
     try:
         messages = [{"role": "user", "content": prompt}]
         
@@ -88,6 +90,9 @@ def send_prompt(prompt: str, verbose: bool = False) -> str:
                 )
             
             message = response.choices[0].message
+            if message.content:
+                # print the message using rich markdown
+                console.print(Markdown(message.content))
             
             # Check if the model wants to call a function
             if hasattr(message, 'tool_calls') and message.tool_calls:
