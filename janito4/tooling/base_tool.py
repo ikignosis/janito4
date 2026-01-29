@@ -9,7 +9,7 @@ progress reporting capabilities and permission awareness.
 import sys
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
-from ..tooling.progress.reporter import ToolProgressReporter
+from .progress.reporter import ToolProgressReporter
 
 
 class BaseTool(ABC):
@@ -121,15 +121,11 @@ class BaseTool(ABC):
             end (str): String appended after the message
             report_type (str): Type of report ("start", "progress", "result")
         """
-        permissions = getattr(self, '_tool_permissions', "")
         color = self._get_permission_color()
         reset_color = "\033[0m"
-        
-        # Add permission indicator to start messages only
-        if report_type == "start" and permissions:
-            permission_indicator = f"[{permissions}] "
+        if report_type == "result":
+            white_color = "\033[37m"
+            colored_message = f"{white_color}{message}{reset_color}"
         else:
-            permission_indicator = ""
-            
-        colored_message = f"{color}{permission_indicator}{message}{reset_color}"
+            colored_message = f"{color}{message}{reset_color}"
         print(colored_message, file=sys.stderr, end=end, flush=True)

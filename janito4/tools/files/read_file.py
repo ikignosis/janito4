@@ -12,7 +12,7 @@ For AI function calling, use through the tool registry (tooling.tools_registry).
 import os
 import json
 from typing import Dict, Any, Optional
-from ..base_tool import BaseTool
+from ...tooling import BaseTool, norm_path
 from ..decorator import tool
 
 
@@ -40,23 +40,24 @@ class ReadFileTool(BaseTool):
         """
         try:
             abs_filepath = os.path.abspath(filepath)
+            norm_path_str = norm_path(abs_filepath)
             
             # Report start
-            self.report_start(f"Reading file: {abs_filepath}", end="")
+            self.report_start(f"Reading file {norm_path_str}", end="")
             
             if not os.path.exists(abs_filepath):
-                self.report_error(f"File does not exist: {abs_filepath}")
+                self.report_error(f"File does not exist: {norm_path_str}")
                 return {
                     "success": False,
-                    "error": f"File does not exist: {abs_filepath}",
+                    "error": f"File does not exist: {norm_path_str}",
                     "filepath": filepath
                 }
             
             if not os.path.isfile(abs_filepath):
-                self.report_error(f"Path is not a file: {abs_filepath}")
+                self.report_error(f"Path is not a file: {norm_path_str}")
                 return {
                     "success": False,
-                    "error": f"Path is not a file: {abs_filepath}",
+                    "error": f"Path is not a file: {norm_path_str}",
                     "filepath": filepath
                 }
             
@@ -78,7 +79,7 @@ class ReadFileTool(BaseTool):
                     content = f.read()
                     lines_read = content.count('\n') + 1
             
-            self.report_result(f" Read {lines_read} lines successfully")
+            self.report_result(f" ✅ Read {lines_read} lines")
             
             return {
                 "success": True,
@@ -120,7 +121,8 @@ def main():
         print(json.dumps(result, indent=2))
     else:
         if result["success"]:
-            print(f"Content of '{result['filepath']}':")
+            norm_path_str = norm_path(result['filepath'])
+            print(f"Content of '{norm_path_str}':")
             print("-" * 40)
             print(result["content"])
         else:

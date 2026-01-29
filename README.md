@@ -122,7 +122,7 @@ Permissions can be combined (e.g., `"rw"`, `"rwx"`, `"rn"`).
 ### Usage Example
 
 ```python
-from janito4.tools.base_tool import BaseTool
+from janito4.tooling import BaseTool
 from janito4.tools.decorator import tool
 
 @tool(permissions="r")

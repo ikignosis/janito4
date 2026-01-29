@@ -68,7 +68,7 @@ The `list_files` tool demonstrates the progress reporting system:
 report_start(f"Listing files at {abs_directory} {recursive_str}", end="")
 
 # After processing completes  
-report_result(f" Found {total_found} items ({file_count} files, {dir_count} dirs)")
+report_result(f" ✅ Found {total_found} items ({file_count} files, {dir_count} dirs)")
 ```
 
 This produces output like:

@@ -13,7 +13,7 @@ For AI function calling, use through the tool registry (tooling.tools_registry).
 import os
 import json
 from typing import Dict, Any, List, Optional
-from ..base_tool import BaseTool
+from ...tooling import BaseTool, norm_path
 from ..decorator import tool
 
 
@@ -67,21 +67,23 @@ class ListFilesTool(BaseTool):
             # Resolve the directory path
             abs_directory = os.path.abspath(directory)
             
+            norm_dir = norm_path(abs_directory)
+            
             if not os.path.exists(abs_directory):
-                self.report_error(f"Directory does not exist: {abs_directory}")
+                self.report_error(f"Directory does not exist: {norm_dir}")
                 return {
                     "success": False,
-                    "error": f"Directory does not exist: {abs_directory}",
+                    "error": f"Directory does not exist: {norm_dir}",
                     "directory": directory,
                     "pattern": pattern,
                     "recursive": recursive
                 }
             
             if not os.path.isdir(abs_directory):
-                self.report_error(f"Path is not a directory: {abs_directory}")
+                self.report_error(f"Path is not a directory: {norm_dir}")
                 return {
                     "success": False,
-                    "error": f"Path is not a directory: {abs_directory}",
+                    "error": f"Path is not a directory: {norm_dir}",
                     "directory": directory,
                     "pattern": pattern,
                     "recursive": recursive
@@ -89,7 +91,7 @@ class ListFilesTool(BaseTool):
             
             # Report start of operation
             recursive_str = "recursively" if recursive else ""
-            self.report_start(f"Listing files at {abs_directory} {recursive_str}", end="")
+            self.report_start(f"Listing files at {norm_dir} {recursive_str}", end="")
             
             files = []
             dir_count = 0
@@ -136,7 +138,7 @@ class ListFilesTool(BaseTool):
             
             # Report results
             total_found = len(files)
-            self.report_result(f" Found {total_found} items ({file_count} files, {dir_count} dirs)")
+            self.report_result(f" ✅ Found {total_found} items ({file_count} files, {dir_count} dirs)")
             
             return {
                 "success": True,
@@ -190,7 +192,8 @@ def main():
         print(json.dumps(result, indent=2))
     else:
         if result["success"]:
-            print(f"Files in '{result['directory']}':")
+            norm_dir = norm_path(result['directory'])
+            print(f"Files in '{norm_dir}':")
             if result["pattern"]:
                 print(f"Pattern: {result['pattern']}")
             if result["recursive"]:
