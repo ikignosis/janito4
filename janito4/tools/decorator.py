@@ -31,7 +31,6 @@ def tool(obj: Optional[Union[Callable, Type]] = None, *, permissions: str = "") 
             - "r": read access (files, directories, system info)
             - "w": write access (create, modify, delete files/directories)
             - "x": execute access (run commands, scripts, programs)
-            - "n": network access (HTTP requests, network operations)
             - Combinations like "rw", "rx", "rwx" are allowed
             
     Returns:

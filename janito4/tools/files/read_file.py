@@ -17,7 +17,7 @@ from ..decorator import tool
 
 
 @tool(permissions="r")
-class ReadFileTool(BaseTool):
+class ReadFile(BaseTool):
     """
     Tool for reading the contents of a file.
     """
@@ -43,7 +43,7 @@ class ReadFileTool(BaseTool):
             norm_path_str = norm_path(abs_filepath)
             
             # Report start
-            self.report_start(f"Reading file {norm_path_str}", end="")
+            self.report_start(f"📖 Reading file {norm_path_str}", end="")
             
             if not os.path.exists(abs_filepath):
                 self.report_error(f"File does not exist: {norm_path_str}")
@@ -79,7 +79,7 @@ class ReadFileTool(BaseTool):
                     content = f.read()
                     lines_read = content.count('\n') + 1
             
-            self.report_result(f" ✅ Read {lines_read} lines")
+            self.report_result(f"Read {lines_read} lines")
             
             return {
                 "success": True,
@@ -111,7 +111,7 @@ def main():
     
     args = parser.parse_args()
     
-    tool_instance = ReadFileTool()
+    tool_instance = ReadFile()
     result = tool_instance.run(
         filepath=args.filepath,
         max_lines=args.max_lines

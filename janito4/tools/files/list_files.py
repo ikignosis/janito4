@@ -33,7 +33,7 @@ def _matches_pattern(filename: str, pattern: str) -> bool:
 
 
 @tool(permissions="r")
-class ListFilesTool(BaseTool):
+class ListFiles(BaseTool):
     """
     Tool for listing files and directories in the specified path.
     """
@@ -138,7 +138,7 @@ class ListFilesTool(BaseTool):
             
             # Report results
             total_found = len(files)
-            self.report_result(f" ✅ Found {total_found} items ({file_count} files, {dir_count} dirs)")
+            self.report_result(f"Found {total_found} items ({file_count} files, {dir_count} dirs)")
             
             return {
                 "success": True,
@@ -180,7 +180,7 @@ def main():
     
     args = parser.parse_args()
     
-    tool_instance = ListFilesTool()
+    tool_instance = ListFiles()
     result = tool_instance.run(
         directory=args.directory,
         pattern=args.pattern,

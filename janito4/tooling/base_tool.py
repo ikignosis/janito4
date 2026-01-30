@@ -9,7 +9,7 @@ progress reporting capabilities and permission awareness.
 import sys
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
-from .progress.reporter import ToolProgressReporter
+
 
 
 class BaseTool(ABC):
@@ -51,7 +51,23 @@ class BaseTool(ABC):
             message (str): The message to display
             end (str): String appended after the message (default: "\n")
         """
-        self._report_with_permissions(message, end, "start")
+        # Get permission-based color for start messages only
+        permissions = getattr(self, '_tool_permissions', "")
+        if not permissions:
+            color = "\033[36m"  # Cyan for no permissions (default)
+        elif "x" in permissions:
+            color = "\033[33m"  # Yellow for execute
+        elif "w" in permissions:
+            color = "\033[33m"  # Yellow for write (same as execute)
+        elif "r" in permissions:
+            color = "\033[32m"  # Green for read-only (safe)
+        else:
+            color = "\033[36m"  # Cyan as fallback
+        
+        reset_color = "\033[0m"
+        # we put a space before the message to differentiate tool msgs from llm msgs
+        colored_message = f" {color}{message}{reset_color}"
+        print(colored_message, file=sys.stderr, end=end, flush=True)
     
     def report_progress(self, message: str, end: str = "\n") -> None:
         """
@@ -61,7 +77,7 @@ class BaseTool(ABC):
             message (str): The progress message to display
             end (str): String appended after the message (default: "\n")
         """
-        self._report_with_permissions(message, end, "progress")
+        print(f"{message}", file=sys.stderr, end=end, flush=True)
     
     def report_result(self, message: str, end: str = "\n") -> None:
         """
@@ -71,7 +87,10 @@ class BaseTool(ABC):
             message (str): The result message to display
             end (str): String appended after the message (default: "\n")
         """
-        self._report_with_permissions(message, end, "result")
+        white_color = "\033[37m"
+        reset_color = "\033[0m"
+        colored_message = f"{white_color} ✅ {message}{reset_color}"
+        print(colored_message, file=sys.stderr, end=end, flush=True)
     
     def report_error(self, message: str, end: str = "\n") -> None:
         """
@@ -81,7 +100,7 @@ class BaseTool(ABC):
             message (str): The error message to display
             end (str): String appended after the message (default: "\n")
         """
-        print(f"?{message}", file=sys.stderr, end=end, flush=True)
+        print(f"❌{message}", file=sys.stderr, end=end, flush=True)
     
     def report_warning(self, message: str, end: str = "\n") -> None:
         """
@@ -91,7 +110,7 @@ class BaseTool(ABC):
             message (str): The warning message to display
             end (str): String appended after the message (default: "\n")
         """
-        print(f"??{message}", file=sys.stderr, end=end, flush=True)
+        print(f"⚠️{message}", file=sys.stderr, end=end, flush=True)
     
     def _get_permission_color(self) -> str:
         """
@@ -103,10 +122,10 @@ class BaseTool(ABC):
         permissions = getattr(self, '_tool_permissions', "")
         if not permissions:
             return "\033[36m"  # Cyan for no permissions (default)
-        elif "w" in permissions or "x" in permissions:
-            return "\033[31m"  # Red for write/execute (dangerous)
-        elif "n" in permissions:
-            return "\033[35m"  # Magenta for network access
+        elif "x" in permissions:
+            return "\033[31m"  # Red for execute (dangerous)
+        elif "w" in permissions:
+            return "\033[33m"  # Orange for write
         elif "r" in permissions:
             return "\033[32m"  # Green for read-only (safe)
         else:

@@ -8,7 +8,7 @@ dynamically based on the AUTOLOAD_TOOLSETS configuration.
 import os
 import importlib
 import inspect
-from typing import Dict, Callable, List
+from typing import Dict, Callable, List, get_type_hints
 
 
 from .decorator import is_tool
@@ -57,9 +57,10 @@ def discover_toolsets(toolset_names: List[str]) -> Dict[str, Callable]:
                             if is_tool(attr):
                                 # Create a wrapper function that instantiates and calls run
                                 def make_class_tool(cls):
-                                    # Get the run method signature
+                                    # Get the run method signature and type hints
                                     run_method = getattr(cls, 'run')
                                     run_sig = inspect.signature(run_method)
+                                    run_type_hints = get_type_hints(run_method)
                                     
                                     # Create a wrapper with the same signature as the run method
                                     # but without the 'self' parameter
@@ -76,6 +77,12 @@ def discover_toolsets(toolset_names: List[str]) -> Dict[str, Callable]:
                                     class_tool_wrapper.__doc__ = cls.__doc__
                                     class_tool_wrapper._is_tool = True
                                     class_tool_wrapper._tool_permissions = getattr(cls, '_tool_permissions', "")
+                                    
+                                    # Preserve type hints (excluding 'self')
+                                    class_tool_wrapper.__annotations__ = {
+                                        k: v for k, v in run_type_hints.items() if k != 'self'
+                                    }
+                                    
                                     return class_tool_wrapper
                                 
                                 tools[attr_name] = make_class_tool(attr)

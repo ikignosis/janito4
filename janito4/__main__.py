@@ -10,137 +10,29 @@ This CLI uses environment variables for configuration:
 The CLI includes function calling tools that can be used by the AI model.
 
 Usage:
-    python openai_cli.py "Your prompt here"
-    echo "Your prompt" | python openai_cli.py
+    python -m janito4 "Your prompt here"
+    echo "Your prompt" | python -m janito4
+    python -m janito4 --chat  # Start interactive chat session
 """
 
 import os
 import sys
 import argparse
-import json
-from typing import Optional, Tuple, Dict, Any, List
-from openai import OpenAI
-from rich.console import Console
-from rich.markdown import Markdown
+from typing import Optional, List, Dict, Any
 
-# Import tools
+# Import the send_prompt function from the new module
 try:
-    from .tooling.tools_registry import get_all_tool_schemas, get_tool_by_name
-    TOOLS_AVAILABLE = True
+    from .openai_client import send_prompt
 except ImportError:
-    TOOLS_AVAILABLE = False
-    def get_all_tool_schemas():
-        return []
-    def get_tool_by_name(name):
-        raise NotImplementedError("Tools not available")
+    # When running directly, not as a module
+    from openai_client import send_prompt
 
-
-def get_env_vars() -> Tuple[str, str, str]:
-    """Retrieve required environment variables."""
-    base_url = os.getenv("BASE_URL")
-    api_key = os.getenv("API_KEY")
-    model = os.getenv("MODEL")
-    
-    if not api_key:
-        raise ValueError("API_KEY environment variable is required")
-    if not model:
-        raise ValueError("MODEL environment variable is required")
-    
-    return base_url, api_key, model
-
-
-def send_prompt(prompt: str, verbose: bool = False) -> str:
-    """Send prompt to OpenAI endpoint and return response."""
-    base_url, api_key, model = get_env_vars()
-    
-    # Print model and backend info only in verbose mode
-    if verbose:
-        backend = base_url if base_url else "api.openai.com"
-        print(f"────────────── Model: {model} | Backend: {backend}", file=sys.stderr)
-    
-    # Create OpenAI client - base_url can be None for standard OpenAI
-    client = OpenAI(
-        api_key=api_key,
-        base_url=base_url
-    )
-    
-    # Get available tools
-    tools_schemas = get_all_tool_schemas() if TOOLS_AVAILABLE else []
-    
-    console = Console()
-
-    try:
-        messages = [{"role": "user", "content": prompt}]
-        
-        while True:
-            # Make API call with tools if available
-            if tools_schemas:
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=1.0,
-                    tools=tools_schemas,
-                    tool_choice="auto"
-                )
-            else:
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=1.0
-                )
-            
-            message = response.choices[0].message
-            if message.content:
-                # print the message using rich markdown
-                console.print(Markdown(message.content))
-            
-            # Check if the model wants to call a function
-            if hasattr(message, 'tool_calls') and message.tool_calls:
-                # Add the model's response to messages
-                messages.append(message)
-                
-                # Process each tool call
-                for tool_call in message.tool_calls:
-                    tool_name = tool_call.function.name
-                    tool_args = json.loads(tool_call.function.arguments)
-                    
-                    try:
-                        # Call the actual tool function
-                        tool_function = get_tool_by_name(tool_name)
-                        tool_result = tool_function(**tool_args)
-                        
-                        # Add the tool response to messages
-                        messages.append({
-                            "tool_call_id": tool_call.id,
-                            "role": "tool",
-                            "name": tool_name,
-                            "content": json.dumps(tool_result)
-                        })
-                        
-
-                        
-                    except Exception as e:
-                        # Handle tool execution errors
-                        error_result = {
-                            "success": False,
-                            "error": f"Tool execution failed: {str(e)}"
-                        }
-                        messages.append({
-                            "tool_call_id": tool_call.id,
-                            "role": "tool",
-                            "name": tool_name,
-                            "content": json.dumps(error_result)
-                        })
-                        print(f"❌ Tool error: {tool_name} - {e}", file=sys.stderr)
-                
-                # Continue the loop to get the final response after tool calls
-                continue
-            else:
-                # No more tool calls, return the final response
-                return message.content if message.content else ""
-                
-    except Exception as e:
-        raise RuntimeError(f"Error communicating with API: {e}")
+try:
+    from prompt_toolkit import PromptSession
+    from prompt_toolkit.history import InMemoryHistory
+    PROMPT_TOOLKIT_AVAILABLE = True
+except ImportError:
+    PROMPT_TOOLKIT_AVAILABLE = False
 
 
 def main():
@@ -157,6 +49,7 @@ Environment Variables:
 Examples:
   python -m janito4 "What is the capital of France?"
   echo "Tell me a joke" | python -m janito4
+  python -m janito4 --chat
         """
     )
     
@@ -172,9 +65,45 @@ Examples:
         help="Enable verbose output (shows model and backend info)"
     )
     
+    parser.add_argument(
+        "--chat",
+        action="store_true",
+        help="Start an interactive chat session using prompt_toolkit"
+    )
+    
     args = parser.parse_args()
     
-    # If no prompt is provided, show usage and exit
+    # Handle chat mode
+    if args.chat:
+        if not PROMPT_TOOLKIT_AVAILABLE:
+            print("Error: prompt_toolkit is required for chat mode. Install it with 'pip install prompt_toolkit'", file=sys.stderr)
+            sys.exit(1)
+        
+        print("Starting interactive chat session. Type 'exit' or 'quit' to end the session.")
+        session = PromptSession(history=InMemoryHistory())
+        messages_history: List[Dict[str, Any]] = []
+        
+        try:
+            while True:
+                try:
+                    user_input = session.prompt(">>> ")
+                    if user_input.lower() in ['exit', 'quit']:
+                        break
+                    if user_input.strip():
+                        response = send_prompt(user_input, verbose=args.verbose, previous_messages=messages_history)
+                        # Add the user message and AI response to history
+                        messages_history.append({"role": "user", "content": user_input})
+                        if response:
+                            messages_history.append({"role": "assistant", "content": response})
+                except KeyboardInterrupt:
+                    print("\nUse 'exit' or 'quit' to end the session.")
+                    continue
+        except EOFError:
+            pass  # Handle Ctrl+D gracefully
+        print("\nChat session ended.")
+        return
+    
+    # Handle single prompt mode
     if args.prompt is None:
         parser.print_help()
         sys.exit(0)
@@ -186,9 +115,7 @@ Examples:
         sys.exit(1)
     
     try:
-        response = send_prompt(prompt, verbose=args.verbose)
-        console = Console()
-        console.print(Markdown(response))
+        send_prompt(prompt, verbose=args.verbose)
     except ValueError as e:
         print(f"Configuration Error: {e}", file=sys.stderr)
         sys.exit(1)

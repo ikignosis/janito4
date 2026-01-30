@@ -117,7 +117,7 @@ Tools must declare their required permissions using the `@tool` decorator with t
 - **`x`**: Execute access (run commands, scripts, programs)
 - **`n`**: Network access (HTTP requests, network operations)
 
-Permissions can be combined (e.g., `"rw"`, `"rwx"`, `"rn"`).
+Permissions can be combined (e.g., `"rw"`, `"rwx"`).
 
 ### Usage Example
 
