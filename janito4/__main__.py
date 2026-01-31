@@ -30,6 +30,8 @@ except ImportError:
 try:
     from prompt_toolkit import PromptSession
     from prompt_toolkit.history import InMemoryHistory
+    from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.key_binding.key_processor import KeyPressEvent
     PROMPT_TOOLKIT_AVAILABLE = True
 except ImportError:
     PROMPT_TOOLKIT_AVAILABLE = False
@@ -89,16 +91,56 @@ Examples:
         # Get model name for the prompt (already validated at startup)
         model = os.getenv("MODEL")
         
-        print("Starting interactive chat session. Type 'exit' or 'quit' to end the session.")
-        session = PromptSession(history=InMemoryHistory())
+        print("Starting interactive chat session. Type 'exit' or 'quit' to end the session, 'restart' to clear conversation history.")
+        print("Key bindings: F2 = restart conversation, F12 = Do It (auto-execute)")
+        
         messages_history: List[Dict[str, Any]] = []
+        restart_requested = False
+        do_it_requested = False
+        
+        # Create key bindings
+        kb = KeyBindings()
+        
+        @kb.add('f2')
+        def restart_chat(event: KeyPressEvent) -> None:
+            """Handle F2 key to restart conversation."""
+            nonlocal restart_requested
+            restart_requested = True
+            event.app.exit(result=None)  # Exit the current prompt
+        
+        @kb.add('f12')
+        def do_it_action(event: KeyPressEvent) -> None:
+            """Handle F12 key to trigger 'Do It' auto-execution."""
+            nonlocal do_it_requested
+            do_it_requested = True
+            event.app.exit(result="Do It")  # Return special value to trigger auto-execution
+        
+        session = PromptSession(history=InMemoryHistory(), key_bindings=kb)
         
         try:
             while True:
                 try:
+                    restart_requested = False
+                    do_it_requested = False
                     user_input = session.prompt(f"{model} # ")
+                    
+                    # Check if F12 was pressed (Do It requested)
+                    if do_it_requested:
+                        print("\n[Keybinding F12] 'Do It' to continue existing plan...")
+                        user_input = "Do It"  # Set input to trigger the action
+                    
+                    # Check if F2 was pressed (restart requested)
+                    if restart_requested:
+                        messages_history.clear()
+                        print("\n[Keybinding F2] Conversation history cleared. Starting fresh conversation.")
+                        continue
+                    
                     if user_input.lower() in ['exit', 'quit']:
                         break
+                    if user_input.lower() == 'restart':
+                        messages_history.clear()
+                        print("Conversation history cleared. Starting fresh conversation.")
+                        continue
                     if user_input.strip():
                         response = send_prompt(user_input, verbose=args.verbose, previous_messages=messages_history)
                         # Add the user message and AI response to history

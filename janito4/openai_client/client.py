@@ -64,7 +64,7 @@ def _run_with_progress_bar(func, *args, **kwargs):
         TextColumn("[progress.description]{task.description}"),
         transient=True
     ) as progress:
-        task = progress.add_task("Waiting for response from the AI API server...", total=None)
+        task = progress.add_task("Waiting for response from the API server...", total=None)
         while thread.is_alive():
             progress.update(task, advance=0.1)
             thread.join(timeout=0.1)

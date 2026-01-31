@@ -58,7 +58,7 @@ echo "Tell me a joke" | python -m janito4
 ```bash
 python -m janito4
 # Starts an interactive chat session where you can have multi-turn conversations
-# Type 'exit' or 'quit' to end the session, or press Ctrl+D/Ctrl+Z
+# Type 'exit' or 'quit' to end the session, 'restart' to clear conversation history, or press Ctrl+D/Ctrl+Z
 ```
 
 ## Examples
