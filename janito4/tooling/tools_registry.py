@@ -11,7 +11,7 @@ import re
 
 
 # Configuration for auto-loading toolsets
-AUTOLOAD_TOOLSETS = ["files"]
+AUTOLOAD_TOOLSETS = ["files", "system"]
 
 
 def get_function_schema(func: Callable) -> Dict[str, Any]:

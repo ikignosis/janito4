@@ -10,9 +10,9 @@ This CLI uses environment variables for configuration:
 The CLI includes function calling tools that can be used by the AI model.
 
 Usage:
-    python -m janito4 "Your prompt here"
-    echo "Your prompt" | python -m janito4
-    python -m janito4 --chat  # Start interactive chat session
+    python -m janito4 "Your prompt here"    # Single prompt mode
+    echo "Your prompt" | python -m janito4 # Pipe input mode
+    python -m janito4                      # Interactive chat session
 """
 
 import os
@@ -37,6 +37,19 @@ except ImportError:
 
 def main():
     """Main entry point."""
+    # Validate required environment variables at startup
+    missing_vars = []
+    if not os.getenv("API_KEY"):
+        missing_vars.append("API_KEY")
+    if not os.getenv("MODEL"):
+        missing_vars.append("MODEL")
+    # Note: BASE_URL is optional for standard OpenAI, so we don't require it
+    
+    if missing_vars:
+        print(f"Error: Missing required environment variable(s): {', '.join(missing_vars)}", file=sys.stderr)
+        print("Please set these environment variables before running the CLI.", file=sys.stderr)
+        sys.exit(1)
+    
     parser = argparse.ArgumentParser(
         description="OpenAI CLI - Send prompts to OpenAI-compatible endpoints",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -47,16 +60,16 @@ Environment Variables:
   MODEL       - Model name to use for completions
 
 Examples:
-  python -m janito4 "What is the capital of France?"
-  echo "Tell me a joke" | python -m janito4
-  python -m janito4 --chat
+  python -m janito4 "What is the capital of France?"  # Single prompt mode
+  echo "Tell me a joke" | python -m janito4           # Pipe input mode
+  python -m janito4                                 # Interactive chat mode
         """
     )
     
     parser.add_argument(
         "prompt", 
         nargs="?", 
-        help="The prompt to send to the AI"
+        help="The prompt to send to the AI (if not provided, starts interactive chat)"
     )
     
     parser.add_argument(
@@ -65,19 +78,16 @@ Examples:
         help="Enable verbose output (shows model and backend info)"
     )
     
-    parser.add_argument(
-        "--chat",
-        action="store_true",
-        help="Start an interactive chat session using prompt_toolkit"
-    )
-    
     args = parser.parse_args()
     
-    # Handle chat mode
-    if args.chat:
+    # Handle chat mode (when no prompt is provided)
+    if args.prompt is None:
         if not PROMPT_TOOLKIT_AVAILABLE:
             print("Error: prompt_toolkit is required for chat mode. Install it with 'pip install prompt_toolkit'", file=sys.stderr)
             sys.exit(1)
+        
+        # Get model name for the prompt (already validated at startup)
+        model = os.getenv("MODEL")
         
         print("Starting interactive chat session. Type 'exit' or 'quit' to end the session.")
         session = PromptSession(history=InMemoryHistory())
@@ -86,7 +96,7 @@ Examples:
         try:
             while True:
                 try:
-                    user_input = session.prompt(">>> ")
+                    user_input = session.prompt(f"{model} # ")
                     if user_input.lower() in ['exit', 'quit']:
                         break
                     if user_input.strip():
@@ -96,18 +106,22 @@ Examples:
                         if response:
                             messages_history.append({"role": "assistant", "content": response})
                 except KeyboardInterrupt:
-                    print("\nUse 'exit' or 'quit' to end the session.")
-                    continue
+                    # Prompt user for confirmation to quit
+                    try:
+                        confirm = session.prompt("\nDo you want to quit the conversation? (y/n): ")
+                        if confirm.lower().strip() in ['y', 'yes']:
+                            raise EOFError()  # Use EOFError to trigger graceful exit
+                        # If user says no, continue the loop
+                        continue
+                    except (KeyboardInterrupt, EOFError):
+                        # If user presses Ctrl+C or Ctrl+D during confirmation, just exit
+                        raise EOFError()
         except EOFError:
             pass  # Handle Ctrl+D gracefully
         print("\nChat session ended.")
         return
     
     # Handle single prompt mode
-    if args.prompt is None:
-        parser.print_help()
-        sys.exit(0)
-    
     prompt = args.prompt
     
     if not prompt:

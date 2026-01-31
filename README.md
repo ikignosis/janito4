@@ -44,20 +44,21 @@ export MODEL="gpt-4"                              # Or your preferred model
 
 ## Usage
 
-### Basic usage with command-line argument:
+### Single Prompt Mode (command-line argument):
 ```bash
 python -m janito4 "What is the capital of France?"
 ```
 
-### Using stdin:
+### Pipe Input Mode:
 ```bash
 echo "Tell me a joke" | python -m janito4
 ```
 
-### Interactive usage:
+### Interactive Chat Mode:
 ```bash
 python -m janito4
-# Then type your prompt and press Ctrl+D (Linux/Mac) or Ctrl+Z + Enter (Windows)
+# Starts an interactive chat session where you can have multi-turn conversations
+# Type 'exit' or 'quit' to end the session, or press Ctrl+D/Ctrl+Z
 ```
 
 ## Examples

@@ -5,10 +5,12 @@ OpenAI client module for sending prompts to OpenAI-compatible endpoints.
 import os
 import sys
 import json
+import threading
 from typing import Tuple, List, Dict, Any
 from openai import OpenAI
 from rich.console import Console
 from rich.markdown import Markdown
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 # Import tools
 try:
@@ -39,6 +41,37 @@ def get_env_vars() -> Tuple[str, str, str]:
         raise ValueError("MODEL environment variable is required")
     
     return base_url, api_key, model
+
+
+def _run_with_progress_bar(func, *args, **kwargs):
+    """Run a function with a Rich progress bar in a separate thread."""
+    result = [None]
+    exception = [None]
+    
+    def target():
+        try:
+            result[0] = func(*args, **kwargs)
+        except Exception as e:
+            exception[0] = e
+    
+    # Create and start the thread
+    thread = threading.Thread(target=target)
+    thread.start()
+    
+    # Show progress bar while waiting
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        transient=True
+    ) as progress:
+        task = progress.add_task("Waiting for response from the AI API server...", total=None)
+        while thread.is_alive():
+            progress.update(task, advance=0.1)
+            thread.join(timeout=0.1)
+    
+    if exception[0]:
+        raise exception[0]
+    return result[0]
 
 
 def send_prompt(prompt: str, verbose: bool = False, previous_messages: List[Dict[str, Any]] = None) -> str:
@@ -72,7 +105,8 @@ def send_prompt(prompt: str, verbose: bool = False, previous_messages: List[Dict
         while True:
             # Make API call with tools if available
             if tools_schemas:
-                response = client.chat.completions.create(
+                response = _run_with_progress_bar(
+                    client.chat.completions.create,
                     model=model,
                     messages=messages,
                     temperature=1.0,
@@ -80,7 +114,8 @@ def send_prompt(prompt: str, verbose: bool = False, previous_messages: List[Dict
                     tool_choice="auto"
                 )
             else:
-                response = client.chat.completions.create(
+                response = _run_with_progress_bar(
+                    client.chat.completions.create,
                     model=model,
                     messages=messages,
                     temperature=1.0
@@ -132,6 +167,13 @@ def send_prompt(prompt: str, verbose: bool = False, previous_messages: List[Dict
                 continue
             else:
                 # No more tool calls, return the final response
+                # Display token usage with cyan background
+                if hasattr(response, 'usage') and response.usage:
+                    total_tokens = response.usage.total_tokens
+                    from rich.text import Text
+                    token_text = Text(f"=== Total tokens: {total_tokens} | Messages: #{len(messages)} ===")
+                    token_text.stylize("white on magenta")
+                    console.print(token_text, highlight=False)
                 return message.content if message.content else ""
                 
     except Exception as e:
