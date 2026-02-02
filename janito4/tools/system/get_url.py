@@ -32,7 +32,6 @@ class GetUrl(BaseTool):
         max_length: Optional[int] = 5000,
         max_lines: Optional[int] = 200,
         timeout: Optional[int] = 10,
-        save_to_file: Optional[str] = None,
         follow_redirects: bool = True
     ) -> Dict[str, Any]:
         """
@@ -43,7 +42,6 @@ class GetUrl(BaseTool):
             max_length (Optional[int]): Maximum number of characters to return (default: 5000)
             max_lines (Optional[int]): Maximum number of lines to return (default: 200)
             timeout (Optional[int]): Request timeout in seconds (default: 10)
-            save_to_file (Optional[str]): File path to save the full content to
             follow_redirects (bool): Whether to follow HTTP redirects (default: True)
         
         Returns:
@@ -80,7 +78,6 @@ url = "{url}"
 max_length = {max_length if max_length is not None else "None"}
 max_lines = {max_lines if max_lines is not None else "None"}
 timeout_val = {timeout if timeout is not None else "None"}
-save_to_file = {repr(save_to_file) if save_to_file else "None"}
 follow_redirects = {repr(follow_redirects)}
 
 try:
@@ -102,7 +99,6 @@ try:
     content_length = len(content.encode('utf-8'))
     
     # Apply limits
-    original_content = content
     if max_length is not None and len(content) > max_length:
         content = content[:max_length] + "... [truncated]"
     
@@ -111,19 +107,13 @@ try:
         if len(lines) > max_lines:
             content = '\\n'.join(lines[:max_lines]) + "\\n... [truncated]"
     
-    # Save to file if requested
-    if save_to_file:
-        with open(save_to_file, 'w', encoding='utf-8') as f:
-            f.write(original_content)
-    
     result = {{
         "success": True,
         "content": content,
         "url": url,
         "status_code": status_code,
         "content_length": content_length,
-        "lines_returned": len(content.split('\\n')),
-        "original_content_length": len(original_content)
+        "lines_returned": len(content.split('\\n'))
     }}
     
     print(json.dumps(result))
@@ -235,7 +225,7 @@ def main():
 Examples:
   %(prog)s "https://httpbin.org/get"
   %(prog)s "https://example.com" --max-length 1000 --max-lines 50
-  %(prog)s "https://api.github.com/users/octocat" --save-to-file user.json --json
+  %(prog)s "https://api.github.com/users/octocat" --json
         """
     )
     
@@ -246,7 +236,6 @@ Examples:
                        help="Maximum lines to return (default: 200)")
     parser.add_argument("--timeout", "-t", type=int, default=10,
                        help="Request timeout in seconds (default: 10)")
-    parser.add_argument("--save-to-file", "-s", help="Save full content to file")
     parser.add_argument("--no-follow-redirects", action="store_true",
                        help="Don't follow HTTP redirects")
     parser.add_argument("--json", "-j", action="store_true", 
@@ -263,7 +252,6 @@ Examples:
         max_length=args.max_length,
         max_lines=args.max_lines,
         timeout=args.timeout,
-        save_to_file=args.save_to_file,
         follow_redirects=not args.no_follow_redirects
     )
     
@@ -289,9 +277,6 @@ Examples:
                 if len(result['content']) > 200:
                     content_preview += "..."
                 print(f"\nContent preview: {content_preview}")
-                
-            if args.save_to_file:
-                print(f"\nFull content saved to: {args.save_to_file}")
         else:
             print(f"? URL fetch failed")
             print(f"  URL: {result['url']}")

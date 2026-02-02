@@ -97,84 +97,81 @@ def send_prompt(prompt: str, verbose: bool = False, previous_messages: List[Dict
         text.stylize("white on blue")
         console.print(text, highlight=False)
 
-    try:
-        # Use previous messages if provided, otherwise start with the user prompt
-        messages = previous_messages.copy() if previous_messages else []
-        messages.append({"role": "user", "content": prompt})
+    # Use previous messages if provided, otherwise start with the user prompt
+    messages = previous_messages.copy() if previous_messages else []
+    messages.append({"role": "user", "content": prompt})
+    
+    while True:
+        # Make API call with tools if available
+        if tools_schemas:
+            response = _run_with_progress_bar(
+                client.chat.completions.create,
+                model=model,
+                messages=messages,
+                temperature=1.0,
+                tools=tools_schemas,
+                tool_choice="auto"
+            )
+        else:
+            response = _run_with_progress_bar(
+                client.chat.completions.create,
+                model=model,
+                messages=messages,
+                temperature=1.0
+            )
         
-        while True:
-            # Make API call with tools if available
-            if tools_schemas:
-                response = _run_with_progress_bar(
-                    client.chat.completions.create,
-                    model=model,
-                    messages=messages,
-                    temperature=1.0,
-                    tools=tools_schemas,
-                    tool_choice="auto"
-                )
-            else:
-                response = _run_with_progress_bar(
-                    client.chat.completions.create,
-                    model=model,
-                    messages=messages,
-                    temperature=1.0
-                )
+        message = response.choices[0].message
+        if message.content:
+            # print the message using rich markdown
+            console.print(Markdown(message.content))
+        
+        # Check if the model wants to call a function
+        if hasattr(message, 'tool_calls') and message.tool_calls:
+            # Add the model's response to messages
+            messages.append(message)
             
-            message = response.choices[0].message
-            if message.content:
-                # print the message using rich markdown
-                console.print(Markdown(message.content))
-            
-            # Check if the model wants to call a function
-            if hasattr(message, 'tool_calls') and message.tool_calls:
-                # Add the model's response to messages
-                messages.append(message)
+            # Process each tool call
+            for tool_call in message.tool_calls:
+                tool_name = tool_call.function.name
+                tool_args = json.loads(tool_call.function.arguments)
                 
-                # Process each tool call
-                for tool_call in message.tool_calls:
-                    tool_name = tool_call.function.name
-                    tool_args = json.loads(tool_call.function.arguments)
+                try:
+                    # Call the actual tool function
+                    tool_function = get_tool_by_name(tool_name)
+                    tool_result = tool_function(**tool_args)
                     
-                    try:
-                        # Call the actual tool function
-                        tool_function = get_tool_by_name(tool_name)
-                        tool_result = tool_function(**tool_args)
-                        
-                        # Add the tool response to messages
-                        messages.append({
-                            "tool_call_id": tool_call.id,
-                            "role": "tool",
-                            "name": tool_name,
-                            "content": json.dumps(tool_result)
-                        })
-                        
-                    except Exception as e:
-                        # Handle tool execution errors
-                        error_result = {
-                            "success": False,
-                            "error": f"Tool execution failed: {str(e)}"
-                        }
-                        messages.append({
-                            "tool_call_id": tool_call.id,
-                            "role": "tool",
-                            "name": tool_name,
-                            "content": json.dumps(error_result)
-                        })
-                        print(f"❌ Tool error: {tool_name} - {e}", file=sys.stderr)
-                
-                # Continue the loop to get the final response after tool calls
-                continue
-            else:
-                # No more tool calls, return the final response
-                # Display token usage with cyan background
-                if hasattr(response, 'usage') and response.usage:
-                    total_tokens = response.usage.total_tokens
-                    from rich.text import Text
-                    token_text = Text(f"=== Total tokens: {total_tokens} | Messages: #{len(messages)} ===")
-                    token_text.stylize("white on magenta")
-                    console.print(token_text, highlight=False)
-                return message.content if message.content else ""
-                
-    except Exception as e:
-        raise RuntimeError(f"Error communicating with API: {e}")
+                    # Add the tool response to messages
+                    messages.append({
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": json.dumps(tool_result)
+                    })
+                    
+                except Exception as e:
+                    # Handle tool execution errors
+                    error_result = {
+                        "success": False,
+                        "error": f"Tool execution failed: {str(e)}"
+                    }
+                    messages.append({
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": json.dumps(error_result)
+                    })
+                    print(f"❌ Tool error: {tool_name} - {e}", file=sys.stderr)
+            
+            # Continue the loop to get the final response after tool calls
+            continue
+        else:
+            # No more tool calls, return the final response
+            # Display token usage with cyan background
+            if hasattr(response, 'usage') and response.usage:
+                total_tokens = response.usage.total_tokens
+                from rich.text import Text
+                token_text = Text(f"=== Total tokens: {total_tokens} | Messages: {len(messages)} ===")
+                token_text.stylize("white on magenta")
+                console.print(token_text, highlight=False)
+            return message.content if message.content else ""
+            

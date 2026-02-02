@@ -18,7 +18,8 @@ Usage:
 import os
 import sys
 import argparse
-from typing import Optional, List, Dict, Any
+from typing import List, Dict, Any
+from .system_prompt import SYSTEM_PROMPT
 
 # Import the send_prompt function from the new module
 try:
@@ -27,14 +28,11 @@ except ImportError:
     # When running directly, not as a module
     from openai_client import send_prompt
 
-try:
-    from prompt_toolkit import PromptSession
-    from prompt_toolkit.history import InMemoryHistory
-    from prompt_toolkit.key_binding import KeyBindings
-    from prompt_toolkit.key_binding.key_processor import KeyPressEvent
-    PROMPT_TOOLKIT_AVAILABLE = True
-except ImportError:
-    PROMPT_TOOLKIT_AVAILABLE = False
+from prompt_toolkit import PromptSession
+from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.key_binding.key_processor import KeyPressEvent
+from prompt_toolkit.formatted_text import HTML
 
 
 def main():
@@ -84,9 +82,6 @@ Examples:
     
     # Handle chat mode (when no prompt is provided)
     if args.prompt is None:
-        if not PROMPT_TOOLKIT_AVAILABLE:
-            print("Error: prompt_toolkit is required for chat mode. Install it with 'pip install prompt_toolkit'", file=sys.stderr)
-            sys.exit(1)
         
         # Get model name for the prompt (already validated at startup)
         model = os.getenv("MODEL")
@@ -97,6 +92,8 @@ Examples:
         messages_history: List[Dict[str, Any]] = []
         restart_requested = False
         do_it_requested = False
+
+        messages_history = [{"role": "system", "content": SYSTEM_PROMPT}]
         
         # Create key bindings
         kb = KeyBindings()
@@ -122,7 +119,9 @@ Examples:
                 try:
                     restart_requested = False
                     do_it_requested = False
-                    user_input = session.prompt(f"{model} # ")
+                    # Use HTML formatting to apply dark blue background to prompt
+                    prompt_text = HTML(f'<style bg="#00008b">{model} # </style>')
+                    user_input = session.prompt(prompt_text)
                     
                     # Check if F12 was pressed (Do It requested)
                     if do_it_requested:
@@ -170,14 +169,10 @@ Examples:
         print("Error: Empty prompt provided.", file=sys.stderr)
         sys.exit(1)
     
+    messages_history = [{"role": "system", "content": SYSTEM_PROMPT}]
+
     try:
-        send_prompt(prompt, verbose=args.verbose)
-    except ValueError as e:
-        print(f"Configuration Error: {e}", file=sys.stderr)
-        sys.exit(1)
-    except RuntimeError as e:
-        print(f"Runtime Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        send_prompt(prompt, verbose=args.verbose, previous_messages=messages_history)
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.", file=sys.stderr)
         sys.exit(130)
