@@ -95,6 +95,9 @@ class RunPowerShellCode(BaseTool):
             if len(code) > 200:
                 code_preview = code[:200] + "..."
             self.report_start(f"Executing PowerShell code in {norm_working_dir}:\n{code_preview}")
+
+            encoding_prefix = "$OutputEncoding = [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
+            code_with_encoding = encoding_prefix + code
             
             # Build PowerShell command
             # Use -Command for both single commands and multi-line scripts
@@ -104,7 +107,7 @@ class RunPowerShellCode(BaseTool):
                 "-NoProfile",
                 "-ExecutionPolicy", "Bypass",
                 "-Command",
-                code
+                code_with_encoding
             ]
             
             # Execute PowerShell with real-time streaming
