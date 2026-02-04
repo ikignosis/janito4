@@ -98,7 +98,7 @@ class RunPowerShellCode(BaseTool):
 
             encoding_prefix = "$OutputEncoding = [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
             code_with_encoding = encoding_prefix + code
-            
+
             # Build PowerShell command
             # Use -Command for both single commands and multi-line scripts
             # -NoProfile for faster execution, -ExecutionPolicy Bypass for broader compatibility
@@ -226,7 +226,7 @@ class RunPowerShellCode(BaseTool):
                         if not displayed_any_output:
                             print()
                             displayed_any_output = True
-                        print(f"STDERR: {line}", file=sys.stderr)
+                        print(f"{line}", file=sys.stderr)
             except queue.Empty:
                 pass
             

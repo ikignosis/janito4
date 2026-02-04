@@ -126,6 +126,8 @@ class RunPythonCode(BaseTool):
                 shell=False,
                 bufsize=1,  # Line buffered
                 universal_newlines=True
+                encoding="utf-8",
+                env={**os.environ, "PYTHONIOENCODING": "utf-8"},
             )
             
             # Queue for handling output from threads
