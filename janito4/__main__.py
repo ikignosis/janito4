@@ -3,9 +3,9 @@
 OpenAI CLI - A simple command-line interface to interact with OpenAI-compatible endpoints.
 
 This CLI uses environment variables for configuration:
-- BASE_URL: The base URL of the OpenAI-compatible API endpoint (optional for standard OpenAI)
-- API_KEY: The API key for authentication
-- MODEL: The model name to use for completions
+- OPENAI_BASE_URL: The base URL of the OpenAI-compatible API endpoint (optional for standard OpenAI)
+- OPENAI_API_KEY: The API key for authentication
+- OPENAI_MODEL: The model name to use for completions
 
 The CLI includes function calling tools that can be used by the AI model.
 
@@ -39,11 +39,11 @@ def main():
     """Main entry point."""
     # Validate required environment variables at startup
     missing_vars = []
-    if not os.getenv("API_KEY"):
-        missing_vars.append("API_KEY")
-    if not os.getenv("MODEL"):
-        missing_vars.append("MODEL")
-    # Note: BASE_URL is optional for standard OpenAI, so we don't require it
+    if not os.getenv("OPENAI_API_KEY"):
+        missing_vars.append("OPENAI_API_KEY")
+    if not os.getenv("OPENAI_MODEL"):
+        missing_vars.append("OPENAI_MODEL")
+    # Note: OPENAI_BASE_URL is optional for standard OpenAI, so we don't require it
     
     if missing_vars:
         print(f"Error: Missing required environment variable(s): {', '.join(missing_vars)}", file=sys.stderr)
@@ -55,9 +55,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Environment Variables:
-  BASE_URL    - Base URL of the OpenAI-compatible API endpoint (optional for standard OpenAI)
-  API_KEY     - API key for authentication  
-  MODEL       - Model name to use for completions
+  OPENAI_BASE_URL    - Base URL of the OpenAI-compatible API endpoint (optional for standard OpenAI)
+  OPENAI_API_KEY     - API key for authentication  
+  OPENAI_MODEL       - Model name to use for completions
 
 Examples:
   python -m janito4 "What is the capital of France?"  # Single prompt mode
@@ -80,11 +80,24 @@ Examples:
     
     args = parser.parse_args()
     
+    # Check if stdin is not a tty (piped input)
+    if args.prompt is None and not sys.stdin.isatty():
+        # Read prompt from stdin
+        try:
+            prompt = sys.stdin.read().strip()
+            if not prompt:
+                print("Error: Empty prompt provided via stdin.", file=sys.stderr)
+                sys.exit(1)
+            args.prompt = prompt
+        except KeyboardInterrupt:
+            print("\nOperation cancelled by user.", file=sys.stderr)
+            sys.exit(130)
+    
     # Handle chat mode (when no prompt is provided)
     if args.prompt is None:
         
         # Get model name for the prompt (already validated at startup)
-        model = os.getenv("MODEL")
+        model = os.getenv("OPENAI_MODEL")
         
         print("Starting interactive chat session. Type 'exit' or 'quit' to end the session, 'restart' to clear conversation history.")
         print("Key bindings: F2 = restart conversation, F12 = Do It (auto-execute)")

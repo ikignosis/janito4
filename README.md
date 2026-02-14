@@ -4,7 +4,7 @@ A simple command-line interface to interact with OpenAI-compatible endpoints (in
 
 ## Features
 
-- Uses environment variables for configuration (`BASE_URL`, `API_KEY`, `MODEL`)
+- Uses environment variables for configuration (`OPENAI_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_MODEL`)
 - Accepts prompts as command-line arguments or from stdin
 - Works with any OpenAI-compatible endpoint
 - Simple and lightweight
@@ -30,16 +30,16 @@ A simple command-line interface to interact with OpenAI-compatible endpoints (in
 Set the following environment variables:
 
 ```bash
-# For standard OpenAI API (BASE_URL is optional)
-export API_KEY="sk-your-openai-key"
-export MODEL="gpt-4"
+# For standard OpenAI API (OPENAI_BASE_URL is optional)
+export OPENAI_API_KEY="sk-your-openai-key"
+export OPENAI_MODEL="gpt-4"
 
-# For OpenAI-compatible endpoints (set BASE_URL)
-export BASE_URL="https://api.openai.com"          # For OpenAI (explicit)
-# export BASE_URL="https://your-azure-endpoint.openai.azure.com"  # For Azure OpenAI
-# export BASE_URL="http://localhost:8080/v1"      # For local servers like LM Studio, Ollama, etc.
-export API_KEY="your-api-key-here"
-export MODEL="gpt-4"                              # Or your preferred model
+# For OpenAI-compatible endpoints (set OPENAI_BASE_URL)
+export OPENAI_BASE_URL="https://api.openai.com"          # For OpenAI (explicit)
+# export OPENAI_BASE_URL="https://your-azure-endpoint.openai.azure.com"  # For Azure OpenAI
+# export OPENAI_BASE_URL="http://localhost:8080/v1"      # For local servers like LM Studio, Ollama, etc.
+export OPENAI_API_KEY="your-api-key-here"
+export OPENAI_MODEL="gpt-4"                              # Or your preferred model
 ```
 
 ## Usage
@@ -65,34 +65,34 @@ python -m janito4
 
 ### OpenAI API:
 ```bash
-export BASE_URL="https://api.openai.com"
-export API_KEY="sk-your-openai-key"
-export MODEL="gpt-4"
+export OPENAI_BASE_URL="https://api.openai.com"
+export OPENAI_API_KEY="sk-your-openai-key"
+export OPENAI_MODEL="gpt-4"
 python -m janito4 "Explain quantum computing in simple terms"
 ```
 
 ### Local LLM (e.g., LM Studio, Ollama):
 ```bash
-export BASE_URL="http://localhost:1234/v1"  # LM Studio default
-export API_KEY="not-needed"                 # Often not required for local servers
-export MODEL="local-model-name"
+export OPENAI_BASE_URL="http://localhost:1234/v1"  # LM Studio default
+export OPENAI_API_KEY="not-needed"                 # Often not required for local servers
+export OPENAI_MODEL="local-model-name"
 python -m janito4 "What is 2+2?"
 ```
 
 ### Azure OpenAI:
 ```bash
-export BASE_URL="https://your-resource.openai.azure.com"
-export API_KEY="your-azure-api-key"
-export MODEL="your-deployment-name"
+export OPENAI_BASE_URL="https://your-resource.openai.azure.com"
+export OPENAI_API_KEY="your-azure-api-key"
+export OPENAI_MODEL="your-deployment-name"
 python -m janito4 "Summarize this text: ..."
 ```
 
 ### PowerShell Usage:
 ```powershell
 # Set environment variables for current session
-$env:BASE_URL = "https://api.openai.com"
-$env:API_KEY = "your-api-key-here"
-$env:MODEL = "gpt-4"
+$env:OPENAI_BASE_URL = "https://api.openai.com"
+$env:OPENAI_API_KEY = "your-api-key-here"
+$env:OPENAI_MODEL = "gpt-4"
 
 # Use the CLI
 python -m janito4 "What is the capital of France?"
@@ -103,9 +103,9 @@ echo "Tell me a joke" | python -m janito4
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `BASE_URL` | Base URL of the OpenAI-compatible API | `https://api.openai.com` |
-| `API_KEY` | API key for authentication | `sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` |
-| `MODEL` | Model name/deployment name to use | `gpt-4`, `gpt-3.5-turbo`, `your-local-model` |
+| `OPENAI_BASE_URL` | Base URL of the OpenAI-compatible API | `https://api.openai.com` |
+| `OPENAI_API_KEY` | API key for authentication | `sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` |
+| `OPENAI_MODEL` | Model name/deployment name to use | `gpt-4`, `gpt-3.5-turbo`, `your-local-model` |
 
 ## Tool Permissions System
 

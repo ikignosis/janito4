@@ -31,14 +31,14 @@ except (ImportError, ValueError):
 
 def get_env_vars() -> Tuple[str, str, str]:
     """Retrieve required environment variables."""
-    base_url = os.getenv("BASE_URL")
-    api_key = os.getenv("API_KEY")
-    model = os.getenv("MODEL")
+    base_url = os.getenv("OPENAI_BASE_URL")
+    api_key = os.getenv("OPENAI_API_KEY")
+    model = os.getenv("OPENAI_MODEL")
     
     if not api_key:
-        raise ValueError("API_KEY environment variable is required")
+        raise ValueError("OPENAI_API_KEY environment variable is required")
     if not model:
-        raise ValueError("MODEL environment variable is required")
+        raise ValueError("OPENAI_MODEL environment variable is required")
     
     return base_url, api_key, model
 
