@@ -112,6 +112,8 @@ if pytest is not None:
         turn=None,
         label="Messages",
         message_count=1,
+        max_input_tokens=None,
+        max_output_tokens=None,
     ):
         """Render the usage summary line through _display_usage."""
         from io import StringIO
@@ -124,8 +126,8 @@ if pytest is not None:
         console = Console(file=buf, force_terminal=False, width=120)
         _display_usage(
             usage,
-            None,
-            None,
+            max_input_tokens,
+            max_output_tokens,
             message_count,
             console,
             label=label,
@@ -242,6 +244,45 @@ if pytest is not None:
         text = _display_usage_text(None, None, _usage(1000, 200, 0), message_count=4)
         assert "Messages: 4" in text
         assert "Turn:" not in text
+
+    # ---- Input-capacity warning (80% of max input tokens) ------------
+
+    def test_usage_warning_when_input_over_80_percent():
+        """A warning is printed when In tokens exceed 80% of max input."""
+        text = _display_usage_text(
+            None, None, _usage(90_000, 10_000, 0), max_input_tokens=100_000
+        )
+        assert (
+            "Reached 80% of input capacity, consider running /compact or /clear" in text
+        )
+
+    def test_usage_warning_printed_before_usage_line():
+        """The capacity warning appears before the usage summary line."""
+        text = _display_usage_text(
+            None, None, _usage(90_000, 10_000, 0), max_input_tokens=100_000
+        )
+        lines = text.splitlines()
+        assert "Reached 80% of input capacity" in lines[0]
+        assert lines[1].startswith("=== Total:")
+
+    def test_usage_no_warning_at_exactly_80_percent():
+        """Exactly 80% of capacity does not trigger the warning."""
+        text = _display_usage_text(
+            None, None, _usage(80_000, 20_000, 0), max_input_tokens=100_000
+        )
+        assert "Reached 80% of input capacity" not in text
+
+    def test_usage_no_warning_below_80_percent():
+        """Input below 80% of capacity does not trigger the warning."""
+        text = _display_usage_text(
+            None, None, _usage(79_999, 20_001, 0), max_input_tokens=100_000
+        )
+        assert "Reached 80% of input capacity" not in text
+
+    def test_usage_no_warning_without_max_input_tokens():
+        """Without a configured max input, no capacity warning is shown."""
+        text = _display_usage_text(None, None, _usage(90_000, 10_000, 0))
+        assert "Reached 80% of input capacity" not in text
 
     # ---- Web UsageEvent serialization --------------------------------
 

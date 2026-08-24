@@ -11,6 +11,11 @@ Changes since `v4.29.0` (2026-08-20).
 
 ### Added
 
+- The CLI token-usage summary line now prints a warning (in bold yellow)
+  right before it when the input tokens exceed 80% of the model's
+  max-input-tokens capacity: "Reached 80% of input capacity, consider
+  running /compact or /clear".
+
 - Interactive chat now prints the resolved provider, model and API type
   (colorized) before starting the session, annotated with `(server-side)` or
   `(client-side)` depending on the `responses-in-server` ("keep in server")

@@ -341,6 +341,24 @@ def _display_content(full_content: str, console: Console) -> None:
         console.print(Markdown(full_content))
 
 
+def _print_input_capacity_warning(
+    max_input_tokens: int | None,
+    input_tokens: int | None,
+    console: Console,
+) -> None:
+    """Warn (bold yellow) when input tokens exceed 80% of the model capacity."""
+    if (
+        max_input_tokens is not None
+        and input_tokens is not None
+        and input_tokens > 0.8 * max_input_tokens
+    ):
+        console.print(
+            "Reached 80% of input capacity, consider running /compact or /clear",
+            style="bold yellow",
+            highlight=False,
+        )
+
+
 def _display_usage(
     usage_info: Any,
     max_input_tokens: int | None,
@@ -382,6 +400,10 @@ def _display_usage(
     the provider's cache-hit rate); it falls back to ``N/A`` when the
     provider or model is unknown, or when no cost module exists for the
     provider.
+
+    When the input tokens exceed 80% of ``max_input_tokens`` a warning in
+    the warning color (``bold yellow``) is printed just before the summary
+    line, nudging the user to run ``/compact`` or ``/clear``.
     """
     stats = normalize_usage(usage_info)
     if stats is None:
@@ -425,6 +447,8 @@ def _display_usage(
     else:
         cost = "N/A"
     parts.append(f"Cost: {cost}")
+
+    _print_input_capacity_warning(max_input_tokens, input_tokens, console)
 
     token_text = Text(f"=== {' | '.join(parts)} ===")
     token_text.stylize("bright_white on magenta")
