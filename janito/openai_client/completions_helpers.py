@@ -198,6 +198,7 @@ def _finalize_response(
     *,
     provider: str | None = None,
     model: str | None = None,
+    turn: int | None = None,
 ) -> str:
     """Record the assistant message, print the end-of-turn reports and return."""
     # Build the assistant message with reasoning_content if available
@@ -216,6 +217,9 @@ def _finalize_response(
 
     # Display token usage with magenta background
     if usage_info:
+        # ``turn`` is threaded from the caller (the interactive shell counts
+        # turns in its main loop); ``None`` falls back to the legacy
+        # ``Messages: <count>`` display in _display_usage.
         _display_usage(
             usage_info,
             max_input_tokens,
@@ -223,6 +227,7 @@ def _finalize_response(
             len(messages),
             console,
             label="Messages",
+            turn=turn,
             input_attr="prompt_tokens",
             output_attr="completion_tokens",
             cached_details_attr="prompt_tokens_details",

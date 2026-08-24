@@ -145,6 +145,7 @@ def send_prompt(
     cli_model: str | None = None,
     cli_provider: str | None = None,
     reasoning_level: str | None = None,
+    turn: int | None = None,
 ) -> str:
     """Send a prompt through the native DashScope SDK and return the answer.
 
@@ -177,6 +178,10 @@ def send_prompt(
             The native DashScope SDK does not use ``reasoning_effort``
             (thinking depth is controlled by ``thinking_budget``, which is not
             wired yet).
+        turn: The conversation turn number being completed (starting from 1).
+            Threaded from the interactive shell for the usage summary's
+            ``Turn: #<n>`` display; ``None`` falls back to counting the user
+            messages in the history.
 
     Returns:
         The assistant's final text (after any tool-call rounds).
@@ -197,6 +202,7 @@ def send_prompt(
         instructions=instructions,
         tools=tools,
         thinking=thinking,
+        turn=turn,
     )
 
 
@@ -323,6 +329,7 @@ class DashScopeClient(Client):
         console,
         provider=None,
         model=None,
+        turn=None,
     ):
         # No more tool calls, return the final response.
         return _finalize_response(
@@ -335,6 +342,7 @@ class DashScopeClient(Client):
             console,
             provider=provider,
             model=model,
+            turn=turn,
         )
 
 

@@ -50,6 +50,11 @@ def _make_send_prompt_func(
         ``gemini_api.send_prompt`` (the native Gemini SDK) and returns the
         assistant text (the history list is mutated, like Completions).
 
+    All wrappers accept a ``turn`` kwarg (the conversation turn number being
+    completed, counted by the caller's main loop) and forward it to the API
+    client so the token-usage summary can show ``Turn: #<n>``; ``None``
+    falls back to the legacy count display.
+
     Args:
         api_type: The canonical API type: "Responses", "Completions",
             "Anthropic", "DashScope" or "Gemini".
@@ -69,6 +74,7 @@ def _make_send_prompt_func(
             instructions=None,
             tools=None,
             thinking=False,
+            turn=None,
         ):
             return send_responses(
                 prompt,
@@ -81,6 +87,7 @@ def _make_send_prompt_func(
                 cli_model=cli_model,
                 cli_provider=cli_provider,
                 reasoning_level=reasoning_level,
+                turn=turn,
             )
 
         return send
@@ -99,6 +106,7 @@ def _make_send_prompt_func(
             instructions=None,
             tools=None,
             thinking=False,
+            turn=None,
         ):
             return send_anthropic(
                 prompt,
@@ -110,6 +118,7 @@ def _make_send_prompt_func(
                 cli_model=cli_model,
                 cli_provider=cli_provider,
                 reasoning_level=reasoning_level,
+                turn=turn,
             )
 
         return send
@@ -128,6 +137,7 @@ def _make_send_prompt_func(
             instructions=None,
             tools=None,
             thinking=False,
+            turn=None,
         ):
             return send_dashscope(
                 prompt,
@@ -139,6 +149,7 @@ def _make_send_prompt_func(
                 cli_model=cli_model,
                 cli_provider=cli_provider,
                 reasoning_level=reasoning_level,
+                turn=turn,
             )
 
         return send
@@ -157,6 +168,7 @@ def _make_send_prompt_func(
             instructions=None,
             tools=None,
             thinking=False,
+            turn=None,
         ):
             return send_gemini(
                 prompt,
@@ -168,6 +180,7 @@ def _make_send_prompt_func(
                 cli_model=cli_model,
                 cli_provider=cli_provider,
                 reasoning_level=reasoning_level,
+                turn=turn,
             )
 
         return send
@@ -181,6 +194,7 @@ def _make_send_prompt_func(
         instructions=None,
         tools=None,
         thinking=False,
+        turn=None,
     ):
         return send_prompt(
             prompt,
@@ -191,6 +205,7 @@ def _make_send_prompt_func(
             cli_model=cli_model,
             cli_provider=cli_provider,
             reasoning_level=reasoning_level,
+            turn=turn,
         )
 
     return send
@@ -447,6 +462,8 @@ def run_single_prompt(args):
             instructions=instructions,
             tools=tools_to_use,
             thinking=args.thinking,
+            # A single-prompt run is one submission: turn #1.
+            turn=1,
         )
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.", file=sys.stderr)

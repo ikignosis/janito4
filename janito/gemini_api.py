@@ -129,6 +129,7 @@ def send_prompt(
     cli_model: str | None = None,
     cli_provider: str | None = None,
     reasoning_level: str | None = None,
+    turn: int | None = None,
 ) -> str:
     """Send a prompt through the native Gemini SDK and return the answer.
 
@@ -162,6 +163,10 @@ def send_prompt(
         reasoning_level: Reasoning depth passed via ``--reasoning-level``.
             Sent to the native API as ``thinking_config.thinking_level``,
             which the Gemini API maps to the model's thinking depth.
+        turn: The conversation turn number being completed (starting from 1).
+            Threaded from the interactive shell for the usage summary's
+            ``Turn: #<n>`` display; ``None`` falls back to counting the user
+            messages in the history.
 
     Returns:
         The assistant's final text (after any tool-call rounds).
@@ -182,6 +187,7 @@ def send_prompt(
         instructions=instructions,
         tools=tools,
         thinking=thinking,
+        turn=turn,
     )
 
 

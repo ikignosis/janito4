@@ -107,6 +107,9 @@ class Client:
         ``send_prompt`` signature (e.g. ``previous_messages``,
         ``previous_response_id``, ``previous_items``, ``instructions``); each
         subclass's :meth:`_init_conversation_state` picks the ones it needs.
+        The optional ``turn`` kwarg (the conversation turn number being
+        completed, starting from 1) is extracted here and forwarded to
+        :meth:`_finalize` for the usage summary display.
 
         Returns:
             The API-specific turn result: the assistant text (``str``) for the
@@ -117,6 +120,14 @@ class Client:
         # "Used files" report only describe the current prompt.
         clear_changes()
         reset_used_files()
+
+        # Turn number for the usage summary display (see _display_usage):
+        # the conversation turn being completed, starting from 1, counted by
+        # the caller's main loop (the interactive shell). None when the
+        # caller does not track turns (e.g. /ask, direct API calls or
+        # /compact's side call); _display_usage then falls back to the
+        # legacy ``{label}: {message_count}`` display.
+        turn = kwargs.pop("turn", None)
 
         base_url, api_key, model = self._resolve_runtime_config()
         client = self._create_sdk_client(base_url, api_key)
@@ -229,6 +240,7 @@ class Client:
                 console,
                 provider=provider,
                 model=model,
+                turn=turn,
             )
 
     # ------------------------------------------------------------------
@@ -359,6 +371,7 @@ class Client:
         console,
         provider=None,
         model=None,
+        turn=None,
     ):
         """Record the final assistant message, print reports and return the result."""
         raise NotImplementedError

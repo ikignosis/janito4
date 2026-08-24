@@ -349,6 +349,7 @@ def _display_usage(
     console: Console,
     *,
     label: str = "Messages",
+    turn: int | None = None,
     input_attr: str = "prompt_tokens",
     output_attr: str = "completion_tokens",
     cached_details_attr: str | None = "prompt_tokens_details",
@@ -367,6 +368,13 @@ def _display_usage(
     ``output_attr`` are retained for signature compatibility; pass
     ``cached_details_attr=None`` to skip the cached-token read for APIs that
     do not report it.
+
+    The ``Turn: #<n>`` part counts the conversation turn being completed,
+    starting from 1 after the first message is submitted.  The value is
+    counted by the caller's main loop (the interactive shell) and threaded
+    down through ``turn``; callers that do not track turns (``turn`` is
+    ``None``) fall back to the legacy ``{label}: {message_count}`` part.
+    ``label`` / ``message_count`` always feed the ``INFO`` log line.
 
     ``Cost: <cost>`` is computed through
     :func:`janito.provider_accessors.get_provider_cost` from the provider /
@@ -402,7 +410,10 @@ def _display_usage(
             parts.append(f"Out: {format_tokens(output_tokens)}")
     if cached_tokens is not None:
         parts.append(f"Cached: {format_tokens(cached_tokens)}")
-    parts.append(f"{label}: {message_count}")
+    if turn is not None:
+        parts.append(f"Turn: #{turn}")
+    else:
+        parts.append(f"{label}: {message_count}")
     if provider is not None and model is not None:
         cost = get_provider_cost(
             provider,

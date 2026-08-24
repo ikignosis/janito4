@@ -169,6 +169,7 @@ def send_prompt(
     cli_model: str | None = None,
     cli_provider: str | None = None,
     reasoning_level: str | None = None,
+    turn: int | None = None,
 ) -> ConversationResult:
     """Send a prompt to the Responses API and return the final answer.
 
@@ -213,6 +214,11 @@ def send_prompt(
             (overrides the provider's configured value and built-in default).
             Sent to the API as ``reasoning_effort`` under the ``reasoning``
             parameter.
+        turn: The conversation turn number being completed (starting from 1).
+            Threaded from the interactive shell for the usage summary's
+            ``Turn: #<n>`` display; ``None`` falls back to counting the user
+            messages in the history (stateless) or 1 (server-side fresh
+            conversation).
 
     Returns:
         ConversationResult: the final assistant text plus, depending on the
@@ -234,6 +240,7 @@ def send_prompt(
         instructions=instructions,
         tools=tools,
         thinking=thinking,
+        turn=turn,
     )
 
 
@@ -439,6 +446,7 @@ class ResponsesClient(Client):
         console,
         provider=None,
         model=None,
+        turn=None,
     ):
         # Server-side: the assistant message lives on the server and the
         # caller only needs the response id to chain the next turn. Stateless:
@@ -457,6 +465,7 @@ class ResponsesClient(Client):
             turn_items=state["turn_items"],
             provider=provider,
             model=model,
+            turn=turn,
         )
 
 

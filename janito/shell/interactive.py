@@ -125,6 +125,12 @@ class InteractiveShell(_SessionMixin):
         # Set True by the /exit command handler; signals the run loop to
         # break and end the session
         self.exit_requested = False
+        # Conversation turn counter for the token-usage summary line: counts
+        # every prompt submitted in this conversation, starting from 1 after
+        # the first message is submitted. Reset to 0 on a fresh conversation
+        # (F2 clear / "clear" / startup) and threaded to the API client as
+        # ``turn`` so the summary shows ``Turn: #<n>``.
+        self.turn_count = 0
         # Set by /multi for the next prompt only; automatically resets
         # after a multiline input is submitted
         self.multiline_mode = False
@@ -167,6 +173,9 @@ class InteractiveShell(_SessionMixin):
         # completed server-side turns.
         self.mirrored_history = []
         self.mirrored_checkpoint = 0
+        # A fresh conversation restarts the turn counter for the usage
+        # summary (Turn: #1 is the next submitted message).
+        self.turn_count = 0
 
     def get_system_prompt(self) -> str | None:
         """Get the current system prompt."""
@@ -355,6 +364,10 @@ class InteractiveShell(_SessionMixin):
         )
         self.response_checkpoint = len(self.response_chain)
         self.mirrored_checkpoint = len(self.mirrored_history)
+        # Count this submission as the next turn (Turn: #1 is the first
+        # message submitted in the conversation) and thread the number to the
+        # API client, which shows it on the token-usage summary line.
+        self.turn_count += 1
         try:
             result = self.send_prompt_func(
                 user_input,
@@ -365,6 +378,7 @@ class InteractiveShell(_SessionMixin):
                 instructions=self.get_system_prompt(),
                 tools=tools_to_use,
                 thinking=self.thinking,
+                turn=self.turn_count,
             )
             # Responses API mode keeps the conversation state the provider
             # uses; Completions mode returns plain text and updates

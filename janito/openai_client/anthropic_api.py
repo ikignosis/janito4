@@ -132,6 +132,7 @@ def send_prompt(
     cli_model: str | None = None,
     cli_provider: str | None = None,
     reasoning_level: str | None = None,
+    turn: int | None = None,
 ) -> str:
     """Send a prompt through the native Anthropic SDK and return the answer.
 
@@ -161,6 +162,10 @@ def send_prompt(
         cli_provider: Provider passed via ``--provider`` (overrides config/auth).
         reasoning_level: Accepted for signature parity with the other clients.
             The native Anthropic SDK does not use ``reasoning_effort``.
+        turn: The conversation turn number being completed (starting from 1).
+            Threaded from the interactive shell for the usage summary's
+            ``Turn: #<n>`` display; ``None`` falls back to counting the user
+            messages in the history.
 
     Returns:
         The assistant's final text (after any tool-call rounds).
@@ -181,6 +186,7 @@ def send_prompt(
         instructions=instructions,
         tools=tools,
         thinking=thinking,
+        turn=turn,
     )
 
 
@@ -311,6 +317,7 @@ class AnthropicClient(Client):
         console,
         provider=None,
         model=None,
+        turn=None,
     ):
         # No more tool calls, return the final response.
         return _finalize_response(
@@ -322,6 +329,7 @@ class AnthropicClient(Client):
             console,
             provider=provider,
             model=model,
+            turn=turn,
         )
 
 
@@ -456,6 +464,7 @@ def _finalize_response(
     *,
     provider: str | None = None,
     model: str | None = None,
+    turn: int | None = None,
 ) -> str:
     """Record the final assistant message, print reports and return."""
     # No more tool calls, return the final response. Record the final
@@ -470,6 +479,9 @@ def _finalize_response(
 
     # Display token usage with magenta background
     if usage_info:
+        # ``turn`` is threaded from the caller (the interactive shell counts
+        # turns in its main loop); ``None`` falls back to the legacy
+        # ``Messages: <count>`` display in _display_usage.
         _display_usage(
             usage_info,
             max_input_tokens,
@@ -477,6 +489,7 @@ def _finalize_response(
             len(messages),
             console,
             label="Messages",
+            turn=turn,
             input_attr="input_tokens",
             output_attr="output_tokens",
             cached_details_attr=None,

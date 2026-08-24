@@ -70,6 +70,8 @@ class AskCmdHandler(CmdHandler):
                 instructions="You are an helpful assistant",
                 tools=[],
                 thinking=thinking,
+                # /ask is a fresh, isolated conversation: one turn.
+                turn=1,
             )
         except KeyboardInterrupt:
             print(

@@ -49,3 +49,12 @@ Changes since `v4.29.0` (2026-08-20).
   the position where each checkpoint was added, and `/rewind` steps back
   one turn at a time through the checkpoint list. The web backend mirrors
   the same list-based checkpoint behaviour for Ctrl+C / error rollback.
+
+- The CLI token-usage summary line (`=== Total: ... | In: ... | Out: ...
+  ===`) now shows the conversation turn being completed as `Turn: #<n>`
+  (counted by the interactive shell's main loop, starting from 1 after the
+  first message is submitted) instead of the per-API `Messages: <count>` /
+  `Responses: <count>` part. The turn is threaded through the send
+  wrappers; callers that do not track turns (e.g. `/compact`'s internal
+  compression call) keep the legacy count display, and the `INFO` log line
+  still reports the message count.

@@ -283,6 +283,7 @@ def _finalize_conversation(
     *,
     provider: str | None = None,
     model: str | None = None,
+    turn: int | None = None,
 ) -> Any:
     """Assemble the final ConversationResult and print the end-of-turn reports."""
     from .conversations_api import ConversationResult
@@ -308,6 +309,9 @@ def _finalize_conversation(
 
     # Display token usage with magenta background
     if usage_info:
+        # ``turn`` is threaded from the caller (the interactive shell counts
+        # turns in its main loop); ``None`` falls back to the legacy
+        # ``Responses: <count>`` display in _display_usage.
         _display_usage(
             usage_info,
             max_input_tokens,
@@ -315,6 +319,7 @@ def _finalize_conversation(
             message_count,
             console,
             label="Responses",
+            turn=turn,
             input_attr="input_tokens",
             output_attr="output_tokens",
             cached_details_attr="input_tokens_details",
