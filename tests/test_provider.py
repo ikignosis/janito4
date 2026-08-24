@@ -150,9 +150,14 @@ if pytest is not None:
         """get_provider_cost() delegates to the provider's cost module."""
         from datetime import datetime, timezone
 
-        # Off-peak (e.g. 12:00 UTC) and peak (e.g. 08:00 UTC) request times.
-        off_peak = datetime(2026, 8, 16, 12, 0, tzinfo=timezone.utc)
-        peak = datetime(2026, 8, 16, 8, 0, tzinfo=timezone.utc)
+        # Weekday (Monday 2026-08-17 in Beijing Time) off-peak (12:00 UTC)
+        # and peak (08:00 UTC) request times: the peak/off-peak split only
+        # applies on weekdays.
+        off_peak = datetime(2026, 8, 17, 12, 0, tzinfo=timezone.utc)
+        peak = datetime(2026, 8, 17, 8, 0, tzinfo=timezone.utc)
+        # Weekend (Saturday 2026-08-22 in Beijing Time) request time inside
+        # the weekday peak window: weekends charge the off-peak rate all day.
+        weekend_peak = datetime(2026, 8, 22, 8, 0, tzinfo=timezone.utc)
         # DeepSeek ships a cost module: V4-Flash at $0.22 / $0.007 (cache
         # hit) / $0.66 output per 1M tokens (off-peak), formatted as
         # NN.DDDDDD$ plus the applied rate band; peak hours double the rates.
@@ -197,6 +202,19 @@ if pytest is not None:
                 now=peak,
             )
             == "1.760000$ (peak)"
+        )
+        # Weekend requests are billed at the off-peak rate all day, even at
+        # what would be a weekday peak hour (08:00 UTC).
+        assert (
+            pa.get_provider_cost(
+                "deepseek",
+                "deepseek-v4-flash",
+                1_000_000,
+                1_000_000,
+                0,
+                now=weekend_peak,
+            )
+            == "0.880000$ (off-peak)"
         )
         # Alibaba ships a cost module: qwen3.8-max at $2 / $0.25 (implicit
         # cache hit) / $6 output per 1M tokens, formatted as NN.DDDDDD$.
@@ -491,6 +509,9 @@ if pytest is not None:
 
         from janito.providers.deepseek.cost import get_cost as deepseek_get_cost
 
+        # 2026-08-16 is a Sunday in Beijing Time: weekends normally bill the
+        # off-peak rate all day, but reference requests override that and
+        # still bill at the peak (double) rates without a rate-band suffix.
         off_peak = datetime(2026, 8, 16, 12, 0, tzinfo=timezone.utc)
         peak = datetime(2026, 8, 16, 8, 0, tzinfo=timezone.utc)
         # Off-peak reference request: billed as peak (double), no suffix.
@@ -529,6 +550,68 @@ if pytest is not None:
                 is_reference=True,
             )
             == "1.547000$"
+        )
+
+    def test_deepseek_weekend_off_peak_all_day():
+        """DeepSeek bills the off-peak rate all day on weekends (Beijing Time)."""
+        from datetime import datetime, timezone
+
+        from janito.providers.deepseek.cost import get_cost as deepseek_get_cost
+
+        # Weekday (Monday 2026-08-17 in Beijing Time): the peak/off-peak
+        # split remains in effect.
+        mon_off_peak = datetime(2026, 8, 17, 12, 0, tzinfo=timezone.utc)
+        mon_peak = datetime(2026, 8, 17, 8, 0, tzinfo=timezone.utc)
+        # Weekend (Saturday 2026-08-22 / Sunday 2026-08-16 in Beijing Time):
+        # 08:00 UTC is inside the weekday peak window; 12:00 UTC is off-peak.
+        sat_peak = datetime(2026, 8, 22, 8, 0, tzinfo=timezone.utc)
+        sat_off_peak = datetime(2026, 8, 22, 12, 0, tzinfo=timezone.utc)
+        sun_peak = datetime(2026, 8, 16, 8, 0, tzinfo=timezone.utc)
+        # Weekday: off-peak hour stays off-peak, peak hour stays peak (2x).
+        assert (
+            deepseek_get_cost(
+                "deepseek-v4-flash", 1_000_000, 1_000_000, 0, now=mon_off_peak
+            )
+            == "0.880000$ (off-peak)"
+        )
+        assert (
+            deepseek_get_cost(
+                "deepseek-v4-flash", 1_000_000, 1_000_000, 0, now=mon_peak
+            )
+            == "1.760000$ (peak)"
+        )
+        # Weekend: uniform off-peak rate for the whole day, including what
+        # would be a weekday peak hour (08:00 UTC).
+        assert (
+            deepseek_get_cost(
+                "deepseek-v4-flash", 1_000_000, 1_000_000, 0, now=sat_peak
+            )
+            == "0.880000$ (off-peak)"
+        )
+        assert (
+            deepseek_get_cost(
+                "deepseek-v4-flash", 1_000_000, 1_000_000, 0, now=sat_off_peak
+            )
+            == "0.880000$ (off-peak)"
+        )
+        assert (
+            deepseek_get_cost(
+                "deepseek-v4-flash", 1_000_000, 1_000_000, 0, now=sun_peak
+            )
+            == "0.880000$ (off-peak)"
+        )
+        # Reference requests still bill at the peak rates on weekends and
+        # drop the rate-band suffix.
+        assert (
+            deepseek_get_cost(
+                "deepseek-v4-flash",
+                1_000_000,
+                1_000_000,
+                0,
+                now=sat_peak,
+                is_reference=True,
+            )
+            == "1.760000$"
         )
 
     def test_get_provider_cost_forwards_is_reference(monkeypatch):

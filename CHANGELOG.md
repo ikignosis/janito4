@@ -18,6 +18,13 @@ Changes since `v4.29.0` (2026-08-20).
 
 ### Changed
 
+- DeepSeek cost estimates now apply the peak/off-peak split only on
+  weekdays (Monday to Friday in Beijing Time).  On weekends (Saturday and
+  Sunday in Beijing Time) the peak-hour divisions no longer apply: every
+  call is charged uniformly at the off-peak rate for the whole day.
+  Reference requests are unaffected (they keep billing at the peak rates
+  regardless of the request time and day).
+
 - Conversation history checkpoints are now kept as a list instead of a
   single value: a checkpoint is recorded every time a new user prompt is
   about to be sent, holding the number of rows `/history` would render at
