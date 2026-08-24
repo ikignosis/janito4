@@ -16,6 +16,22 @@ Changes since `v4.29.0` (2026-08-20).
   `(client-side)` depending on the `responses-in-server` ("keep in server")
   config.
 
+- New `/compact` shell command compresses older conversation history: the
+  last 3 turns (checkpoints) are kept verbatim and everything before them
+  (after the system prompt) is replaced by a single `[RECAP OF PRIOR WORK]`
+  assistant message produced by a dedicated LLM call using the Context
+  Compression Engine system prompt (strict JSON extraction of goal,
+  completed steps, blockers, constraints, code state and open questions).
+  The command works in every API mode (Completions/Anthropic/DashScope/
+  Gemini client-side history, stateless Responses items and server-side
+  Responses conversations) and is disabled with a "Conversation too short to
+  compact effectively." warning when there is nothing worth compacting
+  (fewer than 3 turns or under 2,000 estimated tokens to replace). Tool-call
+  rounds in the compacted zone are sent to the compression call in their
+  native format (Completions `tool_calls`/`tool` messages, Responses
+  `function_call`/`function_call_output` items) so the provider never
+  receives an invalid message role.
+
 ### Changed
 
 - DeepSeek cost estimates now apply the peak/off-peak split only on
