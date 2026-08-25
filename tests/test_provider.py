@@ -315,10 +315,10 @@ if pytest is not None:
             == "1.920000$"
         )
         # The GPT-5.6 family also covers Sol and Terra:
-        # sol: 100k * $5.00 + 1M * $30.00 = 30.50.
+        # sol: 100k * $4.00 + 1M * $20.00 = 20.40.
         assert (
             pa.get_provider_cost("openai", "gpt-5.6-sol", 100_000, 1_000_000, 0)
-            == "30.500000$"
+            == "20.400000$"
         )
         # terra: 100k * $2.00 + 1M * $12.00 = 12.20.
         assert (

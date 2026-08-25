@@ -31,7 +31,7 @@ reads (cache miss + cache hit) and output only.
 #: lower cache-read rate (10% of the input rate) instead of the cache-miss
 #: rate.  There is no peak-hour surcharge.
 _MODEL_RATES: dict[str, tuple[float, float, float]] = {
-    "gpt-5.6-sol": (5.00, 0.50, 30.00),
+    "gpt-5.6-sol": (4.00, 0.40, 20.00),
     "gpt-5.6-terra": (2.00, 0.20, 12.00),
     "gpt-5.6-luna": (0.20, 0.02, 1.20),
 }
