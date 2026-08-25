@@ -25,6 +25,9 @@ Changes since `v4.30.0` (2026-08-24).
   file: llms.txt content is exempt from the `threshold`/temp-file behaviour
   and is always returned inline in full (regular fetches keep storing
   oversized content to a temp file as before).
+- The `RunGitHubCLI` tool schema now exposes a clear `cmdline` parameter
+  description stating that the value is appended after the `gh` command and
+  that `gh` itself must not be included (it is prepended automatically).
 
 ### Fixed
 

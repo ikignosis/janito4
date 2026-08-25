@@ -92,6 +92,12 @@ class RunGitHubCLI(BaseTool):
     - Only execute trusted `gh` commands
     - Be cautious with commands that mutate state (e.g. `gh pr merge`)
     - The CLI uses whatever credentials are configured via `gh auth`
+
+    Args:
+        cmdline (str): The exact arguments to append after the `gh` command
+            (e.g. "repo list --limit 5"). Do NOT include "gh" itself — it is
+            prepended automatically, so passing "repo list --limit 5" runs
+            `gh repo list --limit 5`.
     """
 
     # Cached result of executable detection (None = not found or not checked yet)
@@ -154,9 +160,10 @@ class RunGitHubCLI(BaseTool):
         pass ``"repo list"`` to run ``gh repo list``.
 
         Args:
-            cmdline (str): The command line arguments to pass to `gh`
-                (e.g. "repo list --limit 5").  Do NOT include the leading
-                "gh" — it is prepended automatically.
+            cmdline (str): The exact arguments to append after the `gh`
+                command (e.g. "repo list --limit 5"). Do NOT include "gh"
+                itself — it is prepended automatically, so passing
+                "repo list --limit 5" runs `gh repo list --limit 5`.
 
         Returns:
             Dict[str, Any]: A dictionary containing:
