@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Changes since `v4.30.0` (2026-08-24).
 
+### Added
+
+- `GetUrl` now discovers and returns `llms.txt` site maps: before fetching a
+  site URL it probes `<origin>/llms.txt` and `<origin>/.well-known/llms.txt`
+  with lightweight `HEAD` requests and, when one answers `200 OK`, fetches it
+  with a `GET` request and returns the content as-is (no Markdown parsing,
+  never truncated by `max_length`/`max_lines`) instead of the requested page. Discovery probes are silent; only a
+  successful retrieval is reported, and if no `llms.txt` exists the tool falls
+  back to its regular fetch behavior.
+
+### Changed
+
+- `GetUrl` no longer stores oversized `llms.txt` site maps in a temporary
+  file: llms.txt content is exempt from the `threshold`/temp-file behaviour
+  and is always returned inline in full (regular fetches keep storing
+  oversized content to a temp file as before).
+
 ### Fixed
 
 - Update the GPT-5.6 Sol cost estimate to OpenAI's promotional pricing

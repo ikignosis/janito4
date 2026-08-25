@@ -16,6 +16,7 @@ import os
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any
 
@@ -27,6 +28,14 @@ from ...tooling.decorator import tool
 # large payloads tends to blow up the model context / JSON result, so we store
 # them on disk and hand back a pointer instead.
 BIG_CONTENT_THRESHOLD = 10_000
+
+# llms.txt site map discovery locations, checked in priority order:
+# 1. root level: <origin>/llms.txt
+# 2. well-known path: <origin>/.well-known/llms.txt
+LLMS_TXT_ROOT_PATH = "/llms.txt"
+LLMS_TXT_WELL_KNOWN_PATH = "/.well-known/llms.txt"
+
+USER_AGENT = "Mozilla/5.0 (compatible; AI-Tool/1.0)"
 
 # Temporary files created by GetUrl for oversized content. They are removed
 # automatically when the janito process exits.
@@ -62,13 +71,69 @@ class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def _build_opener(follow_redirects: bool) -> urllib.request.OpenerDirector:
+    """Build an opener that respects the follow_redirects flag."""
+    if follow_redirects:
+        return urllib.request.build_opener()
+    return urllib.request.build_opener(_NoRedirectHandler)
+
+
+def _head_ok(url: str, timeout: int | None, follow_redirects: bool) -> bool:
+    """Return True when a lightweight HEAD request to url answers 200 OK.
+
+    Used for llms.txt discovery. Failures are silent (no reporting) so the
+    caller simply falls back to its regular fetch behaviour.
+    """
+    try:
+        req = urllib.request.Request(url, method="HEAD")
+        req.add_header("User-Agent", USER_AGENT)
+        with _build_opener(follow_redirects).open(req, timeout=timeout) as response:
+            return response.getcode() == 200
+    except Exception:
+        return False
+
+
+def _discover_llms_txt(
+    url: str,
+    timeout: int | None,
+    follow_redirects: bool,
+) -> str | None:
+    """Try to discover an llms.txt site map for url (silent, no reporting).
+
+    Checks the root level (``<origin>/llms.txt``) first and, only if that
+    fails, the well-known path (``<origin>/.well-known/llms.txt``). Each
+    location is probed with a lightweight HEAD request; the first one answering
+    200 OK is returned. Returns None when the requested URL is itself an
+    llms.txt file or when no location exists (the caller then falls back to
+    its regular fetch behaviour).
+    """
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return None
+    path = (parsed.path or "").rstrip("/")
+    if path in (LLMS_TXT_ROOT_PATH, LLMS_TXT_WELL_KNOWN_PATH):
+        # Already fetching an llms.txt file itself - no discovery loop.
+        return None
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+    for candidate in (
+        f"{origin}{LLMS_TXT_ROOT_PATH}",
+        f"{origin}{LLMS_TXT_WELL_KNOWN_PATH}",
+    ):
+        if _head_ok(candidate, timeout=timeout, follow_redirects=follow_redirects):
+            return candidate
+    return None
+
+
 @tool(permissions="r")
 class GetUrl(BaseTool):
     """
     Tool for fetching content from web URLs.
 
     This tool retrieves content from HTTP/HTTPS URLs and returns the response.
-    It supports various options for controlling the request behavior.
+    Before fetching a site URL (a hostname or hostname/path) it tries to
+    discover an ``llms.txt`` site map at the root and ``.well-known``
+    locations; when one exists its content is returned as-is instead of the
+    requested page.
     """
 
     def run(
@@ -83,6 +148,15 @@ class GetUrl(BaseTool):
         """
         Fetch content from a URL and return results.
 
+        Before fetching, the tool attempts llms.txt discovery: it probes
+        ``<origin>/llms.txt`` (root level) and, if that fails,
+        ``<origin>/.well-known/llms.txt`` (well-known path) with lightweight
+        HEAD requests. If one answers 200 OK, the file is fetched with a GET
+        request and its content is returned as-is (no Markdown parsing, never
+        truncated by max_length/max_lines). The discovery probes are silent;
+        only a successful retrieval is reported. If no llms.txt exists, the
+        tool falls back to fetching the requested URL normally.
+
         Args:
             url (str): The URL to fetch content from (must be http:// or https://)
             max_length (Optional[int]): Maximum number of characters to return (default: 5000)
@@ -91,7 +165,8 @@ class GetUrl(BaseTool):
             follow_redirects (bool): Whether to follow HTTP redirects (default: True)
             threshold (Optional[int]): Content size (in characters) above which the
                 full content is written to a temporary file instead of being returned
-                inline. Pass None to disable. (default: 10000)
+                inline. Pass None to disable. llms.txt content is never stored to a
+                file - it is always returned inline in full. (default: 10000)
 
         Returns:
             Dict[str, Any]: A dictionary containing:
@@ -100,6 +175,8 @@ class GetUrl(BaseTool):
                 - 'message': message returned when content was too big and stored to a file
                 - 'tmp_filename': path to the temporary file (only when content was too big)
                 - 'too_big': bool (only present when content was stored to a temp file)
+                - 'llms_txt': bool (only present when the content comes from an llms.txt file)
+                - 'original_url': the originally requested URL (only when llms_txt is present)
                 - 'url': the URL that was fetched
                 - 'status_code': HTTP status code (if available)
                 - 'content_length': length of content in bytes
@@ -116,98 +193,38 @@ class GetUrl(BaseTool):
                     "url": url,
                 }
 
-            self.report_start(f"🌐 Fetching URL: {url}")
-
-            start_time = time.time()
-
-            # Build the request
-            req = urllib.request.Request(url)
-            req.add_header("User-Agent", "Mozilla/5.0 (compatible; AI-Tool/1.0)")
-
-            # Build an opener that respects follow_redirects
-            if follow_redirects:
-                opener = urllib.request.build_opener()
-            else:
-                opener = urllib.request.build_opener(_NoRedirectHandler)
-
-            try:
-                response = opener.open(req, timeout=timeout)
-            except urllib.error.HTTPError as e:
-                execution_time_ms = int((time.time() - start_time) * 1000)
-                self.report_error(f"HTTP Error {e.code}: {e.reason}")
-                return {
-                    "success": False,
-                    "error": f"HTTP Error {e.code}: {e.reason}",
-                    "url": url,
-                    "status_code": e.code,
-                    "execution_time_ms": execution_time_ms,
-                }
-
-            # Read content
-            content = response.read().decode("utf-8", errors="replace")
-            status_code = response.getcode()
-            content_length = len(content.encode("utf-8"))
-            total_lines = content.count("\n") + (
-                1 if content and not content.endswith("\n") else 0
+            # Try llms.txt discovery first. The probes are silent; only a
+            # successful retrieval is reported.
+            llms_url = _discover_llms_txt(
+                url, timeout=timeout, follow_redirects=follow_redirects
             )
-
-            execution_time_ms = int((time.time() - start_time) * 1000)
-
-            # If the full content is too big, store it in a temporary file
-            # instead of returning it inline (which would blow up the model
-            # context).
-            if threshold is not None and len(content) > threshold:
-                tmp = tempfile.NamedTemporaryFile(
-                    mode="w",
-                    suffix=".txt",
-                    prefix="janito_geturl_",
-                    encoding="utf-8",
-                    delete=False,
+            if llms_url:
+                self.report_result(f"Retrieved llms.txt from {llms_url}")
+                return self._fetch_content(
+                    url=llms_url,
+                    original_url=url,
+                    timeout=timeout,
+                    follow_redirects=follow_redirects,
+                    max_length=max_length,
+                    max_lines=max_lines,
+                    threshold=threshold,
+                    llms_txt=True,
+                    report_fetch_result=False,
                 )
-                tmp.write(content)
-                tmp.close()
 
-                _track_temp_file(tmp.name)
+            self.report_start(f"\U0001f310 Fetching URL: {url}")
 
-                message = f"Content was too big, stored at {tmp.name}, use search methods to explore it."
-                self.report_warning(message)
-
-                return {
-                    "success": True,
-                    "message": message,
-                    "too_big": True,
-                    "tmp_filename": tmp.name,
-                    "url": url,
-                    "status_code": status_code,
-                    "content_length": content_length,
-                    "lines_returned": total_lines,
-                    "execution_time_ms": execution_time_ms,
-                }
-
-            # Apply limits
-            if max_length is not None and len(content) > max_length:
-                content = content[:max_length] + "... [truncated]"
-
-            if max_lines is not None:
-                lines = content.split("\n")
-                if len(lines) > max_lines:
-                    content = "\n".join(lines[:max_lines]) + "\n... [truncated]"
-
-            lines_returned = len(content.split("\n"))
-
-            self.report_result(
-                f"Fetched {content_length} bytes ({lines_returned} lines)"
+            return self._fetch_content(
+                url=url,
+                original_url=url,
+                timeout=timeout,
+                follow_redirects=follow_redirects,
+                max_length=max_length,
+                max_lines=max_lines,
+                threshold=threshold,
+                llms_txt=False,
+                report_fetch_result=True,
             )
-
-            return {
-                "success": True,
-                "content": content,
-                "url": url,
-                "status_code": status_code,
-                "content_length": content_length,
-                "lines_returned": lines_returned,
-                "execution_time_ms": execution_time_ms,
-            }
 
         except urllib.error.URLError as e:
             self.report_error(f"URL Error: {e.reason}")
@@ -223,6 +240,112 @@ class GetUrl(BaseTool):
                 "error": f"Failed to fetch URL: {e!s}",
                 "url": url,
             }
+
+    def _fetch_content(
+        self,
+        url: str,
+        original_url: str,
+        *,
+        timeout: int | None,
+        follow_redirects: bool,
+        max_length: int | None,
+        max_lines: int | None,
+        threshold: int | None,
+        llms_txt: bool,
+        report_fetch_result: bool,
+    ) -> dict[str, Any]:
+        """Perform the GET request and build the result dict."""
+        start_time = time.time()
+
+        # Build the request
+        req = urllib.request.Request(url)
+        req.add_header("User-Agent", USER_AGENT)
+
+        try:
+            response = _build_opener(follow_redirects).open(req, timeout=timeout)
+        except urllib.error.HTTPError as e:
+            execution_time_ms = int((time.time() - start_time) * 1000)
+            self.report_error(f"HTTP Error {e.code}: {e.reason}")
+            return {
+                "success": False,
+                "error": f"HTTP Error {e.code}: {e.reason}",
+                "url": url,
+                "status_code": e.code,
+                "execution_time_ms": execution_time_ms,
+            }
+
+        # Read content
+        content = response.read().decode("utf-8", errors="replace")
+        status_code = response.getcode()
+        content_length = len(content.encode("utf-8"))
+        total_lines = content.count("\n") + (
+            1 if content and not content.endswith("\n") else 0
+        )
+
+        execution_time_ms = int((time.time() - start_time) * 1000)
+
+        base = {
+            "url": url,
+            "status_code": status_code,
+            "content_length": content_length,
+            "lines_returned": total_lines,
+            "execution_time_ms": execution_time_ms,
+        }
+        if llms_txt:
+            base["llms_txt"] = True
+            base["original_url"] = original_url
+
+        # If the full content is too big, store it in a temporary file
+        # instead of returning it inline (which would blow up the model
+        # context). llms.txt site maps are exempt: they are always returned
+        # inline in full, never written to a temporary file.
+        if not llms_txt and threshold is not None and len(content) > threshold:
+            tmp = tempfile.NamedTemporaryFile(
+                mode="w",
+                suffix=".txt",
+                prefix="janito_geturl_",
+                encoding="utf-8",
+                delete=False,
+            )
+            tmp.write(content)
+            tmp.close()
+
+            _track_temp_file(tmp.name)
+
+            message = f"Content was too big, stored at {tmp.name}, use search methods to explore it."
+            self.report_warning(message)
+
+            return {
+                "success": True,
+                "message": message,
+                "too_big": True,
+                "tmp_filename": tmp.name,
+                **base,
+            }
+
+        # Apply limits (never to llms.txt content - it is returned as-is).
+        if not llms_txt:
+            if max_length is not None and len(content) > max_length:
+                content = content[:max_length] + "... [truncated]"
+
+            if max_lines is not None:
+                lines = content.split("\n")
+                if len(lines) > max_lines:
+                    content = "\n".join(lines[:max_lines]) + "\n... [truncated]"
+
+        lines_returned = len(content.split("\n"))
+
+        if report_fetch_result:
+            self.report_result(
+                f"Fetched {content_length} bytes ({lines_returned} lines)"
+            )
+
+        return {
+            "success": True,
+            **base,
+            "content": content,
+            "lines_returned": lines_returned,
+        }
 
 
 # CLI interface for testing
@@ -307,6 +430,10 @@ Examples:
             if result.get("too_big"):
                 print("? Content too big - stored to a temporary file")
                 print(f"  URL: {result['url']}")
+                if result.get("llms_txt"):
+                    print(
+                        f"  Source: llms.txt (site map) for {result.get('original_url', 'N/A')}"
+                    )
                 print(f"  Status: {result.get('status_code', 'N/A')}")
                 print(f"  Content length: {result.get('content_length', 'N/A')} bytes")
                 print(f"  Lines: {result.get('lines_returned', 'N/A')}")
@@ -318,6 +445,10 @@ Examples:
                 return 0
 
             print("? URL fetch successful")
+            if result.get("llms_txt"):
+                print(
+                    f"  Source: llms.txt (site map) for {result.get('original_url', 'N/A')}"
+                )
             print(f"  URL: {result['url']}")
             print(f"  Status: {result.get('status_code', 'N/A')}")
             print(f"  Content length: {result.get('content_length', 'N/A')} bytes")

@@ -38,6 +38,23 @@ See [Secrets](../configuration/secrets.md) for more on the secrets store.
 
 `GetUrl` fetches content from any `http://` or `https://` URL and requires no setup.
 
+#### `llms.txt` site maps
+
+Before fetching a site URL (a hostname or hostname/path), `GetUrl` looks for an
+[`llms.txt`](https://llmstxt.org/) site map. It probes the two standard
+locations in priority order with lightweight `HEAD` requests (to minimize
+bandwidth):
+
+1. `<origin>/llms.txt` — root level
+2. `<origin>/.well-known/llms.txt` — well-known path
+
+If one of them answers `200 OK`, the tool fetches it with a `GET` request and
+returns its content **as-is** (no Markdown parsing) as a map for further
+exploration. The discovery probes are silent — only a successful retrieval is
+reported. When no `llms.txt` exists, the tool falls back to fetching the
+requested URL normally. Fetching an `llms.txt` URL directly never triggers a
+discovery loop.
+
 ### HeadlessBrowse
 
 `HeadlessBrowse` renders a URL with **headless Google Chrome** and returns the
@@ -82,11 +99,12 @@ janito "Browse https://example.com with headless Chrome and summarize what it sh
 | `max_lines` | int | `200` | Maximum number of lines to return |
 | `timeout` | int | `10` | Request timeout in seconds |
 | `follow_redirects` | bool | `True` | Whether to follow HTTP redirects |
-| `threshold` | int | `10000` | Content size (chars) above which the full content is written to a temporary file instead of being returned inline |
+| `threshold` | int | `10000` | Content size (chars) above which the full content is written to a temporary file instead of being returned inline (never applies to `llms.txt`) |
 
 When fetched content exceeds `threshold`, it is stored in a temporary file (removed on
 exit) and the tool returns the file path plus a message to explore it with search tools,
-instead of blowing up the model context.
+instead of blowing up the model context. This never applies to `llms.txt` site maps:
+they are always returned inline in full, regardless of size.
 
 ### HeadlessBrowse Parameters
 
