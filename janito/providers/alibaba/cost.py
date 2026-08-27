@@ -2,12 +2,12 @@
 
 Rates source
 ------------
-The per-1M-token rates below were taken from
-https://www.qwencloud.com/models/qwen3.8-max (the official QwenCloud model
-marketplace, last verified 2026-08-15) and apply as of the verification
-date.  Alibaba adjusts figures frequently, so cross-check the official rate
-card at https://www.qwencloud.com/pricing/token-plan before relying on
-them.
+The per-1M-token rates below were taken from the official QwenCloud model
+marketplace pages https://www.qwencloud.com/models/qwen3.8-max (last
+verified 2026-08-15) and https://www.qwencloud.com/models/qwen3.8-flash
+(verified 2026-08-27) and apply as of the verification dates.  Alibaba
+adjusts figures frequently, so cross-check the official rate card at
+https://www.qwencloud.com/pricing/token-plan before relying on them.
 """
 
 #: Per-1M-token rates (USD) keyed by model name:
@@ -19,6 +19,9 @@ them.
 #: There is no peak-hour surcharge.
 _MODEL_RATES: dict[str, tuple[float, float, float]] = {
     "qwen3.8-max": (2.0, 0.25, 6.0),
+    # qwen3.8-flash: $0.15 input / $0.016 implicit cache hit / $0.47 output
+    # per 1M tokens (https://www.qwencloud.com/models/qwen3.8-flash).
+    "qwen3.8-flash": (0.15, 0.016, 0.47),
 }
 
 

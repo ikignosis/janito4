@@ -287,6 +287,16 @@ if pytest is not None:
         assert get_default_model_from_provider("alibaba") == "qwen3.8-max"
         assert get_default_max_input_tokens_from_provider("openai") == 1050000
         assert get_default_max_output_tokens_from_provider("openai") == 128000
+        # Alibaba's built-in models declare their token limits (qwen3.8-max
+        # 1M input / 131K output; qwen3.8-flash 991K input / 131K output).
+        assert (
+            get_default_max_input_tokens_from_provider("alibaba", "qwen3.8-flash")
+            == 991000
+        )
+        assert (
+            get_default_max_output_tokens_from_provider("alibaba", "qwen3.8-flash")
+            == 131072
+        )
         # The "custom" provider has no built-in defaults.
         assert get_default_model_from_provider("custom") is None
         assert get_default_max_input_tokens_from_provider("custom") is None
@@ -350,6 +360,10 @@ if pytest is not None:
         )
         assert (
             get_provider_config("alibaba")["models"]["qwen3.8-max"]["thinking"] is True
+        )
+        assert (
+            get_provider_config("alibaba")["models"]["qwen3.8-flash"]["thinking"]
+            is True
         )
         assert get_provider_config("minimax")["models"]["MiniMax-M3"]["thinking"] == {
             "type": "adaptive"
@@ -436,6 +450,37 @@ if pytest is not None:
             {"type": "code_interpreter"},
             {"type": "web_search"},
             {"type": "web_extractor"},
+        ]
+
+    def test_default_tools_from_provider_qwen_flash():
+        """Alibaba's qwen3.8-flash declares its built-in tools per API type.
+
+        The official QwenCloud page advertises code_interpreter /
+        i2i_search / t2i_search / web_extractor / web_search for the
+        Responses API; like qwen3.8-max they are left off the Completions
+        and native DashScope APIs until confirmed.
+        """
+        assert get_default_tools_from_provider("alibaba", "qwen3.8-flash") is None
+        assert (
+            get_default_tools_from_provider(
+                "alibaba", "qwen3.8-flash", api_type="Completions"
+            )
+            is None
+        )
+        assert (
+            get_default_tools_from_provider(
+                "alibaba", "qwen3.8-flash", api_type="DashScope"
+            )
+            is None
+        )
+        assert get_default_tools_from_provider(
+            "alibaba", "qwen3.8-flash", api_type="Responses"
+        ) == [
+            {"type": "code_interpreter"},
+            {"type": "i2i_search"},
+            {"type": "t2i_search"},
+            {"type": "web_extractor"},
+            {"type": "web_search"},
         ]
         # Providers without built-in tools expose None.
         for name in ("openai", "deepseek", "minimax", "anthropic", "custom"):

@@ -75,5 +75,34 @@ PROVIDER_CONFIG: dict = {
                 },
             ],
         },
+        "qwen3.8-flash": {
+            # Same API-type surface as qwen3.8-max (see its entry for the
+            # endpoint notes): the OpenAI-compatible Chat Completions /
+            # Responses endpoints plus the native DashScope SDK, with
+            # Responses as the built-in default API type.
+            "supported_api_types": ["Completions", "Responses", "DashScope"],
+            "default_api_type": "Responses",  # built-in default
+            # Official QwenCloud page (https://www.qwencloud.com/models/
+            # qwen3.8-flash): 1M context window with a 991K max input (the
+            # rest is reserved for output/reasoning) and 131K max output.
+            "max_input_tokens": 991000,  # 991K
+            "max_output_tokens": 131072,  # 131K
+            "thinking": True,  # Qwen models reason by default
+            # Built-in (native) tools, enabled per API type.  The official
+            # page advertises code_interpreter / i2i_search / t2i_search /
+            # web_extractor / web_search for the Responses API.  Like
+            # qwen3.8-max, they are left off the Completions and native
+            # DashScope APIs until the deployment is confirmed to accept
+            # them there.
+            "tools_by_api_type": {
+                "Responses": [
+                    {"type": "code_interpreter"},
+                    {"type": "i2i_search"},
+                    {"type": "t2i_search"},
+                    {"type": "web_extractor"},
+                    {"type": "web_search"},
+                ],
+            },
+        },
     },
 }

@@ -229,6 +229,19 @@ if pytest is not None:
             )
             == "7.125000$"
         )
+        # qwen3.8-flash at $0.15 / $0.016 (implicit cache hit) / $0.47
+        # output per 1M tokens.
+        assert (
+            pa.get_provider_cost("alibaba", "qwen3.8-flash", 1_000_000, 1_000_000, 0)
+            == "0.620000$"
+        )
+        # Cached input tokens are billed at the implicit cache-hit rate.
+        assert (
+            pa.get_provider_cost(
+                "alibaba", "qwen3.8-flash", 1_000_000, 1_000_000, 500_000
+            )
+            == "0.553000$"
+        )
         # Moonshot ships a cost module: kimi-k3 at $2.75 / $0.28 (cache
         # hit) / $13.75 output per 1M tokens, formatted as NN.DDDDDD$.
         assert (
@@ -427,6 +440,12 @@ if pytest is not None:
         assert (
             alibaba_get_cost("qwen3.8-max", 1_000_000, 1_000_000, 0, is_reference=True)
             == "8.000000$"
+        )
+        assert (
+            alibaba_get_cost(
+                "qwen3.8-flash", 1_000_000, 1_000_000, 0, is_reference=True
+            )
+            == "0.620000$"
         )
         assert (
             google_get_cost(
