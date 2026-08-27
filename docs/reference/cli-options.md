@@ -30,9 +30,10 @@ If no prompt is given, janito starts an interactive chat shell.
 | `--get <key>` | Get one or more config values from `~/.janito/config.json` |
 | `--set-api-key <key>` | Set the API key for a provider. Uses `--provider`, or falls back to the configured default provider (`--set provider=<name>`) when `--provider` is omitted; errors if neither is available. If a key is already stored, janito warns and prompts for confirmation before overwriting; use `-f`/`--force` to overwrite without prompting. |
 | `-f`, `--force` | Overwrite an existing API key without prompting (used with `--set-api-key`) |
-| `--provider <name>` | Provider name (e.g., `openai`, `custom`). Always validated against the supported providers; unknown names are rejected. |
-| `--model <name>` | Model name (overrides the provider's configured model) |
+| `-p`, `--provider <name>` | Provider name (e.g., `openai`, `custom`). Always validated against the supported providers; unknown names are rejected. |
+| `-m`, `--model <name>` | Model name (overrides the provider's configured model) |
 | `--list-keys` | List configured providers and keys (with `-l`/`--local`, shows both the local and the global auth files) |
+| `--list-models` | List all config-available models for the active provider (`--provider`, or the provider defined in `config.json`) and exit |
 | `--show-providers` | List all supported providers and their built-in defaults (model, API types, endpoint, token limits, thinking/reasoning, built-in tools per API type), followed by the registered provider variants |
 
 > **Note:** `--set` and `--set-api-key` must be used in **separate commands**, not together on the same line.
@@ -74,6 +75,12 @@ See [Provider Variants](../configuration/variants.md) for the full guide.
 | `-t`, `--thinking` | Enable thinking mode (sends `extra_body={'enable_thinking': True}`). DeepSeek, Alibaba/Qwen and MiniMax-M3 have thinking enabled by default. Gemini-flavored providers (google) do not accept this flag; thinking depth is controlled through `--reasoning-level` instead. |
 | `--reasoning-level <level>` | Set the reasoning depth for the API call (sends `reasoning_effort=<level>`). Overrides the provider's configured value and built-in default. Values: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`. |
 
+## API Type
+
+| Option | Description |
+|--------|-------------|
+| `--api-type <type>` | Force the API type for the provider. Values: `Responses`, `Completions`, `Anthropic`, `DashScope`, `Gemini`. Overrides the provider's configured value (`--set api-type=...`) and the model's built-in default. `Anthropic` requires the optional `anthropic` package, `DashScope` the optional `dashscope` package (alibaba provider), and `Gemini` the optional `google-genai` package (google provider) — janito aborts the change with a message naming the missing package. |
+
 ## Privileges
 
 | Option | Description |
@@ -110,15 +117,28 @@ If none of `-r`, `-w`, `-x` are given, janito runs with full privileges and prin
 |--------|-------------|
 | `--plugin <dir>` | Load a plugin package from `dir` (repeatable; its parent is temporarily added to `sys.path` so relative imports work). Plugin tools, commands and system-prompt sections are registered before the session starts |
 | `--install-plugin <url>` | Install a plugin from a GitHub repository URL. Downloads the `master` zip and extracts it to `~/.janito/plugins/<repo-name>` |
+| `--uninstall-plugin <name>` | Uninstall an installed plugin by its plugin name (the `name` the plugin exports, as shown by `--list-plugins`; e.g. `codesearch` for the `janito-codesearch-plugin`). Removes the plugin's directory from the plugins dir; broken plugins that cannot be imported are matched by their directory name |
 | `--no-plugins` | Do not autoload plugins from `~/.janito/plugins` (plugins explicitly loaded with `--plugin DIR` are still loaded) |
 | `--list-plugins` | List loaded plugins (from `--plugin` and autoloaded from `~/.janito/plugins`) and their `on_start` errors, then exit |
+
+## Web UI (Alpha)
+
+| Option | Description |
+|--------|-------------|
+| `--web` | Start the web UI server instead of the terminal chat (requires the `[web]` extra: `pip install janito[web]`) |
+| `--web-port <port>` | Port for the web server (default: `8080`, used with `--web`) |
+| `--web-host <host>` | Bind address for the web server (default: `127.0.0.1` — localhost only, used with `--web`) |
+| `--no-web-open` | Don't automatically open the browser (used with `--web`) |
+
+All other Janito flags still apply in `--web` mode (they configure the
+sessions the server runs). See [Web UI](../usage/web-ui.md) for details.
 
 ## Logging & Output
 
 | Option | Description |
 |--------|-------------|
-| `--log=<levels>` | Enable logging (e.g., `--log=info,debug` or `--log=warning,error`) |
-| `-v`, `--verbose` | Enable verbose output (shows model and backend info) |
+| `--log=<levels>` | Enable logging (e.g., `--log=info,debug` or `--log=warning,error`; valid levels: `debug`, `info`, `warning`, `error`, `critical`) |
+| `-v`, `--verbose` | Enable verbose output: model/backend/MCP info plus the API call parameters (messages shown as tail only) and a response summary |
 | `--no-history` | Don't persist interactive input history to file |
 | `--version` | Show version information and exit |
 | `--help` | Show help message and exit |
@@ -132,6 +152,7 @@ janito --config
 janito --show-config
 janito --info
 janito --show-providers   # list every provider and variant with its defaults
+janito --list-models      # models available for the active provider
 janito --set provider=openai --set model=gpt-4
 janito --set-api-key sk-your-key --provider openai
 janito --set-api-key sk-your-key   # uses the configured default provider
@@ -172,6 +193,8 @@ janito --list-tools
 janito --plugin ../plugins/janito-gmail-plugin "Show my emails"
 janito --plugin ../plugins/janito-onedrive-plugin "List my files"
 janito --list-plugins
+janito --install-plugin https://github.com/joaompinto/janito-codesearch-plugin
+janito --uninstall-plugin codesearch
 ```
 
 ### System Prompt & Privileges
@@ -180,6 +203,13 @@ janito --list-plugins
 janito -Z "Simple prompt without tools"
 janito -S "You are a concise coding assistant" "Explain recursion"
 janito -r -w "Refactor this file"
+```
+
+### API Type
+
+```bash
+janito --api-type Completions "Your prompt"   # force Chat Completions for one call
+janito --provider google --set api-type=Gemini # persist the native Gemini SDK type
 ```
 
 ### Logging
@@ -192,12 +222,27 @@ janito --log=info,debug "prompt"
 
 ## Configuration Keys
 
-Values stored in `~/.janito/config.json` via `--set`:
+Values stored in `~/.janito/config.json` via `--set`. Keys are scoped:
 
-| Key | Description | Default |
-|-----|-------------|---------|
-| `provider` | Provider name (`openai`, `custom`, `alibaba`, `minimax`, `xiaomi`, `moonshot`, `zai`, `xai`) | `openai` |
-| `model` | Model name | - |
-| `max-input-tokens` | Maximum input tokens (context window) | model built-in / `128000` |
-| `max-output-tokens` | Maximum output tokens | model built-in / `100000` |
-| `endpoint` | API endpoint URL (required for `custom` provider) | - |
+- **flat** keys live at the top level of `config.json`;
+- **provider-scoped** keys are stored as `providers.<provider>.<key>` — the
+  active provider is taken from `--provider` or the configured `provider`
+  value (so each provider can keep its own model/endpoint);
+- **model-scoped** keys are stored as
+  `providers.<provider>.models.<model>.<key>` — the model is resolved from
+  the provider's configured model, else its built-in default (so each
+  provider/model pair keeps its own limits and options).
+
+| Key | Scope | Description | Default |
+|-----|-------|-------------|---------|
+| `provider` | flat | Provider name (`openai`, `google`, `custom`, `alibaba`, `deepseek`, `minimax`, `xiaomi`, `moonshot`, `zai`, `xai`, `anthropic`, `openrouter`) | `openai` |
+| `model` | provider-scoped | Model name | provider built-in default |
+| `endpoint` | provider-scoped | API endpoint URL (required for `custom`) | provider built-in default |
+| `max-input-tokens` | model-scoped | Maximum input tokens (context window) | model built-in |
+| `max-output-tokens` | model-scoped | Maximum output tokens | model built-in |
+| `reasoning-level` | model-scoped | Reasoning depth (`none`…`max`) | model built-in |
+| `api-type` | model-scoped | API type (`Responses`, `Completions`, `Anthropic`, `DashScope`, `Gemini`) | model built-in default |
+| `responses-in-server` | model-scoped | Whether the Responses API keeps conversation state server-side (bool) | model built-in default |
+
+> **Note:** for backward compatibility, a legacy top-level `endpoint` key is
+> still honored as a fallback when no provider-scoped endpoint is set.

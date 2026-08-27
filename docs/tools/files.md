@@ -21,6 +21,7 @@ janito "List all Python files in this project"
 | Tool | Description | Permissions |
 |------|-------------|-------------|
 | `ListFiles` | List files and directories, with pattern filtering | `r` |
+| `FindFiles` | Find files/dirs by name pattern and attributes (size, mtime, type) | `r` |
 | `ReadFile` | Read the contents of a file (full or line range) | `r` |
 | `ReadMultipleFiles` | Read several files in a single call | `r` |
 | `SearchText` | Search for exact text across files | `r` |

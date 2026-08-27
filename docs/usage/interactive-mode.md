@@ -16,26 +16,37 @@ janito
 Without arguments, janito starts an interactive shell:
 
 ```
-Welcome to janito! Type 'exit' to quit, 'clear' to start a new conversation.
-You:
+Starting interactive chat session. Type '/exit' or CTRL-D to end the session
+gpt-5.6-luna #
 ```
+
+(The prompt shows the active model name; a status toolbar reports the model,
+provider and privileges.)
+
+!!! note
+    Anything not recognized as a command is sent to the model as a prompt.
+    In particular, bare words like `exit`, `quit` or `help` are **not**
+    commands — type `/exit`, `/quit` is not implemented, and help is `/help`.
+    Unrecognized `/slash` commands are rejected with an `Unknown command:`
+    message instead of being sent to the model.
 
 ## Available Commands
 
-In interactive mode, these commands are available:
+Plain keyboard/input commands in interactive mode:
 
 | Command | Description |
 |---------|-------------|
-| `exit` / `quit` | End the session |
+| `/exit` | End the session |
 | `clear` | Clear conversation and start a new one |
-| `Ctrl+D` / `Ctrl+Z` | Exit (EOF) |
-| `Ctrl+C` | Cancel current input (rolls the last prompt/answer back out of the history) |
+| `Ctrl+D` / `Ctrl+Z` + `Enter` (Windows) | Exit (EOF) |
+| `Ctrl+C` | While idle: asks whether to quit the conversation. While a response is pending: cancels the request and rolls the last prompt/answer back out of the history |
 | `Enter` | While a prompt is pending ("Waiting for response from the API server..."), cancels the request and keeps the prompt in the conversation history |
-| `help` | Show available commands |
+| `F2` | Clear the conversation and start a fresh one (like `clear`) |
+| `F12` | "Do It" — auto-sends a `Do It` prompt to continue an existing plan |
 
 ## Chat Commands
 
-Additional commands available in the terminal shell:
+Additional slash commands available in the terminal shell:
 
 > These commands are implemented by the **terminal shell**. The web chat only
 > handles `/tools` on the client (rendered as a card panel); any other slash
@@ -44,13 +55,22 @@ Additional commands available in the terminal shell:
 | Command | Description |
 |---------|-------------|
 | `/help` | Show help information |
-| `/skills` | List all available skills (home + local) |
+| `/exit` | End the session |
+| `/ask <question>` | Send a one-off question to the LLM with a **fresh, isolated** chat history (the main conversation is not affected) |
+| `/skills` | List all available skills (home + agents + local) |
 | `/tools` | List all available tools |
 | `/plugins` | List the installed plugins (from `<config_dir>/plugins`, default `~/.janito/plugins`), their paths and whether they loaded in the current session |
 | `/read <question>` | Send the question to the LLM using the **main** conversation history, but with `tools=` filtered to the read-only (`"r"` permission) tools — the model can read/search/fetch but cannot write or execute. The exchange stays in the main history and rolls back like a normal prompt on cancel |
 | `/write <question>` | Send the question to the LLM using the **main** conversation history, but with `tools=` filtered to the write-only (`"w"` permission) tools — the model can create, modify or delete files/dirs but cannot read, search or execute. The exchange stays in the main history and rolls back like a normal prompt on cancel |
 | `/show_tools_stats` | Show tool usage statistics (from the SQLite `tools_use.db`) |
 | `/changes` | Show the file-changing tool executions recorded for the current prompt |
+| `/status` | Print the resolved runtime configuration (provider, model, API type, endpoint, masked API key, token limits, reasoning level, thinking) |
+| `/history` | Show the conversation history as rendered rows, marking where each turn started |
+| `/prompt` | Show the current system prompt |
+| `/priv` | Show the current running privileges (READ / WRITE / EXEC) |
+| `/price` | Show a per-model pricing table for every built-in model (estimated cost per 1M input + cached + output tokens) |
+| `/multi` | Enable multiline input for the **next prompt only** (submit with `ESC` then `Enter`) |
+| `/rewind` | Undo the most recent turn, stepping back one exchange at a time (truncates the history to the last checkpoint) |
 | `/provider` | Show the current provider and the available providers |
 | `/provider <name>` | Switch the session's provider (and model) for this shell session only — the configured default in `config.json` is left unchanged (use `janito --set provider=<name>` to persist a new default; autocompleted). The LLM conversation history is cleared so the new provider/model starts fresh |
 | `/model` | Show the current model and the models available from the current provider |
@@ -63,6 +83,10 @@ Additional commands available in the terminal shell:
 | `/mcp add <name> http <url>` | Add MCP HTTP service |
 | `/mcp list` | List MCP services |
 | `/mcp remove <name>` | Remove MCP service |
+
+Beyond the slash commands, typing `!<command>` runs a shell command directly
+with the real terminal inherited (so interactive programs such as `vim` or
+`less` work); janito reports the command's exit code afterwards.
 
 ## Command Autocomplete
 
@@ -94,22 +118,25 @@ After `/thinking `, `on` and `off` are suggested.
 
 ```bash
 $ janito
-Welcome to janito! Type 'exit' to quit, 'clear' to start a new conversation.
-You: What is Python?
+Janito 0.0.0 - Working at /home/user/project
+Using openai, model gpt-5.6-luna, API: Responses (server-side)
+Starting interactive chat session. Type '/exit' or CTRL-D to end the session
+
+gpt-5.6-luna # What is Python?
 Assistant: Python is a high-level programming language...
-You: Tell me more about it
+gpt-5.6-luna # Tell me more about it
 Assistant: Python was created by Guido van Rossum...
-You: exit
-Goodbye!
+gpt-5.6-luna # /exit
+Chat session ended.
 ```
 
 ### Multi-turn with File Operations
 
 ```bash
 $ janito
-You: Read the README.md file and summarize it
+gpt-5.6-luna # Read the README.md file and summarize it
 Assistant: [File content summary]
-You: Now create a similar file called backup.md
+gpt-5.6-luna # Now create a similar file called backup.md
 Assistant: [File created successfully]
 ```
 
@@ -117,9 +144,9 @@ Assistant: [File created successfully]
 
 ```bash
 $ janito --plugin ../plugins/janito-onedrive-plugin
-You: List my files in Documents
+gpt-5.6-luna # List my files in Documents
 Assistant: [Lists OneDrive files]
-You: Upload notes.txt to the Documents folder
+gpt-5.6-luna # Upload notes.txt to the Documents folder
 Assistant: [File uploaded]
 ```
 
@@ -127,7 +154,9 @@ Assistant: [File uploaded]
 
 - **Conversation History**: Messages are kept in context during the session
 - **Use `clear`**: Clear the conversation and start a new one
-- **Exit gracefully**: Use `exit` or `quit` for clean exit
+- **Exit gracefully**: Use `/exit` (or `Ctrl+D`) for a clean exit
+- **Undo a turn**: `/rewind` steps back one exchange at a time; `/history`
+  shows what is kept
 
 ## Tracking Changes (`/changes`)
 
@@ -156,13 +185,14 @@ friendly message instead.
 To exit interactive mode:
 
 ```bash
-# Method 1: Type exit
-You: exit
+# Method 1: Type the exit command
+You: /exit
 
-# Method 2: Type quit
-You: quit
+# Method 2: Press Ctrl+D (Unix/macOS)
 
-# Method 3: Press Ctrl+D (Unix/macOS)
+# Method 3: Press Ctrl+Z then Enter (Windows)
 
-# Method 4: Press Ctrl+Z then Enter (Windows)
+# Method 4: Press Ctrl+C and confirm the quit prompt with y
 ```
+
+The shell then prints `Chat session ended.`

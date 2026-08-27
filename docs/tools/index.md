@@ -23,7 +23,7 @@ janito "Read the README.md file"
 ```
 
 Tool integrations that are not built-in (Gmail, code search, OneDrive) are
-provided by plugins — see [Plugins](PLUGINS.md).
+provided by plugins — see [Plugins](../PLUGINS.md).
 
 ## Tool Progress
 

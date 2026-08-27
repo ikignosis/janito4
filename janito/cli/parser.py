@@ -35,7 +35,7 @@ Options:
                      prompts before overwriting an existing key, use -f/--force
                      to overwrite without prompting)
   --provider NAME    Provider name (e.g., openai)
-  --model NAME       Model name to use (overrides the provider's configured model)
+  -m, --model NAME   Model name to use (overrides the provider's configured model)
   --log LEVELS       Enable logging (e.g., --log=info,debug or --log=warning)
   --list-keys        List configured providers and keys
   --show-providers   List all supported providers and variants
@@ -263,6 +263,7 @@ Note: --set and --set-api-key must be used in separate commands.
     )
 
     parser.add_argument(
+        "-m",
         "--model",
         metavar="NAME",
         help="Model name to use for completions (overrides the provider's configured model)",

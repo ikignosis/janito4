@@ -30,15 +30,26 @@ janito --show-config
 
 ### Configuration Options
 
-These keys are stored in `~/.janito/config.json` (set them with `--set`):
+These keys are stored in `~/.janito/config.json` (set them with `--set`).
+Keys are *scoped* — `model`/`endpoint` live per provider and the model-level
+keys per provider **and** model (see the note below and
+[CLI Options — Configuration Keys](../reference/cli-options.md#configuration-keys)):
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `provider` | Provider name (`openai`, `google`, `custom`, `alibaba`, `minimax`, `xiaomi`, `moonshot`, `zai`, `xai`, `deepseek`, `anthropic`, `openrouter`) | `openai` |
-| `model` | Model name | - |
-| `max-input-tokens` | Maximum input tokens (context window) | model built-in / `128000` |
-| `max-output-tokens` | Maximum output tokens | model built-in / `100000` |
-| `endpoint` | API endpoint URL (required for `custom` providers) | - |
+| Option | Scope | Description | Default |
+|--------|-------|-------------|---------|
+| `provider` | flat | Provider name (`openai`, `google`, `custom`, `alibaba`, `deepseek`, `minimax`, `xiaomi`, `moonshot`, `zai`, `xai`, `anthropic`, `openrouter`) | `openai` |
+| `model` | per provider | Model name | provider's built-in default model |
+| `endpoint` | per provider | API endpoint URL (required for `custom` providers) | provider's built-in default |
+| `max-input-tokens` | per provider/model | Maximum input tokens (context window) | model built-in |
+| `max-output-tokens` | per provider/model | Maximum output tokens | model built-in |
+| `reasoning-level` | per provider/model | Reasoning depth (`none`…`max`) | model built-in |
+| `api-type` | per provider/model | API type (`Responses`, `Completions`, `Anthropic`, `DashScope`, `Gemini`) | model built-in default |
+| `responses-in-server` | per provider/model | Whether the Responses API keeps conversation state server-side | model built-in default |
+
+At call time, when no model-scoped value is configured, janito falls back to
+the provider/model's built-in limit (e.g. OpenAI's `gpt-5.6-luna`:
+1,050,000 in / 128,000 out); the generic fallback used when even the model
+has none is `128000` input / `100000` output.
 
 > Provider base URLs are built in for known providers, so you normally only need `endpoint` for the `custom` provider. At runtime the endpoint is used directly as the API base URL. The model-level keys (`max-input-tokens`, `max-output-tokens`, `reasoning-level`, `api-type`, `responses-in-server`) are stored per provider **and** model, under `providers.<provider>.models.<model>.<key>` in `config.json`.
 

@@ -55,7 +55,7 @@ janito --show-providers
 ```
 
 ```
-Supported Providers (11):
+Supported Providers (12):
 ============================================================
   openai [active]
     Model:         gpt-5.6-luna (default)
@@ -148,10 +148,14 @@ exactly like the other API types (MCP included).
 
 | Model | Description |
 |-------|-------------|
-| `gemini-3.7-flash` | Latest Gemini Flash model (default) |
-| `gemini-3.5-flash` | Fast, cost-effective Gemini model |
-| `gemini-2.5-flash` | Previous-generation Flash model |
-| `gemini-2.5-pro` | Highest capability Gemini model |
+| `gemini-3.7-flash` | Latest Gemini Flash model (default, built-in) |
+| `gemini-3.5-flash` | Fast, cost-effective Gemini model (selectable via `--model`) |
+| `gemini-2.5-flash` | Previous-generation Flash model (selectable via `--model`) |
+| `gemini-2.5-pro` | Highest capability Gemini model (selectable via `--model`) |
+
+Only `gemini-3.7-flash` ships as a built-in model entry (with its token
+limits and reasoning levels); the other names are sent to the API as-is when
+selected with `--model` or `--set model=...`.
 
 ### Reasoning Level
 
@@ -169,7 +173,8 @@ janito --provider google --set reasoning-level=medium
 ```
 
 Resolution order: `--reasoning-level` > per-provider config value
-(`--set reasoning-level=...`) > the model's own default level (`low`).
+(`--set reasoning-level=...`) > the model's own default level (`medium` for
+`gemini-3.7-flash`).
 
 ### Thinking Mode
 
@@ -245,10 +250,14 @@ janito --set-api-key="your-dashscope-api-key" --provider alibaba
 
 | Model | Description |
 |-------|-------------|
-| `qwen-plus` | Balanced performance and cost |
-| `qwen-max` | Highest capability model |
-| `qwen-turbo` | Fast, cost-effective |
-| `qwen-long` | Extended context window |
+| `qwen3.8-max` | Default model with built-in token limits and reasoning levels |
+| `qwen-plus` | Balanced performance and cost (selectable via `--model`) |
+| `qwen-max` | Highest capability model (selectable via `--model`) |
+| `qwen-turbo` | Fast, cost-effective (selectable via `--model`) |
+| `qwen-long` | Extended context window (selectable via `--model`) |
+
+Only `qwen3.8-max` ships as a built-in model entry; the other names are
+sent to the API as-is when selected with `--model` or `--set model=...`.
 
 ### Reasoning Level
 
@@ -306,8 +315,8 @@ converted function-tool schemas. Note that DashScope's `/responses` endpoint
 does not accept `qwen3.8-max` yet (see [API Type](#api-type) above), so the
 built-in tools are picked up automatically by the Responses client and the
 web agent as soon as the endpoint supports the model. They are left off the
-Completions API (the provider's default API type) and the native DashScope
-API because the qwen3.8-max deployment rejects `code_interpreter` there with
+Completions API and the native DashScope API because the qwen3.8-max
+deployment rejects `code_interpreter` there with
 `400 InternalError.Algo.InvalidParameter: The current model does not support
 the code_interpreter tool.`; API types not listed in `tools_by_api_type` send
 no built-in tools (the plain `tools` default still applies when present).
@@ -324,9 +333,11 @@ that enables them:
 ### Native DashScope SDK (optional)
 
 By default the `alibaba` provider talks to DashScope's OpenAI-compatible
-endpoint through the **Chat Completions** API. A **native DashScope SDK** API
-type (`DashScope`) is also available: it uses the official `dashscope` Python
-package against the DashScope native API (`https://dashscope-intl.aliyuncs.com/api/v1`,
+endpoint through the **Responses** API (the built-in default API type for
+`qwen3.8-max`; the Chat Completions API is also fully supported — see
+[API Type](#api-type)). A **native DashScope SDK** API type (`DashScope`) is
+also available: it uses the official `dashscope` Python package against the
+DashScope native API (`https://dashscope-intl.aliyuncs.com/api/v1`,
 per-API-type endpoint, see `endpoint_by_api_type`).
 
 The `dashscope` package is **optional**; janito aborts the change (with a
@@ -448,7 +459,7 @@ janito "Explain quantum computing"
 
 ## MiniMax
 
-Use MiniMax AI to access abab models.
+Use MiniMax AI to access MiniMax models.
 
 > **Get an API key:** Visit [MiniMax Open Platform](https://platform.minimax.io/) to create an account and generate an API key.
 
@@ -456,7 +467,7 @@ Use MiniMax AI to access abab models.
 
 ```bash
 # Step 1: Set provider and model
-janito --set provider=minimax --set model=abab6.5s-chat
+janito --set provider=minimax --set model=MiniMax-M3
 # Step 2: Store API key
 janito --set-api-key="your-minimax-api-key" --provider minimax
 ```
@@ -496,15 +507,17 @@ the box. Pass `-t` / `--thinking` to force thinking on for any provider.
 
 | Model | Description |
 |-------|-------------|
-| `abab6.5s-chat` | Fast, cost-effective chat model |
-| `abab6.5-chat` | Balanced performance model |
-| `abab6.5g-chat` | High-quality generation model |
+| `MiniMax-M3` | Default model; reasoning by default (built-in) |
+
+Only `MiniMax-M3` ships as a built-in model entry (with its token limits and
+thinking behaviour); other model names can still be selected with `--model` or
+`--set model=...` and are sent to the API as-is.
 
 ### Example
 
 ```bash
 # Step 1: Set provider and model
-janito --set provider=minimax --set model=abab6.5s-chat
+janito --set provider=minimax --set model=MiniMax-M3
 # Step 2: Store API key
 janito --set-api-key="your-minimax-api-key" --provider minimax
 # Step 3: Run prompt
@@ -521,7 +534,7 @@ Use Xiaomi AI to access Mimo models.
 
 ```bash
 # Step 1: Set provider and model
-janito --set provider=xiaomi --set model=mimo-v2
+janito --set provider=xiaomi --set model=mimo-v2.5
 # Step 2: Store API key
 janito --set-api-key="your-xiaomi-api-key" --provider xiaomi
 ```
@@ -530,14 +543,17 @@ janito --set-api-key="your-xiaomi-api-key" --provider xiaomi
 
 | Model | Description |
 |-------|-------------|
-| `mimo-v2` | Latest Xiaomi language model |
-| `mimo-v1` | Previous generation model |
+| `mimo-v2.5` | Latest Xiaomi language model (default, built-in) |
+| `mimo-v2` | Previous generation model (selectable via `--model`) |
+
+Only `mimo-v2.5` ships as a built-in model entry; other model names are
+sent to the API as-is when selected with `--model` or `--set model=...`.
 
 ### Example
 
 ```bash
 # Step 1: Set provider and model
-janito --set provider=xiaomi --set model=mimo-v2
+janito --set provider=xiaomi --set model=mimo-v2.5
 # Step 2: Store API key
 janito --set-api-key="your-xiaomi-api-key" --provider xiaomi
 # Step 3: Run prompt
@@ -554,7 +570,7 @@ Use Moonshot AI to access Kimi models.
 
 ```bash
 # Step 1: Set provider and model
-janito --set provider=moonshot --set model=moonshot-v1-8k
+janito --set provider=moonshot --set model=kimi-k3
 # Step 2: Store API key
 janito --set-api-key="your-moonshot-api-key" --provider moonshot
 ```
@@ -563,9 +579,11 @@ janito --set-api-key="your-moonshot-api-key" --provider moonshot
 
 | Model | Description |
 |-------|-------------|
-| `moonshot-v1-8k` | Standard model with 8K context |
-| `moonshot-v1-32k` | Extended context window (32K) |
-| `moonshot-v1-128k` | Long context window (128K) |
+| `kimi-k3` | Latest Kimi model with configurable reasoning (default, built-in) |
+
+Only `kimi-k3` ships as a built-in model entry (with its token limits and
+reasoning levels); other model names can still be selected with `--model` or
+`--set model=...` and are sent to the API as-is.
 
 ### Reasoning Level
 
@@ -589,7 +607,7 @@ Resolution order: `--reasoning-level` > per-provider config value
 
 ```bash
 # Step 1: Set provider and model
-janito --set provider=moonshot --set model=moonshot-v1-8k
+janito --set provider=moonshot --set model=kimi-k3
 # Step 2: Store API key
 janito --set-api-key="your-moonshot-api-key" --provider moonshot
 # Step 3: Run prompt
@@ -687,9 +705,7 @@ janito --set-api-key="your-anthropic-api-key" --provider anthropic
 |-------|-------------|
 | `claude-fable-5` | Newest frontier model (1M context) |
 | `claude-opus-5` | Highest capability model (1M context) |
-| `claude-sonnet-5` | Latest flagship model (200K context) |
-| `claude-opus-4-1` | Highest capability model (200K context) |
-| `claude-haiku-4-5` | Fast, cost-effective model (200K context) |
+| `claude-sonnet-5` | Latest flagship model (200K context; default) |
 
 ### Native Anthropic SDK (optional)
 
@@ -783,7 +799,7 @@ API, so its built-in API type is `Completions`.
 | Function Calling | ✅ | Depends on API | Depends on provider |
 | Streaming | ✅ | Depends on API | Depends on provider |
 | Vision | ✅ | Depends on API | Depends on provider |
-| Context Window | Up to 128k | Varies | Varies by model |
+| Context Window | Model-dependent (built-ins list exact limits) | Varies | Varies by model |
 
 ## Troubleshooting
 

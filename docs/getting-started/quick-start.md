@@ -33,9 +33,9 @@ Set options directly from the command line. Note that `--set` and `--set-api-key
 janito --set provider=openai --set model=gpt-4
 janito --set-api-key="sk-your-key" --provider openai
 
-# Local LLM example
-janito --set provider=openai --set model="local-model"
-janito --set-api-key="not-needed" --provider openai
+# Local LLM example (local servers use the `custom` provider + endpoint)
+janito --set provider=custom --set endpoint="http://localhost:1234/v1" --set model="local-model"
+janito --set-api-key="not-needed" --provider custom
 ```
 
 ## 2. Run Your First Prompt
@@ -56,9 +56,12 @@ Type your messages and press Enter. Commands:
 
 | Command | Description |
 |---------|-------------|
-| `exit` / `quit` | End the session |
+| `/exit` | End the session |
 | `clear` | Clear conversation and start a new one |
-| `Ctrl+D` / `Ctrl+Z` | Exit the shell |
+| `Ctrl+D` / `Ctrl+Z` | Exit the shell (EOF) |
+| `/help` | List all commands and shortcuts |
+
+For the full list of chat commands, see [Interactive Mode](../usage/interactive-mode.md).
 
 ### Pipe Input
 
@@ -87,11 +90,16 @@ janito "Explain quantum computing"
 
 ### Local LLM (LM Studio, Ollama)
 
+Local servers are reached through the `custom` provider, which requires an
+endpoint (`--set endpoint=...`):
+
 ```bash
-# Step 1: Set provider and model
-janito --set provider=openai --set model="local-model"
+# Step 1: Set provider, endpoint, and model
+janito --set provider=custom \
+        --set endpoint="http://localhost:1234/v1" \
+        --set model="local-model"
 # Step 2: Store placeholder API key
-janito --set-api-key="not-needed" --provider openai
+janito --set-api-key="not-needed" --provider custom
 # Step 3: Run prompt
 janito "What is 2+2?"
 ```

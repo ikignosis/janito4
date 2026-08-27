@@ -11,7 +11,8 @@ tool-calling experience — streaming responses, tool execution, MCP services,
 and skills — through any modern web browser.
 
 The web server reuses ~80% of the existing Janito Python codebase. The one
-critical new piece is a **headless agentic loop** (`janito/web/backend/agent.py`)
+critical new piece is a **headless agentic loop** (the
+`janito/web/backend/agent/` package, orchestrated by `loop.py`)
 that yields structured events instead of printing to a terminal.
 
 ---
@@ -37,7 +38,7 @@ feature-by-feature breakdown is on [CLI vs Web UI](cli-vs-web.md); in short:
 **CLI-only features**
 
 - Single-prompt and pipe input (`janito "..."`, `echo ... | janito`)
-- The interactive shell (`exit`, `clear`, `/changes`, `/skills`,
+- The interactive shell (`/exit`, `clear`, `/changes`, `/skills`,
   `/show_tools_stats`, `/mcp add|list|remove`, `!<command>`, `Ctrl+D`/`Ctrl+C`,
   `F2`/`F12`, ...)
 - Configuration & secrets maintenance (`--config`, `--set`, `--set-api-key`,
@@ -118,7 +119,7 @@ The server prints the URL it's listening on, then opens your default browser
 | `--no-web-open` | Don't auto-open the browser |
 | `-r` / `-w` / `-x` | Privileges (READ / WRITE / EXEC), enforced exactly like the CLI |
 | `--provider` | Provider name (resolved into env before dispatch) |
-| `--model` | Model name (resolved into env before dispatch) |
+| `-m`, `--model` | Model name (resolved into env before dispatch) |
 | `--plugin DIR` | Load a plugin (e.g. the Gmail plugin: `--plugin ../plugins/janito-gmail-plugin`) |
 | `-t, --thinking` | Enable thinking/reasoning mode for all sessions (DeepSeek, Alibaba/Qwen and MiniMax-M3 have it on by default) |
 | `-S "prompt"` | Override system prompt (tools stay enabled) |
@@ -213,7 +214,8 @@ janito/web/backend/
    config.py     WebServerConfig (built from argparse)
    app.py        create_app(config) + run_web(args)  [FastAPI + uvicorn]
    templating.py Jinja2 environment for the page templates (base + partials)
-   agent.py      stream_prompt() — async event generator (headless agentic loop)
+   agent/        loop.py — async event generator (headless agentic loop);
+                 call.py/turn.py/responses.py/anthropic.py/dashscope.py/gemini.py
    events.py     TokenEvent, ToolCallEvent, ToolProgressEvent, …
    session.py    ConversationSession + SessionManager (TTL + persistence hooks)
    session_store.py  .janito/sessions/<id>.jsonl read/write (issue #36)
@@ -223,6 +225,7 @@ janito/web/backend/
      config.py   GET/PATCH /api/config, /status, /providers, /cli
      tools.py    GET /api/tools, /skipped, POST /toolsets/{name}
      mcp.py      GET/POST /api/mcp/services/*
+     images.py   GET /api/images/{filename} (serve CreateImage PNGs)
    │
    ▼  reuses (unchanged)
 openai_client • tooling/* • tools/* • mcp_manager • general_config • …
@@ -249,12 +252,13 @@ janito/web/frontend/   (Alpine.js — no build step)
 | `WS` | `/api/chat/ws/{id}` | Bidirectional streaming chat |
 | `POST` | `/api/chat/prompt` | One-shot SSE streaming |
 | `GET` | `/api/config` | Runtime config |
-| `PATCH` | `/api/config` | Update mutable config |
+| `PATCH` | `/api/config` | Update mutable config (`model`, `endpoint`, `api_type`, `responses_in_server`; per-provider, persisted) |
 | `GET` | `/api/config/providers` | Supported providers (incl. `api_key_set`, `active`, `effective`) |
 | `GET` | `/api/config/status` | API key status, provider, privileges |
 | `POST` | `/api/config/session-provider` | Switch provider for this session only (in memory; not persisted) |
 | `POST` | `/api/config/default-provider` | Promote a provider to the persisted default (requires an API key) |
 | `POST` | `/api/config/api-key` | Store an API key for a provider |
+| `POST` | `/api/config/thinking` | Toggle runtime thinking for this server only (status-bar toggle) |
 | `GET` | `/api/config/cli` | CLI args the server started with |
 | `GET` | `/api/tools` | Loaded tools + schemas + permissions |
 | `GET` | `/api/tools/skipped` | Skipped tools + reasons |
@@ -263,6 +267,7 @@ janito/web/frontend/   (Alpine.js — no build step)
 | `POST` | `/api/mcp/services/{name}/connect` | Connect a service |
 | `POST` | `/api/mcp/services/{name}/disconnect` | Disconnect a service |
 | `GET` | `/api/mcp/tools` | All MCP tools |
+| `GET` | `/api/images/{filename}` | Serve a `CreateImage` PNG (temp dir only, `.png` only) |
 
 ### WebSocket Protocol
 

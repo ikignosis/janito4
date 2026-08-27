@@ -120,9 +120,10 @@ janito
 ```
 
 Commands in chat mode:
-- `exit` / `quit` - End session
+- `/exit` - End the session
 - `clear` - Clear conversation and start a new one
-- `Ctrl+D` / `Ctrl+Z` - Exit
+- `Ctrl+D` / `Ctrl+Z` then Enter - Exit (EOF)
+- `/help` - List all commands
 
 ### Web UI (Alpha)
 
@@ -280,6 +281,11 @@ Progress messages go to stderr so they don't interfere with tool output.
 - `prompt-toolkit>=3.0.0`
 - `requests>=2.28.0` (for MCP support)
 - `pathspec>=0.11.0` (for `.gitignore`-aware file listing)
+- `questionary>=2.1.1` (for the interactive `--config` wizard)
+
+Optional extras: `janito[web]` adds `fastapi`/`uvicorn` (for `--web`); the
+native API types need `anthropic` (`--api-type Anthropic`), `dashscope`
+(`DashScope`) or `google-genai` (`Gemini`).
 
 ## License
 

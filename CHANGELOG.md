@@ -15,3 +15,24 @@ Changes since `v4.31.0` (2026-08-25).
   built-in config and cost estimation ($0.15 / $0.016 cache-hit / $0.47
   output per 1M tokens; 991K max input, 131K max output; built-in tools on
   the Responses API).
+
+### Changed
+
+- `feat(cli)`: accept `-m` as a shorthand for `--model` (mirroring the
+  existing `-p`/`--provider`), and document it in the CLI usage text.
+
+### Documentation
+
+- Sync the docs with the current implementation: scoped configuration keys
+  (flat / provider-scoped / model-scoped) and the `--api-type`,
+  `--list-models`, `--uninstall-plugin` and `--web` options
+  (`docs/reference/cli-options.md`, `docs/configuration/index.md`); the
+  Gemini native-SDK client as the fifth API client (`ARCHITECTURE.md`,
+  `docs/usage/web-ui.md`); the interactive shell commands, model-named
+  prompt and exit behaviour (`docs/usage/interactive-mode.md`,
+  `docs/usage/cli-vs-web.md`, `README.md`); pipe-mode semantics (stdin
+  replaces the positional prompt) and the "do not combine `--set` with a
+  prompt" warning (`docs/usage/single-prompt.md`); the current built-in
+  models per provider and the `custom`-provider local-LLM setup
+  (`docs/configuration/providers.md`, `docs/getting-started/quick-start.md`);
+  and the `FindFiles` tool (`docs/tools/files.md`).

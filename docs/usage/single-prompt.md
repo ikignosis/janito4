@@ -8,12 +8,6 @@ Run a single prompt and get a response without entering interactive mode.
 janito "What is the capital of France?"
 ```
 
-## With Configuration
-
-```bash
-janito --set provider=openai --set model=gpt-4 "Your question here"
-```
-
 ## Piping Input
 
 You can pipe text into janito:
@@ -22,9 +16,26 @@ You can pipe text into janito:
 echo "Explain this code" | janito
 ```
 
-```bash
-cat readme.md | janito "Summarize this"
-```
+!!! note "Pipe mode: stdin is the prompt"
+    When input is piped, its content becomes the prompt — janito reads it as
+    a whole and it **replaces** any positional prompt argument. To ask about
+    piped content, include the instruction in the piped text itself:
+
+    ```bash
+    cat readme.md | janito        # the README content is the prompt
+    (echo "Summarize this:"; cat readme.md) | janito
+    ```
+
+!!! warning "Do not combine `--set` with a prompt"
+    Batch configuration operations (`--set`, `--unset`, `--get`,
+    `--set-secret`, `--delete-secret`) are handled first and janito exits
+    after applying them — the prompt on the same line is **not** sent.
+    Run the configuration step and the prompt step separately:
+
+    ```bash
+    janito --set provider=openai --set model=gpt-4   # Step 1: configure
+    janito "Your question here"                      # Step 2: run
+    ```
 
 ## Examples
 

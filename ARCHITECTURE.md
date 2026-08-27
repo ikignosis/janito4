@@ -77,12 +77,12 @@ the `janito` console script). Flow:
 7. **Dispatch to a mode**:
    - `--web` → `janito/web/backend/app.py:run_web` (checks the optional
      `[web]` extras first);
-   - stdin pipe → single-prompt mode;
-   - `--prompt` → `run_single_prompt`; otherwise `run_interactive_chat`
-     (both in `janito/cli/chat.py`).
+   - stdin pipe → the piped text replaces the prompt argument;
+   - prompt argument present (positional, or piped) → `run_single_prompt`;
+     otherwise `run_interactive_chat` (both in `janito/cli/chat.py`).
 
 `janito/cli/chat.py` builds a `send_prompt_func` bound to the resolved API
-type (Responses / Completions / Anthropic / DashScope) and drives either the
+type (Responses / Completions / Anthropic / DashScope / Gemini) and drives either the
 interactive shell or a single prompt. `janito/cli/session_setup.py` decides
 the effective system prompt and which toolsets to enable.
 
@@ -110,7 +110,7 @@ browser chat interface served as static HTML/JS/CSS (no build step).
 ## Agent loop & API clients
 
 The heart of the engine is a **template-method turn pipeline** defined in
-`janito/openai_client/base_client.py` (`Client.send`), shared by four clients:
+`janito/openai_client/base_client.py` (`Client.send`), shared by five clients:
 
 | Client | API type | File |
 |--------|----------|------|
@@ -118,6 +118,7 @@ The heart of the engine is a **template-method turn pipeline** defined in
 | Responses | `/responses` | `openai_client/conversations_api.py` |
 | Anthropic | native `anthropic` SDK | `openai_client/anthropic_api.py` |
 | DashScope | native `dashscope` SDK | `dashscope_api.py` + `openai_client/dashscope_stream.py` |
+| Gemini | native `google-genai` SDK | `gemini_api.py` + `openai_client/gemini_stream.py` |
 
 The pipeline per turn:
 
@@ -134,9 +135,9 @@ The pipeline per turn:
 The web loop (`janito/web/backend/agent/loop.py`) drives the **same turn
 pipeline asynchronously**, yielding structured events instead of printing
 Rich output. Both loops share the per-API adapter layer in `janito/agent/`
-(`completions.py`, `responses.py`, `anthropic.py`, `dashscope.py`, `usage.py`,
-`events.py`), so API-specific call-kwargs building, stream accumulation and
-history conversion are implemented once.
+(`completions.py`, `responses.py`, `anthropic.py`, `dashscope.py`,
+`gemini.py`, `usage.py`, `events.py`), so API-specific call-kwargs building,
+stream accumulation and history conversion are implemented once.
 
 ---
 
@@ -152,7 +153,8 @@ history conversion are implemented once.
     tool's type hints and docstring;
   - `add_toolset()` enables on-demand toolsets (janitoweb);
   - `register_plugin_tools()` registers tool classes contributed by plugins
-    (gated by `--no-tools` like any other non-skill tool);
+    (**not** gated by `--no-tools`, unlike built-in discovery — plugins are
+    disabled independently via `--no-plugins`);
   - `enable_skills()/disable_skills()` toggle skill tools.
 
 - **`executor.py`** — `ToolExecutor` + shared `run_tool()` core (the
