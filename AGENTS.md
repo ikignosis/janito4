@@ -1,5 +1,6 @@
 - When creating tools read docs/TOOL.md
 - After performing significant changes update the CHANGELOG.md
+- After doing user facing changes update the docs/
 - Before "git commit":
     - list the open issues and locate one that matches with the changes, add "closes #issue" to the commit comments
     - Run git diff to check the changes and generate the commit message

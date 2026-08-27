@@ -20,6 +20,8 @@ Changes since `v4.31.0` (2026-08-25).
 
 - `feat(cli)`: accept `-m` as a shorthand for `--model` (mirroring the
   existing `-p`/`--provider`), and document it in the CLI usage text.
+- `AGENTS.md`: require the docs to be updated whenever a change is
+  user facing, so the documentation does not drift from the code.
 
 ### Documentation
 
