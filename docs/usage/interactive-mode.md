@@ -74,7 +74,7 @@ Additional slash commands available in the terminal shell:
 | `/provider` | Show the current provider and the available providers |
 | `/provider <name>` | Switch the session's provider (and model) for this shell session only — the configured default in `config.json` is left unchanged (use `janito --set provider=<name>` to persist a new default; autocompleted). The LLM conversation history is cleared so the new provider/model starts fresh |
 | `/model` | Show the current model and the models available from the current provider |
-| `/model <name>` | Switch the session's model for this shell session only — the configured default in `config.json` is left unchanged (use `janito --set model=<name>` to persist a new default; autocompleted). Like `--model`, the name is open-ended; when it matches a model available from the current provider its canonical casing is used. The LLM conversation history is cleared so the new model starts fresh |
+| `/model <name>` | Switch the session's model for this shell session only — the configured default in `config.json` is left unchanged (use `janito --set model=<name>` to persist a new default; autocompleted). Like `--model`, the name is validated against the models available from the current provider (its built-in models; `openrouter` and `custom` accept any name) — when it matches, its canonical casing is used. The LLM conversation history is cleared so the new model starts fresh |
 | `/api_types` | List the API types supported by each built-in provider/model (e.g. `Responses` / `Completions`, plus native-SDK types such as `Anthropic` / `DashScope` / `Gemini`), marking each model's built-in default API type |
 | `/compact` | Compress older conversation history: keeps the last 3 turns verbatim and replaces everything before them with a single `[RECAP OF PRIOR WORK]` assistant message produced by a dedicated LLM call (Context Compression Engine). Disabled with "Conversation too short to compact effectively." when there is nothing worth compacting (fewer than 3 turns, or under 2,000 estimated tokens to replace) |
 | `/thinking` | Show the current session thinking mode status |
@@ -106,9 +106,8 @@ is still shown by `/provider` with no argument.
 
 After `/model `, the models available from the **current provider** are
 suggested as you type them, e.g. `/model gpt` suggests `gpt-5.6-luna`. The
-available set is the provider's built-in models plus any configured
-per-model entries in `config.json`; `/model` with no argument lists them
-all.
+available set is the provider's built-in models; `/model` with no argument
+lists them all.
 
 After `/thinking `, `on` and `off` are suggested.
 

@@ -63,43 +63,94 @@ if pytest is not None:
     def test_set_model_without_provider_errors(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
         with pytest.raises(ProviderRequiredError):
-            cc.set_config_from_cli("model=gpt-4")
+            cc.set_config_from_cli("model=gpt-5.6-luna")
         # Nothing should have been written
         assert _read_config(config_path) == {}
 
     def test_set_model_with_cli_provider(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
-        key, value = cc.set_config_from_cli("model=gpt-4", "openai")
+        key, value = cc.set_config_from_cli("model=gpt-5.6-luna", "openai")
         assert key == "openai.model"
-        assert value == "gpt-4"
+        assert value == "gpt-5.6-luna"
         assert _read_config(config_path) == {
-            "providers": {"openai": {"model": "gpt-4"}}
+            "providers": {"openai": {"model": "gpt-5.6-luna"}}
         }
 
     def test_set_model_uses_configured_provider(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
         cc.set_config_from_cli("provider=minimax")
-        key, _ = cc.set_config_from_cli("model=abab6.5")
+        key, _ = cc.set_config_from_cli("model=MiniMax-M3")
         assert key == "minimax.model"
-        assert _read_config(config_path)["providers"]["minimax"]["model"] == "abab6.5"
+        assert (
+            _read_config(config_path)["providers"]["minimax"]["model"] == "MiniMax-M3"
+        )
 
     def test_cli_provider_overrides_configured_provider(monkeypatch, tmp_path):
         _use_temp_config(monkeypatch, tmp_path)
         cc.set_config_from_cli("provider=minimax")
-        key, _ = cc.set_config_from_cli("model=gpt-4", "openai")
+        key, _ = cc.set_config_from_cli("model=gpt-5.6-luna", "openai")
         assert key == "openai.model"
 
     def test_provider_is_normalized(monkeypatch, tmp_path):
         _use_temp_config(monkeypatch, tmp_path)
-        key, _ = cc.set_config_from_cli("model=gpt-4", "  OpenAI ")
+        key, _ = cc.set_config_from_cli("model=gpt-5.6-luna", "  OpenAI ")
         assert key == "openai.model"
+
+    def test_set_model_rejects_unknown_model(monkeypatch, tmp_path):
+        """--set model=<unknown> is rejected for providers with built-in models."""
+        config_path = _use_temp_config(monkeypatch, tmp_path)
+        with pytest.raises(ValueError, match="Unknown model 'gpt-4'"):
+            cc.set_config_from_cli("model=gpt-4", "openai")
+        # Nothing should have been written.
+        assert _read_config(config_path) == {}
+
+    def test_set_model_error_lists_available_models(monkeypatch, tmp_path):
+        _use_temp_config(monkeypatch, tmp_path)
+        with pytest.raises(ValueError) as excinfo:
+            cc.set_config_from_cli("model=nope", "deepseek")
+        message = str(excinfo.value)
+        assert "for provider 'deepseek'" in message
+        assert "deepseek-v4-flash" in message
+        assert "deepseek-v4-pro" in message
+
+    def test_set_model_canonicalizes_builtin_casing(monkeypatch, tmp_path):
+        """A case-insensitive match is stored in its canonical built-in casing."""
+        config_path = _use_temp_config(monkeypatch, tmp_path)
+        key, value = cc.set_config_from_cli("model=MINIMAX-M3", "minimax")
+        assert key == "minimax.model"
+        assert value == "MiniMax-M3"
+        assert (
+            _read_config(config_path)["providers"]["minimax"]["model"] == "MiniMax-M3"
+        )
+
+    def test_set_model_accepts_any_name_for_custom_and_openrouter(
+        monkeypatch, tmp_path
+    ):
+        """custom and openrouter have no built-in model list: any name is accepted."""
+        _use_temp_config(monkeypatch, tmp_path)
+        key, value = cc.set_config_from_cli("model=my-arbitrary-model", "custom")
+        assert key == "custom.model"
+        assert value == "my-arbitrary-model"
+        key, value = cc.set_config_from_cli(
+            "model=anthropic/claude-3.5-sonnet", "openrouter"
+        )
+        assert key == "openrouter.model"
+        assert value == "anthropic/claude-3.5-sonnet"
+
+    def test_set_model_accepts_configured_per_model_entry(monkeypatch, tmp_path):
+        """A model with per-model config entries (shown by --list-models) is accepted."""
+        _use_temp_config(monkeypatch, tmp_path)
+        cs.set_config_value("openai.models.gpt-future.max-output-tokens", 1000)
+        key, value = cc.set_config_from_cli("model=gpt-future", "openai")
+        assert key == "openai.model"
+        assert value == "gpt-future"
 
     def test_get_model_per_provider(monkeypatch, tmp_path):
         _use_temp_config(monkeypatch, tmp_path)
-        cc.set_config_from_cli("model=gpt-4", "openai")
-        cc.set_config_from_cli("model=abab6.5", "minimax")
-        assert cc.get_config_from_cli("model", "openai") == "gpt-4"
-        assert cc.get_config_from_cli("model", "minimax") == "abab6.5"
+        cc.set_config_from_cli("model=gpt-5.6-luna", "openai")
+        cc.set_config_from_cli("model=MiniMax-M3", "minimax")
+        assert cc.get_config_from_cli("model", "openai") == "gpt-5.6-luna"
+        assert cc.get_config_from_cli("model", "minimax") == "MiniMax-M3"
 
     def test_get_model_without_provider_errors(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
@@ -112,35 +163,35 @@ if pytest is not None:
     def test_load_model_from_config(monkeypatch, tmp_path):
         _use_temp_config(monkeypatch, tmp_path)
         cc.set_config_from_cli("provider=minimax")
-        cc.set_config_from_cli("model=abab6.5")
-        cc.set_config_from_cli("model=gpt-4", "openai")
+        cc.set_config_from_cli("model=MiniMax-M3")
+        cc.set_config_from_cli("model=gpt-5.6-luna", "openai")
         # Active provider (from config) is minimax
-        assert cl.load_model_from_config() == "abab6.5"
+        assert cl.load_model_from_config() == "MiniMax-M3"
         # CLI provider override wins
-        assert cl.load_model_from_config("openai") == "gpt-4"
+        assert cl.load_model_from_config("openai") == "gpt-5.6-luna"
         # Unknown provider has no model
         assert cl.load_model_from_config("unknown") is None
 
     def test_load_model_without_provider_returns_none(monkeypatch, tmp_path):
         _use_temp_config(monkeypatch, tmp_path)
-        cc.set_config_from_cli("model=gpt-4", "openai")
+        cc.set_config_from_cli("model=gpt-5.6-luna", "openai")
         # No provider configured and none supplied -> cannot resolve -> None
         assert cl.load_model_from_config() is None
 
     def test_unset_model_per_provider(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
-        cc.set_config_from_cli("model=gpt-4", "openai")
-        cc.set_config_from_cli("model=abab6.5", "minimax")
+        cc.set_config_from_cli("model=gpt-5.6-luna", "openai")
+        cc.set_config_from_cli("model=MiniMax-M3", "minimax")
         assert cc.unset_config_key_from_cli("model", "openai") is True
         config = _read_config(config_path)
         assert "openai" not in config.get("providers", {})
-        assert config["providers"]["minimax"]["model"] == "abab6.5"
+        assert config["providers"]["minimax"]["model"] == "MiniMax-M3"
         # Removing again returns False (already gone)
         assert cc.unset_config_key_from_cli("model", "openai") is False
 
     def test_unset_model_without_provider_errors(monkeypatch, tmp_path):
         _use_temp_config(monkeypatch, tmp_path)
-        cc.set_config_from_cli("model=gpt-4", "openai")
+        cc.set_config_from_cli("model=gpt-5.6-luna", "openai")
         with pytest.raises(ProviderRequiredError):
             cc.unset_config_key_from_cli("model")
 

@@ -48,7 +48,7 @@ under the variant's own keys:
 
 ```bash
 # Per-variant model
-janito --provider alibaba-tokenplan --set model=qwen-plus
+janito --provider alibaba-tokenplan --set model=qwen3.8-flash
 
 # Per-variant endpoint (e.g. a proxy or regional URL)
 janito --provider alibaba-tokenplan --set endpoint=https://my-proxy.example.com/v1
@@ -65,6 +65,10 @@ janito --provider alibaba-tokenplan --set reasoning-level=medium
 Everything you don't set falls back to the **base provider's** built-in
 defaults. For example, `alibaba-tokenplan` without an explicit model uses
 `qwen3.8-max`, the `alibaba` provider's default.
+
+A variant's model must be valid for its base provider: only the base's
+built-in models are accepted (model-scoped settings are likewise restricted
+to them) -- except `custom` variants, which accept any model name.
 
 ### Using a variant
 

@@ -32,7 +32,7 @@ uv tool install janito
 janito --config
 
 # Or set options directly (two steps: config, then API key)
-janito --set provider=openai --set model=gpt-4
+janito --set provider=openai --set model=gpt-5.6-luna
 janito --set-api-key="sk-your-key" --provider openai
 
 # Start chatting
@@ -66,7 +66,7 @@ janito --config
 You'll be prompted for:
 - **Provider** - `openai` or `custom`
 - **API Key** - Masked for security
-- **Model** - e.g., `gpt-4`, `gpt-3.5-turbo`
+- **Model** - e.g., `gpt-5.6-luna`
 - **Max Output Tokens** - Maximum output tokens (default: 65536)
 - **Max Input Tokens** - Maximum input tokens / context window (default: 128000)
 
@@ -76,7 +76,7 @@ Set options directly from the command line:
 
 ```bash
 # Single key-value
-janito --set model=gpt-4
+janito --set model=gpt-5.6-luna
 ```
 
 You can also use `--get`, `--unset`, and `--set-secret` with multiple values.
@@ -196,7 +196,7 @@ janito --log=info,debug "Your prompt" # Multiple levels
 
 ```bash
 # Step 1: Set provider and model
-janito --set provider=openai --set model=gpt-4
+janito --set provider=openai --set model=gpt-5.6-luna
 # Step 2: Store API key
 janito --set-api-key="sk-your-key" --provider openai
 
@@ -208,7 +208,7 @@ janito "Explain quantum computing"
 
 ```bash
 # Step 1: Set provider and model
-janito --set provider=alibaba --set model=qwen-plus
+janito --set provider=alibaba --set model=qwen3.8-max
 # Step 2: Store API key
 janito --set-api-key="your-dashscope-api-key" --provider alibaba
 

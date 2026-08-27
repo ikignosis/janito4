@@ -84,7 +84,7 @@ def handle_set_config(values: list[str], cli_provider: str = None) -> int:
     if not values:
         print("[ERROR] At least one KEY=VALUE pair required.", file=sys.stderr)
         print(
-            "Usage: janito --set model=gpt-4 endpoint=https://api.example.com/v1",
+            "Usage: janito --set model=gpt-5.6-luna endpoint=https://api.example.com/v1",
             file=sys.stderr,
         )
         return 1

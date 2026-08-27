@@ -1055,12 +1055,64 @@ if pytest is not None:
         rc = _run_main(
             monkeypatch,
             tmp_path,
-            ["--provider", "OpenAI", "--set", "model=gpt-4"],
+            ["--provider", "OpenAI", "--set", "model=gpt-5.6-luna"],
         )
         assert rc == 0
         config = json.loads((tmp_path / "config.json").read_text())
         # The provider was normalized to its canonical casing ("openai").
-        assert config == {"providers": {"openai": {"model": "gpt-4"}}}
+        assert config == {"providers": {"openai": {"model": "gpt-5.6-luna"}}}
+
+    def test_cli_rejects_unknown_model_on_set(monkeypatch, tmp_path, capsys):
+        """--set model=<unknown> exits 1 without writing anything."""
+        rc = _run_main(
+            monkeypatch,
+            tmp_path,
+            ["--provider", "openai", "--set", "model=gpt-4"],
+        )
+        assert rc == 1
+        err = capsys.readouterr().err
+        assert "Unknown model 'gpt-4' for provider 'openai'" in err
+        assert "gpt-5.6-luna" in err  # available models are listed
+        assert not (tmp_path / "config.json").exists()
+
+    def test_cli_rejects_unknown_model_flag(monkeypatch, tmp_path, capsys):
+        """--model <unknown> exits 1 before any command runs."""
+        rc = _run_main(
+            monkeypatch,
+            tmp_path,
+            ["--provider", "openai", "--model", "gpt-4", "--info"],
+        )
+        assert rc == 1
+        err = capsys.readouterr().err
+        assert "Unknown model 'gpt-4' for provider 'openai'" in err
+
+    def test_cli_accepts_any_model_for_openrouter(monkeypatch, tmp_path):
+        """openrouter has no built-in model list: any --set model name is accepted."""
+        import json
+
+        rc = _run_main(
+            monkeypatch,
+            tmp_path,
+            ["--provider", "openrouter", "--set", "model=anthropic/claude-3.5-sonnet"],
+        )
+        assert rc == 0
+        config = json.loads((tmp_path / "config.json").read_text())
+        assert config == {
+            "providers": {"openrouter": {"model": "anthropic/claude-3.5-sonnet"}}
+        }
+
+    def test_cli_canonicalizes_model_casing(monkeypatch, tmp_path):
+        """--set model= with a case-insensitive match stores the canonical casing."""
+        import json
+
+        rc = _run_main(
+            monkeypatch,
+            tmp_path,
+            ["--provider", "minimax", "--set", "model=minimax-m3"],
+        )
+        assert rc == 0
+        config = json.loads((tmp_path / "config.json").read_text())
+        assert config == {"providers": {"minimax": {"model": "MiniMax-M3"}}}
 
     def test_web_mode_without_extra_prints_actionable_error(
         monkeypatch, tmp_path, capsys

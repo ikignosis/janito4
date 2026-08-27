@@ -20,7 +20,7 @@ janito stores your configuration in `~/.janito/`. The main configuration file is
 > secrets in `./.janito` (the current working directory) instead of
 > `~/.janito`. Reads resolve local values first and fall back to the global
 > directory, and `--list-keys` / `--list-secrets` show both. For example:
-> `janito -l --set model=gpt-4`.
+> `janito -l --set model=gpt-5.6-luna`.
 
 ### View Configuration
 

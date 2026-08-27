@@ -9,10 +9,10 @@ requires ``janito --set model=<name>``).  ``/model`` with no argument lists
 the current model and the models available from the current provider.  The
 command must not match non-``/model`` input (e.g. ``/models``).
 
-Model names are open-ended (like the CLI's ``--model``): any name is accepted
-and passed to the provider's API, but when it matches a model available from
-the current provider (built-in registry + configured per-model entries) the
-canonical casing is used.
+Like the CLI's ``--model``, the model name is validated against the models
+available from the current provider (its built-in models); only
+``openrouter`` and ``custom`` accept any name.  When the typed name matches,
+the canonical casing is used.
 
 Switching the model clears the LLM conversation history (system prompt
 preserved); switching to the model already in effect keeps it.
@@ -105,16 +105,30 @@ def test_switch_model_is_case_insensitive_and_canonicalizes(
     assert shell.model == "deepseek-v4-flash"
 
 
-def test_switch_model_accepts_open_ended_model_name(monkeypatch, tmp_path, capsys):
-    """Like --model, an unknown-but-plausible name is accepted as typed."""
+def test_switch_model_rejects_unknown_model(monkeypatch, tmp_path, capsys):
+    """An unknown model is rejected for providers with built-in models."""
     _use_temp_config(monkeypatch, tmp_path)
     shell = _shell(provider="deepseek")
-    # deepseek-v4-ultra is not in the built-in registry: accepted as typed.
+    # deepseek-v4-ultra is not in the built-in registry: rejected with the
+    # available models listed, and the session model stays unchanged.
     assert _model_handler().handle(shell, "/model deepseek-v4-ultra") is True
 
+    out = capsys.readouterr().out
+    assert "[ERROR] Unknown model 'deepseek-v4-ultra' for provider 'deepseek'" in out
+    assert "deepseek-v4-flash" in out
+    assert shell.model == "test-model"
     assert get_config_value("deepseek.model") is None
-    assert shell.model == "deepseek-v4-ultra"
-    assert "Model switched to 'deepseek-v4-ultra'" in capsys.readouterr().out
+
+
+def test_switch_model_accepts_any_name_for_openrouter(monkeypatch, tmp_path, capsys):
+    """Like --model, openrouter/custom have no built-in list: any name is accepted."""
+    _use_temp_config(monkeypatch, tmp_path)
+    shell = _shell(provider="openrouter")
+    assert _model_handler().handle(shell, "/model my-arbitrary-model") is True
+
+    assert get_config_value("openrouter.model") is None
+    assert shell.model == "my-arbitrary-model"
+    assert "Model switched to 'my-arbitrary-model'" in capsys.readouterr().out
 
 
 def test_non_model_input_is_not_handled(capsys):

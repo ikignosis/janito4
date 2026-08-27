@@ -129,12 +129,13 @@ def test_patch_model_without_provider_targets_active_provider(client):
     cs.unset_config_value("openai.model")
     client.app.state.config.session_provider = None
 
-    resp = client.patch("/api/config", json={"model": "gpt-4o"})
+    resp = client.patch("/api/config", json={"model": "gpt-5.6-luna"})
     assert resp.status_code == 200
 
     # Applied to the persisted default (openai), not any other provider.
     assert (
-        cs.load_config().get("providers", {}).get("openai", {}).get("model") == "gpt-4o"
+        cs.load_config().get("providers", {}).get("openai", {}).get("model")
+        == "gpt-5.6-luna"
     )
     assert cl.load_model_from_config("minimax") in (None, "MiniMax-M3")
 
@@ -147,11 +148,36 @@ def test_patch_model_mirrored_into_running_server_when_effective(client):
     client.app.state.config.session_provider = None
     client.app.state.config.provider = "openai"
 
-    resp = client.patch("/api/config", json={"model": "gpt-4o-mini"})
+    resp = client.patch("/api/config", json={"model": "gpt-5.6-sol"})
     assert resp.status_code == 200
 
     # The running server now reports the new model (next prompt uses it).
-    assert client.get("/api/config").json()["model"] == "gpt-4o-mini"
+    assert client.get("/api/config").json()["model"] == "gpt-5.6-sol"
+
+
+@requires_fastapi
+def test_patch_model_unknown_model_rejected(client):
+    """An unknown model for a built-in provider is rejected with 400.
+
+    Mirrors the CLI's ``--set model=<name>`` validation; ``openrouter`` and
+    ``custom`` (no built-in model list) accept any name.
+    """
+    before = cs.load_config()
+    resp = client.patch("/api/config", json={"model": "gpt-4o", "provider": "openai"})
+    assert resp.status_code == 400
+    assert "Unknown model 'gpt-4o'" in resp.json()["detail"]
+    assert cs.load_config() == before
+
+    # openrouter has no usable built-in list: any name is accepted.
+    resp = client.patch(
+        "/api/config",
+        json={"model": "anthropic/claude-3.5-sonnet", "provider": "openrouter"},
+    )
+    assert resp.status_code == 200
+    assert (
+        cs.load_config().get("providers", {}).get("openrouter", {}).get("model")
+        == "anthropic/claude-3.5-sonnet"
+    )
 
 
 @requires_fastapi

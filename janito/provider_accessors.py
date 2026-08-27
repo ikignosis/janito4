@@ -248,6 +248,24 @@ def requires_explicit_model(provider: str) -> bool:
     return found.default_model() == "custom"
 
 
+def has_usable_builtin_models(provider: str) -> bool:
+    """Whether ``provider`` ships a non-empty, usable built-in model list.
+
+    ``False`` when the provider has no ``models`` entry at all (``custom``) or
+    only the ``"custom"`` placeholder (``openrouter``): in both cases there is
+    nothing to restrict selection to.  See
+    :meth:`janito.provider_models.Provider.has_usable_builtin_models`.
+
+    Args:
+        provider: The provider name (case-insensitive).
+
+    Returns:
+        ``True`` when the provider has real built-in models to restrict to.
+    """
+    found = _registry.get(provider)
+    return found is not None and found.has_usable_builtin_models()
+
+
 def get_default_max_output_tokens_from_provider(
     provider: str, model: str | None = None
 ) -> int | None:

@@ -13,11 +13,11 @@ use the new model, but it does **not** change the configured default
 new default.  The switch takes effect immediately for the running session,
 whether or not the session was started with ``--model``.
 
-Like the CLI's ``--model`` flag, the model name is open-ended (any name is
-accepted and passed to the provider's API); when it matches a model available
-from the current provider (its built-in ``models`` registry plus configured
-per-model entries) the canonical casing is used.  The shell's argument
-autocompletion suggests those available models.
+Like the CLI's ``--model`` flag, the model name is validated against the
+models available from the current provider (its built-in models); when it
+matches, the canonical casing is used.  Only the ``openrouter`` and
+``custom`` providers accept any model name.  The shell's argument
+autocompletion suggests the available models.
 
 Switching the model clears the LLM conversation history (system prompt
 preserved) so the previous model's context does not leak into the new one.
@@ -111,24 +111,22 @@ class ModelCmdHandler(CmdHandler):
     def _switch_model(shell, model_name: str) -> None:
         """Apply the new model for this shell session only."""
         from janito.general_config import get_active_provider
+        from janito.provider_validation import validate_model_name
 
         # The provider in effect: the session's displayed provider (set from
         # --provider at startup, or updated by an earlier /provider switch),
         # else the configured default.
         provider = getattr(shell, "provider", None) or get_active_provider()
 
-        # Model names are open-ended (like the CLI's --model): any name is
-        # accepted and passed to the provider's API.  When the typed name
-        # matches a model available from the current provider, its canonical
-        # casing is used.
-        canonical = next(
-            (
-                name
-                for name in available_model_names(provider)
-                if name.lower() == model_name.lower()
-            ),
-            model_name,
-        )
+        # Like the CLI's --model, the name is validated against the models
+        # available from the current provider (its built-in models; only
+        # openrouter and custom accept any name).  When it matches, the
+        # canonical casing is used.
+        try:
+            canonical = validate_model_name(provider, model_name)
+        except ValueError as e:
+            print(f"[ERROR] {e}")
+            return
 
         previous = getattr(shell, "model", None)
 

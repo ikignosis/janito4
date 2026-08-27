@@ -20,11 +20,26 @@ Changes since `v4.31.0` (2026-08-25).
 
 - `feat(cli)`: accept `-m` as a shorthand for `--model` (mirroring the
   existing `-p`/`--provider`), and document it in the CLI usage text.
+- `feat(config)`: enforce the documented model-selection restriction.
+  `--set model=<name>`, the `--model` flag, the shell `/model` command and
+  the web Settings drawer now validate the model name against the
+  provider's built-in models (the base provider's models for variants) and
+  reject unknown names with the available models listed; `openrouter` and
+  `custom` still accept any model name. Matching names are stored/used in
+  their canonical built-in casing. New helper
+  `janito.provider_validation.validate_model_name`.
 - `AGENTS.md`: require the docs to be updated whenever a change is
   user facing, so the documentation does not drift from the code.
 
 ### Documentation
 
+- Sync the docs with the new model-selection restriction: for every provider
+  except `openrouter` and `custom`, `--model` / `--set model=...` accept only
+  the provider's built-in models (model-scoped settings are restricted to
+  them too), while `openrouter` and `custom` still accept any model name
+  (`docs/configuration/providers.md`, `docs/configuration/variants.md`,
+  `docs/reference/cli-options.md`, `docs/usage/interactive-mode.md`, the CLI
+  `--help` examples, and the `/model` shell command docs).
 - Sync the docs with the current implementation: scoped configuration keys
   (flat / provider-scoped / model-scoped) and the `--api-type`,
   `--list-models`, `--uninstall-plugin` and `--web` options

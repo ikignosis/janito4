@@ -72,6 +72,18 @@ def _patch_model(body, provider, effective, config, updated) -> JSONResponse | N
 
     model = str(body["model"]).strip()
 
+    # The model name is validated against the provider's built-in models (the
+    # base provider's models for variants), mirroring the CLI's ``--set
+    # model=...``; "custom" and "openrouter" accept any model name.  Empty
+    # (unset) is always allowed.
+    if model:
+        from janito.provider_validation import validate_model_name
+
+        try:
+            model = validate_model_name(provider, model)
+        except ValueError as e:
+            return JSONResponse({"detail": str(e)}, status_code=400)
+
     # Persist per-provider so each provider keeps its own default model.
     key = model_config_key(provider)
     if model:

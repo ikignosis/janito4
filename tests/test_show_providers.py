@@ -132,7 +132,7 @@ def test_lists_registered_variants(monkeypatch, tmp_path, capsys):
 def test_shows_configured_overrides_and_masked_key(monkeypatch, tmp_path, capsys):
     _use_temp_config(monkeypatch, tmp_path)
     cv.create_variant("alibaba-tokenplan")
-    cc.set_config_from_cli("model=qwen-plus", "alibaba-tokenplan")
+    cc.set_config_from_cli("model=qwen3.8-flash", "alibaba-tokenplan")
     cc.set_config_from_cli(
         "endpoint=https://variant.example.com/v1", "alibaba-tokenplan"
     )
@@ -143,7 +143,10 @@ def test_shows_configured_overrides_and_masked_key(monkeypatch, tmp_path, capsys
 
     _, out = _run(monkeypatch, tmp_path, capsys)
 
-    assert "qwen-plus (configured; default qwen3.8-max)" in out
+    # The configured model is annotated; the table may wrap the annotation
+    # across lines, so assert on wrap-tolerant fragments.
+    assert "qwen3.8-flash (configured" in out
+    assert "qwen3.8-max)" in out
     assert "https://variant.example.com/v1" in out
     assert "sk-abc.............wxyz (set)" in out
 

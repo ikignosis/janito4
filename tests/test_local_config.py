@@ -123,15 +123,15 @@ if pytest is not None:
     def test_provider_scoped_config_local_override(monkeypatch, tmp_path):
         _, project_dir = _use_temp_dirs(monkeypatch, tmp_path)
         config_dir_mod.set_local_config_mode(False)
-        cc.set_config_from_cli("model=gpt-4", "openai")
+        cc.set_config_from_cli("model=gpt-5.6-luna", "openai")
         config_dir_mod.set_local_config_mode(True)
-        cc.set_config_from_cli("model=gpt-5", "openai")
+        cc.set_config_from_cli("model=gpt-5.6-terra", "openai")
         # The local model wins during resolution.
-        assert cc.get_config_from_cli("model", "openai") == "gpt-5"
-        assert cl.load_model_from_config("openai") == "gpt-5"
+        assert cc.get_config_from_cli("model", "openai") == "gpt-5.6-terra"
+        assert cl.load_model_from_config("openai") == "gpt-5.6-terra"
         # The local file stores only the overridden provider subkey.
         local_config = json.loads((project_dir / ".janito" / "config.json").read_text())
-        assert local_config == {"providers": {"openai": {"model": "gpt-5"}}}
+        assert local_config == {"providers": {"openai": {"model": "gpt-5.6-terra"}}}
 
     def test_get_config_from_cli_finds_global_file_in_local_mode(monkeypatch, tmp_path):
         global_dir, _ = _use_temp_dirs(monkeypatch, tmp_path)

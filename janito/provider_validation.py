@@ -107,6 +107,71 @@ def validate_provider_name(provider: str) -> str:
     return _registry.require(provider).name
 
 
+def validate_model_name(provider: str, model: str) -> str:
+    """
+    Validate a model name against the provider's built-in models and return
+    its canonical form.
+
+    The provider may be a registered provider variant (``<provider>-<word>``,
+    e.g. ``alibaba-tokenplan``): the **base** provider's built-in models apply
+    (the variant inherits them).  The ``custom`` and ``openrouter`` providers
+    accept any model name -- they have no usable built-in model list to
+    restrict selection to (see
+    :meth:`janito.provider_models.Provider.has_usable_builtin_models`).
+
+    A model matching a built-in entry -- or an already-configured per-model
+    entry under ``providers.<provider>.models`` in config.json, the same set
+    ``janito --list-models`` shows -- is returned in its canonical casing;
+    anything else raises ``ValueError`` naming the provider and its available
+    models.
+
+    Args:
+        provider: The provider (or variant) name (case-insensitive).
+        model: The model name to validate.
+
+    Returns:
+        The canonical model name (the built-in/config entry's casing), or the
+        name as typed for ``custom``/``openrouter``/unknown providers.
+
+    Raises:
+        ValueError: If the provider has usable built-in models and ``model``
+            is not one of them (or a configured per-model entry).
+    """
+    from .config_keys import normalize_provider
+    from .config_store import get_config_value
+
+    found = _registry.get(provider)
+    if found is None or not found.has_usable_builtin_models():
+        # Unknown provider, or custom/openrouter (no usable built-in list):
+        # any model name is accepted.
+        return model
+
+    lowered = model.strip().lower()
+    # Built-in models (the base provider's for variants).
+    for name in found.model_names():
+        if name.lower() == lowered:
+            return name
+
+    # Configured per-model entries (custom models with model-scoped settings
+    # in config.json, e.g. --set max-output-tokens=...); these are the same
+    # names --list-models shows, so they are accepted too.
+    providers = get_config_value("providers")
+    if isinstance(providers, dict):
+        provider_config = providers.get(normalize_provider(provider))
+        if isinstance(provider_config, dict):
+            models = provider_config.get("models")
+            if isinstance(models, dict):
+                for name in models:
+                    if name.lower() == lowered:
+                        return name
+
+    available = ", ".join(sorted(found.model_names(), key=str.lower))
+    raise ValueError(
+        f"Unknown model '{model}' for provider '{found.name}'. "
+        f"Available models: {available}"
+    )
+
+
 def list_supported_providers() -> list:
     """
     List all supported providers.

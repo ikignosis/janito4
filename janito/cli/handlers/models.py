@@ -89,8 +89,8 @@ def handle_list_models(args) -> int:
     names = _available_model_names(provider)
 
     # The effective current model is always shown, even when it is not part
-    # of the built-in/config registry (e.g. a one-off --model name), so the
-    # user sees what is in effect.
+    # of the built-in/config registry (only possible for openrouter/custom,
+    # which accept any --model name), so the user sees what is in effect.
     if current_model and current_model not in names:
         names.append(current_model)
         names = sorted(names, key=str.lower)

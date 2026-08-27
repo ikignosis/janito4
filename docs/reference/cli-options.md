@@ -31,7 +31,7 @@ If no prompt is given, janito starts an interactive chat shell.
 | `--set-api-key <key>` | Set the API key for a provider. Uses `--provider`, or falls back to the configured default provider (`--set provider=<name>`) when `--provider` is omitted; errors if neither is available. If a key is already stored, janito warns and prompts for confirmation before overwriting; use `-f`/`--force` to overwrite without prompting. |
 | `-f`, `--force` | Overwrite an existing API key without prompting (used with `--set-api-key`) |
 | `-p`, `--provider <name>` | Provider name (e.g., `openai`, `custom`). Always validated against the supported providers; unknown names are rejected. |
-| `-m`, `--model <name>` | Model name (overrides the provider's configured model) |
+| `-m`, `--model <name>` | Model name (overrides the provider's configured model). Validated against the provider's built-in models; `openrouter` and `custom` accept any name |
 | `--list-keys` | List configured providers and keys (with `-l`/`--local`, shows both the local and the global auth files) |
 | `--list-models` | List all config-available models for the active provider (`--provider`, or the provider defined in `config.json`) and exit |
 | `--show-providers` | List all supported providers and their built-in defaults (model, API types, endpoint, token limits, thinking/reasoning, built-in tools per API type), followed by the registered provider variants |
@@ -47,7 +47,7 @@ If no prompt is given, janito starts an interactive chat shell.
 
 ```bash
 janito --create-variant alibaba-tokenplan
-janito --provider alibaba-tokenplan --set model=qwen-plus
+janito --provider alibaba-tokenplan --set model=qwen3.8-flash
 janito --set-api-key sk-xxx --provider alibaba-tokenplan
 janito --set provider=alibaba-tokenplan
 janito --delete-variant alibaba-tokenplan
@@ -153,7 +153,7 @@ janito --show-config
 janito --info
 janito --show-providers   # list every provider and variant with its defaults
 janito --list-models      # models available for the active provider
-janito --set provider=openai --set model=gpt-4
+janito --set provider=openai --set model=gpt-5.6-luna
 janito --set-api-key sk-your-key --provider openai
 janito --set-api-key sk-your-key   # uses the configured default provider
 ```
@@ -166,7 +166,7 @@ and fall back to the global directory, and `--list-keys` / `--list-secrets`
 show both:
 
 ```bash
-janito -l --set model=gpt-4                  # store config in ./.janito
+janito -l --set model=gpt-5.6-luna                  # store config in ./.janito
 janito -l --set-api-key sk-your-key --provider openai   # store the key in ./.janito
 janito -l --list-keys                        # show global and local keys
 ```

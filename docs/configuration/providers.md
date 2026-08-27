@@ -41,6 +41,18 @@ The API type is selected per provider with `--set api-type=...` (see the
     that it is a supported provider — one that maps to an API base URL — and
     rejects unknown names with an error enumerating the supported providers.
 
+!!! note
+    The model name is validated the same way. For providers with built-in
+    model entries (every provider except `openrouter` and `custom`), `--model`
+    and `--set model=...` accept only the provider's built-in models; an
+    unknown name is rejected with the available models listed. Model-scoped
+    settings (`--set max-output-tokens=...`, `--set reasoning-level=...`, ...)
+    are likewise only available for those built-in models — arbitrary model
+    names cannot be configured for these providers. `openrouter` (an
+    aggregator) and `custom` (any OpenAI-compatible endpoint) have no built-in
+    model list, so **any** model name and its settings are accepted there.
+    `janito --list-models` shows the accepted names for the active provider.
+
 ## Listing providers
 
 `janito --show-providers` prints every supported provider with its built-in
@@ -71,7 +83,7 @@ Supported Providers (12):
     Tools:         code_interpreter, web_search, web_extractor (Responses)
     ...
   alibaba-tokenplan (variant of alibaba)
-    Model:         qwen-plus (configured; default qwen3.8-max)
+    Model:         qwen3.8-flash (configured; default qwen3.8-max)
     ...
 ```
 
@@ -85,7 +97,7 @@ and which still need a key or an endpoint.
 
 ```bash
 # Step 1: Set provider and model
-janito --set provider=openai --set model=gpt-4
+janito --set provider=openai --set model=gpt-5.6-luna
 # Step 2: Store API key
 janito --set-api-key="sk-your-key" --provider openai
 ```
@@ -149,13 +161,10 @@ exactly like the other API types (MCP included).
 | Model | Description |
 |-------|-------------|
 | `gemini-3.7-flash` | Latest Gemini Flash model (default, built-in) |
-| `gemini-3.5-flash` | Fast, cost-effective Gemini model (selectable via `--model`) |
-| `gemini-2.5-flash` | Previous-generation Flash model (selectable via `--model`) |
-| `gemini-2.5-pro` | Highest capability Gemini model (selectable via `--model`) |
 
-Only `gemini-3.7-flash` ships as a built-in model entry (with its token
-limits and reasoning levels); the other names are sent to the API as-is when
-selected with `--model` or `--set model=...`.
+Model selection is restricted to the built-in models above; other Gemini
+names such as `gemini-2.5-pro` are not accepted for this provider.
+`janito --list-models` shows the accepted names.
 
 ### Reasoning Level
 
@@ -241,7 +250,7 @@ Use Alibaba Cloud DashScope to access Qwen models.
 
 ```bash
 # Step 1: Set provider and model
-janito --set provider=alibaba --set model=qwen-plus
+janito --set provider=alibaba --set model=qwen3.8-max
 # Step 2: Store API key
 janito --set-api-key="your-dashscope-api-key" --provider alibaba
 ```
@@ -251,13 +260,10 @@ janito --set-api-key="your-dashscope-api-key" --provider alibaba
 | Model | Description |
 |-------|-------------|
 | `qwen3.8-max` | Default model with built-in token limits and reasoning levels |
-| `qwen-plus` | Balanced performance and cost (selectable via `--model`) |
-| `qwen-max` | Highest capability model (selectable via `--model`) |
-| `qwen-turbo` | Fast, cost-effective (selectable via `--model`) |
-| `qwen-long` | Extended context window (selectable via `--model`) |
+| `qwen3.8-flash` | Fast, cost-effective model (built-in) |
 
-Only `qwen3.8-max` ships as a built-in model entry; the other names are
-sent to the API as-is when selected with `--model` or `--set model=...`.
+Model selection is restricted to the built-in models above.
+`janito --list-models` shows the accepted names.
 
 ### Reasoning Level
 
@@ -361,7 +367,7 @@ package does not use `reasoning_effort`, so `--reasoning-level` is accepted
 for parity but not mapped to a DashScope parameter.
 
 The DashScope native API serves models from two generation endpoints:
-`text-generation` for plain-text models (`qwen-plus`, `qwen-flash`, ...) and
+`text-generation` for plain-text models and
 `multimodal-generation` for multimodal models (Qwen-VL / Qwen-Omni, the
 `qwen3.x-plus` generation, and the default model `qwen3.8-max`). janito picks
 the endpoint from the model name automatically and, if the API ever rejects
@@ -373,7 +379,7 @@ model works out of the box here too.
 
 ```bash
 # Step 1: Set provider and model
-janito --set provider=alibaba --set model=qwen-plus
+janito --set provider=alibaba --set model=qwen3.8-max
 # Step 2: Store API key
 janito --set-api-key="your-dashscope-api-key" --provider alibaba
 # Step 3: Run prompt
@@ -509,9 +515,8 @@ the box. Pass `-t` / `--thinking` to force thinking on for any provider.
 |-------|-------------|
 | `MiniMax-M3` | Default model; reasoning by default (built-in) |
 
-Only `MiniMax-M3` ships as a built-in model entry (with its token limits and
-thinking behaviour); other model names can still be selected with `--model` or
-`--set model=...` and are sent to the API as-is.
+Model selection is restricted to the built-in models above.
+`janito --list-models` shows the accepted names.
 
 ### Example
 
@@ -544,10 +549,9 @@ janito --set-api-key="your-xiaomi-api-key" --provider xiaomi
 | Model | Description |
 |-------|-------------|
 | `mimo-v2.5` | Latest Xiaomi language model (default, built-in) |
-| `mimo-v2` | Previous generation model (selectable via `--model`) |
 
-Only `mimo-v2.5` ships as a built-in model entry; other model names are
-sent to the API as-is when selected with `--model` or `--set model=...`.
+Model selection is restricted to the built-in models above.
+`janito --list-models` shows the accepted names.
 
 ### Example
 
@@ -581,9 +585,8 @@ janito --set-api-key="your-moonshot-api-key" --provider moonshot
 |-------|-------------|
 | `kimi-k3` | Latest Kimi model with configurable reasoning (default, built-in) |
 
-Only `kimi-k3` ships as a built-in model entry (with its token limits and
-reasoning levels); other model names can still be selected with `--model` or
-`--set model=...` and are sent to the API as-is.
+Model selection is restricted to the built-in models above.
+`janito --list-models` shows the accepted names.
 
 ### Reasoning Level
 
@@ -633,11 +636,10 @@ janito --set-api-key="your-zai-api-key" --provider zai
 
 | Model | Description |
 |-------|-------------|
-| `glm-5.3` | Latest GLM-5 model (default) |
-| `glm-4-plus` | Enhanced GLM-4 model |
-| `glm-4` | Standard GLM-4 model |
-| `glm-4-flash` | Fast, cost-effective model |
-| `glm-4v-plus` | Vision-language model |
+| `glm-5.3` | Latest GLM-5 model (default, built-in) |
+
+Model selection is restricted to the built-in models above.
+`janito --list-models` shows the accepted names.
 
 ### Example
 
@@ -669,9 +671,10 @@ janito --set-api-key="your-xai-api-key" --provider xai
 
 | Model | Description |
 |-------|-------------|
-| `grok-4.6` | Latest flagship model |
-| `grok-3` | High-capability model |
-| `grok-2` | Balanced performance model |
+| `grok-4.6` | Latest flagship model (default, built-in) |
+
+Model selection is restricted to the built-in models above.
+`janito --list-models` shows the accepted names.
 
 ### Example
 
@@ -706,6 +709,9 @@ janito --set-api-key="your-anthropic-api-key" --provider anthropic
 | `claude-fable-5` | Newest frontier model (1M context) |
 | `claude-opus-5` | Highest capability model (1M context) |
 | `claude-sonnet-5` | Latest flagship model (200K context; default) |
+
+Model selection is restricted to the built-in models above.
+`janito --list-models` shows the accepted names.
 
 ### Native Anthropic SDK (optional)
 
@@ -757,7 +763,10 @@ Unlike most providers, OpenRouter has **no built-in default model** -- it
 aggregates thousands of models, so janito cannot pick one for you. Its
 provider config uses the `custom` placeholder as the default model, which is
 **not** a real model name: you must supply the model explicitly, either per
-call with `--model` or persistently in the config:
+call with `--model` or persistently in the config. As one of the two
+providers without a built-in model list (`custom` is the other), OpenRouter
+accepts **any** model name — the model-selection restriction that applies to
+other providers (see the note at the top of this page) does not apply here:
 
 ```bash
 # Step 1: Set provider and store the API key

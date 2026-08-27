@@ -57,7 +57,7 @@ from .cli.logging_config import setup_logging
 from .cli.setup import validate_runtime_config
 from .config_dir import set_config_dir, set_local_config_mode
 from .privileges import Privileges
-from .provider_validation import validate_provider_name
+from .provider_validation import validate_model_name, validate_provider_name
 
 
 def _flatten(values):
@@ -103,6 +103,23 @@ def _setup_runtime(args) -> int | None:
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             return 1
+
+    # Whenever --model <name> is used, verify it is one of the provider's
+    # built-in models (the base provider's models for variants); "custom"
+    # and "openrouter" have no usable built-in model list and accept any
+    # model name.  The provider is --provider (canonicalized above), else
+    # the configured default.  On success the model is normalized to its
+    # canonical built-in casing.
+    if getattr(args, "model", None):
+        from .general_config import load_provider_from_config
+
+        provider = args.provider or load_provider_from_config()
+        if provider:
+            try:
+                args.model = validate_model_name(provider, args.model)
+            except ValueError as e:
+                print(f"Error: {e}", file=sys.stderr)
+                return 1
 
     _setup_privileges(args)
     return None

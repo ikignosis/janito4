@@ -178,6 +178,22 @@ class Provider:
         base = self._base_name or self._name
         return base == "custom"
 
+    def has_usable_builtin_models(self) -> bool:
+        """Whether the provider ships a non-empty, *usable* model list.
+
+        ``False`` for providers with no ``models`` entry (``custom``) and for
+        those whose only entry is the ``"custom"`` placeholder (``openrouter``)
+        -- a placeholder carries built-in defaults but is not a model the user
+        can select, so it must not gate validation.
+        """
+        names = self.model_names()
+        if not names:
+            return False
+        # A single "custom" placeholder entry is not a real model list.
+        if self.default_model() == "custom" and names == ["custom"]:
+            return False
+        return True
+
     def _get(self, key: str, default=None):
         """Read an attribute from the provider's info entry."""
         return self._info.get(key, default)

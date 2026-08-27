@@ -16,7 +16,8 @@ These tests cover:
 4. it falls back to ``openai`` when no provider is configured;
 5. configured per-model entries (custom models) are included;
 6. the ``(default)`` / ``(configured)`` / ``(current)`` markers;
-7. a ``--model`` override is shown even when not in the registry;
+7. a ``--model`` override is shown even when not in the registry (only
+   ``openrouter``/``custom`` accept arbitrary ``--model`` names);
 8. the config file path is shown.
 """
 
@@ -151,13 +152,17 @@ def test_default_model_marked(monkeypatch, tmp_path, capsys):
 
 
 def test_model_override_is_current(monkeypatch, tmp_path, capsys):
-    """--model marks the effective current model even outside the registry."""
+    """--model marks the effective current model even outside the registry.
+
+    Only openrouter/custom accept arbitrary --model names; for them the
+    effective current model is always shown, even when it is not part of the
+    built-in/config registry.
+    """
     _, out = _run(
-        monkeypatch, tmp_path, capsys, provider="openai", model="gpt-custom-name"
+        monkeypatch, tmp_path, capsys, provider="custom", model="my-custom-model"
     )
 
-    assert "gpt-custom-name (current)" in out
-    assert "gpt-5.6-luna (default)" in out
+    assert "my-custom-model (current)" in out
 
 
 # ---------------------------------------------------------------------------

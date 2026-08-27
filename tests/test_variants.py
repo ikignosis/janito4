@@ -286,10 +286,33 @@ def test_per_variant_model_roundtrip(monkeypatch, tmp_path):
     _use_temp_config(monkeypatch, tmp_path)
 
     cv.create_variant("alibaba-tokenplan")
-    key, value = cc.set_config_from_cli("model=qwen-plus", "alibaba-tokenplan")
+    key, value = cc.set_config_from_cli("model=qwen3.8-max", "alibaba-tokenplan")
     assert key == "alibaba-tokenplan.model"
-    assert value == "qwen-plus"
-    assert cl.load_model_from_config("alibaba-tokenplan") == "qwen-plus"
+    assert value == "qwen3.8-max"
+    assert cl.load_model_from_config("alibaba-tokenplan") == "qwen3.8-max"
+
+
+def test_set_model_on_variant_validates_against_base_models(monkeypatch, tmp_path):
+    """--set model on a variant is validated against the base provider's models.
+
+    The variant inherits the base provider's built-in models, so a model that
+    is not one of them is rejected; a base built-in model is accepted.  A
+    variant of custom/openrouter (no usable built-in list) accepts any name.
+    """
+    _use_temp_config(monkeypatch, tmp_path)
+
+    cv.create_variant("alibaba-tokenplan")
+    with pytest.raises(ValueError, match="Unknown model 'qwen-plus'"):
+        cc.set_config_from_cli("model=qwen-plus", "alibaba-tokenplan")
+
+    key, value = cc.set_config_from_cli("model=qwen3.8-flash", "alibaba-tokenplan")
+    assert key == "alibaba-tokenplan.model"
+    assert value == "qwen3.8-flash"
+
+    cv.create_variant("custom-local")
+    key, value = cc.set_config_from_cli("model=my-local-model", "custom-local")
+    assert key == "custom-local.model"
+    assert value == "my-local-model"
 
 
 def test_unset_last_scoped_key_keeps_variant_registered(monkeypatch, tmp_path):
@@ -320,7 +343,7 @@ def test_resolve_runtime_config_variant_overrides(monkeypatch, tmp_path):
 
     cv.create_variant("alibaba-tokenplan")
     set_api_key("alibaba-tokenplan", "sk-variant")  # pragma: allowlist secret
-    cc.set_config_from_cli("model=qwen-plus", "alibaba-tokenplan")
+    cc.set_config_from_cli("model=qwen3.8-flash", "alibaba-tokenplan")
     cc.set_config_from_cli(
         "endpoint=https://variant.example.com/v1", "alibaba-tokenplan"
     )
@@ -328,7 +351,7 @@ def test_resolve_runtime_config_variant_overrides(monkeypatch, tmp_path):
     base_url, api_key, model = resolve_runtime_config(None, "alibaba-tokenplan")
     assert base_url == "https://variant.example.com/v1"
     assert api_key == "sk-variant"  # pragma: allowlist secret
-    assert model == "qwen-plus"
+    assert model == "qwen3.8-flash"
 
 
 def test_resolve_runtime_config_variant_base_fallback(monkeypatch, tmp_path):

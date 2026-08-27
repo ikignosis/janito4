@@ -14,6 +14,12 @@ Provider-scoped keys (``model``, ``endpoint``) land under
 ``responses-in-server``) land under
 ``providers.<provider>.models.<model>.<key>``, where the model is the
 provider's configured model or, failing that, its built-in default model.
+
+Setting a ``model`` value validates the name against the provider's built-in
+models (the base provider's models for variants), rejecting unknown names
+with the available models listed; the ``custom`` and ``openrouter`` providers
+accept any model name.  A matching name is stored in its canonical casing
+(see :func:`janito.provider_validation.validate_model_name`).
 """
 
 import json
@@ -207,6 +213,16 @@ def set_config_from_cli(
         from .provider_validation import validate_provider_name
 
         value = validate_provider_name(value)
+
+    # Validate the model name against the provider's built-in models (the
+    # base provider's models for variants); "custom" and "openrouter" have no
+    # usable built-in model list and accept any model name.  A matching name
+    # is normalized to its canonical casing before storing.
+    if key.endswith(".model"):
+        from .provider_validation import validate_model_name
+
+        provider = key.rsplit(".", 1)[0]
+        value = validate_model_name(provider, value)
 
     # Coerce values for keys that should be stored as integers.
     base_key = key.rsplit(".", 1)[-1]

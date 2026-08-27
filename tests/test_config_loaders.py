@@ -32,8 +32,8 @@ if pytest is not None:
     def test_load_model(monkeypatch, tmp_path):
         _use_temp_config(monkeypatch, tmp_path)
         loader = ProviderConfigLoader()
-        set_config_from_cli("model=gpt-4", "openai")
-        assert loader.load_model("openai") == "gpt-4"
+        set_config_from_cli("model=gpt-5.6-luna", "openai")
+        assert loader.load_model("openai") == "gpt-5.6-luna"
         assert loader.load_model("unknown") is None
         assert loader.load_model() is None  # no configured provider
 
