@@ -63,6 +63,11 @@ class HelpCmdHandler(CmdHandler):
         features.add_row(
             "/write", "Ask the LLM using the main history but write-only tools"
         )
+        features.add_row(
+            "/notools",
+            "Send the prompt using the main history but without any tools "
+            "(this message only)",
+        )
         features.add_row("/show_tools_stats", "Show tool usage statistics")
         features.add_row(
             "/changes", "Show the file-changing tool executions for this prompt"

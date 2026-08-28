@@ -62,6 +62,7 @@ Additional slash commands available in the terminal shell:
 | `/plugins` | List the installed plugins (from `<config_dir>/plugins`, default `~/.janito/plugins`), their paths and whether they loaded in the current session |
 | `/read <question>` | Send the question to the LLM using the **main** conversation history, but with `tools=` filtered to the read-only (`"r"` permission) tools — the model can read/search/fetch but cannot write or execute. The exchange stays in the main history and rolls back like a normal prompt on cancel |
 | `/write <question>` | Send the question to the LLM using the **main** conversation history, but with `tools=` filtered to the write-only (`"w"` permission) tools — the model can create, modify or delete files/dirs but cannot read, search or execute. The exchange stays in the main history and rolls back like a normal prompt on cancel |
+| `/notools <message>` | Send the message to the LLM using the **main** conversation history, but without offering any tools (the per-message equivalent of `--no-tools`). Only this message is affected — the next prompt goes back to the session's default tools. The exchange stays in the main history and rolls back like a normal prompt on cancel |
 | `/show_tools_stats` | Show tool usage statistics (from the SQLite `tools_use.db`) |
 | `/changes` | Show the file-changing tool executions recorded for the current prompt |
 | `/status` | Print the resolved runtime configuration (provider, model, API type, endpoint, masked API key, token limits, reasoning level, thinking) |
