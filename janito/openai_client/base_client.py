@@ -17,17 +17,25 @@ interactive shell, ``cli/chat.py`` and the tests) are unaffected.
 Test-coupling note
 ------------------
 The tests monkeypatch module-level names in each client module
-(``resolve_runtime_config``, ``_run_with_progress_bar``, ``OpenAI``,
-``ToolExecutor``, ``get_all_tool_schemas``, ...).  A function's globals are
+(``resolve_runtime_config``, ``OpenAI``, ``ToolExecutor``,
+``get_all_tool_schemas``, ...).  A function's globals are
 looked up in the module it is *defined* in, so every hook that can be
 monkeypatched must resolve through the **subclass module's** global
 namespace at call time.  That is why each subclass implements its hooks as
 thin forwarders to its own module's globals instead of the base importing
 those names directly (e.g. ``CompletionsClient._resolve_runtime_config``
 calls the ``resolve_runtime_config`` global of ``completions_api``).
+
+The per-round stream runner is the one hook that is **not** resolved through
+module globals: it is a UI-side concern (the TUI progress bar +
+Enter-to-cancel detection) injected through the constructor
+(``Client(stream_runner=...)``), so ``send_prompt``/``Client.send`` stay
+purely API-side and tests inject a fake runner via the constructor instead of
+monkeypatching a module global.
 """
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from rich.console import Console
@@ -84,6 +92,11 @@ class Client:
         cli_provider: Provider passed via ``--provider`` (overrides config/auth).
         reasoning_level: Reasoning depth passed via ``--reasoning-level``.
         use_mcp: Whether to load and use MCP tools.
+        stream_runner: Optional per-round stream runner (a UI-side concern,
+            e.g. the TUI ``_run_with_progress_bar``). ``None`` (default)
+            calls each streaming round directly in the calling thread -- no
+            thread, no progress spinner, no Enter-to-cancel -- keeping the
+            client purely API-side. The CLI injects its runner here.
         api_type: Canonical API type name (e.g. ``"Completions"``).
         backend_default: Fallback backend label for verbose output when
             ``base_url`` is ``None``.
@@ -101,11 +114,13 @@ class Client:
         cli_provider: str | None = None,
         reasoning_level: str | None = None,
         use_mcp: bool = True,
+        stream_runner: Callable | None = None,
     ) -> None:
         self.cli_model = cli_model
         self.cli_provider = cli_provider
         self.reasoning_level = reasoning_level
         self.use_mcp = use_mcp
+        self.stream_runner = stream_runner
 
     # ------------------------------------------------------------------
     # Template method: the shared turn pipeline
@@ -211,9 +226,10 @@ class Client:
             if verbose:
                 self._print_verbose_api_call(console, call_kwargs, tools_schemas)
 
-            # Consume the full stream under a progress bar (the blocking work
-            # runs in a worker thread via the module's _run_with_progress_bar
-            # while the main thread drives the spinner).
+            # Consume the full stream through the injected per-round stream
+            # runner (the CLI's TUI runner runs the blocking work in a worker
+            # thread while the main thread drives the spinner; the default
+            # ``None`` calls it directly -- no thread, no UI).
             (
                 full_content,
                 reasoning_content,
@@ -280,6 +296,21 @@ class Client:
     def _get_config(self, key: str) -> Any:
         """Read a config value (e.g. ``preserve_thinking``)."""
         return get_config_value(key)
+
+    def _invoke_stream_runner(self, func: Callable, *args: Any, **kwargs: Any) -> Any:
+        """Run the per-round worker through the injected stream runner.
+
+        ``stream_runner`` is a UI-side hook (e.g. the CLI's ``_run_with_progress_bar``
+        Rich spinner + Enter-to-cancel runner).  With the default ``None``
+        ``func`` is called directly in the calling thread -- no thread, no
+        UI -- so the client stays purely API-side.  When a runner is injected
+        it owns the worker's execution (it creates the ``cancel_event`` and
+        injects it into ``func`` as a keyword argument, which is why the
+        stream consumers accept ``cancel_event``).
+        """
+        if self.stream_runner is not None:
+            return self.stream_runner(func, *args, **kwargs)
+        return func(*args, **kwargs)
 
     def _print_verbose_info(self, console, base_url, model, mcp_manager) -> None:
         """Print model/backend/MCP info in verbose mode."""
@@ -375,8 +406,9 @@ class Client:
     ):
         """Run one streaming round; return ``(content, reasoning, tool_calls, usage)``.
 
-        This hook owns the module's ``_run_with_progress_bar`` / ``_stream_response``
-        wiring and the API-specific exception handling.
+        Subclasses route the blocking ``_stream_response`` worker through
+        :meth:`_invoke_stream_runner` (the injected per-round stream runner;
+        ``None`` = direct call) and own the API-specific exception handling.
         """
         raise NotImplementedError
 

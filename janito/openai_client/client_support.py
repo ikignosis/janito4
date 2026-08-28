@@ -1,26 +1,34 @@
 """
 Shared helpers for the OpenAI-compatible client modules.
 
-The four client modules (``completions_api``, ``conversations_api``,
-``anthropic_api`` and ``dashscope_api``) duplicate a set of small, generic
-helpers: token formatting, MCP loading, Rich console output (verbose banner,
-reasoning panel, markdown content, token-usage summary) and the
-authentication-error explainer.  This module centralizes them so each client
-stays focused on its own API's wire format.
+The client modules (``completions_api``, ``conversations_api``,
+``anthropic_api``, ``dashscope_api`` and ``gemini_api``) duplicate a set of
+small, generic helpers: token formatting, MCP loading, Rich console output
+(verbose banner, reasoning panel, markdown content, token-usage summary) and
+the authentication-error explainer.  This module centralizes them so each
+client stays focused on its own API's wire format.
 
-The ``_run_with_progress_bar`` runner stays in
-:mod:`janito.openai_client.completions_api` (it is monkeypatched by tests
-through that module's namespace); every client re-uses it from there.
+This module also hosts the **per-round stream runner** (``_run_with_progress_bar``
+plus its ``_is_enter_pressed`` stdin poller and the ``RequestCancelled``
+exception it raises).  The runner is a UI-side concern: it owns thread
+creation, the Rich spinner and the Enter-to-cancel detection, so it is
+**injected** into the API clients by the caller (the CLI wires it in via
+``_make_send_prompt_func`` in ``cli/chat.py``).  With no runner injected the
+clients call their stream workers directly -- no thread, no UI -- keeping
+``send_prompt``/``Client.send`` purely API-side.
 """
 
 import json
 import logging
+import sys
+import threading
 from dataclasses import dataclass
 from typing import Any
 
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.text import Text
 
 # Shared usage normalization (also used by the web loop's UsageEvent).
@@ -34,6 +42,132 @@ from janito.tooling.used_files import format_used_files
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
+
+
+class RequestCancelled(Exception):
+    """Raised when the user cancels a pending API request by pressing Enter.
+
+    Unlike ``KeyboardInterrupt`` (Ctrl+C), which rolls the conversation
+    history back to the last checkpoint, this signals an *interrupt without
+    rollback*: the user's message stays in the conversation history so the
+    conversation can continue from where it was interrupted.
+
+    Attributes:
+        partial_result: The worker thread's return value, when it finished
+            honouring the cancel before the exception was raised (e.g. the
+            stream consumers return the partially-assembled response parts,
+            from which a server-side response id can be recovered). ``None``
+            when the worker was still busy.
+    """
+
+    def __init__(self, message: str = "Request cancelled by user (pressed Enter)."):
+        super().__init__(message)
+        self.partial_result = None
+
+
+def _is_enter_pressed() -> bool:
+    """Return True if the user pressed Enter on stdin (non-blocking).
+
+    Only meaningful when stdin is an interactive TTY; returns False for
+    piped/redirected input so streamed data is never consumed here.
+
+    POSIX: after prompt_toolkit's prompt ends, the terminal is back in
+    canonical mode, so a full line (i.e. an Enter press) becomes available at
+    once; ``select`` reports readability and ``readline`` consumes the line.
+
+    Windows: ``msvcrt.kbhit``/``getwch`` report the raw key press.
+    """
+    if not sys.stdin.isatty():
+        return False
+    try:
+        if sys.platform == "win32":
+            import msvcrt
+
+            if msvcrt.kbhit():
+                key = msvcrt.getwch()
+                if key in ("\r", "\n"):
+                    # Drain any keys buffered after the Enter press.
+                    while msvcrt.kbhit():
+                        msvcrt.getwch()
+                    return True
+                return False
+            return False
+        import select
+
+        if select.select([sys.stdin], [], [], 0)[0]:
+            # A full line is available in canonical mode => Enter was pressed.
+            sys.stdin.readline()
+            return True
+        return False
+    except Exception:
+        # Never let input detection break the request flow.
+        return False
+
+
+def _run_with_progress_bar(func, *args, **kwargs):
+    """Run a function with a Rich progress bar in a separate thread.
+
+    While the worker runs, stdin is polled non-blockingly for an Enter press:
+    if the user presses Enter, the in-flight request is aborted through a
+    shared ``cancel_event`` and :class:`RequestCancelled` is raised (an
+    interrupt without rolling the conversation history back, unlike Ctrl+C).
+
+    This is the **UI-side** per-round stream runner injected by the CLI (see
+    ``Client.stream_runner``): it creates the ``cancel_event`` and passes it
+    to ``func`` as a keyword argument, which is why the stream consumers
+    (``_stream_response`` in each client module) accept ``cancel_event``.
+    """
+    result = [None]
+    exception = [None]
+    cancel_event = threading.Event()
+
+    def target():
+        try:
+            result[0] = func(*args, **kwargs, cancel_event=cancel_event)
+        except Exception as e:
+            exception[0] = e
+
+    # Create and start the thread
+    thread = threading.Thread(target=target)
+    thread.start()
+
+    # Show progress bar while waiting
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        transient=True,
+    ) as progress:
+        task = progress.add_task(
+            "Waiting for response from the API server...", total=None
+        )
+        while thread.is_alive():
+            if _is_enter_pressed():
+                cancel_event.set()
+                break
+            progress.update(task, advance=0.1)
+            thread.join(timeout=0.1)
+
+    cancelled = cancel_event.is_set()
+    if not cancelled:
+        thread.join()
+    else:
+        # Give the worker a moment to honour the cancel (break out of the
+        # stream and close the connection); if it is stuck in the initial
+        # connect it finishes in the background, mirroring Ctrl+C behaviour.
+        thread.join(timeout=2.0)
+
+    if cancelled:
+        if exception[0]:
+            logger.debug("Worker exception while cancelling request: %s", exception[0])
+        exc = RequestCancelled("Request cancelled by user (pressed Enter).")
+        # Keep the worker's partial return value (e.g. the aborted response's
+        # id) so callers can carry the conversation forward without losing
+        # the user's message.
+        exc.partial_result = result[0]
+        raise exc
+    if exception[0]:
+        raise exception[0]
+    return result[0]
 
 
 def _load_mcp(use_mcp: bool) -> tuple[Any, list[dict[str, Any]]]:

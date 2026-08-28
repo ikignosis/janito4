@@ -4,12 +4,10 @@ Uses streaming (SSE) to display tokens as they arrive.
 """
 
 import logging
-import sys
-import threading
+from collections.abc import Callable
 from typing import Any
 
 from openai import AuthenticationError, NotFoundError, OpenAI
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 # Import auth handling (API keys come from the auth store, not the environment)
 from janito.auth_config import get_api_key
@@ -33,10 +31,13 @@ from ..tooling.executor import ToolExecutor
 from .base_client import Client
 
 # Shared helpers reused by every client module (token formatting, MCP
-# loading, Rich console output, auth-error explainer) and the Chat
-# Completions stream consumer.  Re-exported here so existing
-# ``completions_api.<name>`` references (including tests) keep working.
+# loading, Rich console output, auth-error explainer), the per-round stream
+# runner (``_run_with_progress_bar`` + ``RequestCancelled``, injected by the
+# CLI) and the Chat Completions stream consumer.  Re-exported here so
+# existing ``completions_api.<name>`` references (including tests) keep
+# working.
 from .client_support import (  # noqa: F401 (re-exported for backward compat)
+    RequestCancelled,
     TurnUsage,
     _display_content,
     _display_reasoning,
@@ -188,127 +189,6 @@ def get_env_config() -> tuple[str | None, str, str]:
     return resolve_runtime_config()
 
 
-class RequestCancelled(Exception):
-    """Raised when the user cancels a pending API request by pressing Enter.
-
-    Unlike ``KeyboardInterrupt`` (Ctrl+C), which rolls the conversation
-    history back to the last checkpoint, this signals an *interrupt without
-    rollback*: the user's message stays in the conversation history so the
-    conversation can continue from where it was interrupted.
-
-    Attributes:
-        partial_result: The worker thread's return value, when it finished
-            honouring the cancel before the exception was raised (e.g. the
-            stream consumers return the partially-assembled response parts,
-            from which a server-side response id can be recovered). ``None``
-            when the worker was still busy.
-    """
-
-    def __init__(self, message: str = "Request cancelled by user (pressed Enter)."):
-        super().__init__(message)
-        self.partial_result = None
-
-
-def _is_enter_pressed() -> bool:
-    """Return True if the user pressed Enter on stdin (non-blocking).
-
-    Only meaningful when stdin is an interactive TTY; returns False for
-    piped/redirected input so streamed data is never consumed here.
-
-    POSIX: after prompt_toolkit's prompt ends, the terminal is back in
-    canonical mode, so a full line (i.e. an Enter press) becomes available at
-    once; ``select`` reports readability and ``readline`` consumes the line.
-
-    Windows: ``msvcrt.kbhit``/``getwch`` report the raw key press.
-    """
-    if not sys.stdin.isatty():
-        return False
-    try:
-        if sys.platform == "win32":
-            import msvcrt
-
-            if msvcrt.kbhit():
-                key = msvcrt.getwch()
-                if key in ("\r", "\n"):
-                    # Drain any keys buffered after the Enter press.
-                    while msvcrt.kbhit():
-                        msvcrt.getwch()
-                    return True
-                return False
-            return False
-        import select
-
-        if select.select([sys.stdin], [], [], 0)[0]:
-            # A full line is available in canonical mode => Enter was pressed.
-            sys.stdin.readline()
-            return True
-        return False
-    except Exception:
-        # Never let input detection break the request flow.
-        return False
-
-
-def _run_with_progress_bar(func, *args, **kwargs):
-    """Run a function with a Rich progress bar in a separate thread.
-
-    While the worker runs, stdin is polled non-blockingly for an Enter press:
-    if the user presses Enter, the in-flight request is aborted through a
-    shared ``cancel_event`` and :class:`RequestCancelled` is raised (an
-    interrupt without rolling the conversation history back, unlike Ctrl+C).
-    """
-    result = [None]
-    exception = [None]
-    cancel_event = threading.Event()
-
-    def target():
-        try:
-            result[0] = func(*args, **kwargs, cancel_event=cancel_event)
-        except Exception as e:
-            exception[0] = e
-
-    # Create and start the thread
-    thread = threading.Thread(target=target)
-    thread.start()
-
-    # Show progress bar while waiting
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        transient=True,
-    ) as progress:
-        task = progress.add_task(
-            "Waiting for response from the API server...", total=None
-        )
-        while thread.is_alive():
-            if _is_enter_pressed():
-                cancel_event.set()
-                break
-            progress.update(task, advance=0.1)
-            thread.join(timeout=0.1)
-
-    cancelled = cancel_event.is_set()
-    if not cancelled:
-        thread.join()
-    else:
-        # Give the worker a moment to honour the cancel (break out of the
-        # stream and close the connection); if it is stuck in the initial
-        # connect it finishes in the background, mirroring Ctrl+C behaviour.
-        thread.join(timeout=2.0)
-
-    if cancelled:
-        if exception[0]:
-            logger.debug("Worker exception while cancelling request: %s", exception[0])
-        exc = RequestCancelled("Request cancelled by user (pressed Enter).")
-        # Keep the worker's partial return value (e.g. the aborted response's
-        # id) so callers can carry the conversation forward without losing
-        # the user's message.
-        exc.partial_result = result[0]
-        raise exc
-    if exception[0]:
-        raise exception[0]
-    return result[0]
-
-
 def send_prompt(
     prompt: str,
     verbose: bool = False,
@@ -320,6 +200,7 @@ def send_prompt(
     cli_provider: str | None = None,
     reasoning_level: str | None = None,
     usage_out: TurnUsage | None = None,
+    stream_runner: Callable | None = None,
 ) -> str:
     """Send prompt to OpenAI endpoint and return response using streaming.
 
@@ -343,6 +224,12 @@ def send_prompt(
             with the turn's usage and display metadata, so the caller can
             render the end-of-turn reports after the call returns (see
             :func:`~janito.openai_client.client_support.display_turn_usage`).
+        stream_runner: Optional per-round stream runner (a UI-side concern,
+            e.g. ``_run_with_progress_bar``). ``None`` (default) runs each
+            streaming round directly in the calling thread -- no progress
+            spinner, no Enter-to-cancel -- keeping ``send_prompt`` purely
+            API-side; the CLI injects its TUI runner through
+            ``_make_send_prompt_func``.
     """
     logger.info("Sending prompt to API")
     return CompletionsClient(
@@ -350,6 +237,7 @@ def send_prompt(
         cli_provider=cli_provider,
         reasoning_level=reasoning_level,
         use_mcp=use_mcp,
+        stream_runner=stream_runner,
     ).send(
         prompt,
         verbose=verbose,
@@ -449,7 +337,7 @@ class CompletionsClient(Client):
                 tool_calls,
                 usage_info,
                 raw_attrs,
-            ) = _run_with_progress_bar(
+            ) = self._invoke_stream_runner(
                 _stream_response, client, call_kwargs, tools_schemas
             )
         except NotFoundError as e:

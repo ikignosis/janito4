@@ -40,6 +40,7 @@ existing ``conversations_api.<name>`` references keep working.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -67,13 +68,9 @@ from .client_support import (  # noqa: F401 (re-exported for backward compat)
 )
 
 # Shared helpers reused from the Chat Completions implementation so both
-# modules stay in sync: runtime config resolution and the progress spinner
-# runner.
-from .completions_api import (
-    RequestCancelled,
-    _run_with_progress_bar,
-    resolve_runtime_config,
-)
+# modules stay in sync: runtime config resolution and the RequestCancelled
+# exception (raised by the injected per-round stream runner).
+from .completions_api import RequestCancelled, resolve_runtime_config
 from .responses_helpers import (
     _finalize_conversation,
     _handle_not_found_error,
@@ -171,6 +168,7 @@ def send_prompt(
     cli_provider: str | None = None,
     reasoning_level: str | None = None,
     usage_out: TurnUsage | None = None,
+    stream_runner: Callable | None = None,
 ) -> ConversationResult:
     """Send a prompt to the Responses API and return the final answer.
 
@@ -233,6 +231,7 @@ def send_prompt(
         cli_provider=cli_provider,
         reasoning_level=reasoning_level,
         use_mcp=use_mcp,
+        stream_runner=stream_runner,
     ).send(
         prompt,
         verbose=verbose,
@@ -373,7 +372,7 @@ class ResponsesClient(Client):
                 usage_info,
                 stream_response_id,
                 raw_attrs,
-            ) = _run_with_progress_bar(
+            ) = self._invoke_stream_runner(
                 _stream_response, client, call_kwargs, tools_schemas
             )
             # Only server-side conversations chain with the returned id;

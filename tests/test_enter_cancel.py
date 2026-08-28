@@ -15,7 +15,7 @@ import time
 import pytest
 
 from janito.openai_client import RequestCancelled
-from janito.openai_client.completions_api import (
+from janito.openai_client.client_support import (
     _is_enter_pressed,
     _run_with_progress_bar,
 )
@@ -33,7 +33,7 @@ def test_is_enter_pressed_false_when_stdin_not_tty(monkeypatch):
         def isatty(self):
             return False
 
-    monkeypatch.setattr("janito.openai_client.completions_api.sys.stdin", FakeStdin())
+    monkeypatch.setattr("janito.openai_client.client_support.sys.stdin", FakeStdin())
     assert _is_enter_pressed() is False
 
 
@@ -46,7 +46,7 @@ def test_is_enter_pressed_posix_detects_enter(monkeypatch):
     master_fd, slave_fd = pty.openpty()
     try:
         stdin = os.fdopen(slave_fd, "r", buffering=1)
-        monkeypatch.setattr("janito.openai_client.completions_api.sys.stdin", stdin)
+        monkeypatch.setattr("janito.openai_client.client_support.sys.stdin", stdin)
         os.write(master_fd, b"hello\n")
         assert _is_enter_pressed() is True
         # The line was consumed; there is nothing left to read.
@@ -72,7 +72,7 @@ def test_run_with_progress_bar_raises_request_cancelled_on_enter(monkeypatch):
 
     # Simulate the user pressing Enter as soon as the worker has started.
     monkeypatch.setattr(
-        "janito.openai_client.completions_api._is_enter_pressed",
+        "janito.openai_client.client_support._is_enter_pressed",
         lambda: started.is_set(),
     )
 
@@ -458,7 +458,7 @@ def test_run_with_progress_bar_attaches_partial_result(monkeypatch):
         return ("partial", None, [], None, "resp_aborted")
 
     monkeypatch.setattr(
-        "janito.openai_client.completions_api._is_enter_pressed",
+        "janito.openai_client.client_support._is_enter_pressed",
         lambda: started.is_set(),
     )
 

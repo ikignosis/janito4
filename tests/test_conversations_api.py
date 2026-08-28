@@ -991,6 +991,7 @@ def test_make_send_prompt_func_responses_dispatch(monkeypatch):
         cli_provider=None,
         reasoning_level=None,
         usage_out=None,
+        stream_runner=None,
     ):
         captured["prompt"] = prompt
         captured["previous_response_id"] = previous_response_id
@@ -1000,6 +1001,7 @@ def test_make_send_prompt_func_responses_dispatch(monkeypatch):
         captured["cli_model"] = cli_model
         captured["cli_provider"] = cli_provider
         captured["usage_out"] = usage_out
+        captured["stream_runner"] = stream_runner
         return api.ConversationResult(content="hi", response_id="resp_z")
 
     # The wrapper imports send_prompt from conversations_api at call time, so
@@ -1035,6 +1037,9 @@ def test_make_send_prompt_func_responses_dispatch(monkeypatch):
     assert captured["usage_out"] is not None
     # previous_messages is deliberately not forwarded in Responses mode.
     assert "previous_messages" not in captured
+    # The CLI's TUI stream runner is injected by default (all CLI entry
+    # points keep the spinner + Enter-to-cancel behaviour).
+    assert captured["stream_runner"] is chat_mod._run_with_progress_bar
 
 
 def test_make_send_prompt_func_completions_dispatch(monkeypatch):
@@ -1054,11 +1059,13 @@ def test_make_send_prompt_func_completions_dispatch(monkeypatch):
         cli_provider=None,
         reasoning_level=None,
         usage_out=None,
+        stream_runner=None,
     ):
         captured["prompt"] = prompt
         captured["previous_messages"] = previous_messages
         captured["cli_provider"] = cli_provider
         captured["usage_out"] = usage_out
+        captured["stream_runner"] = stream_runner
         return "completions answer"
 
     monkeypatch.setattr(chat_mod, "send_prompt", fake_send_completions)
@@ -1082,6 +1089,8 @@ def test_make_send_prompt_func_completions_dispatch(monkeypatch):
     # The turn report out-param is threaded so the wrapper can render the
     # usage summary after the API call returns.
     assert captured["usage_out"] is not None
+    # The CLI's TUI stream runner is injected by default.
+    assert captured["stream_runner"] is chat_mod._run_with_progress_bar
 
 
 # ---- send_factory (real-time /provider switch) -----------------------------
@@ -1601,8 +1610,6 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
     cancelled message)."""
     from janito.openai_client import RequestCancelled
 
-    client = api.ResponsesClient()
-
     # Server-side: the pending user messages are handed back for the caller
     # to re-send chained from the last completed response id; the aborted
     # response id from the partial stream is never attached.
@@ -1615,7 +1622,9 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
     ]
     exc = RequestCancelled("cancelled")
     exc.partial_result = ("", None, [], None, "resp_aborted")
-    monkeypatch.setattr(api, "_run_with_progress_bar", mock.Mock(side_effect=exc))
+    # The runner is a UI-side concern injected through the constructor (a
+    # fake runner that raises the cancelled request).
+    client = api.ResponsesClient(stream_runner=mock.Mock(side_effect=exc))
 
     with pytest.raises(RequestCancelled) as excinfo:
         client._run_stream_round(
@@ -1643,10 +1652,10 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
     # into a user message item so the shell can re-send it.
     exc3 = RequestCancelled("cancelled")
     exc3.partial_result = ("", None, [], None, "resp_aborted")
-    monkeypatch.setattr(api, "_run_with_progress_bar", mock.Mock(side_effect=exc3))
+    client3 = api.ResponsesClient(stream_runner=mock.Mock(side_effect=exc3))
 
     with pytest.raises(RequestCancelled) as excinfo3:
-        client._run_stream_round(
+        client3._run_stream_round(
             mock.Mock(),
             {},
             [],
@@ -1679,10 +1688,10 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
     ]
     exc2 = RequestCancelled("cancelled")
     exc2.partial_result = ("", None, [], None, "resp_x")
-    monkeypatch.setattr(api, "_run_with_progress_bar", mock.Mock(side_effect=exc2))
+    client2 = api.ResponsesClient(stream_runner=mock.Mock(side_effect=exc2))
 
     with pytest.raises(RequestCancelled) as excinfo2:
-        client._run_stream_round(
+        client2._run_stream_round(
             mock.Mock(),
             {},
             [],

@@ -54,8 +54,10 @@ if pytest is not None:
             "resolve_runtime_config",
             lambda *a, **k: (None, "sk-test", "qwen3.8-max"),
         )
-        monkeypatch.setattr(client_mod, "_run_with_progress_bar", fake_run)
-        result = client_mod.send_prompt("hello", use_mcp=False, cli_provider="alibaba")
+        result = client_mod.send_prompt(
+            "hello", use_mcp=False, cli_provider="alibaba", stream_runner=fake_run
+        )
+
         assert result == "hi"
         assert fake_run.captured_kwargs["reasoning_effort"] == "xhigh"
 
@@ -67,9 +69,12 @@ if pytest is not None:
             "resolve_runtime_config",
             lambda *a, **k: (None, "sk-test", "qwen3.8-max"),
         )
-        monkeypatch.setattr(client_mod, "_run_with_progress_bar", fake_run)
         client_mod.send_prompt(
-            "hello", use_mcp=False, cli_provider="alibaba", reasoning_level="low"
+            "hello",
+            use_mcp=False,
+            cli_provider="alibaba",
+            reasoning_level="low",
+            stream_runner=fake_run,
         )
         assert fake_run.captured_kwargs["reasoning_effort"] == "low"
 
@@ -84,8 +89,10 @@ if pytest is not None:
             "resolve_runtime_config",
             lambda *a, **k: (None, "sk-test", "qwen3.8-max"),
         )
-        monkeypatch.setattr(client_mod, "_run_with_progress_bar", fake_run)
-        client_mod.send_prompt("hello", use_mcp=False, cli_provider="alibaba")
+        client_mod.send_prompt(
+            "hello", use_mcp=False, cli_provider="alibaba", stream_runner=fake_run
+        )
+
         assert fake_run.captured_kwargs["reasoning_effort"] == "medium"
 
     def test_send_prompt_no_reasoning_level_omits_effort(monkeypatch):
@@ -96,8 +103,10 @@ if pytest is not None:
             "resolve_runtime_config",
             lambda *a, **k: (None, "sk-test", "gpt-4"),
         )
-        monkeypatch.setattr(client_mod, "_run_with_progress_bar", fake_run)
-        client_mod.send_prompt("hello", use_mcp=False, cli_provider="openai")
+        client_mod.send_prompt(
+            "hello", use_mcp=False, cli_provider="openai", stream_runner=fake_run
+        )
+
         assert "reasoning_effort" not in fake_run.captured_kwargs
 
     def test_send_prompt_thinking_defaults_on_for_deepseek(monkeypatch):
@@ -108,8 +117,10 @@ if pytest is not None:
             "resolve_runtime_config",
             lambda *a, **k: (None, "sk-test", "deepseek-v4-flash"),
         )
-        monkeypatch.setattr(client_mod, "_run_with_progress_bar", fake_run)
-        client_mod.send_prompt("hello", use_mcp=False, cli_provider="deepseek")
+        client_mod.send_prompt(
+            "hello", use_mcp=False, cli_provider="deepseek", stream_runner=fake_run
+        )
+
         assert fake_run.captured_kwargs["extra_body"]["enable_thinking"] is True
 
     def test_send_prompt_thinking_defaults_on_for_alibaba(monkeypatch):
@@ -120,8 +131,10 @@ if pytest is not None:
             "resolve_runtime_config",
             lambda *a, **k: (None, "sk-test", "qwen3.8-max"),
         )
-        monkeypatch.setattr(client_mod, "_run_with_progress_bar", fake_run)
-        client_mod.send_prompt("hello", use_mcp=False, cli_provider="alibaba")
+        client_mod.send_prompt(
+            "hello", use_mcp=False, cli_provider="alibaba", stream_runner=fake_run
+        )
+
         assert fake_run.captured_kwargs["extra_body"]["enable_thinking"] is True
 
     def test_send_prompt_omits_builtin_tools_for_alibaba_completions(monkeypatch):
@@ -134,8 +147,10 @@ if pytest is not None:
             "resolve_runtime_config",
             lambda *a, **k: (None, "sk-test", "qwen3.8-max"),
         )
-        monkeypatch.setattr(client_mod, "_run_with_progress_bar", fake_run)
-        client_mod.send_prompt("hello", use_mcp=False, cli_provider="alibaba")
+        client_mod.send_prompt(
+            "hello", use_mcp=False, cli_provider="alibaba", stream_runner=fake_run
+        )
+
         extra_body = fake_run.captured_kwargs.get("extra_body", {})
         assert "enable_code_interpreter" not in extra_body
         assert "enable_search" not in extra_body
@@ -148,8 +163,10 @@ if pytest is not None:
             "resolve_runtime_config",
             lambda *a, **k: (None, "sk-test", "gpt-4"),
         )
-        monkeypatch.setattr(client_mod, "_run_with_progress_bar", fake_run)
-        client_mod.send_prompt("hello", use_mcp=False, cli_provider="openai")
+        client_mod.send_prompt(
+            "hello", use_mcp=False, cli_provider="openai", stream_runner=fake_run
+        )
+
         assert "enable_code_interpreter" not in fake_run.captured_kwargs.get(
             "extra_body", {}
         )
@@ -164,8 +181,10 @@ if pytest is not None:
             "resolve_runtime_config",
             lambda *a, **k: (None, "sk-test", "MiniMax-M3"),
         )
-        monkeypatch.setattr(client_mod, "_run_with_progress_bar", fake_run)
-        client_mod.send_prompt("hello", use_mcp=False, cli_provider="minimax")
+        client_mod.send_prompt(
+            "hello", use_mcp=False, cli_provider="minimax", stream_runner=fake_run
+        )
+
         assert fake_run.captured_kwargs["extra_body"]["thinking"] == {
             "type": "adaptive"
         }
@@ -178,8 +197,10 @@ if pytest is not None:
             "resolve_runtime_config",
             lambda *a, **k: (None, "sk-test", "gpt-4"),
         )
-        monkeypatch.setattr(client_mod, "_run_with_progress_bar", fake_run)
-        client_mod.send_prompt("hello", use_mcp=False, cli_provider="openai")
+        client_mod.send_prompt(
+            "hello", use_mcp=False, cli_provider="openai", stream_runner=fake_run
+        )
+
         assert "extra_body" not in fake_run.captured_kwargs
 
     def test_send_prompt_explicit_thinking_flag_still_wins(monkeypatch):
@@ -190,9 +211,12 @@ if pytest is not None:
             "resolve_runtime_config",
             lambda *a, **k: (None, "sk-test", "gpt-4"),
         )
-        monkeypatch.setattr(client_mod, "_run_with_progress_bar", fake_run)
         client_mod.send_prompt(
-            "hello", use_mcp=False, cli_provider="openai", thinking=True
+            "hello",
+            use_mcp=False,
+            cli_provider="openai",
+            thinking=True,
+            stream_runner=fake_run,
         )
         assert fake_run.captured_kwargs["extra_body"]["enable_thinking"] is True
 
@@ -206,9 +230,12 @@ if pytest is not None:
             "resolve_runtime_config",
             lambda *a, **k: (None, "sk-test", "gemini-3.7-flash"),
         )
-        monkeypatch.setattr(client_mod, "_run_with_progress_bar", fake_run)
         client_mod.send_prompt(
-            "hello", use_mcp=False, cli_provider="google", thinking=True
+            "hello",
+            use_mcp=False,
+            cli_provider="google",
+            thinking=True,
+            stream_runner=fake_run,
         )
         extra_body = fake_run.captured_kwargs.get("extra_body")
         # enable_thinking must NOT be sent for Gemini-flavored providers.
@@ -227,12 +254,12 @@ if pytest is not None:
             "resolve_runtime_config",
             lambda *a, **k: (None, "sk-test", "gemini-3.7-flash"),
         )
-        monkeypatch.setattr(client_mod, "_run_with_progress_bar", fake_run)
         client_mod.send_prompt(
             "hello",
             use_mcp=False,
             cli_provider="google",
             reasoning_level="high",
+            stream_runner=fake_run,
         )
         assert fake_run.captured_kwargs["reasoning_effort"] == "high"
 

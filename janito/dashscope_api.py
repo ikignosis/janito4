@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import importlib.util
 import logging
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Any
 
@@ -53,12 +54,8 @@ from janito.openai_client.base_client import Client
 from janito.openai_client.client_support import TurnUsage, _handle_auth_error
 
 # Shared helpers reused from the Chat Completions implementation so all
-# client modules stay in sync: runtime config resolution and the progress
-# spinner runner.
-from janito.openai_client.completions_api import (
-    _run_with_progress_bar,
-    resolve_runtime_config,
-)
+# client modules stay in sync: runtime config resolution.
+from janito.openai_client.completions_api import resolve_runtime_config
 from janito.openai_client.dashscope_stream import (  # noqa: F401 (re-exported for backward compat)
     _build_tool_use_blocks,
     _build_usage_info,
@@ -146,6 +143,7 @@ def send_prompt(
     cli_provider: str | None = None,
     reasoning_level: str | None = None,
     usage_out: TurnUsage | None = None,
+    stream_runner: Callable | None = None,
 ) -> str:
     """Send a prompt through the native DashScope SDK and return the answer.
 
@@ -196,6 +194,7 @@ def send_prompt(
         cli_provider=cli_provider,
         reasoning_level=reasoning_level,
         use_mcp=use_mcp,
+        stream_runner=stream_runner,
     ).send(
         prompt,
         verbose=verbose,
@@ -296,7 +295,7 @@ class DashScopeClient(Client):
                 tool_calls,
                 usage_info,
                 raw_attrs,
-            ) = _run_with_progress_bar(
+            ) = self._invoke_stream_runner(
                 _stream_response, client, call_kwargs, tools_schemas
             )
         except Exception as e:

@@ -372,10 +372,11 @@ if pytest is not None:
             "resolve_runtime_config",
             lambda *a, **k: (None, "sk-test", "gpt-4"),
         )
-        monkeypatch.setattr(ca, "_run_with_progress_bar", fake_run)
         monkeypatch.setattr(ca, "_load_mcp", lambda use_mcp: (None, []))
 
-        client = ca.CompletionsClient(use_mcp=False)
+        # A fake runner is injected through the constructor (the UI-side
+        # stream runner is no longer a module global to monkeypatch).
+        client = ca.CompletionsClient(use_mcp=False, stream_runner=fake_run)
         monkeypatch.setattr(
             client,
             "_print_verbose_api_call",
@@ -418,7 +419,6 @@ if pytest is not None:
             "resolve_runtime_config",
             lambda *a, **k: (None, "sk-test", "gpt-4o"),
         )
-        monkeypatch.setattr(ca, "_run_with_progress_bar", fake_run)
         monkeypatch.setattr(ca, "_load_mcp", lambda use_mcp: (None, []))
         monkeypatch.setattr(
             ca,
@@ -437,7 +437,7 @@ if pytest is not None:
             lambda *a, **k: {"model": "gpt-4o", "input": "hello"},
         )
 
-        client = ca.ResponsesClient(use_mcp=False)
+        client = ca.ResponsesClient(use_mcp=False, stream_runner=fake_run)
         monkeypatch.setattr(
             client,
             "_print_verbose_api_response",

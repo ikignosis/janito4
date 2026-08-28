@@ -8,7 +8,10 @@ from collections.abc import Callable
 from .. import __version__
 from ..general_config import load_provider_from_config, resolve_api_type
 from ..openai_client import RequestCancelled, resolve_runtime_config, send_prompt
-from ..openai_client.client_support import wrap_send_prompt_with_turn_report
+from ..openai_client.client_support import (
+    _run_with_progress_bar,
+    wrap_send_prompt_with_turn_report,
+)
 from ..provider_accessors import get_responses_in_server_from_provider
 from ..shell import InteractiveShell
 from ..tooling.path_utils import display_path
@@ -24,6 +27,7 @@ def _make_send_prompt_func(
     cli_model: str | None = None,
     cli_provider: str | None = None,
     reasoning_level: str | None = None,
+    stream_runner: Callable | None = _run_with_progress_bar,
 ):
     """Return a send-prompt callable bound to the resolved API type.
 
@@ -69,6 +73,12 @@ def _make_send_prompt_func(
         cli_model: Model passed via ``--model``.
         cli_provider: Provider passed via ``--provider``.
         reasoning_level: Reasoning depth passed via ``--reasoning-level``.
+        stream_runner: The per-round stream runner injected into the API
+            clients (a UI-side concern).  Defaults to the CLI's
+            ``_run_with_progress_bar`` (Rich spinner + Enter-to-cancel), so
+            every CLI entry point (shell, ``/ask``, ``/compact``, one-shot)
+            keeps the current TUI behaviour; ``None`` runs the API calls
+            directly with no thread/UI.
     """
     if api_type == "Responses":
         from ..openai_client.conversations_api import send_prompt as send_responses
@@ -96,6 +106,7 @@ def _make_send_prompt_func(
                 cli_provider=cli_provider,
                 reasoning_level=reasoning_level,
                 usage_out=usage_out,
+                stream_runner=stream_runner,
             )
 
         return wrap_send_prompt_with_turn_report(send)
@@ -127,6 +138,7 @@ def _make_send_prompt_func(
                 cli_provider=cli_provider,
                 reasoning_level=reasoning_level,
                 usage_out=usage_out,
+                stream_runner=stream_runner,
             )
 
         return wrap_send_prompt_with_turn_report(send)
@@ -158,6 +170,7 @@ def _make_send_prompt_func(
                 cli_provider=cli_provider,
                 reasoning_level=reasoning_level,
                 usage_out=usage_out,
+                stream_runner=stream_runner,
             )
 
         return wrap_send_prompt_with_turn_report(send)
@@ -189,6 +202,7 @@ def _make_send_prompt_func(
                 cli_provider=cli_provider,
                 reasoning_level=reasoning_level,
                 usage_out=usage_out,
+                stream_runner=stream_runner,
             )
 
         return wrap_send_prompt_with_turn_report(send)
@@ -214,6 +228,7 @@ def _make_send_prompt_func(
             cli_provider=cli_provider,
             reasoning_level=reasoning_level,
             usage_out=usage_out,
+            stream_runner=stream_runner,
         )
 
     return wrap_send_prompt_with_turn_report(send)

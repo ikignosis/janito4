@@ -139,6 +139,20 @@ The pipeline per turn:
    `_finalize` hooks stay display-free and every CLI entry point (interactive
    shell, `/ask`, `/compact`, one-shot prompt) gets the same reports.
 
+The blocking work of each streaming round — thread creation, the Rich spinner
+and Enter-to-cancel detection — lives in a **per-round stream runner**
+(`_run_with_progress_bar` + its `_is_enter_pressed` stdin poller, in
+`openai_client/client_support.py`). It is a UI-side concern **injected** by
+the caller: `Client.__init__` takes `stream_runner=None`, which runs each
+stream worker directly in the calling thread — no thread, no spinner, no
+Enter-to-cancel — keeping `send_prompt`/`Client.send` purely API-side.
+`_make_send_prompt_func` in `cli/chat.py` (the same composition point as
+`wrap_send_prompt_with_turn_report`) wires in the TUI runner, so every CLI
+entry point (interactive shell, `/ask`, `/compact`, one-shot prompt) keeps
+the spinner. Because the runner is invoked **per round** from inside the
+`Client.send` loop, the spinner is only visible while the API stream is in
+flight — never during tool execution.
+
 The web loop (`janito/web/backend/agent/loop.py`) drives the **same turn
 pipeline asynchronously**, yielding structured events instead of printing
 Rich output. Both loops share the per-API adapter layer in `janito/agent/`
