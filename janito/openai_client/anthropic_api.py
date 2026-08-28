@@ -39,8 +39,6 @@ import json
 import logging
 from typing import Any
 
-from rich.console import Console
-
 # Import general configuration handling
 from janito.config_loaders import load_max_input_tokens, load_max_output_tokens
 
@@ -56,9 +54,6 @@ from janito.tooling.executor import ToolExecutor
 
 # Import tools
 from janito.tooling.tools_registry import get_all_tool_schemas
-
-# Import used-files tracking (best-effort, never fails)
-from janito.tooling.used_files import format_used_files
 
 from .anthropic_stream import (  # noqa: F401 (re-exported for backward compat)
     _consume_stream,
@@ -77,9 +72,9 @@ from .anthropic_stream import (  # noqa: F401 (re-exported for backward compat)
 # Shared agent-loop pipeline (see Client.send) implemented by AnthropicClient.
 from .base_client import Client
 
-# Shared client helpers (Rich console output, auth-error explainer) used by
-# the module's remaining functions (finalize / error handling).
-from .client_support import _display_usage, _handle_auth_error
+# Shared client helpers (usage summary out-param, auth-error explainer) used
+# by the module's remaining functions (finalize / error handling).
+from .client_support import TurnUsage, _handle_auth_error
 
 # Shared helpers reused from the Chat Completions implementation so all
 # client modules stay in sync: runtime config resolution and the progress
@@ -132,7 +127,7 @@ def send_prompt(
     cli_model: str | None = None,
     cli_provider: str | None = None,
     reasoning_level: str | None = None,
-    turn: int | None = None,
+    usage_out: TurnUsage | None = None,
 ) -> str:
     """Send a prompt through the native Anthropic SDK and return the answer.
 
@@ -162,10 +157,11 @@ def send_prompt(
         cli_provider: Provider passed via ``--provider`` (overrides config/auth).
         reasoning_level: Accepted for signature parity with the other clients.
             The native Anthropic SDK does not use ``reasoning_effort``.
-        turn: The conversation turn number being completed (starting from 1).
-            Threaded from the interactive shell for the usage summary's
-            ``Turn: #<n>`` display; ``None`` falls back to counting the user
-            messages in the history.
+        usage_out: Optional out-param (a
+            :class:`~janito.openai_client.client_support.TurnUsage`) populated
+            with the turn's usage and display metadata, so the caller can
+            render the end-of-turn reports after the call returns (see
+            :func:`~janito.openai_client.client_support.display_turn_usage`).
 
     Returns:
         The assistant's final text (after any tool-call rounds).
@@ -186,7 +182,7 @@ def send_prompt(
         instructions=instructions,
         tools=tools,
         thinking=thinking,
-        turn=turn,
+        usage_out=usage_out,
     )
 
 
@@ -311,26 +307,10 @@ class AnthropicClient(Client):
         full_content,
         reasoning_content,
         state,
-        usage_info,
-        max_input_tokens,
-        max_output_tokens,
-        console,
-        provider=None,
-        model=None,
-        turn=None,
+        usage_out=None,
     ):
         # No more tool calls, return the final response.
-        return _finalize_response(
-            full_content,
-            state["messages"],
-            usage_info,
-            max_input_tokens,
-            max_output_tokens,
-            console,
-            provider=provider,
-            model=model,
-            turn=turn,
-        )
+        return _finalize_response(full_content, state["messages"], usage_out)
 
 
 def _resolve_tools(
@@ -457,45 +437,22 @@ def _handle_tool_blocks(
 def _finalize_response(
     full_content: str,
     messages: list[dict[str, Any]],
-    usage_info: Any,
-    max_input_tokens: int | None,
-    max_output_tokens: int,
-    console: Console,
-    *,
-    provider: str | None = None,
-    model: str | None = None,
-    turn: int | None = None,
+    usage_out: TurnUsage | None = None,
 ) -> str:
-    """Record the final assistant message, print reports and return."""
+    """Record the final assistant message and return it.
+
+    ``usage_out`` (when given) receives the display metadata the caller needs
+    to render the end-of-turn reports after ``send_prompt`` returns (see
+    :func:`janito.openai_client.client_support.display_turn_usage`).
+    """
     # No more tool calls, return the final response. Record the final
     # assistant text in the client-side history.
     messages.append({"role": "assistant", "content": full_content})
 
-    # Display the tracked used files before the token usage summary.
-    # Nothing is printed when no files were tracked (empty Text).
-    used_files_report = format_used_files()
-    if used_files_report:
-        console.print(used_files_report, highlight=False)
-
-    # Display token usage with magenta background
-    if usage_info:
-        # ``turn`` is threaded from the caller (the interactive shell counts
-        # turns in its main loop); ``None`` falls back to the legacy
-        # ``Messages: <count>`` display in _display_usage.
-        _display_usage(
-            usage_info,
-            max_input_tokens,
-            max_output_tokens,
-            len(messages),
-            console,
-            label="Messages",
-            turn=turn,
-            input_attr="input_tokens",
-            output_attr="output_tokens",
-            cached_details_attr=None,
-            provider=provider,
-            model=model,
-        )
+    if usage_out is not None:
+        usage_out.message_count = len(messages)
+        usage_out.label = "Messages"
+        usage_out.show_cached = False
     return full_content
 
 

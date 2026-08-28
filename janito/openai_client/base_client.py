@@ -32,6 +32,7 @@ from typing import Any
 
 from rich.console import Console
 
+from janito.agent.usage import TokenStats
 from janito.config_store import get_config_value
 from janito.general_config import get_active_provider
 from janito.tooling.changes import clear_changes
@@ -49,6 +50,24 @@ from .client_support import (
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
+
+
+def _fold_turn_usage(
+    turn_stats: TokenStats | None, usage_info: Any
+) -> TokenStats | None:
+    """Fold one round's usage into the turn-level cumulative totals.
+
+    Tool-call rounds would otherwise be lost when the round state is
+    discarded; ``TokenStats`` keeps the final round's counters and sums
+    input/cached/output across every round of the turn (mirrors the web
+    agent loop's ``_fold_turn_usage``).
+    """
+    if usage_info is None:
+        return turn_stats
+    if turn_stats is None:
+        return TokenStats.from_usage(usage_info)
+    turn_stats.add_round(usage_info)
+    return turn_stats
 
 
 class Client:
@@ -107,9 +126,12 @@ class Client:
         ``send_prompt`` signature (e.g. ``previous_messages``,
         ``previous_response_id``, ``previous_items``, ``instructions``); each
         subclass's :meth:`_init_conversation_state` picks the ones it needs.
-        The optional ``turn`` kwarg (the conversation turn number being
-        completed, starting from 1) is extracted here and forwarded to
-        :meth:`_finalize` for the usage summary display.
+        The optional ``usage_out`` kwarg (a
+        :class:`~janito.openai_client.client_support.TurnUsage`) is populated
+        with the turn's usage and display metadata so the caller can render
+        the end-of-turn reports after ``send`` returns.  The conversation
+        turn number is never passed here: it is display-only caller
+        knowledge, supplied directly to the renderer by the caller.
 
         Returns:
             The API-specific turn result: the assistant text (``str``) for the
@@ -121,13 +143,10 @@ class Client:
         clear_changes()
         reset_used_files()
 
-        # Turn number for the usage summary display (see _display_usage):
-        # the conversation turn being completed, starting from 1, counted by
-        # the caller's main loop (the interactive shell). None when the
-        # caller does not track turns (e.g. /ask, direct API calls or
-        # /compact's side call); _display_usage then falls back to the
-        # legacy ``{label}: {message_count}`` display.
-        turn = kwargs.pop("turn", None)
+        # Out-param for the post-call turn report (see TurnUsage): populated
+        # as the rounds stream so the caller can render the usage summary
+        # after send() returns instead of inside the _finalize hooks.
+        usage_out = kwargs.pop("usage_out", None)
 
         base_url, api_key, model = self._resolve_runtime_config()
         client = self._create_sdk_client(base_url, api_key)
@@ -164,6 +183,17 @@ class Client:
         # Conversation-state model depends on the client (client-owned
         # messages list vs server-side response id vs client-side items).
         state = self._init_conversation_state(prompt, provider, model, **kwargs)
+
+        # Per-turn usage accumulator: folds every round (tool-call rounds
+        # included) into a TokenStats so the caller can render the summary
+        # after send() returns (see TurnUsage).  Metadata that can only be
+        # resolved here is recorded on the out-param up front.
+        turn_stats: TokenStats | None = None
+        if usage_out is not None:
+            usage_out.provider = provider
+            usage_out.model = model
+            usage_out.max_input_tokens = max_input_tokens
+            usage_out.max_output_tokens = max_output_tokens
 
         while True:
             # Build the base call parameters for one round.
@@ -216,6 +246,13 @@ class Client:
             logger.debug("API streaming response completed")
             _display_reasoning(reasoning_content, console)
 
+            # Fold this round's usage into the turn totals (the round state
+            # is discarded on tool-call rounds, so the usage would otherwise
+            # be lost).
+            if usage_out is not None:
+                turn_stats = _fold_turn_usage(turn_stats, usage_info)
+                usage_out.stats = turn_stats
+
             # Display the assembled response using rich markdown
             _display_content(full_content, console)
 
@@ -230,18 +267,7 @@ class Client:
                 continue
 
             # No more tool calls, return the final response.
-            return self._finalize(
-                full_content,
-                reasoning_content,
-                state,
-                usage_info,
-                max_input_tokens,
-                max_output_tokens,
-                console,
-                provider=provider,
-                model=model,
-                turn=turn,
-            )
+            return self._finalize(full_content, reasoning_content, state, usage_out)
 
     # ------------------------------------------------------------------
     # Shared helpers (base implementation; not monkeypatched by tests)
@@ -365,15 +391,17 @@ class Client:
         full_content,
         reasoning_content,
         state,
-        usage_info,
-        max_input_tokens,
-        max_output_tokens,
-        console,
-        provider=None,
-        model=None,
-        turn=None,
+        usage_out=None,
     ):
-        """Record the final assistant message, print reports and return the result."""
+        """Record the final assistant message and return the result.
+
+        ``usage_out`` (a
+        :class:`~janito.openai_client.client_support.TurnUsage`, or ``None``)
+        receives the display metadata the caller needs to render the
+        end-of-turn reports after ``send`` returns (message count / label /
+        cached reporting); the token counters were already folded onto
+        ``usage_out.stats`` by :meth:`send`.
+        """
         raise NotImplementedError
 
 

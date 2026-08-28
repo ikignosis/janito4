@@ -56,6 +56,7 @@ from .base_client import Client
 # explainer) and the Responses API stream consumer.  Names that are only
 # re-exported for backward compatibility are marked ``noqa: F401``.
 from .client_support import (  # noqa: F401 (re-exported for backward compat)
+    TurnUsage,
     _display_content,
     _display_reasoning,
     _display_usage,
@@ -169,7 +170,7 @@ def send_prompt(
     cli_model: str | None = None,
     cli_provider: str | None = None,
     reasoning_level: str | None = None,
-    turn: int | None = None,
+    usage_out: TurnUsage | None = None,
 ) -> ConversationResult:
     """Send a prompt to the Responses API and return the final answer.
 
@@ -214,11 +215,11 @@ def send_prompt(
             (overrides the provider's configured value and built-in default).
             Sent to the API as ``reasoning_effort`` under the ``reasoning``
             parameter.
-        turn: The conversation turn number being completed (starting from 1).
-            Threaded from the interactive shell for the usage summary's
-            ``Turn: #<n>`` display; ``None`` falls back to counting the user
-            messages in the history (stateless) or 1 (server-side fresh
-            conversation).
+        usage_out: Optional out-param (a
+            :class:`~janito.openai_client.client_support.TurnUsage`) populated
+            with the turn's usage and display metadata, so the caller can
+            render the end-of-turn reports after the call returns (see
+            :func:`~janito.openai_client.client_support.display_turn_usage`).
 
     Returns:
         ConversationResult: the final assistant text plus, depending on the
@@ -240,7 +241,7 @@ def send_prompt(
         instructions=instructions,
         tools=tools,
         thinking=thinking,
-        turn=turn,
+        usage_out=usage_out,
     )
 
 
@@ -440,13 +441,7 @@ class ResponsesClient(Client):
         full_content,
         reasoning_content,
         state,
-        usage_info,
-        max_input_tokens,
-        max_output_tokens,
-        console,
-        provider=None,
-        model=None,
-        turn=None,
+        usage_out=None,
     ):
         # Server-side: the assistant message lives on the server and the
         # caller only needs the response id to chain the next turn. Stateless:
@@ -455,17 +450,11 @@ class ResponsesClient(Client):
         return _finalize_conversation(
             full_content,
             state["conversation_items"],
-            usage_info,
-            max_input_tokens,
-            max_output_tokens,
             state["message_count"],
-            console,
             state["response_id"],
             state["responses_in_server"],
             turn_items=state["turn_items"],
-            provider=provider,
-            model=model,
-            turn=turn,
+            usage_out=usage_out,
         )
 
 

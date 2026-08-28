@@ -37,6 +37,7 @@ from .base_client import Client
 # Completions stream consumer.  Re-exported here so existing
 # ``completions_api.<name>`` references (including tests) keep working.
 from .client_support import (  # noqa: F401 (re-exported for backward compat)
+    TurnUsage,
     _display_content,
     _display_reasoning,
     _display_usage,
@@ -318,7 +319,7 @@ def send_prompt(
     cli_model: str | None = None,
     cli_provider: str | None = None,
     reasoning_level: str | None = None,
-    turn: int | None = None,
+    usage_out: TurnUsage | None = None,
 ) -> str:
     """Send prompt to OpenAI endpoint and return response using streaming.
 
@@ -337,10 +338,11 @@ def send_prompt(
         reasoning_level: Reasoning depth passed via ``--reasoning-level``
             (overrides the provider's configured value and built-in default).
             Sent to the API as ``reasoning_effort``.
-        turn: The conversation turn number being completed (starting from 1).
-            Threaded from the interactive shell for the usage summary's
-            ``Turn: #<n>`` display; ``None`` falls back to counting the user
-            messages in the history.
+        usage_out: Optional out-param (a
+            :class:`~janito.openai_client.client_support.TurnUsage`) populated
+            with the turn's usage and display metadata, so the caller can
+            render the end-of-turn reports after the call returns (see
+            :func:`~janito.openai_client.client_support.display_turn_usage`).
     """
     logger.info("Sending prompt to API")
     return CompletionsClient(
@@ -354,7 +356,7 @@ def send_prompt(
         previous_messages=previous_messages,
         tools=tools,
         thinking=thinking,
-        turn=turn,
+        usage_out=usage_out,
     )
 
 
@@ -472,23 +474,6 @@ class CompletionsClient(Client):
         full_content,
         reasoning_content,
         state,
-        usage_info,
-        max_input_tokens,
-        max_output_tokens,
-        console,
-        provider=None,
-        model=None,
-        turn=None,
+        usage_out=None,
     ):
-        return _finalize_response(
-            full_content,
-            reasoning_content,
-            state,
-            usage_info,
-            max_input_tokens,
-            max_output_tokens,
-            console,
-            provider=provider,
-            model=model,
-            turn=turn,
-        )
+        return _finalize_response(full_content, reasoning_content, state, usage_out)

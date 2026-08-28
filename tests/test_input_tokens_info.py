@@ -216,6 +216,41 @@ if pytest is not None:
         text = _display_usage_text(None, None, _usage(1_000_000, 1_000_000, 0))
         assert "Cost: N/A" in text
 
+    def test_usage_line_cost_uses_turn_specific_counters(monkeypatch):
+        """TokenStats bills the turn-wide cumulative counters for the Cost.
+
+        The displayed In/Out/Cached keep the final round's counters, but the
+        cost must be computed from the turn totals (tool-call rounds
+        included).  DeepSeek V4-Flash off-peak: $0.22 in (miss) + $0.66 out
+        + $0.007 cache-hit per 1M tokens.
+        """
+        from janito.agent.usage import TokenStats
+
+        # Pin the request time to a weekday off-peak hour (Monday 12:00 UTC)
+        # so the estimate is deterministic.
+        monkeypatch.setattr(
+            "janito.providers.deepseek.cost._utcnow",
+            lambda: datetime(2026, 8, 17, 12, 0, tzinfo=timezone.utc),
+        )
+        # Final round reports 1M in / 1M out, but the turn accumulated
+        # 2M in (500k cached) / 2M out across tool-call rounds.
+        stats = TokenStats(
+            total=1_000_000,
+            input=1_000_000,
+            output=1_000_000,
+            cached=0,
+            turn_input=2_000_000,
+            turn_cached=500_000,
+            turn_output=2_000_000,
+        )
+        text = _display_usage_text("deepseek", "deepseek-v4-flash", stats)
+        # Cost from turn totals: 1.5M*$0.22 + 0.5M*$0.007 + 2M*$0.66
+        #   = 0.33 + 0.0035 + 1.32 = 1.6535.
+        assert "Cost: 1.653500$ (off-peak)" in text
+        # The displayed counters still mirror the final round's request.
+        assert "In: 1m" in text
+        assert "Out: 1m" in text
+
     # ---- Turn number in the CLI usage line ----------------------------
 
     def test_usage_line_shows_turn_when_provided():

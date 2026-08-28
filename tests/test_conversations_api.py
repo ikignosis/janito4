@@ -990,7 +990,7 @@ def test_make_send_prompt_func_responses_dispatch(monkeypatch):
         cli_model=None,
         cli_provider=None,
         reasoning_level=None,
-        turn=None,
+        usage_out=None,
     ):
         captured["prompt"] = prompt
         captured["previous_response_id"] = previous_response_id
@@ -999,7 +999,7 @@ def test_make_send_prompt_func_responses_dispatch(monkeypatch):
         captured["tools"] = tools
         captured["cli_model"] = cli_model
         captured["cli_provider"] = cli_provider
-        captured["turn"] = turn
+        captured["usage_out"] = usage_out
         return api.ConversationResult(content="hi", response_id="resp_z")
 
     # The wrapper imports send_prompt from conversations_api at call time, so
@@ -1030,8 +1030,9 @@ def test_make_send_prompt_func_responses_dispatch(monkeypatch):
     assert captured["tools"] == []
     assert captured["cli_model"] == "gpt-4"
     assert captured["cli_provider"] == "openai"
-    # The turn number counted by the shell's main loop is forwarded.
-    assert captured["turn"] == 3
+    # The turn report out-param is threaded so the wrapper can render the
+    # usage summary after the API call returns.
+    assert captured["usage_out"] is not None
     # previous_messages is deliberately not forwarded in Responses mode.
     assert "previous_messages" not in captured
 
@@ -1052,12 +1053,12 @@ def test_make_send_prompt_func_completions_dispatch(monkeypatch):
         cli_model=None,
         cli_provider=None,
         reasoning_level=None,
-        turn=None,
+        usage_out=None,
     ):
         captured["prompt"] = prompt
         captured["previous_messages"] = previous_messages
         captured["cli_provider"] = cli_provider
-        captured["turn"] = turn
+        captured["usage_out"] = usage_out
         return "completions answer"
 
     monkeypatch.setattr(chat_mod, "send_prompt", fake_send_completions)
@@ -1078,8 +1079,9 @@ def test_make_send_prompt_func_completions_dispatch(monkeypatch):
     assert result == "completions answer"
     assert captured["previous_messages"] == [{"role": "user", "content": "hello"}]
     assert captured["cli_provider"] == "openai"
-    # The turn number counted by the shell's main loop is forwarded.
-    assert captured["turn"] == 2
+    # The turn report out-param is threaded so the wrapper can render the
+    # usage summary after the API call returns.
+    assert captured["usage_out"] is not None
 
 
 # ---- send_factory (real-time /provider switch) -----------------------------

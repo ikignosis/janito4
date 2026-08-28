@@ -32,11 +32,8 @@ from janito.provider_accessors import (
 # Import tools
 from janito.tooling.tools_registry import get_all_tool_schemas
 
-# Import used-files tracking (best-effort, never fails)
-from janito.tooling.used_files import format_used_files
-
-# Shared client helpers (Rich console output, usage summary)
-from .client_support import _display_usage
+# Shared client helpers (Rich console output, usage summary out-param)
+from .client_support import TurnUsage
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -191,16 +188,14 @@ def _finalize_response(
     full_content: str,
     reasoning_content: str | None,
     messages: list[dict[str, Any]],
-    usage_info: Any,
-    max_input_tokens: int | None,
-    max_output_tokens: int | None,
-    console: Console,
-    *,
-    provider: str | None = None,
-    model: str | None = None,
-    turn: int | None = None,
+    usage_out: TurnUsage | None = None,
 ) -> str:
-    """Record the assistant message, print the end-of-turn reports and return."""
+    """Record the final assistant message and return it.
+
+    ``usage_out`` (when given) receives the display metadata the caller needs
+    to render the end-of-turn reports after ``send_prompt`` returns (see
+    :func:`janito.openai_client.client_support.display_turn_usage`).
+    """
     # Build the assistant message with reasoning_content if available
     assistant_message = {"role": "assistant", "content": full_content}
     if reasoning_content:
@@ -209,29 +204,8 @@ def _finalize_response(
     # Add assistant message to conversation history
     messages.append(assistant_message)
 
-    # Display the tracked used files before the token usage summary.
-    # Nothing is printed when no files were tracked (empty Text).
-    used_files_report = format_used_files()
-    if used_files_report:
-        console.print(used_files_report, highlight=False)
-
-    # Display token usage with magenta background
-    if usage_info:
-        # ``turn`` is threaded from the caller (the interactive shell counts
-        # turns in its main loop); ``None`` falls back to the legacy
-        # ``Messages: <count>`` display in _display_usage.
-        _display_usage(
-            usage_info,
-            max_input_tokens,
-            max_output_tokens,
-            len(messages),
-            console,
-            label="Messages",
-            turn=turn,
-            input_attr="prompt_tokens",
-            output_attr="completion_tokens",
-            cached_details_attr="prompt_tokens_details",
-            provider=provider,
-            model=model,
-        )
+    if usage_out is not None:
+        usage_out.message_count = len(messages)
+        usage_out.label = "Messages"
+        usage_out.show_cached = True
     return full_content

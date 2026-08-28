@@ -50,7 +50,7 @@ if pytest is not None:
                 {},
             ),
             "_handle_tool_calls": ({}, "", None, {}, None),
-            "_finalize": ("", None, {}, None, None, None, None),
+            "_finalize": ("", None, {}, None),
         }
         # _run_stream_round has keyword-only params after ``state``.
         with pytest.raises(NotImplementedError):

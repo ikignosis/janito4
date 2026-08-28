@@ -48,9 +48,9 @@ from typing import Any
 # Shared agent-loop pipeline (see Client.send) implemented by DashScopeClient.
 from janito.openai_client.base_client import Client
 
-# Shared client helpers (Rich console output, auth-error explainer) used by
-# the module's remaining functions (finalize / error handling).
-from janito.openai_client.client_support import _handle_auth_error
+# Shared client helpers (usage summary out-param, auth-error explainer) used
+# by the module's remaining functions (finalize / error handling).
+from janito.openai_client.client_support import TurnUsage, _handle_auth_error
 
 # Shared helpers reused from the Chat Completions implementation so all
 # client modules stay in sync: runtime config resolution and the progress
@@ -145,7 +145,7 @@ def send_prompt(
     cli_model: str | None = None,
     cli_provider: str | None = None,
     reasoning_level: str | None = None,
-    turn: int | None = None,
+    usage_out: TurnUsage | None = None,
 ) -> str:
     """Send a prompt through the native DashScope SDK and return the answer.
 
@@ -178,10 +178,11 @@ def send_prompt(
             The native DashScope SDK does not use ``reasoning_effort``
             (thinking depth is controlled by ``thinking_budget``, which is not
             wired yet).
-        turn: The conversation turn number being completed (starting from 1).
-            Threaded from the interactive shell for the usage summary's
-            ``Turn: #<n>`` display; ``None`` falls back to counting the user
-            messages in the history.
+        usage_out: Optional out-param (a
+            :class:`~janito.openai_client.client_support.TurnUsage`) populated
+            with the turn's usage and display metadata, so the caller can
+            render the end-of-turn reports after the call returns (see
+            :func:`~janito.openai_client.client_support.display_turn_usage`).
 
     Returns:
         The assistant's final text (after any tool-call rounds).
@@ -202,7 +203,7 @@ def send_prompt(
         instructions=instructions,
         tools=tools,
         thinking=thinking,
-        turn=turn,
+        usage_out=usage_out,
     )
 
 
@@ -323,27 +324,10 @@ class DashScopeClient(Client):
         full_content,
         reasoning_content,
         state,
-        usage_info,
-        max_input_tokens,
-        max_output_tokens,
-        console,
-        provider=None,
-        model=None,
-        turn=None,
+        usage_out=None,
     ):
         # No more tool calls, return the final response.
-        return _finalize_response(
-            full_content,
-            reasoning_content,
-            state,
-            usage_info,
-            max_input_tokens,
-            max_output_tokens,
-            console,
-            provider=provider,
-            model=model,
-            turn=turn,
-        )
+        return _finalize_response(full_content, reasoning_content, state, usage_out)
 
 
 __all__ = [

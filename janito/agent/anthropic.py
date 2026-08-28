@@ -291,6 +291,20 @@ class AnthropicTurnAccumulator:
         )
         return usage_event_from_usage(usage, max_tokens)
 
+    def usage_object(self):
+        """The raw usage object of this round, or ``None`` when unreported.
+
+        Uniform accessor used by the web loop to fold each round's usage into
+        the turn-level cumulative totals (:class:`TokenStats`).
+        """
+        if self.input_tokens is None and self.output_tokens is None:
+            return None
+        return SimpleNamespace(
+            total_tokens=(self.input_tokens or 0) + (self.output_tokens or 0),
+            input_tokens=self.input_tokens,
+            output_tokens=self.output_tokens,
+        )
+
 
 # Uniform runner interface (used by loop.py): the accumulator class is
 # exposed as ``accumulator`` so every API-type runner has the same shape.

@@ -8,6 +8,7 @@ from collections.abc import Callable
 from .. import __version__
 from ..general_config import load_provider_from_config, resolve_api_type
 from ..openai_client import RequestCancelled, resolve_runtime_config, send_prompt
+from ..openai_client.client_support import wrap_send_prompt_with_turn_report
 from ..provider_accessors import get_responses_in_server_from_provider
 from ..shell import InteractiveShell
 from ..tooling.path_utils import display_path
@@ -51,9 +52,16 @@ def _make_send_prompt_func(
         assistant text (the history list is mutated, like Completions).
 
     All wrappers accept a ``turn`` kwarg (the conversation turn number being
-    completed, counted by the caller's main loop) and forward it to the API
-    client so the token-usage summary can show ``Turn: #<n>``; ``None``
-    falls back to the legacy count display.
+    completed, counted by the caller's main loop).  It is display-only: the
+    ``wrap_send_prompt_with_turn_report`` wrapper consumes it and passes it
+    to the end-of-turn renderer so the token-usage summary can show
+    ``Turn: #<n>``; it is never forwarded to the API client, and ``None``
+    falls back to the legacy count display.  Each returned callable is
+    wrapped with ``wrap_send_prompt_with_turn_report``, so it calls the API
+    *and* prints the end-of-turn reports (used files + token-usage summary)
+    from the ``usage_out`` out-param the client populates; pass
+    ``display_turn_report=False`` to suppress them (e.g. internal side
+    calls).
 
     Args:
         api_type: The canonical API type: "Responses", "Completions",
@@ -74,7 +82,7 @@ def _make_send_prompt_func(
             instructions=None,
             tools=None,
             thinking=False,
-            turn=None,
+            usage_out=None,
         ):
             return send_responses(
                 prompt,
@@ -87,10 +95,10 @@ def _make_send_prompt_func(
                 cli_model=cli_model,
                 cli_provider=cli_provider,
                 reasoning_level=reasoning_level,
-                turn=turn,
+                usage_out=usage_out,
             )
 
-        return send
+        return wrap_send_prompt_with_turn_report(send)
 
     if api_type == "Anthropic":
         # Native Anthropic SDK client (the optional `anthropic` package; the
@@ -106,7 +114,7 @@ def _make_send_prompt_func(
             instructions=None,
             tools=None,
             thinking=False,
-            turn=None,
+            usage_out=None,
         ):
             return send_anthropic(
                 prompt,
@@ -118,10 +126,10 @@ def _make_send_prompt_func(
                 cli_model=cli_model,
                 cli_provider=cli_provider,
                 reasoning_level=reasoning_level,
-                turn=turn,
+                usage_out=usage_out,
             )
 
-        return send
+        return wrap_send_prompt_with_turn_report(send)
 
     if api_type == "DashScope":
         # Native DashScope SDK client (the optional `dashscope` package; the
@@ -137,7 +145,7 @@ def _make_send_prompt_func(
             instructions=None,
             tools=None,
             thinking=False,
-            turn=None,
+            usage_out=None,
         ):
             return send_dashscope(
                 prompt,
@@ -149,10 +157,10 @@ def _make_send_prompt_func(
                 cli_model=cli_model,
                 cli_provider=cli_provider,
                 reasoning_level=reasoning_level,
-                turn=turn,
+                usage_out=usage_out,
             )
 
-        return send
+        return wrap_send_prompt_with_turn_report(send)
 
     if api_type == "Gemini":
         # Native Gemini SDK client (the optional `google-genai` package; the
@@ -168,7 +176,7 @@ def _make_send_prompt_func(
             instructions=None,
             tools=None,
             thinking=False,
-            turn=None,
+            usage_out=None,
         ):
             return send_gemini(
                 prompt,
@@ -180,10 +188,10 @@ def _make_send_prompt_func(
                 cli_model=cli_model,
                 cli_provider=cli_provider,
                 reasoning_level=reasoning_level,
-                turn=turn,
+                usage_out=usage_out,
             )
 
-        return send
+        return wrap_send_prompt_with_turn_report(send)
 
     def send(
         prompt,
@@ -194,7 +202,7 @@ def _make_send_prompt_func(
         instructions=None,
         tools=None,
         thinking=False,
-        turn=None,
+        usage_out=None,
     ):
         return send_prompt(
             prompt,
@@ -205,10 +213,10 @@ def _make_send_prompt_func(
             cli_model=cli_model,
             cli_provider=cli_provider,
             reasoning_level=reasoning_level,
-            turn=turn,
+            usage_out=usage_out,
         )
 
-    return send
+    return wrap_send_prompt_with_turn_report(send)
 
 
 def _make_send_factory(

@@ -110,6 +110,9 @@ const CHAT_EVENT_HANDLERS = {
             output: c.event.output,
             cached: c.event.cached,
             max_tokens: c.event.max_tokens || null,
+            turn_input: c.event.turn_input || null,
+            turn_cached: c.event.turn_cached || null,
+            turn_output: c.event.turn_output || null,
         };
         if (c.isActive) {
             window.dispatchEvent(new CustomEvent('janito-usage', { detail: c.msg.usage }));

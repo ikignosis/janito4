@@ -107,6 +107,14 @@ class GeminiTurnAccumulator(GeminiStreamConsumer):
             return None
         return usage_event_from_usage(usage, max_tokens)
 
+    def usage_object(self):
+        """The raw usage object of this round, or ``None`` when unreported.
+
+        Uniform accessor used by the web loop to fold each round's usage into
+        the turn-level cumulative totals (:class:`TokenStats`).
+        """
+        return self.usage_info()
+
 
 # Uniform runner interface (used by loop.py): the accumulator class is
 # exposed as ``accumulator`` so every API-type runner has the same shape.

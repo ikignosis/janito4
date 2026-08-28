@@ -15,6 +15,7 @@ through that module's namespace); every client re-uses it from there.
 
 import json
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 from rich.console import Console
@@ -23,12 +24,13 @@ from rich.panel import Panel
 from rich.text import Text
 
 # Shared usage normalization (also used by the web loop's UsageEvent).
-from janito.agent.usage import format_tokens, normalize_usage
+from janito.agent.usage import TokenStats, format_tokens, normalize_usage
 
 # Import MCP manager
 from janito.mcp_manager import get_mcp_manager
 from janito.provider_accessors import get_provider_cost
 from janito.tooling.tools_registry import tools_loading_enabled
+from janito.tooling.used_files import format_used_files
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -359,6 +361,29 @@ def _print_input_capacity_warning(
         )
 
 
+def _cost_counters(
+    usage_info: Any,
+    input_tokens: int | None,
+    output_tokens: int | None,
+    cached_tokens: int | None,
+    cached_details_attr: str | None,
+) -> tuple[int | None, int | None, int | None]:
+    """Return the token counters billed for the ``Cost`` estimate.
+
+    A :class:`~janito.agent.usage.TokenStats` (the turn report) bills the
+    turn-wide cumulative counters (``turn_input`` / ``turn_output`` /
+    ``turn_cached``) so tool-call rounds are included; any other usage shape
+    falls back to the final round's counters.
+    """
+    if isinstance(usage_info, TokenStats):
+        return (
+            usage_info.turn_input,
+            usage_info.turn_output,
+            usage_info.turn_cached if cached_details_attr is not None else None,
+        )
+    return input_tokens, output_tokens, cached_tokens
+
+
 def _display_usage(
     usage_info: Any,
     max_input_tokens: int | None,
@@ -396,10 +421,13 @@ def _display_usage(
 
     ``Cost: <cost>`` is computed through
     :func:`janito.provider_accessors.get_provider_cost` from the provider /
-    model and the normalized token counts (cached input tokens are billed at
-    the provider's cache-hit rate); it falls back to ``N/A`` when the
-    provider or model is unknown, or when no cost module exists for the
-    provider.
+    model and the token counts (cached input tokens are billed at the
+    provider's cache-hit rate); it falls back to ``N/A`` when the provider
+    or model is unknown, or when no cost module exists for the provider.
+    When the usage is a :class:`~janito.agent.usage.TokenStats` (the turn
+    report), the cost is billed against the turn-wide cumulative counters
+    (``turn_input`` / ``turn_output`` / ``turn_cached``) so tool-call
+    rounds are included; otherwise the final round's counters are used.
 
     When the input tokens exceed 80% of ``max_input_tokens`` a warning in
     the warning color (``bold yellow``) is printed just before the summary
@@ -412,6 +440,9 @@ def _display_usage(
     input_tokens = stats["input"]
     output_tokens = stats["output"]
     cached_tokens = stats["cached"] if cached_details_attr is not None else None
+    cost_input, cost_output, cost_cached = _cost_counters(
+        usage_info, input_tokens, output_tokens, cached_tokens, cached_details_attr
+    )
 
     parts = []
     if total_tokens is not None:
@@ -440,9 +471,9 @@ def _display_usage(
         cost = get_provider_cost(
             provider,
             model,
-            input_tokens if input_tokens is not None else 0,
-            output_tokens if output_tokens is not None else 0,
-            cached_tokens if cached_tokens is not None else 0,
+            cost_input if cost_input is not None else 0,
+            cost_output if cost_output is not None else 0,
+            cost_cached if cost_cached is not None else 0,
         )
     else:
         cost = "N/A"
@@ -459,6 +490,113 @@ def _display_usage(
         f"cached={cached_tokens}, max={max_output_tokens}), "
         f"{message_count} {label.lower()}"
     )
+
+
+@dataclass
+class TurnUsage:
+    """Out-param carrying a turn's usage + the display metadata for it.
+
+    ``Client.send`` populates an instance handed in by the caller: ``stats``
+    holds the normalized per-turn totals (:class:`~janito.agent.usage.TokenStats`
+    mirrors the final request's counters and accumulates the tool-call
+    rounds), and the remaining fields are the values :func:`_display_usage`
+    needs to render the summary line.  The caller renders it once the API
+    call returns with :func:`display_turn_usage`, keeping the end-of-turn
+    reports out of the client's ``_finalize`` hooks.
+
+    The conversation turn number is *not* carried here: it is caller-side
+    knowledge (counted by the interactive shell, ``1`` for one-shot runs)
+    that never reaches the API client, so the caller supplies it directly to
+    :func:`display_turn_usage` when rendering.
+    """
+
+    stats: TokenStats | None = None
+    provider: str | None = None
+    model: str | None = None
+    max_input_tokens: int | None = None
+    max_output_tokens: int | None = None
+    label: str = "Messages"
+    message_count: int | None = None
+    #: Whether the API reports cached-token details (Completions / Responses
+    #: do; the native Anthropic / DashScope / Gemini SDKs do not).
+    show_cached: bool = False
+
+
+def display_turn_usage(
+    usage_out: TurnUsage | None,
+    *,
+    turn: int | None,
+    console: Console | None = None,
+) -> None:
+    """Print the end-of-turn reports (used files + token usage summary).
+
+    Called by the CLI after ``send_prompt`` returns, using the ``usage_out``
+    out-param the client populated (see :class:`TurnUsage`).  Replaces the
+    reports the per-client ``_finalize`` helpers used to print inline: the
+    tracked used files first, then the magenta token-usage summary line.
+    Nothing is printed when no usage was reported.
+
+    ``turn`` is the conversation turn number being completed (starting from
+    1), counted by the caller's main loop (the interactive shell) -- or
+    ``1`` for one-shot runs.  It is display-only: the API clients never see
+    it, so it is supplied here at render time.  ``None`` (callers that do
+    not track turns, e.g. /compact's side call) falls back to the legacy
+    ``{label}: {message_count}`` display.
+    """
+    console = console or Console()
+
+    # Display the tracked used files before the token usage summary.
+    # Nothing is printed when no files were tracked (empty Text).
+    used_files_report = format_used_files()
+    if used_files_report:
+        console.print(used_files_report, highlight=False)
+
+    if usage_out is None or usage_out.stats is None:
+        return
+
+    _display_usage(
+        usage_out.stats,
+        usage_out.max_input_tokens,
+        usage_out.max_output_tokens,
+        usage_out.message_count if usage_out.message_count is not None else 0,
+        console,
+        label=usage_out.label,
+        turn=turn,
+        # ``stats`` already carries the normalized cached counter; the
+        # ``cached_details_attr`` toggle only gates reading it, so pass a
+        # sentinel when the API reports cached tokens.
+        cached_details_attr="" if usage_out.show_cached else None,
+        provider=usage_out.provider,
+        model=usage_out.model,
+    )
+
+
+def wrap_send_prompt_with_turn_report(send_func):
+    """Wrap a ``send_prompt``-style callable: call the API, then print the
+    end-of-turn reports from the populated ``usage_out`` out-param.
+
+    The wrapped callable accepts the same arguments as ``send_func`` plus an
+    optional ``display_turn_report`` keyword and an optional ``turn``
+    keyword.  When ``display_turn_report`` is True (default) it prints the
+    used-files report and the token-usage summary line after the API call
+    completes, using the :class:`TurnUsage` the client populated.  ``turn``
+    (the conversation turn number, starting from 1) is display-only: it is
+    consumed here and passed to :func:`display_turn_usage` at render time,
+    never forwarded to the API client.  This keeps
+    a single wrapper responsible for "call the API + display usage", so every
+    CLI entry point (interactive shell, ``/ask``, ``/compact``, one-shot
+    ``janito <prompt>``) gets the reports without duplicating the call.
+    """
+
+    def send_with_turn_report(prompt, *, display_turn_report=True, **kwargs):
+        turn = kwargs.pop("turn", None)
+        usage_out = TurnUsage()
+        result = send_func(prompt, usage_out=usage_out, **kwargs)
+        if display_turn_report:
+            display_turn_usage(usage_out, turn=turn)
+        return result
+
+    return send_with_turn_report
 
 
 def _handle_auth_error(

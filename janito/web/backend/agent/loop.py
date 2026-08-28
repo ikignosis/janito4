@@ -23,6 +23,7 @@ from collections.abc import AsyncGenerator
 
 from openai import AsyncOpenAI
 
+from janito.agent.usage import TokenStats
 from janito.config_loaders import load_max_output_tokens, load_reasoning_level
 from janito.config_store import get_config_value
 from janito.general_config import get_active_provider, resolve_api_type
@@ -207,6 +208,30 @@ async def _stream_turn(client, runner, call_kwargs, acc):
         yield ev
 
 
+def _fold_turn_usage(turn_stats: TokenStats | None, acc) -> TokenStats | None:
+    """Fold one round's usage into the turn-level cumulative totals.
+
+    Each round's accumulator is discarded when the loop continues, so the
+    usage of tool-call rounds would otherwise be lost; ``TokenStats`` keeps
+    the final round's counters and sums input/cached/output across every
+    round of the turn.
+    """
+    round_usage = acc.usage_object()
+    if turn_stats is None:
+        return TokenStats.from_usage(round_usage)
+    turn_stats.add_round(round_usage)
+    return turn_stats
+
+
+def _attach_turn_stats(usage_event, turn_stats: TokenStats | None) -> None:
+    """Attach the cumulative turn totals to the final-round usage event."""
+    if turn_stats is None:
+        return
+    usage_event.turn_input = turn_stats.turn_input
+    usage_event.turn_cached = turn_stats.turn_cached
+    usage_event.turn_output = turn_stats.turn_output
+
+
 async def stream_prompt(
     prompt: str,
     messages: list[dict],
@@ -274,6 +299,10 @@ async def stream_prompt(
 
     messages.append({"role": "user", "content": prompt})
 
+    # Cumulative turn totals: the usage of tool-call rounds would otherwise be
+    # lost when the accumulator is discarded each round (see _fold_turn_usage).
+    turn_stats: TokenStats | None = None
+
     first_turn = True
     while True:
         call_kwargs, acc = _turn_call_kwargs_and_acc(
@@ -302,6 +331,10 @@ async def stream_prompt(
 
         full_content = acc.full_content()
 
+        # Fold this round's usage into the turn totals (the accumulator is
+        # discarded when the tool round below continues the loop).
+        turn_stats = _fold_turn_usage(turn_stats, acc)
+
         # --- Handle tool calls -> continue the loop for the final response ---
         if acc.tool_calls_list():
             async for ev in run_tool_turn(
@@ -319,6 +352,10 @@ async def stream_prompt(
 
         usage_event = acc.usage_event(max_tokens=max_output_tokens)
         if usage_event:
+            # Attach the cumulative turn totals (tool-call rounds included)
+            # to the final-round usage event when the turn spanned several
+            # API rounds.
+            _attach_turn_stats(usage_event, turn_stats)
             yield usage_event
 
         yield DoneEvent(full_content=full_content, message_count=len(messages))

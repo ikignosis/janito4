@@ -58,9 +58,9 @@ from janito.gemini_helpers import (  # noqa: F401 (re-exported for backward comp
 # Shared agent-loop pipeline (see Client.send) implemented by GeminiClient.
 from janito.openai_client.base_client import Client
 
-# Shared client helpers (Rich console output, auth-error explainer) used by
-# the module's remaining functions (finalize / error handling).
-from janito.openai_client.client_support import _handle_auth_error
+# Shared client helpers (usage summary out-param, auth-error explainer) used
+# by the module's remaining functions (finalize / error handling).
+from janito.openai_client.client_support import TurnUsage, _handle_auth_error
 
 # Shared helpers reused from the Chat Completions implementation so all
 # client modules stay in sync: runtime config resolution and the progress
@@ -129,7 +129,7 @@ def send_prompt(
     cli_model: str | None = None,
     cli_provider: str | None = None,
     reasoning_level: str | None = None,
-    turn: int | None = None,
+    usage_out: TurnUsage | None = None,
 ) -> str:
     """Send a prompt through the native Gemini SDK and return the answer.
 
@@ -163,10 +163,11 @@ def send_prompt(
         reasoning_level: Reasoning depth passed via ``--reasoning-level``.
             Sent to the native API as ``thinking_config.thinking_level``,
             which the Gemini API maps to the model's thinking depth.
-        turn: The conversation turn number being completed (starting from 1).
-            Threaded from the interactive shell for the usage summary's
-            ``Turn: #<n>`` display; ``None`` falls back to counting the user
-            messages in the history.
+        usage_out: Optional out-param (a
+            :class:`~janito.openai_client.client_support.TurnUsage`) populated
+            with the turn's usage and display metadata, so the caller can
+            render the end-of-turn reports after the call returns (see
+            :func:`~janito.openai_client.client_support.display_turn_usage`).
 
     Returns:
         The assistant's final text (after any tool-call rounds).
@@ -187,7 +188,7 @@ def send_prompt(
         instructions=instructions,
         tools=tools,
         thinking=thinking,
-        turn=turn,
+        usage_out=usage_out,
     )
 
 
@@ -325,12 +326,7 @@ class GeminiClient(Client):
         full_content,
         reasoning_content,
         state,
-        usage_info,
-        max_input_tokens,
-        max_output_tokens,
-        console,
-        provider=None,
-        model=None,
+        usage_out=None,
     ):
         # No more tool calls, return the final response.
         return _finalize_response(
@@ -338,12 +334,7 @@ class GeminiClient(Client):
             reasoning_content,
             state.get("thought_parts") or [],
             state["messages"],
-            usage_info,
-            max_input_tokens,
-            max_output_tokens,
-            console,
-            provider=provider,
-            model=model,
+            usage_out,
         )
 
 

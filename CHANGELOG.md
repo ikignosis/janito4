@@ -11,6 +11,15 @@ Changes since `v4.31.0` (2026-08-25).
 
 ### Added
 
+- `feat(usage)`: consolidate token usage into a shared `TokenStats` object
+  (`janito.agent.usage`) and expose cumulative turn totals on the web
+  `UsageEvent` payload: `turn_input` / `turn_cached` / `turn_output` sum the
+  counters across every API round of a turn (tool-call rounds included),
+  while the existing `total` / `input` / `output` / `cached` keep reporting
+  the final round only. The web agent loop folds each round's usage into
+  these totals (uniform `usage_object()` accessor added to every
+  accumulator); the CLI turn report's `Cost` estimate bills them so
+  tool-call rounds are included.
 - `feat(tools)`: `ReadFile` accepts a negative `start_line` to read the last
   N lines of a file (tail semantics): `start_line=-5` returns lines from
   5-from-the-end to EOF and `max_lines` is ignored. Offsets deeper than the
@@ -26,6 +35,35 @@ Changes since `v4.31.0` (2026-08-25).
 
 ### Changed
 
+- `refactor(usage)`: the conversation turn number is display-only, so it no
+  longer rides through the API clients.  The `turn` parameter is gone from
+  `Client.send` and every module-level `send_prompt` (Completions,
+  Responses, Anthropic, DashScope, Gemini) and from the `TurnUsage`
+  out-param; instead `display_turn_usage` now takes the turn number as a
+  required keyword-only parameter, and
+  `wrap_send_prompt_with_turn_report` consumes the caller-facing `turn`
+  kwarg (interactive shell `Turn: #<n>` count, `1` for one-shot runs) and
+  passes it to the renderer — it never reaches the API request.  Callers
+  that do not track turns (e.g. /compact's side call) pass `None` and keep
+  the legacy `{label}: {message_count}` display.
+- `feat(usage)`: the CLI turn report's `Cost` estimate is now billed against
+  the turn-specific cumulative counters (`turn_input` / `turn_output` /
+  `turn_cached`), so tool-call rounds inside a turn are included; the
+  displayed `In` / `Out` / `Cached` parts still mirror the final request's
+  counters.
+- `refactor(usage)`: move the CLI's end-of-turn reports (used files +
+  token-usage summary) out of the per-client `_finalize` hooks and render
+  them once, after `send_prompt` returns, from a `TurnUsage` out-param that
+  `Client.send` populates (it folds every round's usage into a `TokenStats`,
+  tool-call rounds included).  `_finalize` now only records the assistant
+  message and returns.  A single wrapper
+  (`client_support.wrap_send_prompt_with_turn_report`, applied in
+  `cli/chat.py`) is responsible for "call the API + display usage", so the
+  interactive shell, `/ask`, `/compact` and one-shot `janito <prompt>` all
+  share the same report path; the duplicated per-API
+  `input_attr`/`output_attr`/`cached_details_attr` plumbing is gone
+  (`normalize_usage` now also accepts a `TokenStats`).  Cumulative turn
+  totals are now available to the CLI too, matching the web loop.
 - `feat(cli)`: accept `-m` as a shorthand for `--model` (mirroring the
   existing `-p`/`--provider`), and document it in the CLI usage text.
 - `feat(config)`: enforce the documented model-selection restriction.

@@ -12,6 +12,7 @@ dict; the CLI formats it as a Rich summary line
 serializes it as a ``UsageEvent``.
 """
 
+from dataclasses import dataclass
 from typing import Any
 
 
@@ -24,6 +25,15 @@ def normalize_usage(usage: Any) -> dict[str, Any] | None:
     """
     if usage is None:
         return None
+    # Already-normalized TokenStats (the CLI turn report renders the turn
+    # totals after the API call): pass the counters through unchanged.
+    if isinstance(usage, TokenStats):
+        return {
+            "total": usage.total,
+            "input": usage.input,
+            "output": usage.output,
+            "cached": usage.cached,
+        }
     details = getattr(usage, "prompt_tokens_details", None) or getattr(
         usage, "input_tokens_details", None
     )
@@ -89,3 +99,73 @@ def usage_event_from_usage(usage: Any, max_tokens: int | None = None):
         cached=stats["cached"] or 0,
         max_tokens=max_tokens,
     )
+
+
+def _add(a: int | None, b: int | None) -> int | None:
+    """None-aware sum: ``None`` means "not reported", not zero."""
+    if a is None and b is None:
+        return None
+    return (a or 0) + (b or 0)
+
+
+@dataclass
+class TokenStats:
+    """Normalized token usage for one turn: final round + cumulative totals.
+
+    ``total`` / ``input`` / ``output`` / ``cached`` mirror the **last**
+    request of the turn (the one that produced the final answer), preserving
+    the historical per-request usage summary.  ``turn_input`` /
+    ``turn_cached`` / ``turn_output`` accumulate those counters across every
+    request of the turn (tool-call rounds included), so a multi-round turn
+    carries both the final round and the whole-turn picture.
+
+    The object is built by the web agent loop
+    (``janito.web.backend.agent.loop.stream_prompt``): :meth:`from_usage`
+    seeds it from the first round that reports usage and :meth:`add_round`
+    folds each following round into it.  The cumulative counters are
+    surfaced on the final :class:`~janito.agent.events.UsageEvent` and feed
+    the CLI turn report's ``Cost`` estimate
+    (``janito.openai_client.client_support._display_usage``), which bills
+    the turn-wide totals so tool-call rounds are included.
+    """
+
+    total: int | None = None
+    input: int | None = None
+    output: int | None = None
+    cached: int | None = None
+    turn_input: int | None = None
+    turn_cached: int | None = None
+    turn_output: int | None = None
+
+    @classmethod
+    def from_usage(cls, usage: Any) -> "TokenStats | None":
+        """Build from one round's raw usage object (the first round of a turn).
+
+        Returns ``None`` when the round reported no usage, so callers can
+        keep the accumulator ``None`` until the first usable round arrives.
+        """
+        stats = normalize_usage(usage)
+        if stats is None:
+            return None
+        return cls(
+            total=stats["total"],
+            input=stats["input"],
+            output=stats["output"],
+            cached=stats["cached"],
+            turn_input=stats["input"],
+            turn_cached=stats["cached"],
+            turn_output=stats["output"],
+        )
+
+    def add_round(self, usage: Any) -> None:
+        """Overwrite the last-round stats and accumulate the turn totals."""
+        stats = normalize_usage(usage)
+        if stats is None:
+            return
+        self.total = stats["total"]
+        self.input = stats["input"]
+        self.output = stats["output"]
+        self.cached = stats["cached"]
+        self.turn_input = _add(self.turn_input, stats["input"])
+        self.turn_cached = _add(self.turn_cached, stats["cached"])
+        self.turn_output = _add(self.turn_output, stats["output"])

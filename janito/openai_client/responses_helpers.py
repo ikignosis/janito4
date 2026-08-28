@@ -33,12 +33,9 @@ from janito.tooling.executor import ToolExecutor
 # Import tools
 from janito.tooling.tools_registry import get_all_tool_schemas
 
-# Import used-files tracking (best-effort, never fails)
-from janito.tooling.used_files import format_used_files
-
-# Shared client helpers (Rich console output, usage summary) and the
-# Responses API stream consumer.
-from .client_support import _display_usage
+# Shared client helpers (usage summary out-param) and the Responses API
+# stream consumer.
+from .client_support import TurnUsage
 from .responses_stream import _convert_tools_to_responses_format
 
 # Configure logger for this module
@@ -272,20 +269,18 @@ def _handle_tool_calls(
 def _finalize_conversation(
     full_content: str,
     conversation_items: list[dict[str, Any]] | None,
-    usage_info: Any,
-    max_input_tokens: int | None,
-    max_output_tokens: int | None,
     message_count: int,
-    console: Console,
     response_id: str | None,
     responses_in_server: bool,
     turn_items: list[dict[str, Any]] | None = None,
-    *,
-    provider: str | None = None,
-    model: str | None = None,
-    turn: int | None = None,
+    usage_out: TurnUsage | None = None,
 ) -> Any:
-    """Assemble the final ConversationResult and print the end-of-turn reports."""
+    """Assemble the final ConversationResult.
+
+    ``usage_out`` (when given) receives the display metadata the caller needs
+    to render the end-of-turn reports after ``send_prompt`` returns (see
+    :func:`janito.openai_client.client_support.display_turn_usage`).
+    """
     from .conversations_api import ConversationResult
 
     # Record the final assistant text in the client-side history (stateless
@@ -301,31 +296,10 @@ def _finalize_conversation(
         if turn_items is not None:
             turn_items.append(dict(assistant_item))
 
-    # Display the tracked used files before the token usage summary.
-    # Nothing is printed when no files were tracked (empty Text).
-    used_files_report = format_used_files()
-    if used_files_report:
-        console.print(used_files_report, highlight=False)
-
-    # Display token usage with magenta background
-    if usage_info:
-        # ``turn`` is threaded from the caller (the interactive shell counts
-        # turns in its main loop); ``None`` falls back to the legacy
-        # ``Responses: <count>`` display in _display_usage.
-        _display_usage(
-            usage_info,
-            max_input_tokens,
-            max_output_tokens,
-            message_count,
-            console,
-            label="Responses",
-            turn=turn,
-            input_attr="input_tokens",
-            output_attr="output_tokens",
-            cached_details_attr="input_tokens_details",
-            provider=provider,
-            model=model,
-        )
+    if usage_out is not None:
+        usage_out.message_count = message_count
+        usage_out.label = "Responses"
+        usage_out.show_cached = True
     return ConversationResult(
         content=full_content,
         response_id=response_id if responses_in_server else None,

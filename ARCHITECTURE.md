@@ -130,7 +130,14 @@ The pipeline per turn:
    (max tokens, thinking, reasoning level).
 6. Loop: stream a response → display reasoning/content → if tool calls were
    requested, execute them (see [Tool execution](#tool-execution)) and loop
-   again; otherwise finalize (usage summary, reports, return value).
+   again; otherwise finalize (record the assistant message, return value).
+   Each round's usage is folded into a `TokenStats` carried out of `Client.send`
+   on a `TurnUsage` out-param (`openai_client/client_support.py`); the CLI's
+   `send_prompt` wrapper (`cli/chat.py` →
+   `wrap_send_prompt_with_turn_report`) renders the end-of-turn reports
+   (used files + token-usage summary) after the API call returns, so the
+   `_finalize` hooks stay display-free and every CLI entry point (interactive
+   shell, `/ask`, `/compact`, one-shot prompt) gets the same reports.
 
 The web loop (`janito/web/backend/agent/loop.py`) drives the **same turn
 pipeline asynchronously**, yielding structured events instead of printing

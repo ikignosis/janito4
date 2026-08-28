@@ -8,10 +8,8 @@ on the ``send_prompt`` entry point and the :class:`DashScopeClient` class.
 import logging
 from typing import Any
 
-from rich.console import Console
-
 from janito.config_loaders import load_max_input_tokens, load_max_output_tokens
-from janito.openai_client.client_support import _display_usage
+from janito.openai_client.client_support import TurnUsage
 from janito.provider_accessors import (
     builtin_tools_enable_flags,
     get_default_max_input_tokens_from_provider,
@@ -20,7 +18,6 @@ from janito.provider_accessors import (
 )
 from janito.tooling.executor import ToolExecutor
 from janito.tooling.tools_registry import get_all_tool_schemas
-from janito.tooling.used_files import format_used_files
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -188,16 +185,14 @@ def _finalize_response(
     full_content: str,
     reasoning_content: str | None,
     messages: list[dict[str, Any]],
-    usage_info: Any,
-    max_input_tokens: int | None,
-    max_output_tokens: int,
-    console: Console,
-    *,
-    provider: str | None = None,
-    model: str | None = None,
-    turn: int | None = None,
+    usage_out: TurnUsage | None = None,
 ) -> str:
-    """Record the final assistant message, print reports and return."""
+    """Record the final assistant message and return it.
+
+    ``usage_out`` (when given) receives the display metadata the caller needs
+    to render the end-of-turn reports after ``send_prompt`` returns (see
+    :func:`janito.openai_client.client_support.display_turn_usage`).
+    """
     # No more tool calls, return the final response. Record the final
     # assistant text in the client-side history.
     assistant_message = {"role": "assistant", "content": full_content}
@@ -205,29 +200,8 @@ def _finalize_response(
         assistant_message["reasoning_content"] = reasoning_content
     messages.append(assistant_message)
 
-    # Display the tracked used files before the token usage summary.
-    # Nothing is printed when no files were tracked (empty Text).
-    used_files_report = format_used_files()
-    if used_files_report:
-        console.print(used_files_report, highlight=False)
-
-    # Display token usage with magenta background
-    if usage_info:
-        # ``turn`` is threaded from the caller (the interactive shell counts
-        # turns in its main loop); ``None`` falls back to the legacy
-        # ``Messages: <count>`` display in _display_usage.
-        _display_usage(
-            usage_info,
-            max_input_tokens,
-            max_output_tokens,
-            len(messages),
-            console,
-            label="Messages",
-            turn=turn,
-            input_attr="input_tokens",
-            output_attr="output_tokens",
-            cached_details_attr=None,
-            provider=provider,
-            model=model,
-        )
+    if usage_out is not None:
+        usage_out.message_count = len(messages)
+        usage_out.label = "Messages"
+        usage_out.show_cached = False
     return full_content
