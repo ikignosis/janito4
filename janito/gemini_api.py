@@ -45,6 +45,8 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+# Pluggable UI observer (headless default; the CLI injects the Rich observer).
+from janito.agent.observer import TurnObserver
 from janito.gemini_helpers import (  # noqa: F401 (re-exported for backward compat)
     _build_call_kwargs,
     _finalize_response,
@@ -59,9 +61,10 @@ from janito.gemini_helpers import (  # noqa: F401 (re-exported for backward comp
 # Shared agent-loop pipeline (see Client.send) implemented by GeminiClient.
 from janito.openai_client.base_client import Client
 
-# Shared client helpers (usage summary out-param, auth-error explainer) used
-# by the module's remaining functions (finalize / error handling).
-from janito.openai_client.client_support import TurnUsage, _handle_auth_error
+# Shared client helpers: the usage summary out-param used by the module's
+# remaining functions, and the error classifier the native-SDK clients use
+# to pick the observer's explainer explicitly.
+from janito.openai_client.client_support import TurnUsage, _classify_error
 
 # Shared helpers reused from the Chat Completions implementation so all
 # client modules stay in sync: runtime config resolution.
@@ -128,6 +131,7 @@ def send_prompt(
     reasoning_level: str | None = None,
     usage_out: TurnUsage | None = None,
     stream_runner: Callable | None = None,
+    observer: TurnObserver | None = None,
 ) -> str:
     """Send a prompt through the native Gemini SDK and return the answer.
 
@@ -166,6 +170,11 @@ def send_prompt(
             with the turn's usage and display metadata, so the caller can
             render the end-of-turn reports after the call returns (see
             :func:`~janito.openai_client.client_support.display_turn_usage`).
+        observer: Optional UI observer (a
+            :class:`~janito.agent.observer.TurnObserver`) receiving the
+            turn's user-visible events (reasoning/message fragments, verbose
+            dumps, error explainers). ``None`` (default) is headless -- no
+            terminal output; the CLI injects the Rich observer.
 
     Returns:
         The assistant's final text (after any tool-call rounds).
@@ -180,6 +189,7 @@ def send_prompt(
         reasoning_level=reasoning_level,
         use_mcp=use_mcp,
         stream_runner=stream_runner,
+        observer=observer,
     ).send(
         prompt,
         verbose=verbose,
@@ -274,7 +284,6 @@ class GeminiClient(Client):
         base_url,
         api_key,
         model,
-        console,
     ):
         try:
             (
@@ -289,13 +298,17 @@ class GeminiClient(Client):
             )
         except Exception as e:
             # The google-genai SDK raises its own exception types (APIError);
-            # format the common authentication failure (HTTP 401) with the
-            # same actionable details as the OpenAI clients by adapting the
-            # status code the shared explainer reads (the exception is always
+            # classify the failure explicitly (auth / not-found / unknown) so
+            # the observer picks the right explainer (the exception is always
             # re-raised).
-            if getattr(e, "code", None) == 401:
-                e.status_code = 401
-            _handle_auth_error(e, self.cli_provider, api_key, base_url, model, console)
+            self.observer.on_error(
+                e,
+                provider=self.cli_provider,
+                api_key=api_key,
+                base_url=base_url,
+                model=model,
+                error_kind=_classify_error(e),
+            )
             raise
         # The model's thought blocks (text + signature) must be resent
         # verbatim on the next round; carry them through the conversation

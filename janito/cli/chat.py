@@ -6,9 +6,11 @@ import os
 from collections.abc import Callable
 
 from .. import __version__
+from ..agent.observer import TurnObserver
 from ..general_config import load_provider_from_config, resolve_api_type
 from ..openai_client import RequestCancelled, resolve_runtime_config, send_prompt
 from ..openai_client.client_support import (
+    RichTurnObserver,
     _run_with_progress_bar,
     wrap_send_prompt_with_turn_report,
 )
@@ -22,12 +24,18 @@ from ..tooling.path_utils import display_path
 _banner_printed = False
 
 
+def _resolve_turn_observer(observer: TurnObserver | None) -> TurnObserver:
+    """Return the observer, defaulting to the CLI's Rich observer."""
+    return observer if observer is not None else RichTurnObserver()
+
+
 def _make_send_prompt_func(
     api_type: str,
     cli_model: str | None = None,
     cli_provider: str | None = None,
     reasoning_level: str | None = None,
     stream_runner: Callable | None = _run_with_progress_bar,
+    observer: TurnObserver | None = None,
 ):
     """Return a send-prompt callable bound to the resolved API type.
 
@@ -79,7 +87,14 @@ def _make_send_prompt_func(
             every CLI entry point (shell, ``/ask``, ``/compact``, one-shot)
             keeps the current TUI behaviour; ``None`` runs the API calls
             directly with no thread/UI.
+        observer: The turn observer (a
+            :class:`~janito.agent.observer.TurnObserver`) injected into the
+            API clients and the end-of-turn report wrapper.  ``None``
+            (default) resolves to the CLI's RichTurnObserver, so every CLI
+            entry point keeps today's rendered output; tests and other
+            consumers inject a capturing or headless observer.
     """
+    observer = _resolve_turn_observer(observer)
     if api_type == "Responses":
         from ..openai_client.conversations_api import send_prompt as send_responses
 
@@ -107,9 +122,10 @@ def _make_send_prompt_func(
                 reasoning_level=reasoning_level,
                 usage_out=usage_out,
                 stream_runner=stream_runner,
+                observer=observer,
             )
 
-        return wrap_send_prompt_with_turn_report(send)
+        return wrap_send_prompt_with_turn_report(send, observer=observer)
 
     if api_type == "Anthropic":
         # Native Anthropic SDK client (the optional `anthropic` package; the
@@ -139,9 +155,10 @@ def _make_send_prompt_func(
                 reasoning_level=reasoning_level,
                 usage_out=usage_out,
                 stream_runner=stream_runner,
+                observer=observer,
             )
 
-        return wrap_send_prompt_with_turn_report(send)
+        return wrap_send_prompt_with_turn_report(send, observer=observer)
 
     if api_type == "DashScope":
         # Native DashScope SDK client (the optional `dashscope` package; the
@@ -171,9 +188,10 @@ def _make_send_prompt_func(
                 reasoning_level=reasoning_level,
                 usage_out=usage_out,
                 stream_runner=stream_runner,
+                observer=observer,
             )
 
-        return wrap_send_prompt_with_turn_report(send)
+        return wrap_send_prompt_with_turn_report(send, observer=observer)
 
     if api_type == "Gemini":
         # Native Gemini SDK client (the optional `google-genai` package; the
@@ -203,9 +221,10 @@ def _make_send_prompt_func(
                 reasoning_level=reasoning_level,
                 usage_out=usage_out,
                 stream_runner=stream_runner,
+                observer=observer,
             )
 
-        return wrap_send_prompt_with_turn_report(send)
+        return wrap_send_prompt_with_turn_report(send, observer=observer)
 
     def send(
         prompt,
@@ -229,9 +248,10 @@ def _make_send_prompt_func(
             reasoning_level=reasoning_level,
             usage_out=usage_out,
             stream_runner=stream_runner,
+            observer=observer,
         )
 
-    return wrap_send_prompt_with_turn_report(send)
+    return wrap_send_prompt_with_turn_report(send, observer=observer)
 
 
 def _make_send_factory(

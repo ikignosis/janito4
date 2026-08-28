@@ -40,6 +40,9 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+# Pluggable UI observer (headless default; the CLI injects the Rich observer).
+from janito.agent.observer import TurnObserver
+
 # Import general configuration handling
 from janito.config_loaders import load_max_input_tokens, load_max_output_tokens
 
@@ -73,9 +76,10 @@ from .anthropic_stream import (  # noqa: F401 (re-exported for backward compat)
 # Shared agent-loop pipeline (see Client.send) implemented by AnthropicClient.
 from .base_client import Client
 
-# Shared client helpers (usage summary out-param, auth-error explainer) used
-# by the module's remaining functions (finalize / error handling).
-from .client_support import TurnUsage, _handle_auth_error
+# Shared client helpers: the usage summary out-param used by the module's
+# remaining functions, and the error classifier the native-SDK clients use
+# to pick the observer's explainer explicitly.
+from .client_support import TurnUsage, _classify_error
 
 # Shared helpers reused from the Chat Completions implementation so all
 # client modules stay in sync: runtime config resolution.
@@ -129,6 +133,7 @@ def send_prompt(
     reasoning_level: str | None = None,
     usage_out: TurnUsage | None = None,
     stream_runner: Callable | None = None,
+    observer: TurnObserver | None = None,
 ) -> str:
     """Send a prompt through the native Anthropic SDK and return the answer.
 
@@ -163,6 +168,11 @@ def send_prompt(
             with the turn's usage and display metadata, so the caller can
             render the end-of-turn reports after the call returns (see
             :func:`~janito.openai_client.client_support.display_turn_usage`).
+        observer: Optional UI observer (a
+            :class:`~janito.agent.observer.TurnObserver`) receiving the
+            turn's user-visible events (reasoning/message fragments, verbose
+            dumps, error explainers). ``None`` (default) is headless -- no
+            terminal output; the CLI injects the Rich observer.
 
     Returns:
         The assistant's final text (after any tool-call rounds).
@@ -177,6 +187,7 @@ def send_prompt(
         reasoning_level=reasoning_level,
         use_mcp=use_mcp,
         stream_runner=stream_runner,
+        observer=observer,
     ).send(
         prompt,
         verbose=verbose,
@@ -274,7 +285,6 @@ class AnthropicClient(Client):
         base_url,
         api_key,
         model,
-        console,
     ):
         try:
             (
@@ -287,10 +297,17 @@ class AnthropicClient(Client):
                 _stream_response, client, call_kwargs, tools_schemas
             )
         except Exception as e:
-            # The anthropic SDK raises its own exception types; format the
-            # common authentication failure with the same actionable details
-            # as the OpenAI clients (the exception is always re-raised).
-            _handle_auth_error(e, self.cli_provider, api_key, base_url, model, console)
+            # The anthropic SDK raises its own exception types; classify the
+            # failure explicitly (auth / not-found / unknown) so the observer
+            # picks the right explainer (the exception is always re-raised).
+            self.observer.on_error(
+                e,
+                provider=self.cli_provider,
+                api_key=api_key,
+                base_url=base_url,
+                model=model,
+                error_kind=_classify_error(e),
+            )
             raise
         return full_content, reasoning_content, tool_calls, usage_info, raw_attrs
 

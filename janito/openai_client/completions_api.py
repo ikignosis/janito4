@@ -9,6 +9,9 @@ from typing import Any
 
 from openai import AuthenticationError, NotFoundError, OpenAI
 
+# Pluggable UI observer (headless default; the CLI injects the Rich observer).
+from janito.agent.observer import TurnObserver
+
 # Import auth handling (API keys come from the auth store, not the environment)
 from janito.auth_config import get_api_key
 
@@ -39,18 +42,13 @@ from .base_client import Client
 from .client_support import (  # noqa: F401 (re-exported for backward compat)
     RequestCancelled,
     TurnUsage,
-    _display_content,
-    _display_reasoning,
     _display_usage,
-    _handle_auth_error,
     _load_mcp,
-    _print_verbose_info,
     format_tokens,
 )
 from .completions_helpers import (
     _build_call_kwargs,
     _finalize_response,
-    _handle_not_found_error,
     _resolve_model_settings,
     _resolve_tools,
 )
@@ -201,6 +199,7 @@ def send_prompt(
     reasoning_level: str | None = None,
     usage_out: TurnUsage | None = None,
     stream_runner: Callable | None = None,
+    observer: TurnObserver | None = None,
 ) -> str:
     """Send prompt to OpenAI endpoint and return response using streaming.
 
@@ -230,6 +229,11 @@ def send_prompt(
             spinner, no Enter-to-cancel -- keeping ``send_prompt`` purely
             API-side; the CLI injects its TUI runner through
             ``_make_send_prompt_func``.
+        observer: Optional UI observer (a
+            :class:`~janito.agent.observer.TurnObserver`) receiving the
+            turn's user-visible events (reasoning/message fragments, verbose
+            dumps, error explainers). ``None`` (default) is headless -- no
+            terminal output; the CLI injects the Rich observer.
     """
     logger.info("Sending prompt to API")
     return CompletionsClient(
@@ -238,6 +242,7 @@ def send_prompt(
         reasoning_level=reasoning_level,
         use_mcp=use_mcp,
         stream_runner=stream_runner,
+        observer=observer,
     ).send(
         prompt,
         verbose=verbose,
@@ -328,7 +333,6 @@ class CompletionsClient(Client):
         base_url,
         api_key,
         model,
-        console,
     ):
         try:
             (
@@ -341,10 +345,19 @@ class CompletionsClient(Client):
                 _stream_response, client, call_kwargs, tools_schemas
             )
         except NotFoundError as e:
-            _handle_not_found_error(e, base_url, model, console)
+            self.observer.on_error(
+                e, base_url=base_url, model=model, error_kind="not_found"
+            )
             raise
         except AuthenticationError as e:
-            _handle_auth_error(e, self.cli_provider, api_key, base_url, model, console)
+            self.observer.on_error(
+                e,
+                provider=self.cli_provider,
+                api_key=api_key,
+                base_url=base_url,
+                model=model,
+                error_kind="auth",
+            )
             raise
         return full_content, reasoning_content, tool_calls, usage_info, raw_attrs
 

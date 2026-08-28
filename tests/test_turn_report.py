@@ -169,38 +169,45 @@ class TestWrapSendPromptWithTurnReport:
 
         return fake_send
 
-    def test_wrapper_calls_api_then_displays_report(self, monkeypatch):
+    def _make_observer(self, recorded):
+        class FakeObserver:
+            def on_turn_complete(self, usage_out, *, turn=None):
+                recorded.append((usage_out, turn))
+
+        return FakeObserver()
+
+    def test_wrapper_calls_api_then_displays_report(self):
         holder = {}
-        wrapped = wrap_send_prompt_with_turn_report(self._make_send(holder))
-        displayed = []
-        monkeypatch.setattr(
-            "janito.openai_client.client_support.display_turn_usage",
-            lambda usage_out, turn, console=None: displayed.append((usage_out, turn)),
+        recorded = []
+        wrapped = wrap_send_prompt_with_turn_report(
+            self._make_send(holder), observer=self._make_observer(recorded)
         )
         result = wrapped("hi", turn=1)
         assert result == "final answer"
-        assert displayed and displayed[0][0] is holder["usage_out"]
-        assert displayed[0][1] == 1
+        assert recorded and recorded[0][0] is holder["usage_out"]
+        assert recorded[0][1] == 1
 
-    def test_wrapper_can_suppress_report(self, monkeypatch):
+    def test_wrapper_can_suppress_report(self):
         holder = {}
-        wrapped = wrap_send_prompt_with_turn_report(self._make_send(holder))
-        displayed = []
-        monkeypatch.setattr(
-            "janito.openai_client.client_support.display_turn_usage",
-            lambda usage_out, turn, console=None: displayed.append(usage_out),
+        recorded = []
+        wrapped = wrap_send_prompt_with_turn_report(
+            self._make_send(holder), observer=self._make_observer(recorded)
         )
         result = wrapped("hi", turn=1, display_turn_report=False)
         assert result == "final answer"
-        assert displayed == []
+        assert recorded == []
 
-    def test_wrapper_forwards_api_kwargs_but_not_turn(self, monkeypatch):
+    def test_wrapper_without_observer_renders_nothing(self):
         holder = {}
         wrapped = wrap_send_prompt_with_turn_report(self._make_send(holder))
-        displayed = []
-        monkeypatch.setattr(
-            "janito.openai_client.client_support.display_turn_usage",
-            lambda usage_out, turn, console=None: displayed.append(turn),
+        result = wrapped("hi", turn=1)
+        assert result == "final answer"
+
+    def test_wrapper_forwards_api_kwargs_but_not_turn(self):
+        holder = {}
+        recorded = []
+        wrapped = wrap_send_prompt_with_turn_report(
+            self._make_send(holder), observer=self._make_observer(recorded)
         )
         wrapped(
             "hello",
@@ -215,7 +222,33 @@ class TestWrapSendPromptWithTurnReport:
         assert kw["previous_messages"] == [{"role": "user", "content": "hello"}]
         assert kw["tools"] == []
         assert kw["thinking"] is False
-        # The turn number is display-only: it reaches display_turn_usage...
-        assert displayed == [3]
+        # The turn number is display-only: it reaches the observer's
+        # on_turn_complete...
+        assert recorded == [(holder["usage_out"], 3)]
         # ...and is never forwarded to the API client (the fake send has no
         # ``turn`` parameter, so forwarding would raise a TypeError).
+
+    def test_rich_observer_on_turn_complete_renders_report(self):
+        """The CLI's RichTurnObserver renders the report through
+        display_turn_usage (byte-for-byte the historical output)."""
+        from janito.openai_client.client_support import RichTurnObserver
+
+        buf = StringIO()
+        observer = RichTurnObserver(
+            console=Console(file=buf, width=120, force_terminal=False)
+        )
+        u = TurnUsage(
+            stats=_token_stats(),
+            provider="deepseek",
+            model="deepseek-v4-flash",
+            max_input_tokens=65536,
+            max_output_tokens=8192,
+            message_count=3,
+            label="Messages",
+            show_cached=True,
+        )
+        observer.on_turn_complete(u, turn=2)
+        text = buf.getvalue()
+        assert "Total: 100" in text
+        assert "In: 60/65.5k" in text
+        assert "Turn: #2" in text

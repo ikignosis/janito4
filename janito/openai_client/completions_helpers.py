@@ -10,8 +10,6 @@ module stays focused on the ``send_prompt`` entry point, the
 import logging
 from typing import Any
 
-from rich.console import Console
-
 # Import general configuration handling
 from janito.config_loaders import (
     load_max_input_tokens,
@@ -162,26 +160,6 @@ def _build_call_kwargs(
     call_kwargs["stream"] = True
     call_kwargs["stream_options"] = {"include_usage": True}
     return call_kwargs
-
-
-def _handle_not_found_error(
-    e: Exception,
-    base_url: str | None,
-    model: str,
-    console: Console,
-) -> None:
-    """Explain NotFoundError (unknown model) and re-raise."""
-    if "Model not exist" in str(e) or "model not exist" in str(e).lower():
-        api_url = base_url if base_url else "https://api.openai.com"
-        console.print(
-            f"[bold red]Error: Model not found.[/bold red] "
-            f"Current model being used: [bold]{model}[/bold] | API URL: [bold]{api_url}[/bold]"
-        )
-        console.print(
-            "[dim]Please check that the model name is correct and available "
-            "for your API key/provider.[/dim]"
-        )
-        logger.error(f"Model '{model}' not found at API URL '{api_url}': {e}")
 
 
 def _finalize_response(

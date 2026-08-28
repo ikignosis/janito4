@@ -128,17 +128,19 @@ The pipeline per turn:
 4. Create a `ToolExecutor` (tool-call routing + bookkeeping).
 5. Resolve tool schemas (built-in registry + MCP), model settings
    (max tokens, thinking, reasoning level).
-6. Loop: stream a response → display reasoning/content → if tool calls were
+6. Loop: stream a response → display reasoning/content (routed through the
+   injected `TurnObserver`, see below) → if tool calls were
    requested, execute them (see [Tool execution](#tool-execution)) and loop
    again; otherwise finalize (record the assistant message, return value).
    Each round's usage is folded into a `TokenStats` (`janito/agent/usage.py`)
    carried out of `Client.send` on a `TurnUsage` out-param
    (`openai_client/client_support.py`); the CLI's
    `send_prompt` wrapper (`cli/chat.py` →
-   `wrap_send_prompt_with_turn_report`) renders the end-of-turn reports
-   (used files + token-usage summary) after the API call returns, so the
-   `_finalize` hooks stay display-free and every CLI entry point (interactive
-   shell, `/ask`, `/compact`, one-shot prompt) gets the same reports.
+   `wrap_send_prompt_with_turn_report`) delivers the end-of-turn reports
+   (used files + token-usage summary) to the observer after the API call
+   returns, so the `_finalize` hooks stay display-free and every CLI entry
+   point (interactive shell, `/ask`, `/compact`, one-shot prompt) gets the
+   same reports.
 
 The blocking work of each streaming round — thread creation, the Rich spinner
 and Enter-to-cancel detection — lives in a **per-round stream runner**
@@ -153,6 +155,23 @@ entry point (interactive shell, `/ask`, `/compact`, one-shot prompt) keeps
 the spinner. Because the runner is invoked **per round** from inside the
 `Client.send` loop, the spinner is only visible while the API stream is in
 flight — never during tool execution.
+
+All other user-visible output of the turn is routed through a **turn
+observer** (`TurnObserver` protocol in `janito/agent/observer.py`), injected
+into `Client.__init__` the same way as the stream runner: `on_reasoning` /
+`on_message` (per-round reasoning/content fragments), the verbose
+call/response dumps (`on_verbose_info` / `on_verbose_call` /
+`on_verbose_response`), the error explainers (`on_error`, dispatched by an
+explicit `error_kind` -- `"not_found"` / `"auth"` -- passed by the OpenAI
+SDK clients' typed `except` blocks or derived for the native-SDK clients by
+`_classify_error` in `client_support.py`; the exception is always re-raised)
+and the end-of-turn report (`on_turn_complete`, delivered by the
+`wrap_send_prompt_with_turn_report` wrapper, which knows the display-only
+turn number). The default is the headless `NullObserver`, so
+`send_prompt`/`Client.send` produce no terminal output (the web loop emits
+its own structured events instead); the CLI injects the
+`RichTurnObserver` (`openai_client/client_support.py`) through
+`_make_send_prompt_func`, keeping today's rendered output byte-for-byte.
 
 The web loop (`janito/web/backend/agent/loop.py`) drives the **same turn
 pipeline asynchronously**, yielding structured events instead of printing

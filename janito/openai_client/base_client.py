@@ -38,23 +38,14 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from rich.console import Console
-
+from janito.agent.observer import NullObserver, TurnObserver
 from janito.agent.usage import TokenStats
 from janito.config_store import get_config_value
 from janito.general_config import get_active_provider
 from janito.tooling.changes import clear_changes
 from janito.tooling.used_files import reset_used_files
 
-from .client_support import (
-    _display_content,
-    _display_reasoning,
-    _display_usage,
-    _load_mcp,
-    _print_verbose_api_call,
-    _print_verbose_api_response,
-    _print_verbose_info,
-)
+from .client_support import _display_usage, _load_mcp
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -97,6 +88,13 @@ class Client:
             calls each streaming round directly in the calling thread -- no
             thread, no progress spinner, no Enter-to-cancel -- keeping the
             client purely API-side. The CLI injects its runner here.
+        observer: Optional UI observer (a
+            :class:`~janito.agent.observer.TurnObserver`) receiving every
+            user-visible event of the turn (reasoning/message fragments,
+            verbose dumps, error explainers). ``None`` (default) resolves to
+            the headless :class:`~janito.agent.observer.NullObserver`, so
+            the client produces no terminal output; the CLI injects the Rich
+            observer through ``_make_send_prompt_func``.
         api_type: Canonical API type name (e.g. ``"Completions"``).
         backend_default: Fallback backend label for verbose output when
             ``base_url`` is ``None``.
@@ -115,12 +113,14 @@ class Client:
         reasoning_level: str | None = None,
         use_mcp: bool = True,
         stream_runner: Callable | None = None,
+        observer: TurnObserver | None = None,
     ) -> None:
         self.cli_model = cli_model
         self.cli_provider = cli_provider
         self.reasoning_level = reasoning_level
         self.use_mcp = use_mcp
         self.stream_runner = stream_runner
+        self.observer = observer or NullObserver()
 
     # ------------------------------------------------------------------
     # Template method: the shared turn pipeline
@@ -189,11 +189,14 @@ class Client:
         if preserve_thinking is not None:
             logger.debug(f"Using preserve_thinking from config: {preserve_thinking}")
 
-        console = Console()
-
         # Print model and backend info only in verbose mode
         if verbose:
-            self._print_verbose_info(console, base_url, model, mcp_manager)
+            self.observer.on_verbose_info(
+                base_url=base_url,
+                model=model,
+                mcp_manager=mcp_manager,
+                backend_default=self.backend_default,
+            )
 
         # Conversation-state model depends on the client (client-owned
         # messages list vs server-side response id vs client-side items).
@@ -224,7 +227,7 @@ class Client:
             # In verbose mode, show the request that is about to be sent
             # (messages/input truncated to their tail, tools by name).
             if verbose:
-                self._print_verbose_api_call(console, call_kwargs, tools_schemas)
+                self.observer.on_verbose_call(call_kwargs, tools_schemas)
 
             # Consume the full stream through the injected per-round stream
             # runner (the CLI's TUI runner runs the blocking work in a worker
@@ -244,23 +247,27 @@ class Client:
                 base_url=base_url,
                 api_key=api_key,
                 model=model,
-                console=console,
             )
 
-            # In verbose mode, show a compact summary of the response.
+            # In verbose mode, show a compact summary of the response.  The
+            # server-side response id (Responses client) is extracted from the
+            # API-specific state dict; the other clients keep their history as
+            # a ``messages`` list, from which nothing extra is shown.
             if verbose:
-                self._print_verbose_api_response(
-                    console,
+                response_id = None
+                if isinstance(state, dict):
+                    response_id = state.get("response_id")
+                self.observer.on_verbose_response(
                     full_content,
                     reasoning_content,
                     tool_calls,
                     usage_info,
-                    state,
+                    response_id,
                     raw_attrs=raw_attrs,
                 )
 
             logger.debug("API streaming response completed")
-            _display_reasoning(reasoning_content, console)
+            self.observer.on_reasoning(reasoning_content)
 
             # Fold this round's usage into the turn totals (the round state
             # is discarded on tool-call rounds, so the usage would otherwise
@@ -269,8 +276,8 @@ class Client:
                 turn_stats = _fold_turn_usage(turn_stats, usage_info)
                 usage_out.stats = turn_stats
 
-            # Display the assembled response using rich markdown
-            _display_content(full_content, console)
+            # Display the assembled response (markdown in the CLI)
+            self.observer.on_message(full_content)
 
             # Check if the model wants to call tools
             if tool_calls:
@@ -311,45 +318,6 @@ class Client:
         if self.stream_runner is not None:
             return self.stream_runner(func, *args, **kwargs)
         return func(*args, **kwargs)
-
-    def _print_verbose_info(self, console, base_url, model, mcp_manager) -> None:
-        """Print model/backend/MCP info in verbose mode."""
-        _print_verbose_info(console, base_url, model, mcp_manager, self.backend_default)
-
-    def _print_verbose_api_call(self, console, call_kwargs, tools_schemas) -> None:
-        """Print the API request parameters in verbose mode (messages tail)."""
-        _print_verbose_api_call(console, call_kwargs, tools_schemas)
-
-    def _print_verbose_api_response(
-        self,
-        console,
-        full_content,
-        reasoning_content,
-        tool_calls,
-        usage_info,
-        state,
-        raw_attrs=None,
-    ) -> None:
-        """Print a compact API response summary in verbose mode.
-
-        ``state`` is API-specific: for the Responses client it is a dict that
-        carries the server-side ``response_id`` (chained across rounds); the
-        other clients pass a ``messages`` list, from which nothing extra is
-        shown.  ``raw_attrs`` carries the raw top-level response metadata
-        captured by the stream consumer.
-        """
-        response_id = None
-        if isinstance(state, dict):
-            response_id = state.get("response_id")
-        _print_verbose_api_response(
-            console,
-            full_content,
-            reasoning_content,
-            tool_calls,
-            usage_info,
-            response_id,
-            raw_attrs=raw_attrs,
-        )
 
     # ------------------------------------------------------------------
     # Hooks every subclass must implement (forwarding to its module globals)
@@ -402,13 +370,14 @@ class Client:
         base_url,
         api_key,
         model,
-        console,
     ):
         """Run one streaming round; return ``(content, reasoning, tool_calls, usage)``.
 
         Subclasses route the blocking ``_stream_response`` worker through
         :meth:`_invoke_stream_runner` (the injected per-round stream runner;
-        ``None`` = direct call) and own the API-specific exception handling.
+        ``None`` = direct call) and own the API-specific exception handling:
+        error explainers are rendered through ``self.observer.on_error`` and
+        the exception is always re-raised.
         """
         raise NotImplementedError
 

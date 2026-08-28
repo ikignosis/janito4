@@ -62,7 +62,6 @@ if pytest is not None:
                 base_url=None,
                 api_key="dummy-key",  # pragma: allowlist secret
                 model="m",
-                console=None,
             )
         del hooks["_run_stream_round"]
         for hook, args in hooks.items():
@@ -358,11 +357,28 @@ if pytest is not None:
         assert "y" * 1000 not in rendered
 
     def test_verbose_wiring_in_send(monkeypatch):
-        """verbose=True prints the API call params + response summary through
-        the base Client.send; verbose=False prints neither."""
+        """verbose=True routes the API call params + response summary through
+        the injected TurnObserver; verbose=False emits neither verbose event."""
         import janito.openai_client.completions_api as ca
 
-        calls = []
+        class FakeObserver:
+            def __init__(self):
+                self.events = []
+
+            def on_verbose_info(self, **kwargs):
+                self.events.append("info")
+
+            def on_verbose_call(self, call_kwargs, tools_schemas):
+                self.events.append("call")
+
+            def on_verbose_response(self, *args, **kwargs):
+                self.events.append("response")
+
+            def on_reasoning(self, content):
+                pass
+
+            def on_message(self, content):
+                pass
 
         def fake_run(func, client, call_kwargs, tools_schemas):
             return "hi", None, {}, None, {"id": "chatcmpl-1"}
@@ -374,28 +390,20 @@ if pytest is not None:
         )
         monkeypatch.setattr(ca, "_load_mcp", lambda use_mcp: (None, []))
 
-        # A fake runner is injected through the constructor (the UI-side
-        # stream runner is no longer a module global to monkeypatch).
-        client = ca.CompletionsClient(use_mcp=False, stream_runner=fake_run)
-        monkeypatch.setattr(
-            client,
-            "_print_verbose_api_call",
-            lambda console, call_kwargs, tools_schemas: calls.append("call"),
-        )
-        monkeypatch.setattr(
-            client,
-            "_print_verbose_api_response",
-            lambda console, content, reasoning, tool_calls, usage, state, raw_attrs=None: calls.append(
-                "response"
-            ),
+        # A fake runner and a capturing observer are injected through the
+        # constructor (the UI-side stream runner and the turn observer are no
+        # longer module globals to monkeypatch).
+        observer = FakeObserver()
+        client = ca.CompletionsClient(
+            use_mcp=False, stream_runner=fake_run, observer=observer
         )
 
         client.send("hello", verbose=True, tools=[], thinking=False)
-        assert calls == ["call", "response"]
+        assert observer.events == ["info", "call", "response"]
 
-        calls.clear()
+        observer.events.clear()
         client.send("hello", verbose=False, tools=[], thinking=False)
-        assert calls == []
+        assert observer.events == []
 
     def test_verbose_responses_response_id_from_state(monkeypatch):
         """The Responses client's state dict carries the response id into the
@@ -403,6 +411,22 @@ if pytest is not None:
         import janito.openai_client.conversations_api as ca
 
         captured = {}
+
+        class FakeObserver:
+            def on_verbose_response(self, *args, **kwargs):
+                captured["response_id"] = args[4]
+
+            def on_verbose_info(self, **kwargs):
+                pass
+
+            def on_verbose_call(self, call_kwargs, tools_schemas):
+                pass
+
+            def on_reasoning(self, content):
+                pass
+
+            def on_message(self, content):
+                pass
 
         def fake_run(func, client, call_kwargs, tools_schemas):
             return (
@@ -437,37 +461,49 @@ if pytest is not None:
             lambda *a, **k: {"model": "gpt-4o", "input": "hello"},
         )
 
-        client = ca.ResponsesClient(use_mcp=False, stream_runner=fake_run)
-        monkeypatch.setattr(
-            client,
-            "_print_verbose_api_response",
-            lambda console, content, reasoning, tool_calls, usage, state, raw_attrs=None: captured.setdefault(
-                "state", state
-            ),
+        client = ca.ResponsesClient(
+            use_mcp=False, stream_runner=fake_run, observer=FakeObserver()
         )
 
         result = client.send("hello", verbose=True, tools=[], thinking=False)
         assert result.response_id == "resp_99"
-        # The base method extracts the response id from the Responses state.
-        from io import StringIO
+        # send() extracts the server-side response id from the Responses
+        # state dict and hands it to the observer's on_verbose_response.
+        assert captured["response_id"] == "resp_99"
 
-        from rich.console import Console
+    # ---- error classification (native-SDK clients) ----------------------
 
-        from janito.openai_client.base_client import Client
+    def test_classify_error_recognizes_not_found_payloads():
+        from janito.openai_client.client_support import _classify_error
 
-        console = Console(file=StringIO(), width=120, force_terminal=True)
-        calls = []
-        monkeypatch.setattr(
-            "janito.openai_client.base_client._print_verbose_api_response",
-            lambda console, content, reasoning, tool_calls, usage, response_id, raw_attrs=None: calls.append(
-                response_id
-            ),
+        assert _classify_error(Exception("Model not exist: `gpt-4`")) == "not_found"
+        assert _classify_error(Exception("model not found")) == "not_found"
+        assert (
+            _classify_error(Exception("previous response id not found")) == "not_found"
         )
-        Client()._print_verbose_api_response(
-            console, "hi", None, {}, None, {"response_id": "resp_99"}
-        )
-        Client()._print_verbose_api_response(console, "hi", None, {}, None, [])
-        assert calls == ["resp_99", None]
+
+    def test_classify_error_recognizes_auth_payloads():
+        from janito.openai_client.client_support import _classify_error
+
+        # 401 status code (Anthropic / DashScope style).
+        e = Exception("401 invalid api key")
+        e.status_code = 401
+        assert _classify_error(e) == "auth"
+
+        # 401 error code (google-genai style, no status_code adaptation).
+        e = Exception("boom")
+        e.code = 401
+        assert _classify_error(e) == "auth"
+
+        # InvalidApiKey error code string.
+        e = Exception("boom")
+        e.code = "InvalidApiKey"
+        assert _classify_error(e) == "auth"
+
+    def test_classify_error_unknown_failure():
+        from janito.openai_client.client_support import _classify_error
+
+        assert _classify_error(Exception("502 upstream timeout")) == "unknown"
 
 else:  # pragma: no cover - fallback runner without pytest
 

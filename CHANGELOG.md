@@ -52,6 +52,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `RequestCancelled` moved to `client_support` (still re-exported from
   `completions_api`); tests now inject a fake runner via the constructor
   instead of monkeypatching a module global.
+- Extract every user-visible turn event into a pluggable **turn observer**
+  (`janito/agent/observer.py`): `Client.send` and the five `send_prompt`
+  modules (Completions, Responses, Anthropic, DashScope, Gemini) now route
+  the reasoning/message fragments, the verbose call/response dumps and the
+  error explainers through an injected `TurnObserver` instead of printing
+  directly. The default is the headless `NullObserver`, so
+  `send_prompt`/`Client.send` produce no terminal output (the web loop
+  already emits structured events); the CLI injects the `RichTurnObserver`
+  through `_make_send_prompt_func` (`cli/chat.py`), keeping the rendered
+  output byte-for-byte. The end-of-turn report is delivered to the same
+  observer by `wrap_send_prompt_with_turn_report` (which knows the
+  display-only turn number). Error explainers are dispatched by an explicit
+  `error_kind`: the OpenAI SDK clients pass `"not_found"` / `"auth"` from
+  their typed `except` blocks, and the native-SDK clients derive it via the
+  new `_classify_error` helper in `client_support` (the observer holds no
+  message-matching heuristics). The per-client `_handle_not_found_error`
+  explainers were merged into one unified helper in `client_support`, and
+  the now-dead copies in the helpers modules were removed.
 
 ### Fixed
 

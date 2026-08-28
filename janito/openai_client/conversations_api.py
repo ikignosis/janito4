@@ -46,6 +46,9 @@ from typing import Any
 
 from openai import AuthenticationError, NotFoundError, OpenAI
 
+# Pluggable UI observer (headless default; the CLI injects the Rich observer).
+from janito.agent.observer import TurnObserver
+
 # Import the tool executor (routes tool calls to the MCP manager or the
 # built-in registry and tracks usage/used-files/changes around each call)
 from janito.tooling.executor import ToolExecutor
@@ -58,12 +61,8 @@ from .base_client import Client
 # re-exported for backward compatibility are marked ``noqa: F401``.
 from .client_support import (  # noqa: F401 (re-exported for backward compat)
     TurnUsage,
-    _display_content,
-    _display_reasoning,
     _display_usage,
-    _handle_auth_error,
     _load_mcp,
-    _print_verbose_info,
     format_tokens,
 )
 
@@ -73,7 +72,6 @@ from .client_support import (  # noqa: F401 (re-exported for backward compat)
 from .completions_api import RequestCancelled, resolve_runtime_config
 from .responses_helpers import (
     _finalize_conversation,
-    _handle_not_found_error,
     _handle_tool_calls,
     _pending_items_for_cancel,
     _resolve_model_settings,
@@ -169,6 +167,7 @@ def send_prompt(
     reasoning_level: str | None = None,
     usage_out: TurnUsage | None = None,
     stream_runner: Callable | None = None,
+    observer: TurnObserver | None = None,
 ) -> ConversationResult:
     """Send a prompt to the Responses API and return the final answer.
 
@@ -218,6 +217,11 @@ def send_prompt(
             with the turn's usage and display metadata, so the caller can
             render the end-of-turn reports after the call returns (see
             :func:`~janito.openai_client.client_support.display_turn_usage`).
+        observer: Optional UI observer (a
+            :class:`~janito.agent.observer.TurnObserver`) receiving the
+            turn's user-visible events (reasoning/message fragments, verbose
+            dumps, error explainers). ``None`` (default) is headless -- no
+            terminal output; the CLI injects the Rich observer.
 
     Returns:
         ConversationResult: the final assistant text plus, depending on the
@@ -232,6 +236,7 @@ def send_prompt(
         reasoning_level=reasoning_level,
         use_mcp=use_mcp,
         stream_runner=stream_runner,
+        observer=observer,
     ).send(
         prompt,
         verbose=verbose,
@@ -362,7 +367,6 @@ class ResponsesClient(Client):
         base_url,
         api_key,
         model,
-        console,
     ):
         try:
             (
@@ -391,10 +395,23 @@ class ResponsesClient(Client):
                 model,
             )
         except NotFoundError as e:
-            _handle_not_found_error(e, base_url, model, state["response_id"], console)
+            self.observer.on_error(
+                e,
+                base_url=base_url,
+                model=model,
+                response_id=state["response_id"],
+                error_kind="not_found",
+            )
             raise
         except AuthenticationError as e:
-            _handle_auth_error(e, self.cli_provider, api_key, base_url, model, console)
+            self.observer.on_error(
+                e,
+                provider=self.cli_provider,
+                api_key=api_key,
+                base_url=base_url,
+                model=model,
+                error_kind="auth",
+            )
             raise
         except RequestCancelled as e:
             # Enter was pressed while waiting for the API. Keep the

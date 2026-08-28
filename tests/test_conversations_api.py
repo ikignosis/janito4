@@ -992,6 +992,7 @@ def test_make_send_prompt_func_responses_dispatch(monkeypatch):
         reasoning_level=None,
         usage_out=None,
         stream_runner=None,
+        observer=None,
     ):
         captured["prompt"] = prompt
         captured["previous_response_id"] = previous_response_id
@@ -1002,6 +1003,7 @@ def test_make_send_prompt_func_responses_dispatch(monkeypatch):
         captured["cli_provider"] = cli_provider
         captured["usage_out"] = usage_out
         captured["stream_runner"] = stream_runner
+        captured["observer"] = observer
         return api.ConversationResult(content="hi", response_id="resp_z")
 
     # The wrapper imports send_prompt from conversations_api at call time, so
@@ -1040,6 +1042,9 @@ def test_make_send_prompt_func_responses_dispatch(monkeypatch):
     # The CLI's TUI stream runner is injected by default (all CLI entry
     # points keep the spinner + Enter-to-cancel behaviour).
     assert captured["stream_runner"] is chat_mod._run_with_progress_bar
+    # The CLI's Rich turn observer is injected by default (all CLI entry
+    # points keep the rendered output).
+    assert isinstance(captured["observer"], chat_mod.RichTurnObserver)
 
 
 def test_make_send_prompt_func_completions_dispatch(monkeypatch):
@@ -1060,12 +1065,14 @@ def test_make_send_prompt_func_completions_dispatch(monkeypatch):
         reasoning_level=None,
         usage_out=None,
         stream_runner=None,
+        observer=None,
     ):
         captured["prompt"] = prompt
         captured["previous_messages"] = previous_messages
         captured["cli_provider"] = cli_provider
         captured["usage_out"] = usage_out
         captured["stream_runner"] = stream_runner
+        captured["observer"] = observer
         return "completions answer"
 
     monkeypatch.setattr(chat_mod, "send_prompt", fake_send_completions)
@@ -1091,6 +1098,8 @@ def test_make_send_prompt_func_completions_dispatch(monkeypatch):
     assert captured["usage_out"] is not None
     # The CLI's TUI stream runner is injected by default.
     assert captured["stream_runner"] is chat_mod._run_with_progress_bar
+    # The CLI's Rich turn observer is injected by default.
+    assert isinstance(captured["observer"], chat_mod.RichTurnObserver)
 
 
 # ---- send_factory (real-time /provider switch) -----------------------------
@@ -1640,7 +1649,6 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
             base_url="https://api.example.com",
             api_key="sk-test",  # pragma: allowlist secret
             model="gpt-4o",
-            console=None,
         )
     # No aborted response id: the next turn keeps chaining from the last
     # completed response ("r1").
@@ -1667,7 +1675,6 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
             base_url="https://api.example.com",
             api_key="sk-test",  # pragma: allowlist secret
             model="gpt-4o",
-            console=None,
         )
     assert getattr(excinfo3.value, "response_id", None) is None
     assert excinfo3.value.conversation_items == pending
@@ -1703,7 +1710,6 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
             base_url="https://api.example.com",
             api_key="sk-test",  # pragma: allowlist secret
             model="gpt-4o",
-            console=None,
         )
     assert getattr(excinfo2.value, "response_id", None) is None
     assert excinfo2.value.conversation_items == items

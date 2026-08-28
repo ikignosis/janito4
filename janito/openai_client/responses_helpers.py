@@ -9,8 +9,6 @@ module stays focused on the ``send_prompt`` entry point and the
 import logging
 from typing import Any
 
-from rich.console import Console
-
 # Import general configuration handling
 from janito.config_loaders import (
     load_max_input_tokens,
@@ -157,39 +155,6 @@ def _validate_stream_result(
             f"'{model}'. The model may not be supported by this "
             f"endpoint."
         )
-
-
-def _handle_not_found_error(
-    e: Exception,
-    base_url: str | None,
-    model: str,
-    response_id: str | None,
-    console: Console,
-) -> None:
-    """Explain NotFoundError (unknown model / expired conversation) and re-raise."""
-    message = str(e).lower()
-    if "model not exist" in message or "model not found" in message:
-        api_url = base_url if base_url else "https://api.openai.com"
-        console.print(
-            f"[bold red]Error: Model not found.[/bold red] "
-            f"Current model being used: [bold]{model}[/bold] | API URL: [bold]{api_url}[/bold]"
-        )
-        console.print(
-            "[dim]Please check that the model name is correct and available "
-            "for your API key/provider.[/dim]"
-        )
-        logger.error(f"Model '{model}' not found at API URL '{api_url}': {e}")
-    elif "previous response" in message:
-        console.print(
-            "[bold red]Error: Conversation state not found.[/bold red] "
-            "The server no longer holds the referenced previous response "
-            "(it may have expired or the conversation was reset)."
-        )
-        console.print(
-            "[dim]Start a fresh conversation by passing "
-            "previous_response_id=None.[/dim]"
-        )
-        logger.error(f"Previous response '{response_id}' not found: {e}")
 
 
 def _handle_tool_calls(

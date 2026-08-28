@@ -31,6 +31,9 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.text import Text
 
+# Pluggable UI observer (headless default; the CLI injects RichTurnObserver).
+from janito.agent.observer import NullObserver
+
 # Shared usage normalization (also used by the web loop's UsageEvent).
 from janito.agent.usage import TokenStats, format_tokens, normalize_usage
 
@@ -477,6 +480,96 @@ def _display_content(full_content: str, console: Console) -> None:
         console.print(Markdown(full_content))
 
 
+class RichTurnObserver(NullObserver):
+    """Render turn events to a Rich console (the CLI's default observer).
+
+    Implements the :class:`~janito.agent.observer.TurnObserver` protocol by
+    delegating to this module's display helpers (``_display_reasoning``,
+    ``_display_content``, the verbose printers, the error explainers and
+    ``display_turn_usage``), so the rendered output is byte-for-byte today's
+    behaviour while ``Client.send`` itself stays UI-free.  The observer owns
+    its ``Console``; tests can inject ``Console(file=...)`` to capture the
+    output.
+    """
+
+    def __init__(self, console: Console | None = None) -> None:
+        self.console = console or Console()
+
+    def on_reasoning(self, content: str) -> None:
+        _display_reasoning(content, self.console)
+
+    def on_message(self, content: str) -> None:
+        _display_content(content, self.console)
+
+    def on_verbose_info(
+        self,
+        *,
+        base_url: str | None,
+        model: str,
+        mcp_manager,
+        backend_default: str,
+    ) -> None:
+        _print_verbose_info(self.console, base_url, model, mcp_manager, backend_default)
+
+    def on_verbose_call(
+        self,
+        call_kwargs: dict[str, Any],
+        tools_schemas: list[dict[str, Any]] | None,
+    ) -> None:
+        _print_verbose_api_call(self.console, call_kwargs, tools_schemas)
+
+    def on_verbose_response(
+        self,
+        full_content: str,
+        reasoning_content: str | None,
+        tool_calls: list[dict[str, Any]] | None,
+        usage_info: Any,
+        response_id: str | None,
+        raw_attrs: dict[str, Any] | None = None,
+    ) -> None:
+        _print_verbose_api_response(
+            self.console,
+            full_content,
+            reasoning_content,
+            tool_calls,
+            usage_info,
+            response_id,
+            raw_attrs=raw_attrs,
+        )
+
+    def on_error(
+        self,
+        e: Exception,
+        *,
+        provider: str | None = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model: str | None = None,
+        response_id: str | None = None,
+        error_kind: str | None = None,
+    ) -> None:
+        """Render an error explainer for a classified failure.
+
+        ``error_kind`` is explicit -- ``"not_found"`` or ``"auth"`` -- so
+        the observer holds no message-matching heuristics: the OpenAI SDK
+        clients pass it from their typed ``except`` blocks (NotFoundError /
+        AuthenticationError), and the native-SDK clients (Anthropic,
+        DashScope, Gemini) pass :func:`_classify_error`'s result from their
+        generic handler.  ``None`` / ``"unknown"`` renders nothing (the
+        caller always re-raises).
+        """
+        if error_kind == "not_found":
+            _handle_not_found_error(
+                e, base_url, model, self.console, response_id=response_id
+            )
+        elif error_kind == "auth":
+            _handle_auth_error(e, provider, api_key, base_url, model, self.console)
+        # else: unknown failure -- nothing to explain; the caller re-raises.
+
+    def on_turn_complete(self, usage_out, *, turn: int | None = None) -> None:
+        display_turn_usage(usage_out, turn=turn, console=self.console)
+
+
 def _print_input_capacity_warning(
     max_input_tokens: int | None,
     input_tokens: int | None,
@@ -705,32 +798,105 @@ def display_turn_usage(
     )
 
 
-def wrap_send_prompt_with_turn_report(send_func):
-    """Wrap a ``send_prompt``-style callable: call the API, then print the
-    end-of-turn reports from the populated ``usage_out`` out-param.
+def wrap_send_prompt_with_turn_report(send_func, observer=None):
+    """Wrap a ``send_prompt``-style callable: call the API, then deliver the
+    end-of-turn report to the injected :class:`TurnObserver`.
 
-    The wrapped callable accepts the same arguments as ``send_func`` plus an
-    optional ``display_turn_report`` keyword and an optional ``turn``
-    keyword.  When ``display_turn_report`` is True (default) it prints the
-    used-files report and the token-usage summary line after the API call
-    completes, using the :class:`TurnUsage` the client populated.  ``turn``
-    (the conversation turn number, starting from 1) is display-only: it is
-    consumed here and passed to :func:`display_turn_usage` at render time,
-    never forwarded to the API client.  This keeps
-    a single wrapper responsible for "call the API + display usage", so every
-    CLI entry point (interactive shell, ``/ask``, ``/compact``, one-shot
-    ``janito <prompt>``) gets the reports without duplicating the call.
+    The end-of-turn reports (used-files report + token-usage summary) are
+    rendered by the observer's ``on_turn_complete`` once the API call
+    returns, using the :class:`TurnUsage` out-param the client populated.
+    For the CLI the observer is the RichTurnObserver (whose
+    ``on_turn_complete`` delegates to :func:`display_turn_usage`), so the
+    output matches the historical behaviour; with no observer (``None``)
+    nothing is rendered.
+
+    ``turn`` (the conversation turn number, starting from 1) is
+    display-only: it is consumed here and passed to ``on_turn_complete`` at
+    render time, never forwarded to the API client.  ``display_turn_report``
+    (default True) suppresses the report when False (e.g. internal side
+    calls).  This keeps a single wrapper responsible for "call the API +
+    deliver the turn report", so every CLI entry point (interactive shell,
+    ``/ask``, ``/compact``, one-shot ``janito <prompt>``) gets it without
+    duplicating the call.
     """
 
     def send_with_turn_report(prompt, *, display_turn_report=True, **kwargs):
         turn = kwargs.pop("turn", None)
         usage_out = TurnUsage()
         result = send_func(prompt, usage_out=usage_out, **kwargs)
-        if display_turn_report:
-            display_turn_usage(usage_out, turn=turn)
+        if observer is not None and display_turn_report:
+            observer.on_turn_complete(usage_out, turn=turn)
         return result
 
     return send_with_turn_report
+
+
+def _classify_error(e: Exception) -> str:
+    """Classify an exception for the error explainers: "not_found", "auth" or "unknown".
+
+    Used by the native-SDK clients (Anthropic / DashScope / Gemini), whose
+    generic ``except Exception`` handlers raise their own exception types,
+    to pick the explainer explicitly -- mirroring the checks the explainers
+    themselves perform (unknown-model / stale-response message, 401 status
+    or error code).  The OpenAI SDK clients skip this: their typed
+    ``except`` blocks pass the kind directly.
+    """
+    message = str(e).lower()
+    if (
+        "model not exist" in message
+        or "model not found" in message
+        or "previous response" in message
+    ):
+        return "not_found"
+    status_code = getattr(e, "status_code", None)
+    code = getattr(e, "code", None)
+    if (
+        status_code == 401
+        or code == 401
+        or (isinstance(code, str) and "InvalidApiKey" in code)
+    ):
+        return "auth"
+    return "unknown"
+
+
+def _handle_not_found_error(
+    e: Exception,
+    base_url: str | None,
+    model: str,
+    console: Console,
+    response_id: str | None = None,
+) -> None:
+    """Explain a not-found failure (unknown model / expired conversation).
+
+    Merges the per-client explainers: the Chat Completions client reports an
+    unknown model, and the Responses client additionally reports a stale
+    ``previous_response_id`` (the server no longer holds the referenced
+    response).  Nothing is printed when the failure is not one of these;
+    the caller always re-raises.
+    """
+    message = str(e).lower()
+    if "model not exist" in message or "model not found" in message:
+        api_url = base_url if base_url else "https://api.openai.com"
+        console.print(
+            f"[bold red]Error: Model not found.[/bold red] "
+            f"Current model being used: [bold]{model}[/bold] | API URL: [bold]{api_url}[/bold]"
+        )
+        console.print(
+            "[dim]Please check that the model name is correct and available "
+            "for your API key/provider.[/dim]"
+        )
+        logger.error(f"Model '{model}' not found at API URL '{api_url}': {e}")
+    elif "previous response" in message:
+        console.print(
+            "[bold red]Error: Conversation state not found.[/bold red] "
+            "The server no longer holds the referenced previous response "
+            "(it may have expired or the conversation was reset)."
+        )
+        console.print(
+            "[dim]Start a fresh conversation by passing "
+            "previous_response_id=None.[/dim]"
+        )
+        logger.error(f"Previous response '{response_id}' not found: {e}")
 
 
 def _handle_auth_error(
@@ -744,18 +910,23 @@ def _handle_auth_error(
     """Explain an authentication failure (invalid API key) and re-raise.
 
     Works for the OpenAI SDK clients (called from an ``AuthenticationError``
-    handler) and for the native-SDK clients (Anthropic / DashScope), which
-    raise their own exception types: the failure is recognized by a 401
-    status code or an ``InvalidApiKey`` error code.  When the exception does
-    not look like an auth failure (e.g. a different HTTP error from a native
-    SDK), nothing is printed and the caller re-raises as usual.
+    handler) and for the native-SDK clients (Anthropic / DashScope / Gemini),
+    which raise their own exception types: the failure is recognized by a 401
+    status code, a 401 error code (google-genai) or an ``InvalidApiKey``
+    error code.  When the exception does not look like an auth failure (e.g.
+    a different HTTP error from a native SDK), nothing is printed and the
+    caller re-raises as usual.
     """
     from janito.config_keys import get_masked_api_key
     from janito.general_config import get_active_provider
 
     status_code = getattr(e, "status_code", None)
     code = getattr(e, "code", None)
-    if status_code != 401 and not (isinstance(code, str) and "InvalidApiKey" in code):
+    if (
+        status_code != 401
+        and code != 401
+        and not (isinstance(code, str) and "InvalidApiKey" in code)
+    ):
         return
 
     provider = cli_provider or get_active_provider()
