@@ -106,20 +106,20 @@ class HistoryCmdHandler(CmdHandler):
         rows.extend(_responses_item_to_row(item) for item in conversation_items)
         return rows
 
-    def _checkpoint_markers(self, shell, num_rows: int) -> dict[int, list[int]]:
-        """Map checkpoint values to their ordinal numbers per display position.
+    def _turn_markers(self, shell, num_rows: int) -> dict[int, list[int]]:
+        """Map turn-start values to their ordinal numbers per display position.
 
-        ``shell.history_checkpoints`` holds the number of rows /history
+        ``shell.history_turns`` holds the number of rows /history
         would render each time a user prompt was about to be sent (see
-        ``InteractiveShell._history_row_count``), so each checkpoint value
+        ``InteractiveShell._history_row_count``), so each recorded value
         directly names the displayed row its turn started at.  Returns
         ``{row_index: [ordinals]}`` for each position that needs a marker
-        (checkpoints out of range are ignored); each checkpoint keeps its
+        (out-of-range values are ignored); each turn keeps its
         own ordinal (1-based position in the list).
         """
-        checkpoints = getattr(shell, "history_checkpoints", None) or []
+        turns = getattr(shell, "history_turns", None) or []
         markers: dict[int, list[int]] = {}
-        for ordinal, c in enumerate(checkpoints, start=1):
+        for ordinal, c in enumerate(turns, start=1):
             if 0 <= c <= num_rows:
                 markers.setdefault(c, []).append(ordinal)
         return dict(sorted(markers.items()))
@@ -134,7 +134,7 @@ class HistoryCmdHandler(CmdHandler):
             Console(markup=False).print("(empty)")
             return
 
-        markers = self._checkpoint_markers(shell, len(rows))
+        markers = self._turn_markers(shell, len(rows))
 
         table = Table(
             title="Message History",
@@ -146,10 +146,10 @@ class HistoryCmdHandler(CmdHandler):
         table.add_column("Content", overflow="fold")
 
         for i, (role, content) in enumerate(rows):
-            # Show one marker line per checkpoint, before the item it
-            # precedes, numbered by its order in the checkpoint list.
+            # Show one marker line per turn, before the item it
+            # precedes, numbered by its order in the turn list.
             for ordinal in markers.get(i, []):
-                table.add_row("", f"◉ checkpoint {ordinal}", "", style="bold yellow")
+                table.add_row("", f"◉ turn {ordinal}", "", style="bold yellow")
 
             # Truncate long content for display
             if len(content) > 200:

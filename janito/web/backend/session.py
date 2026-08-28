@@ -30,8 +30,8 @@ class ConversationSession:
     # History lengths recorded each time a new user prompt is about to be
     # sent (the length of ``messages`` before that turn); cancel (Ctrl+C)
     # and error recovery roll back to the most recent one.  Mirrors the
-    # shell's ``history_checkpoints`` attribute.
-    history_checkpoints: list[int] = field(default_factory=list)
+    # shell's ``history_turns`` attribute.
+    history_turns: list[int] = field(default_factory=list)
 
     def touch(self) -> None:
         self.last_active = time.time()
@@ -47,9 +47,9 @@ class ConversationSession:
             self.messages = [{"role": "system", "content": self.system_prompt}]
         else:
             self.messages = []
-        # A fresh conversation has no checkpoints yet: they are recorded
+        # A fresh conversation has no recorded turns yet: they are
         # each time a user prompt is about to be sent (see _run_turn).
-        self.history_checkpoints = []
+        self.history_turns = []
         self.touch()
 
     def to_summary(self) -> dict:
@@ -120,9 +120,9 @@ class SessionManager:
                 provider=meta.get("provider"),
                 model=meta.get("model"),
             )
-            # A fresh conversation has no checkpoints yet: they are recorded
+            # A fresh conversation has no recorded turns yet: they are
             # each time a user prompt is about to be sent (see _run_turn).
-            session.history_checkpoints = []
+            session.history_turns = []
             with self._lock:
                 self._sessions[session.session_id] = session
             loaded += 1
@@ -144,9 +144,9 @@ class SessionManager:
             messages=messages,
             system_prompt=system_prompt,
         )
-        # A fresh conversation has no checkpoints yet: they are recorded
+        # A fresh conversation has no recorded turns yet: they are
         # each time a user prompt is about to be sent (see _run_turn).
-        session.history_checkpoints = []
+        session.history_turns = []
         with self._lock:
             self._sessions[session_id] = session
         self._persist(session)

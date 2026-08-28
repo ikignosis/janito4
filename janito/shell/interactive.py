@@ -73,7 +73,7 @@ class InteractiveShell(_SessionMixin):
         # and /rewind undoes the last exchange by truncating back to it and
         # dropping it, so the list lets /rewind step back one turn at a time
         # and lets /history mark where each turn started.
-        self.history_checkpoints: list[int] = []
+        self.history_turns: list[int] = []
         # Server-side conversation handle for the Responses API: the id of the
         # last response, passed as `previous_response_id` on the next turn.
         # None in Completions mode (where history lives in messages_history),
@@ -91,19 +91,19 @@ class InteractiveShell(_SessionMixin):
         self.conversation_items: list[dict[str, Any]] | None = None
         # Index into conversation_items marking the last known-good state;
         # /rewind truncates back to here.
-        self.conversation_checkpoint: int = 0
+        self.conversation_turn: int = 0
         # Chain of completed server-side Responses response ids, in turn
         # order. Every successful turn of a server-side Responses provider
         # (e.g. OpenAI) appends its final response id; /rewind truncates
-        # back to the checkpoint and re-points previous_response_id at the
-        # response that preceded the rolled-back exchange, so the next turn
+        # back to the recorded start and re-points previous_response_id at
+        # the response that preceded the rolled-back exchange, so the next turn
         # continues from there instead of resetting the whole server-side
         # conversation. Empty in Completions mode and for stateless
         # Responses providers (which never chain with an id).
         self.response_chain: list[str] = []
         # Index into response_chain marking the last known-good state;
         # /rewind truncates back to here.
-        self.response_checkpoint: int = 0
+        self.response_turn: int = 0
         # Display-only mirror of completed server-side Responses turns (e.g.
         # OpenAI), kept client-side purely so /history can render the
         # conversation: the real history lives on the server (chained via
@@ -115,7 +115,7 @@ class InteractiveShell(_SessionMixin):
         self.mirrored_history: list[dict[str, Any]] = []
         # Index into mirrored_history marking the last known-good state;
         # /rewind truncates back to here.
-        self.mirrored_checkpoint: int = 0
+        self.mirrored_turn: int = 0
         # Set True by the F2 key binding; signals the run loop to clear
         # history and start a fresh conversation
         self.restart_requested = False
@@ -158,21 +158,21 @@ class InteractiveShell(_SessionMixin):
             self.messages_history = [{"role": "system", "content": system_prompt}]
         else:
             self.messages_history = []
-        # A fresh conversation has no checkpoints yet: they are recorded
+        # A fresh conversation has no recorded turns yet: they are
         # each time a user prompt is about to be sent (see _send_prompt).
-        self.history_checkpoints = []
+        self.history_turns = []
         # A fresh conversation also starts a fresh server-side conversation:
         # the next turn must not chain to the previous response id, and any
         # stateless client-side items history is dropped.
         self.previous_response_id = None
         self.conversation_items = None
-        self.conversation_checkpoint = 0
+        self.conversation_turn = 0
         self.response_chain = []
-        self.response_checkpoint = 0
+        self.response_turn = 0
         # A fresh conversation also clears the /history display mirror of
         # completed server-side turns.
         self.mirrored_history = []
-        self.mirrored_checkpoint = 0
+        self.mirrored_turn = 0
         # A fresh conversation restarts the turn counter for the usage
         # summary (Turn: #1 is the next submitted message).
         self.turn_count = 0
@@ -353,17 +353,17 @@ class InteractiveShell(_SessionMixin):
             tools_to_use = [] if self.no_tools else None
         else:
             tools_to_use = tools
-        # Record a checkpoint (the number of rows /history would currently
-        # render) every time a new user prompt is about to be sent, so the
-        # checkpoint value indexes directly into the displayed history:
-        # /history marks the row each turn started at, and /rewind /
-        # error-cancel recovery know where this turn began.
-        self.history_checkpoints.append(self._history_row_count())
-        self.conversation_checkpoint = (
+        # Record this turn's start (the number of rows /history would
+        # currently render) every time a new user prompt is about to be
+        # sent, so the recorded value indexes directly into the displayed
+        # history: /history marks the row each turn started at, and /rewind
+        # / error-cancel recovery know where this turn began.
+        self.history_turns.append(self._history_row_count())
+        self.conversation_turn = (
             len(self.conversation_items) if self.conversation_items else 0
         )
-        self.response_checkpoint = len(self.response_chain)
-        self.mirrored_checkpoint = len(self.mirrored_history)
+        self.response_turn = len(self.response_chain)
+        self.mirrored_turn = len(self.mirrored_history)
         # Count this submission as the next turn (Turn: #1 is the first
         # message submitted in the conversation) and thread the number to the
         # API client, which shows it on the token-usage summary line.
@@ -386,9 +386,9 @@ class InteractiveShell(_SessionMixin):
             # else is needed there.
             if hasattr(result, "input_items"):
                 self._record_responses_result(result)
-            # On success, keep the checkpoint where it is (before this turn)
-            # so /rewind can undo the last exchange. The next turn will
-            # update it before its own send_prompt call.
+            # On success, keep the recorded start where it is (before this
+            # turn) so /rewind can undo the last exchange. The next turn
+            # will update it before its own send_prompt call.
         except RequestCancelled as e:
             # Enter was pressed while waiting for the API: interrupt the
             # request but keep the conversation intact so the next turn still
@@ -442,9 +442,9 @@ class InteractiveShell(_SessionMixin):
         """Return how many rows /history would currently render.
 
         Mirrors the row-building logic of the /history command (see
-        ``janito.shell.cmds.history._history_rows``) so a checkpoint value
-        recorded at prompt-send time indexes directly into the displayed
-        history: Completions mode renders ``messages_history``, stateless
+        ``janito.shell.cmds.history._history_rows``) so the recorded value
+        at prompt-send time indexes directly into the displayed history:
+        Completions mode renders ``messages_history``, stateless
         Responses renders ``conversation_items`` (which fold in the system
         prompt), and server-side Responses renders ``messages_history`` +
         ``mirrored_history`` + any pending items.
@@ -457,21 +457,22 @@ class InteractiveShell(_SessionMixin):
         return len(self.messages_history) + len(mirrored) + len(conversation_items)
 
     def _rollback_history(self) -> None:
-        """Roll the conversation history back to the most recent checkpoint.
+        """Roll the conversation history back to the most recent turn.
 
-        Removes any messages appended since the last checkpoint (the aborted
-        turn's user prompt and any partial assistant output) and drops that
-        checkpoint, since the turn it marked is gone.  In the Responses
-        modes the checkpoint is a displayed-row count that is >= the length
-        of ``messages_history`` (which only ever holds the system prompt),
-        so the truncation is a no-op there -- matching the pre-list
-        behaviour, where the Responses rollback was handled elsewhere.
+        Removes any messages appended since the last turn (the aborted
+        turn's user prompt and any partial assistant output) and drops its
+        recorded start, since the turn it marked is gone.  In the Responses
+        modes the recorded value is a displayed-row count that is >= the
+        length of ``messages_history`` (which only ever holds the system
+        prompt), so the truncation is a no-op there -- matching the
+        pre-list behaviour, where the Responses rollback was handled
+        elsewhere.
         """
-        if not self.history_checkpoints:
+        if not self.history_turns:
             return
-        checkpoint = self.history_checkpoints[-1]
-        del self.messages_history[checkpoint:]
-        self.history_checkpoints.pop()
+        start = self.history_turns[-1]
+        del self.messages_history[start:]
+        self.history_turns.pop()
 
     def _record_responses_result(self, result: Any) -> None:
         """Record the conversation state a Responses turn returns.

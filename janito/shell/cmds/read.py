@@ -78,7 +78,7 @@ class ReadCmdHandler(CmdHandler):
 
         read_only_schemas = get_read_only_tool_schemas()
         print()  # blank line before the streamed response, like /ask
-        # Reuse the shell's main-prompt path: same history, checkpoints,
+        # Reuse the shell's main-prompt path: same history, turns,
         # Responses state sync and cancel/rollback handling -- only the tool
         # set is restricted to the read-only tools.
         shell._send_prompt(question, tools=read_only_schemas)

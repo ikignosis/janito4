@@ -7,7 +7,7 @@ a single "[RECAP OF PRIOR WORK]" assistant message produced by a dedicated
 LLM call (the Context Compression Engine prompt), so the conversation stays
 within the context while the recent history stays verbatim.
 
-The last ``KEEP_CHECKPOINTS`` turns (recorded as ``history_checkpoints``, the
+The last ``KEEP_TURNS`` turns (recorded as ``history_turns``, the
 row counts ``/history`` would render before each user prompt) form the "keep
 zone" and are left untouched.  Everything before them (after the system
 prompt) is sent to the model for compression.
@@ -61,8 +61,8 @@ CRITICAL RULES:
 #: compact effectively.").
 MIN_COMPACT_TOKENS = 2000
 
-#: Number of most recent turns (checkpoints) kept untouched by /compact.
-KEEP_CHECKPOINTS = 3
+#: Number of most recent turns kept untouched by /compact.
+KEEP_TURNS = 3
 
 _console = Console(markup=False)
 
@@ -114,7 +114,7 @@ def _effective_rows(shell) -> list[tuple[str, str]]:
     """Return ``(role, content)`` rows for the whole effective history.
 
     Mirrors the source selection of the ``/history`` command (see
-    ``janito.shell.cmds.history``) so checkpoint values (recorded from
+    ``janito.shell.cmds.history``) so the recorded values (from
     ``_history_row_count``) index directly into these rows in every API mode.
     """
     mode = _history_mode(shell)
@@ -159,7 +159,7 @@ def _compact_zone_entries(
 
     ``skip`` is the row index where the compact zone starts (0 or 1, after the
     optional system prompt) and ``keep_start`` the row index where it ends
-    (the ``history_checkpoints`` value); both index into the ``/history``
+    (the ``history_turns`` value); both index into the ``/history``
     display rows, so ``messages_history`` + ``mirrored_history`` +
     ``conversation_items`` are mapped back to their storage slices.
     """
@@ -309,8 +309,8 @@ def _find_recap(new_history: list[dict[str, Any]]) -> str:
 def _keep_zone_messages(shell, mode: str, keep_start: int) -> list[dict[str, Any]]:
     """Return the storage entries (dicts/items) of the untouched keep zone.
 
-    ``keep_start`` is a row index into the effective /history display (the
-    checkpoint value).  Completions mode returns ``messages_history`` dicts;
+    ``keep_start`` is a row index into the effective /history display (a
+    recorded turn-start value).  Completions mode returns ``messages_history`` dicts;
     the Responses modes return Responses input items.
     """
     if mode == "completions":
@@ -333,7 +333,7 @@ def _keep_zone_messages(shell, mode: str, keep_start: int) -> list[dict[str, Any
 def _apply_new_context(shell, mode: str, new_history, keep_zone_messages) -> None:
     """Reset the conversation state to the compacted context.
 
-    Resets every checkpoint/response tracker: the compacted baseline is the
+    Resets every turn/response tracker: the compacted baseline is the
     new conversation start, so /rewind steps back from there and the next turn
     starts a fresh server conversation (Responses modes) or uses the rebuilt
     client-side history (Completions modes).
@@ -341,7 +341,7 @@ def _apply_new_context(shell, mode: str, new_history, keep_zone_messages) -> Non
     if mode == "completions":
         shell.messages_history = new_history
         shell.conversation_items = None
-        shell.conversation_checkpoint = 0
+        shell.conversation_turn = 0
     else:
         recap = _find_recap(new_history)
         if mode == "stateless":
@@ -352,23 +352,23 @@ def _apply_new_context(shell, mode: str, new_history, keep_zone_messages) -> Non
             new_items.append(_message_item("assistant", recap))
             new_items.extend(keep_zone_messages)
             shell.conversation_items = new_items
-            shell.conversation_checkpoint = len(new_items)
+            shell.conversation_turn = len(new_items)
         else:  # server_side: system prompt stays in messages_history /
             # instructions; the recap + keep zone seed the next fresh server
             # turn as input items.
             new_items = [_message_item("assistant", recap)]
             new_items.extend(keep_zone_messages)
             shell.conversation_items = new_items
-            shell.conversation_checkpoint = len(new_items)
-    # The compacted baseline is the new conversation start: every checkpoint
+            shell.conversation_turn = len(new_items)
+    # The compacted baseline is the new conversation start: every turn
     # and server-conversation tracker is reset so /rewind steps back from
     # here and the next turn starts fresh.
-    shell.history_checkpoints = []
+    shell.history_turns = []
     shell.previous_response_id = None
     shell.response_chain = []
-    shell.response_checkpoint = 0
+    shell.response_turn = 0
     shell.mirrored_history = []
-    shell.mirrored_checkpoint = 0
+    shell.mirrored_turn = 0
 
 
 class CompactCmdHandler(CmdHandler):
@@ -390,12 +390,12 @@ class CompactCmdHandler(CmdHandler):
         return False
 
     def _do_compact(self, shell) -> None:
-        """Compact the history before the last KEEP_CHECKPOINTS turns."""
-        checkpoints = getattr(shell, "history_checkpoints", None) or []
-        if len(checkpoints) < KEEP_CHECKPOINTS:
+        """Compact the history before the last KEEP_TURNS turns."""
+        turns = getattr(shell, "history_turns", None) or []
+        if len(turns) < KEEP_TURNS:
             _console.print("Conversation too short to compact effectively.")
             return
-        keep_start = checkpoints[-KEEP_CHECKPOINTS]
+        keep_start = turns[-KEEP_TURNS]
 
         mode = _history_mode(shell)
         rows = _effective_rows(shell)
@@ -429,7 +429,7 @@ class CompactCmdHandler(CmdHandler):
         _apply_new_context(shell, mode, new_history, keep_zone)
         _console.print(
             f"Compacted: {len(compact_rows)} message(s) replaced by a recap "
-            f"(last {KEEP_CHECKPOINTS} turns kept verbatim). "
+            f"(last {KEEP_TURNS} turns kept verbatim). "
             f"History now has {len(_effective_rows(shell))} message(s)."
         )
 

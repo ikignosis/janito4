@@ -44,7 +44,7 @@ window.ChatStoreMixin = {
     // Roll back the in-flight turn from the local UI: remove the streaming
     // assistant message and the user message that started the turn. Used by
     // cancelRequest() and by the server 'cancelled'/'error' events, which all
-    // mirror the server-side history rollback to the pre-turn checkpoint.
+    // mirror the server-side history rollback to before this turn.
     //
     // (Single implementation — previously this 12-line block was duplicated
     //  three times across chat.js.)

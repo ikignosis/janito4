@@ -1,8 +1,8 @@
 """
 Tests for the /compact shell command.
 
-``/compact`` keeps the last ``KEEP_CHECKPOINTS`` turns (recorded as
-``history_checkpoints``) untouched and replaces everything before them with a
+``/compact`` keeps the last ``KEEP_TURNS`` turns (recorded as
+``history_turns``) untouched and replaces everything before them with a
 single "[RECAP OF PRIOR WORK]" assistant message produced by a dedicated LLM
 call (the Context Compression Engine prompt).  Where the history lives depends
 on the API type -- Completions / Anthropic / DashScope / Gemini keep it in
@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from janito.openai_client import RequestCancelled
 from janito.shell import InteractiveShell
 from janito.shell.cmds.compact import (
-    KEEP_CHECKPOINTS,
+    KEEP_TURNS,
     MIN_COMPACT_TOKENS,
     SYSTEM_COMPACT_PROMPT,
     _build_new_context,
@@ -95,8 +95,8 @@ def test_compact_handles_exact_command_only():
 # ---------------------------------------------------------------------------
 
 
-def test_compact_too_short_few_checkpoints(capsys):
-    """Fewer than KEEP_CHECKPOINTS turns: disabled with the warning, no LLM call."""
+def test_compact_too_short_few_turns(capsys):
+    """Fewer than KEEP_TURNS turns: disabled with the warning, no LLM call."""
     shell = _shell()
     shell.initialize_history(system_prompt="sys")
     shell.messages_history = [
@@ -104,7 +104,7 @@ def test_compact_too_short_few_checkpoints(capsys):
         {"role": "user", "content": LONG},
         {"role": "assistant", "content": LONG},
     ]
-    shell.history_checkpoints = [1]
+    shell.history_turns = [1]
     calls = {}
     shell.send_prompt_func, calls = _stub_send(COMPACTION_JSON)
 
@@ -131,7 +131,7 @@ def test_compact_too_short_token_count(capsys):
         {"role": "user", "content": "u4"},
         {"role": "assistant", "content": "a4"},
     ]
-    shell.history_checkpoints = [1, 3, 5, 7]
+    shell.history_turns = [1, 3, 5, 7]
     calls = {}
     shell.send_prompt_func, calls = _stub_send(COMPACTION_JSON)
 
@@ -163,7 +163,7 @@ def test_compact_completions_mode(capsys):
         {"role": "assistant", "content": "a4"},
     ]
     shell.messages_history = [dict(m) for m in original]
-    shell.history_checkpoints = [1, 3, 5, 7]
+    shell.history_turns = [1, 3, 5, 7]
     calls = {}
     shell.send_prompt_func, calls = _stub_send(COMPACTION_JSON)
 
@@ -179,15 +179,15 @@ def test_compact_completions_mode(capsys):
     assert "Completed steps: Created app.py; Added tests" in recap["content"]
     # The last 3 turns (rows 3..8) are untouched.
     assert shell.messages_history[2:] == original[3:]
-    # Checkpoints and server-conversation trackers are reset.
-    assert shell.history_checkpoints == []
+    # The turn list and server-conversation trackers are reset.
+    assert shell.history_turns == []
     assert shell.previous_response_id is None
     assert shell.conversation_items is None
     assert shell.response_chain == []
     assert shell.mirrored_history == []
     out = capsys.readouterr().out
     assert "Compacting conversation history..." in out
-    assert f"last {KEEP_CHECKPOINTS} turns kept verbatim" in out
+    assert f"last {KEEP_TURNS} turns kept verbatim" in out
 
 
 def test_compact_completions_sends_compaction_prompt():
@@ -207,7 +207,7 @@ def test_compact_completions_sends_compaction_prompt():
         {"role": "user", "content": "u4"},
         {"role": "assistant", "content": "a4"},
     ]
-    shell.history_checkpoints = [1, 3, 5, 7]
+    shell.history_turns = [1, 3, 5, 7]
     seen = {}
 
     def send_prompt_func(prompt, **kwargs):
@@ -263,7 +263,7 @@ def test_compact_completions_preserves_tool_rounds():
         {"role": "user", "content": "u4"},
         {"role": "assistant", "content": "a4"},
     ]
-    shell.history_checkpoints = [1, 5, 7, 9]
+    shell.history_turns = [1, 5, 7, 9]
     seen = {}
 
     def send_prompt_func(prompt, **kwargs):
@@ -349,7 +349,7 @@ def _stateless_shell():
     ]
     shell.messages_history = [{"role": "system", "content": "sys"}]
     shell.conversation_items = [dict(i) for i in items]
-    shell.history_checkpoints = [1, 3, 5, 7]
+    shell.history_turns = [1, 3, 5, 7]
     return shell, items
 
 
@@ -372,12 +372,12 @@ def test_compact_stateless_responses(capsys):
     assert "Goal: Build a feature" in recap_text
     # The last 3 turns (items 3..8) are untouched, in Responses format.
     assert items[2:] == original[3:]
-    assert shell.history_checkpoints == []
+    assert shell.history_turns == []
     assert shell.previous_response_id is None
     assert shell.response_chain == []
     assert shell.mirrored_history == []
     # The baseline is the whole new items list, so /rewind does not truncate it.
-    assert shell.conversation_checkpoint == len(items)
+    assert shell.conversation_turn == len(items)
     out = capsys.readouterr().out
     assert "Compacting conversation history..." in out
 
@@ -450,7 +450,7 @@ def test_compact_stateless_preserves_tool_call_items():
             "content": [{"type": "output_text", "text": "a4"}],
         },
     ]
-    shell.history_checkpoints = [1, 5, 7, 9]
+    shell.history_turns = [1, 5, 7, 9]
     seen = {}
 
     def send_prompt_func(prompt, **kwargs):
@@ -498,7 +498,7 @@ def _server_side_shell():
     shell.messages_history = [{"role": "system", "content": "sys"}]
     shell.previous_response_id = "r4"
     shell.response_chain = ["r1", "r2", "r3", "r4"]
-    shell.response_checkpoint = 4
+    shell.response_turn = 4
     mirror = [
         {
             "type": "message",
@@ -543,7 +543,7 @@ def _server_side_shell():
     ]
     shell.mirrored_history = [dict(i) for i in mirror]
     shell.conversation_items = None
-    shell.history_checkpoints = [1, 3, 5, 7]
+    shell.history_turns = [1, 3, 5, 7]
     return shell, mirror
 
 
@@ -561,10 +561,10 @@ def test_compact_server_side_responses(capsys):
     # fresh turn as input items.
     assert shell.previous_response_id is None
     assert shell.response_chain == []
-    assert shell.response_checkpoint == 0
+    assert shell.response_turn == 0
     assert shell.mirrored_history == []
-    assert shell.mirrored_checkpoint == 0
-    assert shell.history_checkpoints == []
+    assert shell.mirrored_turn == 0
+    assert shell.history_turns == []
     # System prompt stays in messages_history (sent as instructions next turn).
     assert shell.messages_history == [{"role": "system", "content": "sys"}]
     items = shell.conversation_items
@@ -572,7 +572,7 @@ def test_compact_server_side_responses(capsys):
     assert items[0]["content"][0]["text"].startswith("[RECAP OF PRIOR WORK]")
     # Keep zone = mirror rows from row 3 onward (u2..a4).
     assert items[1:] == mirror[2:]
-    assert shell.conversation_checkpoint == len(items)
+    assert shell.conversation_turn == len(items)
     out = capsys.readouterr().out
     assert "Compacting conversation history..." in out
 
@@ -598,7 +598,7 @@ def test_compact_cancelled_keeps_history(capsys):
         {"role": "assistant", "content": "a4"},
     ]
     shell.messages_history = [dict(m) for m in original]
-    shell.history_checkpoints = [1, 3, 5, 7]
+    shell.history_turns = [1, 3, 5, 7]
 
     def send_prompt_func(prompt, **kwargs):
         raise RequestCancelled()
@@ -607,7 +607,7 @@ def test_compact_cancelled_keeps_history(capsys):
     _compact_handler()._do_compact(shell)
 
     assert shell.messages_history == original
-    assert shell.history_checkpoints == [1, 3, 5, 7]
+    assert shell.history_turns == [1, 3, 5, 7]
     out = capsys.readouterr().out
     assert "Compaction cancelled" in out
 
@@ -628,7 +628,7 @@ def test_compact_error_keeps_history(capsys):
         {"role": "assistant", "content": "a4"},
     ]
     shell.messages_history = [dict(m) for m in original]
-    shell.history_checkpoints = [1, 3, 5, 7]
+    shell.history_turns = [1, 3, 5, 7]
 
     def send_prompt_func(prompt, **kwargs):
         raise RuntimeError("boom")
@@ -656,7 +656,7 @@ def test_compact_non_json_falls_back_to_raw_text():
         {"role": "user", "content": "u4"},
         {"role": "assistant", "content": "a4"},
     ]
-    shell.history_checkpoints = [1, 3, 5, 7]
+    shell.history_turns = [1, 3, 5, 7]
 
     def send_prompt_func(prompt, **kwargs):
         return "plain text recap"
@@ -684,7 +684,7 @@ def test_compact_no_send_prompt_func(capsys):
         {"role": "user", "content": "u4"},
         {"role": "assistant", "content": "a4"},
     ]
-    shell.history_checkpoints = [1, 3, 5, 7]
+    shell.history_turns = [1, 3, 5, 7]
     # No send_prompt_func attribute.
     _compact_handler()._do_compact(shell)
     out = capsys.readouterr().out
@@ -765,6 +765,6 @@ def test_min_compact_tokens_threshold_constant():
     assert MIN_COMPACT_TOKENS == 2000
 
 
-def test_keep_checkpoints_constant():
+def test_keep_turns_constant():
     """The keep-zone size is the documented 3 turns."""
-    assert KEEP_CHECKPOINTS == 3
+    assert KEEP_TURNS == 3

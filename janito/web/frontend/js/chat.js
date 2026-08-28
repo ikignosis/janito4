@@ -419,7 +419,7 @@ function chatComponent() {
         // Abort the in-flight request for the active session.  Sends a
         // `{"type": "cancel"}` message to the server which stops the
         // agentic loop and rolls back the conversation history to the
-        // pre-turn checkpoint (removing the user message and any partial
+        // pre-turn state (removing the user message and any partial
         // assistant response), then locally removes those messages from
         // the UI to stay in sync with the server.
         cancelRequest() {
@@ -435,7 +435,7 @@ function chatComponent() {
             }
 
             // Tell the server to abort the current turn and roll back the
-            // history to the checkpoint (before this turn's user message).
+            // history to before this turn's user message.
             const socket = this._socket(id);
             if (socket) socket.sendCancel();
 

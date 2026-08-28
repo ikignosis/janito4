@@ -72,7 +72,7 @@ Additional slash commands available in the terminal shell:
 | `/priv` | Show the current running privileges (READ / WRITE / EXEC) |
 | `/price` | Show a per-model pricing table for every built-in model (estimated cost per 1M input + cached + output tokens) |
 | `/multi` | Enable multiline input for the **next prompt only** (submit with `ESC` then `Enter`) |
-| `/rewind` | Undo the most recent turn, stepping back one exchange at a time (truncates the history to the last checkpoint) |
+| `/rewind` | Undo the most recent turn, stepping back one exchange at a time (truncates the history to the last turn) |
 | `/provider` | Show the current provider and the available providers |
 | `/provider <name>` | Switch the session's provider (and model) for this shell session only — the configured default in `config.json` is left unchanged (use `janito --set provider=<name>` to persist a new default; autocompleted). The LLM conversation history is cleared so the new provider/model starts fresh |
 | `/model` | Show the current model and the models available from the current provider |

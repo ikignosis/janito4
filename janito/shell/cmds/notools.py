@@ -65,7 +65,7 @@ class NoToolsCmdHandler(CmdHandler):
             return
 
         print()  # blank line before the streamed response, like /ask
-        # Reuse the shell's main-prompt path: same history, checkpoints,
+        # Reuse the shell's main-prompt path: same history, turns,
         # Responses state sync and cancel/rollback handling. ``tools=[]``
         # suppresses every tool for this turn (the same thing ``--no-tools``
         # does for the whole session).

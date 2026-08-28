@@ -157,8 +157,8 @@ const CHAT_EVENT_HANDLERS = {
     },
 
     cancelled(c) {
-        // Server confirmed the abort and rolled back the history to the
-        // checkpoint. Remove the in-flight assistant message and the user
+        // Server confirmed the abort and rolled the history back to before
+        // this turn. Remove the in-flight assistant message and the user
         // message that started this turn to stay in sync with the server.
         c.comp._rollbackTurn(c.store);
         c.comp._setStatus(c.store, 'idle');
@@ -171,7 +171,7 @@ const CHAT_EVENT_HANDLERS = {
 
     error(c) {
         c.store.error = c.event.message;
-        // Server rolled back the history to the checkpoint on error.
+        // Server rolled the history back to before this turn on error.
         c.comp._rollbackTurn(c.store);
         c.comp._setStatus(c.store, 'idle');
         if (c.isActive) {

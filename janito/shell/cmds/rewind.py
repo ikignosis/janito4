@@ -6,11 +6,11 @@ from .base import CmdHandler
 from .registry import register_command
 
 
-def _pop_checkpoint(checkpoints) -> None:
-    """Drop the most recent history checkpoint, if any (used by the
+def _pop_turn(turns) -> None:
+    """Drop the most recent history turn, if any (used by the
     Responses-mode rewind branches so /history markers stay in sync)."""
-    if checkpoints:
-        checkpoints.pop()
+    if turns:
+        turns.pop()
 
 
 class RewindCmdHandler(CmdHandler):
@@ -34,20 +34,20 @@ class RewindCmdHandler(CmdHandler):
     def _do_rewind(self, shell) -> None:
         """Undo the most recent turn, stepping back one turn at a time.
 
-        Each successful turn leaves a checkpoint (the number of rows
-        /history would render before that turn) in
-        ``shell.history_checkpoints``; /rewind undoes the most recent
-        exchange by truncating the history back to the last checkpoint and
-        dropping it, so a second /rewind steps back one further turn.  The
-        Responses-mode branches below (which live outside messages_history)
-        drop the same checkpoint so /history markers stay in sync.
+        Each successful turn records the number of rows /history would
+        render before that turn in ``shell.history_turns``; /rewind undoes
+        the most recent exchange by truncating the history back to the last
+        recorded start and dropping it, so a second /rewind steps back one
+        further turn.  The Responses-mode branches below (which live outside
+        messages_history) drop the same recorded start so /history markers
+        stay in sync.
         """
-        checkpoints = getattr(shell, "history_checkpoints", None)
-        if checkpoints and len(shell.messages_history) > checkpoints[-1]:
-            checkpoint = checkpoints[-1]
-            removed = len(shell.messages_history) - checkpoint
-            del shell.messages_history[checkpoint:]
-            checkpoints.pop()
+        turns = getattr(shell, "history_turns", None)
+        if turns and len(shell.messages_history) > turns[-1]:
+            start = turns[-1]
+            removed = len(shell.messages_history) - start
+            del shell.messages_history[start:]
+            turns.pop()
             print(
                 f"Rewound {removed} message(s). History now has {len(shell.messages_history)} message(s)."
             )
@@ -59,10 +59,10 @@ class RewindCmdHandler(CmdHandler):
         # (e.g. OpenAI) keep it behind previous_response_id.
         conversation_items = getattr(shell, "conversation_items", None)
         if conversation_items is not None:
-            conversation_checkpoint = getattr(shell, "conversation_checkpoint", 0)
-            if conversation_checkpoint < len(conversation_items):
-                del conversation_items[conversation_checkpoint:]
-                _pop_checkpoint(checkpoints)
+            conversation_turn = getattr(shell, "conversation_turn", 0)
+            if conversation_turn < len(conversation_items):
+                del conversation_items[conversation_turn:]
+                _pop_turn(turns)
                 print(
                     "Rewound: conversation history truncated "
                     "(stateless Responses API / pending items)."
@@ -76,21 +76,21 @@ class RewindCmdHandler(CmdHandler):
         # the shell on each successful turn.
         response_chain = getattr(shell, "response_chain", None)
         if response_chain is not None:
-            response_checkpoint = getattr(shell, "response_checkpoint", 0)
-            if response_checkpoint < len(response_chain):
-                del response_chain[response_checkpoint:]
+            response_turn = getattr(shell, "response_turn", 0)
+            if response_turn < len(response_chain):
+                del response_chain[response_turn:]
                 shell.previous_response_id = (
                     response_chain[-1] if response_chain else None
                 )
                 # Also truncate the /history display mirror of completed
-                # server-side turns back to its checkpoint, so /history no
+                # server-side turns back to its recorded start, so /history no
                 # longer shows the rewound exchange (the real conversation
                 # lives on the server; this mirror is display-only).
                 mirrored = getattr(shell, "mirrored_history", None)
                 if mirrored:
-                    mirrored_checkpoint = getattr(shell, "mirrored_checkpoint", 0)
-                    del mirrored[mirrored_checkpoint:]
-                _pop_checkpoint(checkpoints)
+                    mirrored_turn = getattr(shell, "mirrored_turn", 0)
+                    del mirrored[mirrored_turn:]
+                _pop_turn(turns)
                 if shell.previous_response_id:
                     print(
                         "Rewound: server-side conversation rewound to "
@@ -103,20 +103,20 @@ class RewindCmdHandler(CmdHandler):
                     )
                 return
             if response_chain and getattr(shell, "previous_response_id", None):
-                # Already at the checkpoint: nothing to undo (mirrors the
+                # Already at the recorded start: nothing to undo (mirrors the
                 # Completions-mode message for a second consecutive /rewind).
-                print("Nothing to rewind. History is already at the checkpoint.")
+                print("Nothing to rewind. History is already at the last turn.")
                 return
             # No chain tracked (e.g. a server-side conversation started
             # before the chain was kept, or a manually seeded shell state):
             # fall back to resetting the server conversation.
             if getattr(shell, "previous_response_id", None) is not None:
                 shell.previous_response_id = None
-                _pop_checkpoint(checkpoints)
+                _pop_turn(turns)
                 print("Rewound: server-side conversation reset (Responses API).")
                 return
 
-        print("Nothing to rewind. History is already at the checkpoint.")
+        print("Nothing to rewind. History is already at the last turn.")
 
 
 # Register this handler

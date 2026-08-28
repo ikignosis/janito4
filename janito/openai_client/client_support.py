@@ -48,7 +48,7 @@ class RequestCancelled(Exception):
     """Raised when the user cancels a pending API request by pressing Enter.
 
     Unlike ``KeyboardInterrupt`` (Ctrl+C), which rolls the conversation
-    history back to the last checkpoint, this signals an *interrupt without
+    history back to the last turn, this signals an *interrupt without
     rollback*: the user's message stays in the conversation history so the
     conversation can continue from where it was interrupted.
 

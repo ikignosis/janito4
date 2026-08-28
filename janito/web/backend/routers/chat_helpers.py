@@ -95,18 +95,18 @@ async def _await_cancel(
 
 
 def _rollback(session: ConversationSession) -> None:
-    """Truncate history back to the pre-turn checkpoint.
+    """Truncate history back to the start of the aborted turn.
 
     Removes the user message and any partial assistant/tool messages
     appended during the aborted turn, mirroring the shell's Ctrl+C /
-    error behaviour.  The rolled-back turn's checkpoint is dropped too,
-    since the turn it marked is gone.
+    error behaviour.  The rolled-back turn's recorded start is dropped
+    too, since the turn it marked is gone.
     """
-    if not session.history_checkpoints:
+    if not session.history_turns:
         return
-    checkpoint = session.history_checkpoints[-1]
-    del session.messages[checkpoint:]
-    session.history_checkpoints.pop()
+    start = session.history_turns[-1]
+    del session.messages[start:]
+    session.history_turns.pop()
 
 
 async def _stream_to_websocket(
@@ -157,15 +157,15 @@ async def _run_turn(
 ) -> None:
     """Stream one prompt, racing the client's cancel request.
 
-    A checkpoint is taken before the turn so that both a client cancel and
-    an unexpected error can roll the conversation back to a known-good
-    state (see :func:`_rollback`).  Prompts that arrive while this turn is
-    running are collected into ``pending_prompts`` (see
+    The turn's start is recorded before the turn so that both a client
+    cancel and an unexpected error can roll the conversation back to a
+    known-good state (see :func:`_rollback`).  Prompts that arrive while
+    this turn is running are collected into ``pending_prompts`` (see
     :func:`_await_cancel`).
     """
-    # Record a checkpoint (the current history length) before the turn
+    # Record the turn's start (the current history length) before the turn
     # begins (before this turn's user message).
-    session.history_checkpoints.append(len(session.messages))
+    session.history_turns.append(len(session.messages))
 
     stream_task = asyncio.ensure_future(
         _stream_to_websocket(
@@ -221,11 +221,11 @@ async def _run_prompt_turn(
     """Run one prompt turn with the shared error handling.
 
     Persists the finished turn on success (normal completion or client
-    cancel \u2014 the latter already rolled back to the checkpoint); on an
-    unexpected error it rolls the history back to the checkpoint and reports
-    the failure to the client, mirroring the shell's behaviour.  Any prompts
-    queued while this turn was running stay in ``pending_prompts`` for the
-    caller to drain.
+    cancel \u2014 the latter already rolled back to before the turn); on an
+    unexpected error it rolls the history back to before the turn and
+    reports the failure to the client, mirroring the shell's behaviour.
+    Any prompts queued while this turn was running stay in
+    ``pending_prompts`` for the caller to drain.
     """
     try:
         await _run_turn(
@@ -236,7 +236,7 @@ async def _run_prompt_turn(
         raise
     except Exception as e:
         logger.exception("Error during stream_prompt")
-        # Roll back to the checkpoint so a failed turn leaves the
+        # Roll back to before the turn so a failed turn leaves the
         # conversation context clean for the next prompt.
         _rollback(session)
         sessions.persist(session)  # mirror the rolled-back history

@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Renamed the per-turn history bookmarks from `Checkpoint`/`checkpoint` to
+  `Turn`/`turn` throughout the code and user-facing strings (issue #65):
+  `history_checkpoints` → `history_turns`, `conversation_checkpoint` →
+  `conversation_turn`, `response_checkpoint` → `response_turn`,
+  `mirrored_checkpoint` → `mirrored_turn`, `KEEP_CHECKPOINTS` →
+  `KEEP_TURNS`; the `/history` markers now render as `◎ turn N` and
+  `/rewind` reports "History is already at the last turn.".
 - `/help` now shows a short description right after every registered command
   and splits the prompt tool modes into their own rich table: `/read`
   (read-only tools), `/rx` (read + execute tools), `/write` (write-only
