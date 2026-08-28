@@ -18,6 +18,10 @@ to repeat the ``determine_provider`` -> guard -> ``get_config_value``
 -> coerce dance); the module-level functions below are the public API and
 delegate to a module-level loader instance.
 
+This module also hosts :func:`load_system_prompt_start`, the resolver for
+the flat ``system-prompt`` / ``system-prompt-file`` keys (the configured
+``start`` section of the system prompt).
+
 ``general_config`` imports this module's helpers at its top, so this module
 imports ``general_config`` *lazily* inside the methods below
 (``determine_provider``) rather than at module import time -- this keeps the
@@ -25,6 +29,7 @@ import graph acyclic regardless of which module is imported first.
 """
 
 import logging
+import os
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -452,3 +457,76 @@ def load_endpoint_from_config(cli_provider: str | None = None) -> str | None:
         str: Endpoint URL from config, or None if not found or provider unknown
     """
     return _loader.load_endpoint(cli_provider)
+
+
+def load_system_prompt_start() -> str | None:
+    """Resolve the configured ``start`` section text for the system prompt.
+
+    Reads the flat ``system-prompt-file`` / ``system-prompt`` config keys.
+    ``system-prompt-file`` wins when both are set (it is the more specific
+    form): the value is a file path (``~`` is expanded; relative paths are
+    resolved against the current working directory) whose content becomes
+    the ``start`` section.  An empty file falls back to the default
+    (``None``), matching how an empty ``AGENTS.md`` is handled.  Otherwise
+    ``system-prompt`` is used verbatim as a literal string.
+
+    The read happens at call time, so each session re-reads the file: a
+    change on disk is picked up by the next ``effective_system_prompt()``
+    call without a restart.
+
+    Returns:
+        The configured start-section text, or ``None`` when neither key is
+        set (the built-in base prompt applies).
+
+    Raises:
+        ValueError: If ``system-prompt-file`` is set but the file cannot be
+            read, naming the key and path.
+    """
+    from .config_store import get_config_value
+
+    file_value = get_config_value("system-prompt-file")
+    if file_value:
+        path = os.path.expanduser(str(file_value).strip())
+        try:
+            with open(path, encoding="utf-8") as f:
+                content = f.read().strip()
+        except OSError as e:
+            raise ValueError(
+                f"Cannot read config key 'system-prompt-file': " f"{file_value!r}: {e}"
+            )
+        return content or None
+
+    literal = get_config_value("system-prompt")
+    if literal is not None:
+        return str(literal)
+    return None
+
+
+def validate_system_prompt_file_path(file_value: str) -> str:
+    """Validate that a ``system-prompt-file`` value points at an existing file.
+
+    Shared by the ``--set system-prompt-file=...`` handler (rejects a missing
+    file when the value is set) and the startup check in
+    :func:`janito.cli.setup.validate_system_prompt_file` (rejects it before a
+    session starts), so both fail with the same message naming the key and
+    path.
+
+    ``~`` is expanded and relative paths resolve against the current working
+    directory, matching :func:`load_system_prompt_start`.
+
+    Args:
+        file_value: The raw ``system-prompt-file`` config value.
+
+    Returns:
+        The resolved path (``~`` expanded, relative to the cwd).
+
+    Raises:
+        ValueError: If the file does not exist, naming the key and path.
+    """
+    path = os.path.expanduser(str(file_value).strip())
+    if not os.path.isfile(path):
+        raise ValueError(
+            f"Cannot read config key 'system-prompt-file': "
+            f"{file_value!r}: file does not exist"
+        )
+    return path

@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `--set system-prompt="..."` and `--set system-prompt-file=path` config keys
+  (issue #60): the configured text/file becomes the system prompt's `start`
+  section, replacing the built-in base prompt while `skills`, `agents.md` and
+  plugin sections stay unchanged. `system-prompt-file` wins when both are
+  set; `-S`/`--system-prompt` still overrides the config for a run and
+  `-Z`/`--no-system-prompt` disables it. The start section is applied
+  per-`effective_system_prompt()` call (never mutating the shared
+  `SYSTEM_PROMPT_MANAGER`, so web-mode sessions stay isolated) and the
+  display paths (`--show-system-prompt`, shell `/prompt`) show it through the
+  same config-aware resolver.
+- When the `system-prompt-file` config key is set, janito validates that the
+  file exists — both when the value is set (`janito --set
+  system-prompt-file=...` rejects a missing file with exit code 1) and at
+  startup (CLI chat, single prompt or web mode) — failing with an actionable
+  error (exit code 1) naming the key and path instead of surfacing a bare
+  error deep inside the system-prompt render.
 - `/notools <message>` shell command: send a prompt through the **main**
   conversation history while offering the model no tools for that message
   only (the per-message equivalent of `--no-tools`); the next prompt goes

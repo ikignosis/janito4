@@ -29,7 +29,7 @@ class PromptCmdHandler(CmdHandler):
         from rich.console import Console
         from rich.table import Table
 
-        from janito.system_prompt import SECTION_SKILLS, sync_default_sections
+        from janito.system_prompt import SECTION_SKILLS, default_system_prompt_manager
 
         # Get the actual system prompt from the shell
         effective_prompt = shell.get_system_prompt()
@@ -40,7 +40,13 @@ class PromptCmdHandler(CmdHandler):
             )
             return
 
-        manager = sync_default_sections()
+        # The config-aware default: the skills/agents.md sections plus the
+        # configured start section (system-prompt / system-prompt-file), when
+        # set.  The shell prompt was resolved through the same
+        # SessionSetup.effective_system_prompt() path, so a config-provided
+        # start is classified as "default" here (keeping the section table)
+        # instead of drifting into the plain custom-prompt view.
+        manager = default_system_prompt_manager()
         if effective_prompt == manager.render():
             # Default prompt: show each section as a rich table row with its
             # name, line count and content.  Only advertise skills in the

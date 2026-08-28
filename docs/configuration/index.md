@@ -45,6 +45,34 @@ keys per provider **and** model (see the note below and
 | `reasoning-level` | per provider/model | Reasoning depth (`none`…`max`) | model built-in |
 | `api-type` | per provider/model | API type (`Responses`, `Completions`, `Anthropic`, `DashScope`, `Gemini`) | model built-in default |
 | `responses-in-server` | per provider/model | Whether the Responses API keeps conversation state server-side | model built-in default |
+| `system-prompt` | flat | Literal text used as the system prompt's `start` section | built-in base prompt |
+| `system-prompt-file` | flat | Path to a file whose content becomes the `start` section (`~` is expanded, relative paths resolve against the working directory); wins over `system-prompt` when both are set | unset |
+
+### System prompt (`system-prompt` / `system-prompt-file`)
+
+```bash
+janito --set system-prompt="You are a terse assistant"
+janito --set system-prompt-file=~/agents/base-prompt.md
+```
+
+When set, the configured text becomes the system prompt's `start` section;
+the `skills`, `agents.md` and plugin sections stay unchanged. `-S`/`--system-prompt`
+overrides the config value for that run (without changing it), and
+`-Z`/`--no-system-prompt` disables the prompt entirely. `--show-system-prompt`
+and the shell `/prompt` command show the configured `start` section as part
+of the default section table.
+
+The file is read at session start (each new session re-reads it), so editing
+the file is picked up by the next session. The path is validated when the
+value is set (`janito --set system-prompt-file=...` rejects a missing file
+with exit code 1) and again at startup, so a session never starts with a
+broken path; the error names the key and path. An empty file falls back to the
+built-in base prompt (like an empty `AGENTS.md`).
+
+> **Note:** with `-l`/`--local`, `system-prompt-file` is resolved from the
+> project-local config, so a checked-in `./.janito/config.json` can point the
+> start section at a repository file. This mirrors the existing trust model
+> that auto-loads a cwd `AGENTS.md` — only use local configs you trust.
 
 At call time, when no model-scoped value is configured, janito falls back to
 the provider/model's built-in limit (e.g. OpenAI's `gpt-5.6-luna`:

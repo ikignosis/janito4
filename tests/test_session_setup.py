@@ -29,10 +29,18 @@ def _args(**overrides):
     return type("Args", (), defaults)()
 
 
+def _patch_config_start(monkeypatch, start):
+    """Pin load_system_prompt_start so tests never touch the real config."""
+    import janito.config_loaders as config_loaders_mod
+
+    monkeypatch.setattr(config_loaders_mod, "load_system_prompt_start", lambda: start)
+
+
 if pytest is not None:
     # ---- resolution chain ----------------------------------------------
 
-    def test_default_uses_skills_prompt():
+    def test_default_uses_skills_prompt(monkeypatch):
+        _patch_config_start(monkeypatch, None)
         setup = SessionSetup()
         from janito.system_prompt import sync_default_sections
 
@@ -49,9 +57,52 @@ if pytest is not None:
         assert setup.effective_system_prompt() is None
         assert setup.no_tools is True
 
+    # ---- configured start (system-prompt / system-prompt-file) ----------
+
+    def test_config_system_prompt_applies_to_default(monkeypatch):
+        """The configured start replaces the base prompt in the default prompt."""
+        _patch_config_start(monkeypatch, "configured start text")
+        setup = SessionSetup()
+        prompt = setup.effective_system_prompt()
+        assert "configured start text" in prompt
+        assert prompt.startswith("configured start text\n")
+
+    def test_config_start_does_not_mutate_shared_manager(monkeypatch):
+        """Applying the config start per call leaves SYSTEM_PROMPT_MANAGER intact."""
+        from janito.system_prompt import SYSTEM_PROMPT, SYSTEM_PROMPT_MANAGER
+
+        _patch_config_start(monkeypatch, "configured start text")
+        SessionSetup().effective_system_prompt()
+        SessionSetup().effective_system_prompt()
+        sections = dict(SYSTEM_PROMPT_MANAGER.get_all_sections())
+        assert sections["start"] == SYSTEM_PROMPT
+
+    def test_cli_system_prompt_wins_over_config(monkeypatch):
+        """-S overrides the configured start without touching the config."""
+        _patch_config_start(monkeypatch, "configured start text")
+        setup = SessionSetup(system_prompt="custom")
+        assert setup.effective_system_prompt() == "custom"
+
+    def test_no_system_prompt_disables_config(monkeypatch):
+        """-Z yields None even when a configured start is set."""
+        _patch_config_start(monkeypatch, "configured start text")
+        setup = SessionSetup(no_system_prompt=True)
+        assert setup.effective_system_prompt() is None
+
+    def test_messages_context_uses_config_start(monkeypatch, tmp_path):
+        """The seeded system message carries the configured start."""
+        import janito.tooling.tools_registry as tools_registry
+
+        _patch_config_start(monkeypatch, "configured start text")
+        monkeypatch.setattr(tools_registry, "get_skills_section", lambda: "")
+        monkeypatch.chdir(tmp_path)
+        messages = SessionSetup().messages_context()
+        assert messages == [{"role": "system", "content": "configured start text\n"}]
+
     # ---- single-prompt context -----------------------------------------
 
-    def test_messages_and_tools_context():
+    def test_messages_and_tools_context(monkeypatch):
+        _patch_config_start(monkeypatch, None)
         # Default: seeded system message, tools=None (use all).
         setup = SessionSetup()
         messages, tools = setup.messages_context(), setup.tools_arg()
@@ -92,8 +143,9 @@ if pytest is not None:
 
     # ---- CLI <-> web parity --------------------------------------------
 
-    def test_cli_and_web_resolve_identical_prompts():
+    def test_cli_and_web_resolve_identical_prompts(monkeypatch):
         """The same flags produce the same prompt from cli/chat.py and WebServerConfig."""
+        _patch_config_start(monkeypatch, None)
         import janito.cli.chat as chat_mod
         from janito.web.backend.config import WebServerConfig
 
@@ -108,6 +160,16 @@ if pytest is not None:
                 no_system_prompt=flags.get("no_system_prompt", False),
             )
             assert config.get_effective_system_prompt() == cli_prompt
+
+    def test_cli_and_web_resolve_config_start_identically(monkeypatch):
+        """A configured start is applied by both the CLI and the web entry point."""
+        _patch_config_start(monkeypatch, "configured start text")
+        import janito.cli.chat as chat_mod
+        from janito.web.backend.config import WebServerConfig
+
+        cli_prompt, _ = chat_mod._resolve_system_prompt(_args())
+        assert "configured start text" in cli_prompt
+        assert WebServerConfig().get_effective_system_prompt() == cli_prompt
 
     def test_cli_and_web_enable_same_toolsets(monkeypatch):
         """cli/chat.py and WebServerConfig call add_toolset with the same names."""

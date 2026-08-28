@@ -40,9 +40,24 @@ requires_fastapi = pytest.mark.skipif(
 )
 
 
+def _patch_config_start(monkeypatch, start=None):
+    """Pin load_system_prompt_start so tests never touch the real config.
+
+    The web backend resolves the effective system prompt through the
+    config-aware ``default_system_prompt_manager()`` (system-prompt /
+    system-prompt-file keys), so without this the tests would read the
+    developer's real config (e.g. a ``system-prompt-file`` pointing at a
+    relative path that does not exist in the temp CWD).
+    """
+    import janito.config_loaders as config_loaders_mod
+
+    monkeypatch.setattr(config_loaders_mod, "load_system_prompt_start", lambda: start)
+
+
 @pytest.fixture()
 def isolated_cwd(tmp_path, monkeypatch):
     """Run the server in a temp CWD so ``.janito/sessions/`` lands there."""
+    _patch_config_start(monkeypatch)
     monkeypatch.chdir(tmp_path)
     return tmp_path
 

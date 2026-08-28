@@ -10,7 +10,12 @@ and ``agents.md`` sections in sync with the tool registry and the cwd
 
 Every consumer (``janito.cli.session_setup.SessionSetup``, the shell ``/prompt``
 command, ``--show-system-prompt`` and the web backend) manipulates the prompt
-through this shared manager so the sections stay consistent.
+through this shared manager so the sections stay consistent.  The configured
+``start`` section (``system-prompt`` / ``system-prompt-file`` config keys) is
+applied **per call** through :func:`default_system_prompt_manager`, which
+builds a fresh manager via :func:`apply_start_section` so the shared
+singleton is never mutated (a config start would otherwise leak across
+sessions in web mode).
 """
 
 from __future__ import annotations
@@ -161,3 +166,56 @@ def sync_default_sections(
     _set_section(target, SECTION_AGENTS_MD, _load_agents_md())
 
     return target
+
+
+def apply_start_section(
+    manager: SysPromptManager, start_prompt: str | None
+) -> SysPromptManager:
+    """Return ``manager`` with the ``start`` section replaced by ``start_prompt``.
+
+    The shared :data:`SYSTEM_PROMPT_MANAGER` is **never** mutated: when
+    ``start_prompt`` is ``None`` the given manager is returned as-is;
+    otherwise a fresh manager is built with the same sections and the
+    ``start`` section replaced.  This keeps a config-provided start from
+    leaking across sessions (e.g. long-lived web mode, where
+    ``effective_system_prompt()`` is called once per session) while keeping
+    every other section (``skills``, ``agents.md``, ``plugins:...``)
+    unchanged.
+
+    Args:
+        manager: The synced manager whose sections are reused.
+        start_prompt: The text for the ``start`` section, or ``None`` to
+            keep the manager unchanged.
+
+    Returns:
+        The manager to render: ``manager`` itself when ``start_prompt`` is
+        ``None``, otherwise a fresh copy with the ``start`` section replaced.
+    """
+    if start_prompt is None:
+        return manager
+    copy = SysPromptManager(start_prompt)
+    for name, text in manager.get_all_sections():
+        if name == SECTION_START:
+            continue
+        copy.add_section(name, text)
+    return copy
+
+
+def default_system_prompt_manager() -> SysPromptManager:
+    """Return the default prompt manager with the configured ``start`` applied.
+
+    The ``skills`` / ``agents.md`` sections are synced as usual; the
+    ``start`` section comes from config (``system-prompt-file`` /
+    ``system-prompt``, see
+    :func:`janito.config_loaders.load_system_prompt_start`) when set, else
+    the built-in base prompt.  Never mutates the shared
+    :data:`SYSTEM_PROMPT_MANAGER`.
+
+    This is the single "default prompt" resolver shared by
+    :class:`janito.cli.session_setup.SessionSetup` and the display paths
+    (``--show-system-prompt``, the shell ``/prompt`` command) so a
+    config-provided ``start`` renders consistently everywhere.
+    """
+    from .config_loaders import load_system_prompt_start
+
+    return apply_start_section(sync_default_sections(), load_system_prompt_start())

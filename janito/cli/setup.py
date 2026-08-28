@@ -38,3 +38,37 @@ def validate_runtime_config(args=None) -> None:
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+def validate_system_prompt_file(args=None) -> None:
+    """Validate that the configured ``system-prompt-file`` exists.
+
+    When the ``system-prompt-file`` config key is set (e.g. via
+    ``janito --set system-prompt-file=~/base-prompt.md``), checks that the
+    file actually exists before a session starts.  A missing file is reported
+    with an actionable error instead of surfacing only when the system prompt
+    is rendered deep inside the session setup (where it would otherwise show
+    up as a bare ``ValueError`` traceback).
+
+    ``~`` is expanded and relative paths resolve against the current working
+    directory, matching
+    :func:`janito.config_loaders.load_system_prompt_start`.
+
+    Args:
+        args: Parsed command line arguments (optional, currently unused).
+
+    Raises:
+        SystemExit: If ``system-prompt-file`` is set but the file does not
+            exist.
+    """
+    from ..config_loaders import validate_system_prompt_file_path
+    from ..config_store import get_config_value
+
+    file_value = get_config_value("system-prompt-file")
+    if not file_value:
+        return
+    try:
+        validate_system_prompt_file_path(file_value)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)

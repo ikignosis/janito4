@@ -19,7 +19,10 @@ import janito.tooling.tools_registry as tools_registry_mod
 from janito.system_prompt import (
     SECTION_START,
     SYSTEM_PROMPT,
+    SYSTEM_PROMPT_MANAGER,
     SysPromptManager,
+    apply_start_section,
+    default_system_prompt_manager,
     sync_default_sections,
 )
 
@@ -259,6 +262,93 @@ def test_sync_removes_sections_that_no_longer_apply(monkeypatch, tmp_path):
         "start",
         "skills",
     ]
+
+
+# --- configured start section (system-prompt / system-prompt-file) ---------
+
+
+def _patch_config_start(monkeypatch, start):
+    """Patch load_system_prompt_start so tests never touch the real config."""
+    import janito.config_loaders as config_loaders_mod
+
+    monkeypatch.setattr(config_loaders_mod, "load_system_prompt_start", lambda: start)
+
+
+def test_apply_start_section_none_returns_same_manager():
+    """start_prompt=None returns the manager unchanged (no copy)."""
+    manager = SysPromptManager("start text")
+    manager.add_section("extra", "extra text")
+    assert apply_start_section(manager, None) is manager
+
+
+def test_apply_start_section_replaces_start_without_mutating_original():
+    """A non-None start builds a fresh manager; the original is untouched."""
+    manager = SysPromptManager("start text")
+    manager.add_section("extra", "extra text")
+
+    copy = apply_start_section(manager, "configured start")
+
+    assert copy is not manager
+    assert list(copy.get_all_sections()) == [
+        (SECTION_START, "configured start"),
+        ("extra", "extra text"),
+    ]
+    # The original manager keeps its base start (the shared singleton must
+    # never be mutated by the config application).
+    assert list(manager.get_all_sections()) == [
+        (SECTION_START, "start text"),
+        ("extra", "extra text"),
+    ]
+
+
+def test_default_system_prompt_manager_applies_config_start(monkeypatch, tmp_path):
+    """The configured start replaces the base prompt, skills/agents.md stay."""
+    _patch_skills_section(monkeypatch)
+    _patch_config_start(monkeypatch, "configured start text")
+    monkeypatch.chdir(tmp_path)
+
+    manager = default_system_prompt_manager()
+    sections = list(manager.get_all_sections())
+
+    assert sections[0] == (SECTION_START, "configured start text")
+    assert [name for name, _ in sections] == ["start", "skills"]
+    assert "configured start text" in manager.render()
+    assert SKILLS_SECTION in manager.render()
+    assert SYSTEM_PROMPT not in manager.render()
+
+
+def test_default_system_prompt_manager_without_config_uses_base(monkeypatch, tmp_path):
+    """No configured start -> the built-in base prompt is used."""
+    _patch_skills_section(monkeypatch)
+    _patch_config_start(monkeypatch, None)
+    monkeypatch.chdir(tmp_path)
+
+    manager = default_system_prompt_manager()
+    sections = list(manager.get_all_sections())
+
+    assert sections[0] == (SECTION_START, SYSTEM_PROMPT)
+    assert [name for name, _ in sections] == ["start", "skills"]
+
+
+def test_default_system_prompt_manager_preserves_plugin_sections(monkeypatch, tmp_path):
+    """The config start copy keeps plugin sections registered on the shared manager."""
+    _patch_skills_section(monkeypatch)
+    _patch_config_start(monkeypatch, "configured start text")
+    monkeypatch.chdir(tmp_path)
+
+    SYSTEM_PROMPT_MANAGER.add_section("plugins:testplugin", "plugin section text")
+    try:
+        manager = default_system_prompt_manager()
+        sections = dict(manager.get_all_sections())
+        assert sections["start"] == "configured start text"
+        assert sections["plugins:testplugin"] == "plugin section text"
+        # The shared manager's start is still the base prompt: the config
+        # application never leaks into it.
+        shared_sections = dict(SYSTEM_PROMPT_MANAGER.get_all_sections())
+        assert shared_sections["start"] == SYSTEM_PROMPT
+        assert shared_sections["plugins:testplugin"] == "plugin section text"
+    finally:
+        SYSTEM_PROMPT_MANAGER.del_section("plugins:testplugin")
 
 
 if __name__ == "__main__":  # pragma: no cover

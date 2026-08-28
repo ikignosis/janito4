@@ -54,7 +54,7 @@ from .cli.handlers import (
 from .cli.handlers.variants import handle_create_variant, handle_delete_variant
 from .cli.input import read_stdin_prompt
 from .cli.logging_config import setup_logging
-from .cli.setup import validate_runtime_config
+from .cli.setup import validate_runtime_config, validate_system_prompt_file
 from .config_dir import set_config_dir, set_local_config_mode
 from .privileges import Privileges
 from .provider_validation import validate_model_name, validate_provider_name
@@ -284,6 +284,12 @@ def main():
     # endpoint from provider default/config, model from --model or config)
     # can be resolved before starting a session.
     validate_runtime_config(args)
+
+    # Validate that the configured system-prompt-file (--set
+    # system-prompt-file=...) exists before a session starts, failing fast
+    # with an actionable error instead of surfacing only when the system
+    # prompt is rendered.
+    validate_system_prompt_file(args)
 
     # Web mode: skip stdin check — the server doesn't consume stdin.
     # Must come BEFORE read_stdin_prompt() to avoid blocking on non-tty

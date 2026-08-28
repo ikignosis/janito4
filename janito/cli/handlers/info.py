@@ -278,7 +278,8 @@ def handle_show_system_prompt(args) -> int:
     """Handle --show-system-prompt command.
 
     Resolves and displays the effective system prompt based on the current
-    CLI flags (-S, -Z) and exits.
+    CLI flags (-S, -Z) and the configured ``system-prompt`` /
+    ``system-prompt-file`` keys, and exits.
 
     Args:
         args: Parsed command line arguments
@@ -289,7 +290,7 @@ def handle_show_system_prompt(args) -> int:
     from rich.console import Console
     from rich.table import Table
 
-    from ...system_prompt import SECTION_SKILLS, sync_default_sections
+    from ...system_prompt import SECTION_SKILLS, default_system_prompt_manager
 
     console = Console(markup=False)
 
@@ -312,10 +313,13 @@ def handle_show_system_prompt(args) -> int:
         return 0
 
     # Default prompt: render each section as a rich table row (Section, Lines,
-    # Content), matching the shell /prompt command.  Only advertise skills in
-    # the title when a "skills" section is actually present (skills enabled and
-    # at least one skill advertised).
-    manager = sync_default_sections()
+    # Content), matching the shell /prompt command.  The manager is the
+    # config-aware default (the configured system-prompt / system-prompt-file
+    # start section is applied), so the display matches what a session
+    # actually uses.  Only advertise skills in the title when a "skills"
+    # section is actually present (skills enabled and at least one skill
+    # advertised).
+    manager = default_system_prompt_manager()
     sections = list(manager.get_all_sections())
     has_skills = any(name == SECTION_SKILLS for name, _ in sections)
     title = (

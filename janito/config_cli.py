@@ -246,6 +246,15 @@ def set_config_from_cli(
 
         ensure_api_type_available(value)
 
+    # A system-prompt-file value must point at an existing file: a missing
+    # file is rejected when the value is set (mirroring the startup check in
+    # cli.setup.validate_system_prompt_file) instead of failing only at the
+    # first session start.
+    if key == "system-prompt-file":
+        from .config_loaders import validate_system_prompt_file_path
+
+        validate_system_prompt_file_path(value)
+
     set_config_value(key, value)
 
     return key, value

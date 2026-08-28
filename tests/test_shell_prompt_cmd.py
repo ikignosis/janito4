@@ -34,11 +34,19 @@ def _patch_no_skills(monkeypatch):
     monkeypatch.setattr(tools_registry_mod, "get_skills_section", lambda: "")
 
 
+def _patch_config_start(monkeypatch, start):
+    """Pin load_system_prompt_start so tests never touch the real config."""
+    import janito.config_loaders as config_loaders_mod
+
+    monkeypatch.setattr(config_loaders_mod, "load_system_prompt_start", lambda: start)
+
+
 def test_prompt_cmd_shows_section_table(monkeypatch, tmp_path, capfd):
     """The default prompt is displayed as a rich table with per-section rows."""
     from janito.system_prompt import sync_default_sections
 
     _patch_skills_section(monkeypatch)
+    _patch_config_start(monkeypatch, None)
     monkeypatch.chdir(tmp_path)
 
     shell = InteractiveShell(model="test-model", no_history=True)
@@ -63,6 +71,7 @@ def test_prompt_cmd_no_skills_title_omits_skills(monkeypatch, tmp_path, capfd):
     from janito.system_prompt import sync_default_sections
 
     _patch_no_skills(monkeypatch)
+    _patch_config_start(monkeypatch, None)
     monkeypatch.chdir(tmp_path)
 
     shell = InteractiveShell(model="test-model", no_history=True)
@@ -83,6 +92,7 @@ def test_prompt_cmd_includes_agents_md_section(monkeypatch, tmp_path, capfd):
     from janito.system_prompt import sync_default_sections
 
     _patch_skills_section(monkeypatch)
+    _patch_config_start(monkeypatch, None)
     monkeypatch.chdir(tmp_path)
     (tmp_path / "AGENTS.md").write_text("agent line", encoding="utf-8")
 
@@ -100,6 +110,7 @@ def test_prompt_cmd_includes_agents_md_section(monkeypatch, tmp_path, capfd):
 def test_prompt_cmd_custom_prompt_falls_back_to_plain(monkeypatch, tmp_path, capfd):
     """A custom (-S) prompt is shown in full inside a single-column table."""
     _patch_skills_section(monkeypatch)
+    _patch_config_start(monkeypatch, None)
     monkeypatch.chdir(tmp_path)
 
     shell = InteractiveShell(model="test-model", no_history=True)
@@ -114,6 +125,36 @@ def test_prompt_cmd_custom_prompt_falls_back_to_plain(monkeypatch, tmp_path, cap
     assert "----" not in out
 
 
+def test_prompt_cmd_config_start_keeps_section_table(monkeypatch, tmp_path, capfd):
+    """A configured start is still shown as the default section table (not custom).
+
+    The shell prompt is resolved through the same config-aware path
+    (SessionSetup -> default_system_prompt_manager), so /prompt must classify
+    it as the default prompt and render the per-section rows -- with the
+    configured text in the ``start`` row -- instead of drifting into the
+    plain custom-prompt view.
+    """
+    from janito.cli.session_setup import SessionSetup
+
+    _patch_skills_section(monkeypatch)
+    _patch_config_start(monkeypatch, "configured start text")
+    monkeypatch.chdir(tmp_path)
+
+    shell = InteractiveShell(model="test-model", no_history=True)
+    shell.initialize_history(system_prompt=SessionSetup().effective_system_prompt())
+
+    handler = PromptCmdHandler()
+    assert handler.handle(shell, "/prompt") is True
+
+    out = capfd.readouterr().out
+    assert "System Prompt - Default (with Skills)" in out
+    assert "start" in out
+    assert "configured start text" in out
+    assert "(fake skills section)" in out
+    # The base prompt is gone from the display (replaced by the config start).
+    assert "Explore the current directory" not in out
+
+
 def test_prompt_cmd_preserves_leading_whitespace_of_sections(
     monkeypatch, tmp_path, capfd
 ):
@@ -126,6 +167,7 @@ def test_prompt_cmd_preserves_leading_whitespace_of_sections(
     from janito.system_prompt import SYSTEM_PROMPT_MANAGER, sync_default_sections
 
     _patch_skills_section(monkeypatch)
+    _patch_config_start(monkeypatch, None)
     monkeypatch.chdir(tmp_path)
 
     # Register a fake plugin section with a leading newline (as a plugin whose

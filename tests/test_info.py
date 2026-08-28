@@ -215,13 +215,23 @@ def test_show_config_no_default_model(capsys):
 # --- --show-system-prompt -------------------------------------------------
 
 
-def _run_show_system_prompt(capsys, monkeypatch, tmp_path, skills_section):
+def _run_show_system_prompt(
+    capsys, monkeypatch, tmp_path, skills_section, config_start=None
+):
     """Run handle_show_system_prompt and return its captured output.
 
     ``skills_section`` is what ``get_skills_section`` should return; pass
     ``None`` to leave it unpatched (uses the real tool registry).
+    ``config_start`` pins the configured system-prompt start (the
+    ``system-prompt`` / ``system-prompt-file`` keys) so the tests never touch
+    the real config.
     """
+    import janito.config_loaders as config_loaders_mod
+
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        config_loaders_mod, "load_system_prompt_start", lambda: config_start
+    )
     if skills_section is not None:
         monkeypatch.setattr(
             tools_registry_mod, "get_skills_section", lambda: skills_section
@@ -252,6 +262,24 @@ def test_show_system_prompt_no_skills_section_row(capsys, monkeypatch, tmp_path)
     """With no skills, no skills section row is rendered."""
     out = _run_show_system_prompt(capsys, monkeypatch, tmp_path, "")
     assert "skills" not in out
+
+
+def test_show_system_prompt_config_start_shown_in_section_table(
+    capsys, monkeypatch, tmp_path
+):
+    """A configured start appears in the start row of the default section table."""
+    out = _run_show_system_prompt(
+        capsys,
+        monkeypatch,
+        tmp_path,
+        SKILLS_SECTION,
+        config_start="configured start text",
+    )
+    assert "System prompt (default (with skills))" in out
+    assert "start" in out
+    assert "configured start text" in out
+    # The base prompt is replaced by the configured start.
+    assert "Explore the current directory" not in out
 
 
 def test_show_system_prompt_override(capsys, monkeypatch, tmp_path):

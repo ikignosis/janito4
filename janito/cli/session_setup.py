@@ -49,7 +49,11 @@ class SessionSetup:
 
         - a custom ``system_prompt`` wins;
         - ``no_system_prompt`` yields ``None``;
-        - otherwise the default skills-advertising prompt applies.
+        - otherwise the default skills-advertising prompt applies, with the
+          configured ``start`` section (``system-prompt`` /
+          ``system-prompt-file`` config keys) slotted in between: config
+          overrides the built-in base prompt, but never ``-S`` and never
+          ``-Z``.
 
         Returns:
             The effective system prompt, or ``None`` when none is used.
@@ -58,9 +62,9 @@ class SessionSetup:
             return self.system_prompt
         if self.no_system_prompt:
             return None
-        from janito.system_prompt import sync_default_sections
+        from janito.system_prompt import default_system_prompt_manager
 
-        return sync_default_sections().render()
+        return default_system_prompt_manager().render()
 
     def messages_context(self) -> list[dict]:
         """Build the seeded ``messages`` history for a single-prompt run.

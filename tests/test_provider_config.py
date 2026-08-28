@@ -1139,6 +1139,65 @@ if pytest is not None:
         assert "the web UI requires optional dependencies" in err
         assert "pip install janito[web]" in err
 
+    def test_cli_system_prompt_file_missing_fails_at_startup(
+        monkeypatch, tmp_path, capsys
+    ):
+        """A configured system-prompt-file that does not exist fails fast at
+        startup (exit 1, actionable error) instead of a traceback from the
+        prompt render."""
+        import json
+
+        import janito.__main__ as main_mod
+
+        # Skip runtime-config validation so we reach the system-prompt-file
+        # check without needing an API key in the temp config dir.
+        monkeypatch.setattr(main_mod, "validate_runtime_config", lambda args=None: None)
+
+        missing = tmp_path / "does-not-exist.md"
+        (tmp_path / "config.json").write_text(
+            json.dumps({"system-prompt-file": str(missing)})
+        )
+
+        with pytest.raises(SystemExit) as exc:
+            _run_main(monkeypatch, tmp_path, ["hello"])
+        assert exc.value.code == 1
+        err = capsys.readouterr().err
+        assert "system-prompt-file" in err
+        assert "does not exist" in err
+
+    def test_cli_set_system_prompt_file_missing_fails(monkeypatch, tmp_path, capsys):
+        """`--set system-prompt-file=<missing>` is rejected with exit 1 and the
+        actionable error (same validation as at startup)."""
+        missing = tmp_path / "does-not-exist.md"
+
+        rc = _run_main(
+            monkeypatch,
+            tmp_path,
+            ["--set", f"system-prompt-file={missing}"],
+        )
+        assert rc == 1
+        err = capsys.readouterr().err
+        assert "system-prompt-file" in err
+        assert str(missing) in err
+        assert "does not exist" in err
+
+    def test_cli_set_system_prompt_file_existing_stores_value(monkeypatch, tmp_path):
+        """`--set system-prompt-file=<existing>` stores the value (the file is
+        validated when the value is set)."""
+        import json
+
+        prompt_file = tmp_path / "base-prompt.md"
+        prompt_file.write_text("Be terse.", encoding="utf-8")
+
+        rc = _run_main(
+            monkeypatch,
+            tmp_path,
+            ["--set", f"system-prompt-file={prompt_file}"],
+        )
+        assert rc == 0
+        config = json.loads((tmp_path / "config.json").read_text())
+        assert config == {"system-prompt-file": str(prompt_file)}
+
 else:  # pragma: no cover - fallback runner without pytest
 
     def _main():
