@@ -27,16 +27,41 @@ from .base import CmdHandler
 from .registry import register_command
 
 
+def _resolve_effective_model(
+    provider: str, model: str | None
+) -> tuple[str | None, bool]:
+    """Resolve the effective model for the session and whether it is a default.
+
+    The session's model (``--model``, ``/model`` or the startup resolution)
+    wins; otherwise the provider's configured model; otherwise its built-in
+    default model (``None`` e.g. for "custom").
+
+    Returns:
+        Tuple ``(model, is_default)``. ``is_default`` is True only when the
+        built-in default was used (no session model, nothing configured), so
+        the Model row can be marked with ``(default)``.
+    """
+    if model:
+        return model, False
+    configured = load_model_from_config(provider)
+    if configured:
+        return configured, False
+    default = get_default_model_from_provider(provider)
+    return default, default is not None
+
+
 def _print_config_info(
     provider: str | None = None,
     thinking: bool = False,
     api_type: str | None = None,
+    model: str | None = None,
 ) -> None:
-    """Print current configuration info (provider, base_url, masked API key, max output tokens).
+    """Print current configuration info (provider, model, base_url, masked API key, max output tokens).
 
-    Model-level settings (max output tokens, reasoning level, thinking,
-    Responses-in-server) are resolved for the *effective model*: the
-    provider's configured model, else its built-in default model.
+    Model-level settings (API type, max output tokens, reasoning level,
+    thinking, Responses-in-server) are resolved for the *effective model*:
+    the session's model, else the provider's configured model, else its
+    built-in default model.
 
     Args:
         provider: The provider in effect for the current shell session (e.g.
@@ -51,17 +76,21 @@ def _print_config_info(
             type the session actually uses: the CLI flag first, then the
             model-scoped configured value (``--set api-type=...``), then the
             effective model's built-in default.
+        model: The session's effective model (from ``--model``, ``/model`` or
+            the startup resolution). When None, the provider's configured
+            model, else its built-in default model is used and the Model row
+            marks the built-in default with ``(default)``.
     """
     if provider is None:
         provider = get_active_provider()
     api_key = get_api_key(provider) or ""
     masked_key = get_masked_api_key(api_key)
 
-    # Effective model for the provider: the configured model, else the
-    # provider's built-in default model (None e.g. for "custom").
-    model = load_model_from_config(provider) or get_default_model_from_provider(
-        provider
-    )
+    # Effective model for the session: the shell's model when given, else the
+    # provider's configured model, else its built-in default model (None e.g.
+    # for "custom").  Only the built-in default (no session model, nothing
+    # configured) is marked '(default)' in the display.
+    model, model_default = _resolve_effective_model(provider, model)
 
     max_output_tokens = load_max_output_tokens(provider, model)
 
@@ -156,6 +185,10 @@ def _print_config_info(
     table.add_column("Key", style="green", no_wrap=True)
     table.add_column("Value", overflow="fold")
     table.add_row("Provider", provider)
+    table.add_row(
+        "Model",
+        f"{model} (default)" if model_default else (model or "(not set)"),
+    )
     table.add_row("API Type", api_type)
     if responses_in_server_display:
         table.add_row("Responses In Server", responses_in_server_display)
@@ -181,6 +214,7 @@ class StatusCmdHandler(CmdHandler):
                 getattr(shell, "provider", None),
                 getattr(shell, "thinking", False),
                 getattr(shell, "api_type", None),
+                getattr(shell, "model", None),
             )
             return True
         return False

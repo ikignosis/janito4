@@ -65,7 +65,7 @@ Additional slash commands available in the terminal shell:
 | `/notools <message>` | Send the message to the LLM using the **main** conversation history, but without offering any tools (the per-message equivalent of `--no-tools`). Only this message is affected — the next prompt goes back to the session's default tools. The exchange stays in the main history and rolls back like a normal prompt on cancel |
 | `/show_tools_stats` | Show tool usage statistics (from the SQLite `tools_use.db`) |
 | `/changes` | Show the file-changing tool executions recorded for the current prompt |
-| `/status` | Print the resolved runtime configuration (provider, model, API type, endpoint, masked API key, token limits, reasoning level, thinking) |
+| `/status` | Print the resolved runtime configuration (provider, model, API type, endpoint, masked API key, token limits, reasoning level, thinking). The **Model** row shows the session's effective model (`--model`, `/model` or the startup resolution); the provider's built-in default is marked `(default)`. |
 | `/history` | Show the conversation history as rendered rows, marking where each turn started |
 | `/prompt` | Show the current system prompt |
 | `/priv` | Show the current running privileges (READ / WRITE / EXEC) |
