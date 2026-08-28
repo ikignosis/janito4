@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ReadMultipleFiles` tool: removed the `max_lines` parameter — files are now
   always read in full. For partial reads use `ReadFile` with
   `start_line`/`max_lines`.
+- `ReadMultipleFiles` tool: when only some files succeed, the result message
+  now also reports how many failed
+  (`Read X/Y files successfully, Z failed.`).
 - Extract the per-round stream runner out of the API clients
   (`openai_client/completions_api.py`) into `openai_client/client_support.py`
   (issue #61). The runner — thread creation, the Rich spinner and the

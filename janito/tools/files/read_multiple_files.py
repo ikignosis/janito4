@@ -123,14 +123,15 @@ class ReadMultipleFiles(BaseTool):
                             "error": str(e),
                         }
                     )
-
+            self.report_progress("")  # Newline after progress reporting
             # Report final results
             total_files = len(filepath_list)
             if successful_count == total_files:
                 self.report_result(f"Successfully read all {successful_count} files")
             elif successful_count > 0:
                 self.report_result(
-                    f"Read {successful_count}/{total_files} files successfully"
+                    f"Read {successful_count}/{total_files} files successfully, "
+                    f"{total_files - successful_count} failed."
                 )
             else:
                 self.report_error(f"Failed to read any of the {total_files} files")
