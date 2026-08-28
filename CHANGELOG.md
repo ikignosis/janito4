@@ -101,8 +101,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   message-matching heuristics). The per-client `_handle_not_found_error`
   explainers were merged into one unified helper in `client_support`, and
   the now-dead copies in the helpers modules were removed.
-- Removed the `Turn: #N` part from the end-of-turn token-usage summary; the
-  summary now always shows the `{label}: {message_count}` part (issue #68).
+- Removed the `Turn: #N` part from the end-of-turn token-usage summary, and
+  the summary no longer shows the `{label}: {message_count}` part either
+  (e.g. `Responses: 1` / `Messages: N`) -- it now runs from the token and
+  cost parts only (`Total:` / `In:` / `Out:` / `Cached:` / `Cost:`), with
+  the message count still reported on the `INFO` log line (issue #68).
   The conversation-turn number now lives only in the shell's pre-prompt rule
   (see the Added entry above), so the display-only `turn` kwarg was dropped
   from `wrap_send_prompt_with_turn_report`, `TurnObserver.on_turn_complete`,

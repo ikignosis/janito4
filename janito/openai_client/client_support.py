@@ -638,9 +638,9 @@ def _display_usage(
     ``cached_details_attr=None`` to skip the cached-token read for APIs that
     do not report it.
 
-    The ``{label}: {message_count}`` part reports how many messages the API
-    call exchanged; ``label`` / ``message_count`` also feed the ``INFO`` log
-    line.  (The conversation-turn number is no longer shown here -- the
+    ``label`` / ``message_count`` feed the ``INFO`` log line only; the
+    summary line itself no longer carries the ``{label}: {message_count}``
+    part.  (The conversation-turn number is no longer shown here -- the
     interactive shell displays it in the pre-prompt rule instead.)
 
     ``Cost: <cost>`` is computed through
@@ -689,7 +689,6 @@ def _display_usage(
             parts.append(f"Out: {format_tokens(output_tokens)}")
     if cached_tokens is not None:
         parts.append(f"Cached: {format_tokens(cached_tokens)}")
-    parts.append(f"{label}: {message_count}")
     if provider is not None and model is not None:
         cost = get_provider_cost(
             provider,

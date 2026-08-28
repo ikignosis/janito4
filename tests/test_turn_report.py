@@ -102,12 +102,11 @@ class TestDisplayTurnUsage:
         assert "In: 60/65.5k" in text
         assert "Out: 40/8.2k" in text
         assert "Cached: 5" in text
-        assert "Messages: 3" in text
         # The conversation turn number is no longer part of the summary
         # (it lives in the shell's pre-prompt rule instead).
         assert "Turn" not in text
 
-    def test_renders_label_count(self):
+    def test_omits_label_count(self):
         u = TurnUsage(
             stats=_token_stats(),
             message_count=4,
@@ -115,7 +114,8 @@ class TestDisplayTurnUsage:
             show_cached=False,
         )
         text = self._render(u)
-        assert "Responses: 4" in text
+        assert "Responses:" not in text
+        assert "Messages:" not in text
 
     def test_show_cached_false_omits_cached_part(self):
         u = TurnUsage(stats=_token_stats(), message_count=1, show_cached=False)
@@ -249,4 +249,3 @@ class TestWrapSendPromptWithTurnReport:
         text = buf.getvalue()
         assert "Total: 100" in text
         assert "In: 60/65.5k" in text
-        assert "Messages: 3" in text

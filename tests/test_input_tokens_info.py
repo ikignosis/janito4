@@ -251,11 +251,11 @@ if pytest is not None:
 
     # ---- Label/count in the CLI usage line ---------------------------
 
-    def test_usage_line_keeps_label_count():
-        """The summary always shows the {label}: {message_count} part (the
-        conversation turn number lives in the shell's pre-prompt rule)."""
+    def test_usage_line_omits_label_count():
+        """The summary line no longer shows the {label}: {message_count} part
+        (the conversation turn number lives in the shell's pre-prompt rule)."""
         text = _display_usage_text(None, None, _usage(1000, 200, 0), message_count=4)
-        assert "Messages: 4" in text
+        assert "Messages: 4" not in text
         assert "Turn" not in text
 
     # ---- Input-capacity warning (80% of max input tokens) ------------
