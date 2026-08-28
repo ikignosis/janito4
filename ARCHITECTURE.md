@@ -131,8 +131,9 @@ The pipeline per turn:
 6. Loop: stream a response → display reasoning/content → if tool calls were
    requested, execute them (see [Tool execution](#tool-execution)) and loop
    again; otherwise finalize (record the assistant message, return value).
-   Each round's usage is folded into a `TokenStats` carried out of `Client.send`
-   on a `TurnUsage` out-param (`openai_client/client_support.py`); the CLI's
+   Each round's usage is folded into a `TokenStats` (`janito/agent/usage.py`)
+   carried out of `Client.send` on a `TurnUsage` out-param
+   (`openai_client/client_support.py`); the CLI's
    `send_prompt` wrapper (`cli/chat.py` →
    `wrap_send_prompt_with_turn_report`) renders the end-of-turn reports
    (used files + token-usage summary) after the API call returns, so the
@@ -170,8 +171,8 @@ stream accumulation and history conversion are implemented once.
   - `ensure_initialized()` runs discovery on first access so privilege flags
     are set before tools are filtered;
   - autoloads the `files`, `system`, `net` toolsets;
-  - `get_function_schema()` generates OpenAI-compatible JSON schemas from a
-    tool's type hints and docstring;
+  - schema generation (`get_function_schema()` in `schema.py`) produces
+    OpenAI-compatible JSON schemas from a tool's type hints and docstring;
   - `add_toolset()` enables on-demand toolsets (janitoweb);
   - `register_plugin_tools()` registers tool classes contributed by plugins
     (**not** gated by `--no-tools`, unlike built-in discovery — plugins are
@@ -234,7 +235,7 @@ tools). See `docs/PLUGINS.md`.
 `janito/privileges.py` defines a `Privileges` dataclass (READ/WRITE/EXEC) and
 a module-level `running_privileges`. When `-r/-w/-x` are passed, tools whose
 declared permissions are not satisfied are skipped during discovery with a
-recorded reason (`get_skipped_tools()`).
+recorded reason (`get_skipped_tools()` in `janito/tools/__init__.py`).
 
 ---
 
@@ -265,7 +266,8 @@ recorded reason (`get_skipped_tools()`).
 - **`security.py`** — optional bearer-token auth (`JANITO_WEB_TOKEN`) and CORS.
 - **`agent/`** — the async agent loop (`loop.py` orchestrates; `turn.py`
   runs tool turns; `call.py` is the Completions runner; `responses.py`,
-  `anthropic.py`, `dashscope.py` are the other API runners). Tool calls run
+  `anthropic.py`, `dashscope.py`, `gemini.py` are the other API runners;
+  `tooling.py` resolves tools and executes calls). Tool calls run
   through the shared `run_tool` core in a worker thread
   (`asyncio.to_thread`).
 - **`events.py` / `prompts.py`** — structured SSE/WebSocket events and the
@@ -308,7 +310,7 @@ Configuration lives in the config dir (default `~/.janito/`, overridable with
 Key modules:
 
 - **`config_dir.py`** — config-dir resolution and local-mode flag.
-- **`json_store.py`** — thread-safe read/write primitives for the JSON stores.
+- **`json_store.py`** — shared `JsonFileStore` base class (path resolution, local-merge reads, 0600 perms) plus the auth/secrets/MCP store subclasses.
 - **`general_config.py`** — config-resolution helpers (`load_provider_from_config`,
   `determine_provider`, `get_active_provider`, `resolve_api_type()`).
   Config keys are scoped: flat keys (e.g. `provider`), **provider-scoped** keys
