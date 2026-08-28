@@ -25,6 +25,9 @@ class ReadFile(BaseTool):
     Args:
         filepath (str): Path to the file to read
         start_line (int): Starting line number (1-based). Defaults to 1.
+            A negative value counts back from the end of the file
+            (-1 = last line, -5 = fifth-to-last) and reads to the end of
+            the file, like ``tail -5``; ``max_lines`` is then ignored.
         max_lines (int, optional): Maximum number of lines to read from
             start_line. Defaults to None (read to end of file).
     """
@@ -41,10 +44,15 @@ class ReadFile(BaseTool):
         Args:
             filepath (str): The path to the file to read
             start_line (int): Starting line number (1-based). Defaults to 1.
+                A negative value counts back from the end of the file
+                (``-1`` is the last line, ``-5`` the fifth-to-last) and reads
+                to the end of the file, like ``tail -5``; ``max_lines`` is
+                ignored in that case.
             max_lines (int, optional): Maximum number of lines to read,
                 starting from ``start_line``. If None, reads to the end of the
                 file. Values beyond the end of the file are clamped to the
                 last line, so the tool returns all the lines it could read.
+                Ignored when ``start_line`` is negative.
 
         Returns:
             Dict[str, Any]: A dictionary containing:
@@ -61,8 +69,16 @@ class ReadFile(BaseTool):
             abs_filepath = os.path.abspath(filepath)
             norm_path_str = norm_path(abs_filepath)
 
+            # A negative start_line means "read the last N lines" (tail-like
+            # semantics): the slice runs to the end of the file and max_lines
+            # is ignored. _resolve_slice still validates max_lines so that a
+            # nonsensical value is reported instead of silently dropped.
+            tail_mode = start_line < 0
+
             # Report start
-            if max_lines is not None:
+            if tail_mode:
+                range_info = f" (last {-start_line} lines)"
+            elif max_lines is not None:
                 range_info = f" (line {start_line}, max {max_lines} lines)"
             else:
                 range_info = f" (line {start_line}, until EOF)"
@@ -161,8 +177,11 @@ class ReadFile(BaseTool):
         Resolve the slice to read as (0-based start line, line limit).
 
         Args:
-            start_line: Requested 1-based start line.
+            start_line: Requested start line. Positive values are 1-based from
+                the beginning of the file; negative values count back from the
+                end (-1 = last line), like Python subscripts or ``tail``.
             max_lines: Requested line limit (None = read to end of file).
+                Ignored (but still validated) when ``start_line`` is negative.
             total_lines: Number of lines in the file.
 
         Returns:
@@ -172,16 +191,33 @@ class ReadFile(BaseTool):
         Raises:
             ValueError: if the arguments are invalid.
         """
-        if start_line < 1 or start_line > total_lines:
+        # Validate both arguments up front so the error reported never depends
+        # on which one is checked first.
+        if start_line == 0:
             raise ValueError(
-                f"start_line ({start_line}) is out of range. "
-                f"File has {total_lines} lines."
+                "start_line (0) is out of range. Use a positive line number "
+                "or a negative value to count back from the end of the file."
             )
 
         if max_lines is not None and max_lines < 1:
             raise ValueError(
                 f"max_lines ({max_lines}) is out of range. "
                 "max_lines must be at least 1."
+            )
+
+        if start_line < 0:
+            # Tail mode: -1 is the last line, -N is N lines from the end. The
+            # read starts at that anchor and always runs to EOF, so the limit
+            # is None regardless of max_lines (which was validated above and
+            # is then dropped). An anchor deeper than the file is clamped to
+            # the first line rather than failing, so the caller gets the whole
+            # file.
+            return max(total_lines + start_line, 0), None
+
+        if start_line > total_lines:
+            raise ValueError(
+                f"start_line ({start_line}) is out of range. "
+                f"File has {total_lines} lines."
             )
 
         return start_line - 1, max_lines
@@ -201,14 +237,20 @@ def main():
         "-s",
         type=int,
         default=1,
-        help="Starting line number (1-based, default: 1)",
+        help=(
+            "Starting line number (1-based, default: 1). Negative values read "
+            "the last N lines (e.g. -5 = last 5 lines, like tail)."
+        ),
     )
     parser.add_argument(
         "--max-lines",
         "-m",
         type=int,
         default=None,
-        help="Maximum number of lines to read (default: end of file)",
+        help=(
+            "Maximum number of lines to read (default: end of file). "
+            "Ignored when --start-line is negative."
+        ),
     )
     parser.add_argument(
         "--json", "-j", action="store_true", help="Output in JSON format"

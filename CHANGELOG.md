@@ -11,6 +11,14 @@ Changes since `v4.31.0` (2026-08-25).
 
 ### Added
 
+- `feat(tools)`: `ReadFile` accepts a negative `start_line` to read the last
+  N lines of a file (tail semantics): `start_line=-5` returns lines from
+  5-from-the-end to EOF and `max_lines` is ignored. Offsets deeper than the
+  file are clamped to the first line (whole file returned, no error),
+  `start_line=0` is rejected with an explanatory message, and an invalid
+  `max_lines` is still validated even in tail mode. The CLI `--start-line`
+  help, the ReadFile parameter docstring (and therefore the function-calling
+  schema) and the web tool chip ("last 5 lines") were updated to match.
 - `feat(alibaba)`: add the `qwen3.8-flash` model to the Alibaba provider's
   built-in config and cost estimation ($0.15 / $0.016 cache-hit / $0.47
   output per 1M tokens; 991K max input, 131K max output; built-in tools on

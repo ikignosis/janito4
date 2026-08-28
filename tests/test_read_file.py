@@ -84,3 +84,76 @@ def test_start_line_out_of_range_still_errors(sample_file):
     assert result["success"] is False
     assert "start_line (99) is out of range" in result["error"]
     assert result["total_lines"] == 5
+
+
+# --- Negative start_line (tail mode) ---------------------------------------
+
+
+def test_negative_start_line_reads_last_lines(sample_file):
+    """start_line=-5 reads the last 5 lines of the file."""
+    result = ReadFile().run(filepath=sample_file, start_line=-5)
+
+    assert result["success"] is True
+    assert result["content"] == "line 1\nline 2\nline 3\nline 4\nline 5\n"
+    assert result["start_line"] == 1
+    assert result["lines_read"] == 5
+    assert result["max_lines"] is None
+
+
+def test_negative_start_line_last_line_only(sample_file):
+    """start_line=-1 returns just the last line."""
+    result = ReadFile().run(filepath=sample_file, start_line=-1)
+
+    assert result["success"] is True
+    assert result["content"] == "line 5\n"
+    assert result["start_line"] == 5
+    assert result["lines_read"] == 1
+    assert result["total_lines"] == 5
+
+
+def test_negative_start_line_reads_until_eof(sample_file):
+    """The tail slice always extends to the end of the file."""
+    result = ReadFile().run(filepath=sample_file, start_line=-3)
+
+    assert result["success"] is True
+    assert result["content"] == "line 3\nline 4\nline 5\n"
+    assert result["start_line"] == 3
+    assert result["lines_read"] == 3
+
+
+def test_negative_start_line_ignores_max_lines(sample_file):
+    """max_lines is ignored in tail mode; the read runs to EOF."""
+    result = ReadFile().run(filepath=sample_file, start_line=-4, max_lines=2)
+
+    assert result["success"] is True
+    assert result["content"] == "line 2\nline 3\nline 4\nline 5\n"
+    assert result["lines_read"] == 4
+    # The echoed effective limit reflects the ignored (None) max_lines.
+    assert result["max_lines"] is None
+
+
+def test_negative_start_line_deeper_than_file_is_clamped(sample_file):
+    """A tail longer than the file returns the whole file, no error."""
+    result = ReadFile().run(filepath=sample_file, start_line=-100)
+
+    assert result["success"] is True
+    assert result["content"] == "line 1\nline 2\nline 3\nline 4\nline 5\n"
+    assert result["start_line"] == 1
+    assert result["lines_read"] == 5
+
+
+def test_negative_start_line_max_lines_below_one_still_errors(sample_file):
+    """An invalid max_lines is still rejected even in tail mode."""
+    result = ReadFile().run(filepath=sample_file, start_line=-2, max_lines=0)
+
+    assert result["success"] is False
+    assert "max_lines" in result["error"]
+    assert "out of range" in result["error"]
+
+
+def test_start_line_zero_is_an_explicit_error(sample_file):
+    """start_line=0 is invalid and explains the positive/negative convention."""
+    result = ReadFile().run(filepath=sample_file, start_line=0)
+
+    assert result["success"] is False
+    assert "start_line (0) is out of range" in result["error"]

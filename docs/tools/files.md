@@ -87,8 +87,13 @@ Read the contents of a file (1-based indexing).
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `filepath` | str | — | File to read |
-| `start_line` | int | `1` | Start line (1-based) |
-| `max_lines` | int | `None` | Max lines to read from `start_line` (defaults to end of file) |
+| `start_line` | int | `1` | Start line (1-based). A **negative** value counts back from the end of the file (`-1` = last line, `-5` = fifth-to-last) and reads to EOF — like `tail -5`. |
+| `max_lines` | int | `None` | Max lines to read from `start_line` (defaults to end of file). Ignored when `start_line` is negative. |
+
+```bash
+# Last 20 lines of a log file, without knowing how long the file is
+python -m janito.tools.files.read_file app.log --start-line -20
+```
 
 ### ReadMultipleFiles
 
@@ -182,7 +187,10 @@ Move or rename a file or directory.
    `.janitoignore` file itself is automatically ignored so it never shows up in
    listings or search results.
 2. **Use `ReadFile`** with `start_line`/`max_lines` for large files to limit
-   output.
+   output. To read the end of a long file (logs, changelogs) use a negative
+   `start_line` (e.g. `start_line=-30` for the last 30 lines) — you don't need
+   to know the file length first, and an offset deeper than the file just
+   returns it whole.
 3. **Use `count_only=True`** with the search tools to gauge how many matches exist
    before pulling full results.
 4. **Use `exclude`** with the search tools to skip directories or files you don't
