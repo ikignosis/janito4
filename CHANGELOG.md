@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   conversation history while restricting `tools=` to the read and execute
   (`"r"`/`"x"` permission) built-in tools — the model can read/search/fetch
   and run commands but cannot write or modify anything (issue #63).
+- The interactive shell now shows a rich horizontal rule labeled with the
+  upcoming conversation turn (`Turn N`) right above the prompt (issue #69),
+  so the turn number is visible *before* each submission instead of in the
+  trailing token-usage summary.
 
 ### Changed
 
@@ -86,6 +90,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   message-matching heuristics). The per-client `_handle_not_found_error`
   explainers were merged into one unified helper in `client_support`, and
   the now-dead copies in the helpers modules were removed.
+- Removed the `Turn: #N` part from the end-of-turn token-usage summary; the
+  summary now always shows the `{label}: {message_count}` part (issue #68).
+  The conversation-turn number now lives only in the shell's pre-prompt rule
+  (see the Added entry above), so the display-only `turn` kwarg was dropped
+  from `wrap_send_prompt_with_turn_report`, `TurnObserver.on_turn_complete`,
+  `display_turn_usage` and `_display_usage`, and from the `turn=1` /
+  `turn=self.turn_count` call sites in `run_single_prompt`, the interactive
+  shell and `/ask`.
 
 ### Fixed
 

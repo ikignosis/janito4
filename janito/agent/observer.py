@@ -24,9 +24,9 @@ fragment the client loop has (after a full stream round), not per-token
 deltas.
 
 The end-of-turn report (``on_turn_complete``) is delivered by the *caller*
-(the CLI's ``wrap_send_prompt_with_turn_report`` wrapper), because the
-conversation turn number is display-only caller knowledge that is never
-passed to the API client; the wrapper supplies it at render time.
+(the CLI's ``wrap_send_prompt_with_turn_report`` wrapper), keeping the API
+client free of UI concerns; the wrapper renders it once ``send_prompt``
+returns.
 """
 
 from __future__ import annotations
@@ -107,12 +107,11 @@ class TurnObserver(Protocol):
         """
         ...
 
-    def on_turn_complete(self, usage_out: Any, *, turn: int | None = None) -> None:
+    def on_turn_complete(self, usage_out: Any) -> None:
         """End-of-turn report (used files + token-usage summary).
 
         Delivered by the caller after ``send_prompt`` returns (the CLI's
-        ``wrap_send_prompt_with_turn_report`` wrapper), which knows the
-        display-only conversation turn number.
+        ``wrap_send_prompt_with_turn_report`` wrapper).
         """
         ...
 
@@ -172,7 +171,7 @@ class NullObserver:
     ) -> None:
         pass
 
-    def on_turn_complete(self, usage_out: Any, *, turn: int | None = None) -> None:
+    def on_turn_complete(self, usage_out: Any) -> None:
         pass
 
 

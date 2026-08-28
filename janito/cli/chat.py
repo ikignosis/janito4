@@ -63,17 +63,11 @@ def _make_send_prompt_func(
         ``gemini_api.send_prompt`` (the native Gemini SDK) and returns the
         assistant text (the history list is mutated, like Completions).
 
-    All wrappers accept a ``turn`` kwarg (the conversation turn number being
-    completed, counted by the caller's main loop).  It is display-only: the
-    ``wrap_send_prompt_with_turn_report`` wrapper consumes it and passes it
-    to the end-of-turn renderer so the token-usage summary can show
-    ``Turn: #<n>``; it is never forwarded to the API client, and ``None``
-    falls back to the legacy count display.  Each returned callable is
-    wrapped with ``wrap_send_prompt_with_turn_report``, so it calls the API
-    *and* prints the end-of-turn reports (used files + token-usage summary)
-    from the ``usage_out`` out-param the client populates; pass
-    ``display_turn_report=False`` to suppress them (e.g. internal side
-    calls).
+    Each returned callable is wrapped with ``wrap_send_prompt_with_turn_report``,
+    so it calls the API *and* prints the end-of-turn reports (used files +
+    token-usage summary) from the ``usage_out`` out-param the client
+    populates; pass ``display_turn_report=False`` to suppress them (e.g.
+    internal side calls).
 
     Args:
         api_type: The canonical API type: "Responses", "Completions",
@@ -505,8 +499,6 @@ def run_single_prompt(args):
             instructions=instructions,
             tools=tools_to_use,
             thinking=args.thinking,
-            # A single-prompt run is one submission: turn #1.
-            turn=1,
         )
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.", file=sys.stderr)

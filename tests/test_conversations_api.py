@@ -1021,7 +1021,6 @@ def test_make_send_prompt_func_responses_dispatch(monkeypatch):
         instructions="sys",
         tools=[],
         thinking=False,
-        turn=3,
     )
 
     assert isinstance(result, api.ConversationResult)
@@ -1087,7 +1086,6 @@ def test_make_send_prompt_func_completions_dispatch(monkeypatch):
         instructions="sys",
         tools=None,
         thinking=False,
-        turn=2,
     )
 
     assert result == "completions answer"

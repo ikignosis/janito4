@@ -566,8 +566,8 @@ class RichTurnObserver(NullObserver):
             _handle_auth_error(e, provider, api_key, base_url, model, self.console)
         # else: unknown failure -- nothing to explain; the caller re-raises.
 
-    def on_turn_complete(self, usage_out, *, turn: int | None = None) -> None:
-        display_turn_usage(usage_out, turn=turn, console=self.console)
+    def on_turn_complete(self, usage_out) -> None:
+        display_turn_usage(usage_out, console=self.console)
 
 
 def _print_input_capacity_warning(
@@ -619,7 +619,6 @@ def _display_usage(
     console: Console,
     *,
     label: str = "Messages",
-    turn: int | None = None,
     input_attr: str = "prompt_tokens",
     output_attr: str = "completion_tokens",
     cached_details_attr: str | None = "prompt_tokens_details",
@@ -639,12 +638,10 @@ def _display_usage(
     ``cached_details_attr=None`` to skip the cached-token read for APIs that
     do not report it.
 
-    The ``Turn: #<n>`` part counts the conversation turn being completed,
-    starting from 1 after the first message is submitted.  The value is
-    counted by the caller's main loop (the interactive shell) and threaded
-    down through ``turn``; callers that do not track turns (``turn`` is
-    ``None``) fall back to the legacy ``{label}: {message_count}`` part.
-    ``label`` / ``message_count`` always feed the ``INFO`` log line.
+    The ``{label}: {message_count}`` part reports how many messages the API
+    call exchanged; ``label`` / ``message_count`` also feed the ``INFO`` log
+    line.  (The conversation-turn number is no longer shown here -- the
+    interactive shell displays it in the pre-prompt rule instead.)
 
     ``Cost: <cost>`` is computed through
     :func:`janito.provider_accessors.get_provider_cost` from the provider /
@@ -690,10 +687,7 @@ def _display_usage(
             parts.append(f"Out: {format_tokens(output_tokens)}")
     if cached_tokens is not None:
         parts.append(f"Cached: {format_tokens(cached_tokens)}")
-    if turn is not None:
-        parts.append(f"Turn: #{turn}")
-    else:
-        parts.append(f"{label}: {message_count}")
+    parts.append(f"{label}: {message_count}")
     if provider is not None and model is not None:
         cost = get_provider_cost(
             provider,
@@ -730,11 +724,6 @@ class TurnUsage:
     needs to render the summary line.  The caller renders it once the API
     call returns with :func:`display_turn_usage`, keeping the end-of-turn
     reports out of the client's ``_finalize`` hooks.
-
-    The conversation turn number is *not* carried here: it is caller-side
-    knowledge (counted by the interactive shell, ``1`` for one-shot runs)
-    that never reaches the API client, so the caller supplies it directly to
-    :func:`display_turn_usage` when rendering.
     """
 
     stats: TokenStats | None = None
@@ -752,7 +741,6 @@ class TurnUsage:
 def display_turn_usage(
     usage_out: TurnUsage | None,
     *,
-    turn: int | None,
     console: Console | None = None,
 ) -> None:
     """Print the end-of-turn reports (used files + token usage summary).
@@ -762,13 +750,6 @@ def display_turn_usage(
     reports the per-client ``_finalize`` helpers used to print inline: the
     tracked used files first, then the magenta token-usage summary line.
     Nothing is printed when no usage was reported.
-
-    ``turn`` is the conversation turn number being completed (starting from
-    1), counted by the caller's main loop (the interactive shell) -- or
-    ``1`` for one-shot runs.  It is display-only: the API clients never see
-    it, so it is supplied here at render time.  ``None`` (callers that do
-    not track turns, e.g. /compact's side call) falls back to the legacy
-    ``{label}: {message_count}`` display.
     """
     console = console or Console()
 
@@ -788,7 +769,6 @@ def display_turn_usage(
         usage_out.message_count if usage_out.message_count is not None else 0,
         console,
         label=usage_out.label,
-        turn=turn,
         # ``stats`` already carries the normalized cached counter; the
         # ``cached_details_attr`` toggle only gates reading it, so pass a
         # sentinel when the API reports cached tokens.
@@ -810,22 +790,18 @@ def wrap_send_prompt_with_turn_report(send_func, observer=None):
     output matches the historical behaviour; with no observer (``None``)
     nothing is rendered.
 
-    ``turn`` (the conversation turn number, starting from 1) is
-    display-only: it is consumed here and passed to ``on_turn_complete`` at
-    render time, never forwarded to the API client.  ``display_turn_report``
-    (default True) suppresses the report when False (e.g. internal side
-    calls).  This keeps a single wrapper responsible for "call the API +
-    deliver the turn report", so every CLI entry point (interactive shell,
-    ``/ask``, ``/compact``, one-shot ``janito <prompt>``) gets it without
-    duplicating the call.
+    ``display_turn_report`` (default True) suppresses the report when False
+    (e.g. internal side calls).  This keeps a single wrapper responsible for
+    "call the API + deliver the turn report", so every CLI entry point
+    (interactive shell, ``/ask``, ``/compact``, one-shot ``janito <prompt>``)
+    gets it without duplicating the call.
     """
 
     def send_with_turn_report(prompt, *, display_turn_report=True, **kwargs):
-        turn = kwargs.pop("turn", None)
         usage_out = TurnUsage()
         result = send_func(prompt, usage_out=usage_out, **kwargs)
         if observer is not None and display_turn_report:
-            observer.on_turn_complete(usage_out, turn=turn)
+            observer.on_turn_complete(usage_out)
         return result
 
     return send_with_turn_report

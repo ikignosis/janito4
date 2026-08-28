@@ -80,10 +80,10 @@ class TestNormalizeUsageWithTokenStats:
 
 
 class TestDisplayTurnUsage:
-    def _render(self, usage_out, turn=None):
+    def _render(self, usage_out):
         buf = StringIO()
         console = Console(file=buf, force_terminal=False, width=120)
-        display_turn_usage(usage_out, turn=turn, console=console)
+        display_turn_usage(usage_out, console=console)
         return buf.getvalue()
 
     def test_renders_usage_line_from_populated_turn_usage(self):
@@ -97,14 +97,17 @@ class TestDisplayTurnUsage:
             label="Messages",
             show_cached=True,
         )
-        text = self._render(u, turn=2)
+        text = self._render(u)
         assert "Total: 100" in text
         assert "In: 60/65.5k" in text
         assert "Out: 40/8.2k" in text
         assert "Cached: 5" in text
-        assert "Turn: #2" in text
+        assert "Messages: 3" in text
+        # The conversation turn number is no longer part of the summary
+        # (it lives in the shell's pre-prompt rule instead).
+        assert "Turn" not in text
 
-    def test_turn_none_falls_back_to_label_count(self):
+    def test_renders_label_count(self):
         u = TurnUsage(
             stats=_token_stats(),
             message_count=4,
@@ -125,7 +128,7 @@ class TestDisplayTurnUsage:
         used_files.record_used_file("ReadFile", {"filepath": "/a.py"})
         try:
             u = TurnUsage(stats=_token_stats(), message_count=1)
-            text = self._render(u, turn=1)
+            text = self._render(u)
             assert text.index("Used files") < text.index("===")
             assert "1 read : /a.py" in text
         finally:
@@ -171,8 +174,8 @@ class TestWrapSendPromptWithTurnReport:
 
     def _make_observer(self, recorded):
         class FakeObserver:
-            def on_turn_complete(self, usage_out, *, turn=None):
-                recorded.append((usage_out, turn))
+            def on_turn_complete(self, usage_out):
+                recorded.append(usage_out)
 
         return FakeObserver()
 
@@ -182,10 +185,9 @@ class TestWrapSendPromptWithTurnReport:
         wrapped = wrap_send_prompt_with_turn_report(
             self._make_send(holder), observer=self._make_observer(recorded)
         )
-        result = wrapped("hi", turn=1)
+        result = wrapped("hi")
         assert result == "final answer"
-        assert recorded and recorded[0][0] is holder["usage_out"]
-        assert recorded[0][1] == 1
+        assert recorded == [holder["usage_out"]]
 
     def test_wrapper_can_suppress_report(self):
         holder = {}
@@ -193,17 +195,17 @@ class TestWrapSendPromptWithTurnReport:
         wrapped = wrap_send_prompt_with_turn_report(
             self._make_send(holder), observer=self._make_observer(recorded)
         )
-        result = wrapped("hi", turn=1, display_turn_report=False)
+        result = wrapped("hi", display_turn_report=False)
         assert result == "final answer"
         assert recorded == []
 
     def test_wrapper_without_observer_renders_nothing(self):
         holder = {}
         wrapped = wrap_send_prompt_with_turn_report(self._make_send(holder))
-        result = wrapped("hi", turn=1)
+        result = wrapped("hi")
         assert result == "final answer"
 
-    def test_wrapper_forwards_api_kwargs_but_not_turn(self):
+    def test_wrapper_forwards_api_kwargs(self):
         holder = {}
         recorded = []
         wrapped = wrap_send_prompt_with_turn_report(
@@ -215,18 +217,14 @@ class TestWrapSendPromptWithTurnReport:
             previous_messages=[{"role": "user", "content": "hello"}],
             tools=[],
             thinking=False,
-            turn=3,
         )
         kw = holder["kwargs"]
         assert kw["verbose"] is True
         assert kw["previous_messages"] == [{"role": "user", "content": "hello"}]
         assert kw["tools"] == []
         assert kw["thinking"] is False
-        # The turn number is display-only: it reaches the observer's
-        # on_turn_complete...
-        assert recorded == [(holder["usage_out"], 3)]
-        # ...and is never forwarded to the API client (the fake send has no
-        # ``turn`` parameter, so forwarding would raise a TypeError).
+        # The usage out-param reaches the observer's on_turn_complete...
+        assert recorded == [holder["usage_out"]]
 
     def test_rich_observer_on_turn_complete_renders_report(self):
         """The CLI's RichTurnObserver renders the report through
@@ -247,8 +245,8 @@ class TestWrapSendPromptWithTurnReport:
             label="Messages",
             show_cached=True,
         )
-        observer.on_turn_complete(u, turn=2)
+        observer.on_turn_complete(u)
         text = buf.getvalue()
         assert "Total: 100" in text
         assert "In: 60/65.5k" in text
-        assert "Turn: #2" in text
+        assert "Messages: 3" in text

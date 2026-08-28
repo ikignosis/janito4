@@ -109,7 +109,6 @@ if pytest is not None:
         model,
         usage,
         cached_details_attr="prompt_tokens_details",
-        turn=None,
         label="Messages",
         message_count=1,
         max_input_tokens=None,
@@ -131,7 +130,6 @@ if pytest is not None:
             message_count,
             console,
             label=label,
-            turn=turn,
             provider=provider,
             model=model,
             cached_details_attr=cached_details_attr,
@@ -251,34 +249,14 @@ if pytest is not None:
         assert "In: 1m" in text
         assert "Out: 1m" in text
 
-    # ---- Turn number in the CLI usage line ----------------------------
+    # ---- Label/count in the CLI usage line ---------------------------
 
-    def test_usage_line_shows_turn_when_provided():
-        """A threaded turn number replaces the Messages/Responses count."""
-        text = _display_usage_text(
-            None, None, _usage(1000, 200, 0), turn=3, label="Messages"
-        )
-        assert "Turn: #3" in text
-        assert "Messages:" not in text
-
-    def test_usage_line_turn_replaces_responses_label():
-        """Responses-mode callers show Turn instead of Responses:."""
-        text = _display_usage_text(
-            None, None, _usage(1000, 200, 0), turn=1, label="Responses"
-        )
-        assert "Turn: #1" in text
-        assert "Responses:" not in text
-
-    def test_usage_line_turn_starts_at_one():
-        """The first submitted message is turn #1."""
-        text = _display_usage_text(None, None, _usage(1000, 200, 0), turn=1)
-        assert "Turn: #1" in text
-
-    def test_usage_line_without_turn_keeps_label_count():
-        """Without a threaded turn the legacy Messages: <count> part stays."""
+    def test_usage_line_keeps_label_count():
+        """The summary always shows the {label}: {message_count} part (the
+        conversation turn number lives in the shell's pre-prompt rule)."""
         text = _display_usage_text(None, None, _usage(1000, 200, 0), message_count=4)
         assert "Messages: 4" in text
-        assert "Turn:" not in text
+        assert "Turn" not in text
 
     # ---- Input-capacity warning (80% of max input tokens) ------------
 

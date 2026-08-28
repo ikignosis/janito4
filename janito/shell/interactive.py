@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from prompt_toolkit.formatted_text import HTML
 from rich.console import Console
+from rich.rule import Rule
 
 from ..openai_client import RequestCancelled
 from .session import _SessionMixin
@@ -125,11 +126,10 @@ class InteractiveShell(_SessionMixin):
         # Set True by the /exit command handler; signals the run loop to
         # break and end the session
         self.exit_requested = False
-        # Conversation turn counter for the token-usage summary line: counts
-        # every prompt submitted in this conversation, starting from 1 after
-        # the first message is submitted. Reset to 0 on a fresh conversation
-        # (F2 clear / "clear" / startup) and threaded to the API client as
-        # ``turn`` so the summary shows ``Turn: #<n>``.
+        # Conversation turn counter: counts every prompt submitted in this
+        # conversation, starting from 1 after the first message is submitted.
+        # Reset to 0 on a fresh conversation (F2 clear / "clear" / startup);
+        # the pre-prompt rule shows ``turn_count + 1`` as the upcoming turn.
         self.turn_count = 0
         # Set by /multi for the next prompt only; automatically resets
         # after a multiline input is submitted
@@ -173,8 +173,8 @@ class InteractiveShell(_SessionMixin):
         # completed server-side turns.
         self.mirrored_history = []
         self.mirrored_turn = 0
-        # A fresh conversation restarts the turn counter for the usage
-        # summary (Turn: #1 is the next submitted message).
+        # A fresh conversation restarts the turn counter (Turn 1 is the next
+        # message submitted, shown by the pre-prompt rule).
         self.turn_count = 0
 
     def get_system_prompt(self) -> str | None:
@@ -364,9 +364,8 @@ class InteractiveShell(_SessionMixin):
         )
         self.response_turn = len(self.response_chain)
         self.mirrored_turn = len(self.mirrored_history)
-        # Count this submission as the next turn (Turn: #1 is the first
-        # message submitted in the conversation) and thread the number to the
-        # API client, which shows it on the token-usage summary line.
+        # Count this submission as the next turn (Turn 1 is the first message
+        # submitted in the conversation); the pre-prompt rule shows it.
         self.turn_count += 1
         try:
             result = self.send_prompt_func(
@@ -378,7 +377,6 @@ class InteractiveShell(_SessionMixin):
                 instructions=self.get_system_prompt(),
                 tools=tools_to_use,
                 thinking=self.thinking,
-                turn=self.turn_count,
             )
             # Responses API mode keeps the conversation state the provider
             # uses; Completions mode returns plain text and updates
@@ -532,6 +530,12 @@ class InteractiveShell(_SessionMixin):
             self.do_it_requested = False
             self.exit_requested = False
 
+            # Show the upcoming conversation turn above the prompt (issue
+            # #69): a rich horizontal rule labeled with the next turn number.
+            # Display-only; the counter is bumped when the prompt is actually
+            # submitted (see _send_prompt), so a fresh conversation starts at
+            # Turn 1.
+            _rich_console.print(Rule(f"Turn {self.turn_count + 1}"))
             user_input = self._get_user_input()
             if user_input is None:
                 break  # User quit

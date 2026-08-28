@@ -166,8 +166,8 @@ explicit `error_kind` -- `"not_found"` / `"auth"` -- passed by the OpenAI
 SDK clients' typed `except` blocks or derived for the native-SDK clients by
 `_classify_error` in `client_support.py`; the exception is always re-raised)
 and the end-of-turn report (`on_turn_complete`, delivered by the
-`wrap_send_prompt_with_turn_report` wrapper, which knows the display-only
-turn number). The default is the headless `NullObserver`, so
+`wrap_send_prompt_with_turn_report` wrapper after `send_prompt` returns). The
+default is the headless `NullObserver`, so
 `send_prompt`/`Client.send` produce no terminal output (the web loop emits
 its own structured events instead); the CLI injects the
 `RichTurnObserver` (`openai_client/client_support.py`) through
