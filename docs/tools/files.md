@@ -100,7 +100,6 @@ python -m janito.tools.files.read_file app.log --start-line -20
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `filepaths` | list | — | List of file paths to read |
-| `max_lines` | int | `None` | Max lines per file |
 
 ### SearchText
 

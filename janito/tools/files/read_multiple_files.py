@@ -18,23 +18,7 @@ from ...tooling import BaseTool, norm_path
 from ...tooling.decorator import tool
 
 
-def _read_lines(f, max_lines: int | None) -> tuple[str, int]:
-    """Read up to ``max_lines`` from an open file; returns (content, lines_read)."""
-    if max_lines is None:
-        content = f.read()
-        return content, content.count("\n") + 1
-
-    lines = []
-    for j, line in enumerate(f):
-        if j >= max_lines:
-            break
-        lines.append(line.rstrip("\n"))
-    return "\n".join(lines), len(lines)
-
-
-def _read_one_file(
-    filepath: str, max_lines: int | None, index: int, total: int, tool
-) -> dict[str, Any]:
+def _read_one_file(filepath: str, index: int, total: int, tool) -> dict[str, Any]:
     """Read a single file, returning a per-file result dict."""
     abs_filepath = os.path.abspath(filepath)
     norm_path_str = norm_path(abs_filepath)
@@ -65,14 +49,12 @@ def _read_one_file(
         tool.report_progress(f" ({file_size} bytes)", end="")
 
     with open(abs_filepath, encoding="utf-8") as f:
-        content, lines_read = _read_lines(f, max_lines)
+        content = f.read()
 
     return {
         "filepath": filepath,
         "success": True,
         "content": content,
-        "lines_read": lines_read,
-        "max_lines": max_lines,
     }
 
 
@@ -82,13 +64,12 @@ class ReadMultipleFiles(BaseTool):
     Tool for reading the contents of multiple files.
     """
 
-    def run(self, filepaths: list[str], max_lines: int | None = None) -> dict[str, Any]:
+    def run(self, filepaths: list[str]) -> dict[str, Any]:
         """
         Read the contents of multiple files.
 
         Args:
             filepaths (List[str]): List of file paths to read
-            max_lines (int, optional): Maximum number of lines to read per file (for large files)
 
         Returns:
             Dict[str, Any]: A dictionary containing:
@@ -130,9 +111,7 @@ class ReadMultipleFiles(BaseTool):
 
             for i, filepath in enumerate(filepath_list):
                 try:
-                    result = _read_one_file(
-                        filepath, max_lines, i, len(filepath_list), self
-                    )
+                    result = _read_one_file(filepath, i, len(filepath_list), self)
                     results.append(result)
                     if result["success"]:
                         successful_count += 1
@@ -161,7 +140,6 @@ class ReadMultipleFiles(BaseTool):
                 "files": results,
                 "total_files": total_files,
                 "successful_files": successful_count,
-                "max_lines": max_lines,
             }
 
         except Exception as e:
@@ -187,16 +165,13 @@ def main():
         "filepaths", nargs="+", help="File paths to read (multiple arguments)"
     )
     parser.add_argument(
-        "--max-lines", "-m", type=int, help="Maximum number of lines to read per file"
-    )
-    parser.add_argument(
         "--json", "-j", action="store_true", help="Output in JSON format"
     )
 
     args = parser.parse_args()
 
     tool_instance = ReadMultipleFiles()
-    result = tool_instance.run(filepaths=args.filepaths, max_lines=args.max_lines)
+    result = tool_instance.run(filepaths=args.filepaths)
 
     if args.json:
         print(json.dumps(result, indent=2))
