@@ -27,10 +27,17 @@ _MILLION = 1_000_000
 
 
 def _parse_cost(cost_str: str) -> float:
-    """Parse a cost string into a float for sorting; returns -inf for N/A or invalid."""
+    """Parse a cost string into dollars for sorting; returns -inf for N/A or invalid.
+
+    Handles both the adaptive display formats (``X.a$``, ``X.a¢``,
+    ``0.abc¢``, ``X$``) and the legacy raw dollar strings, optionally
+    followed by a rate-band annotation such as ``(off-peak)``.
+    """
     try:
-        cleaned = cost_str.replace("$", "").split()[0]
-        return float(cleaned)
+        cleaned = cost_str.split()[0]
+        if cleaned.endswith("¢"):
+            return float(cleaned[:-1]) / 100
+        return float(cleaned.rstrip("$"))
     except (ValueError, IndexError, AttributeError):
         return float("-inf")
 

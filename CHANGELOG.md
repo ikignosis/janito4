@@ -40,6 +40,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The `Cost:` estimate in the end-of-turn usage summary and the `/price`
+  table is now rendered with an adaptive, magnitude-aware format (issue
+  #67) instead of six fixed decimals: sub-cent costs show as `0.abc¢`,
+  sub-dollar costs as `X.a¢`, costs under 100$ as `X.a$` and larger
+  ones as rounded integer dollars `X$`. Values that round across a unit
+  boundary are promoted to the next unit (e.g. `99.96$` -> `100$`,
+  `0.009999$` -> `1.0¢`), and DeepSeek's rate-band annotation
+  (`(off-peak)`/`(peak)`) is preserved. `get_provider_cost()` now returns
+  the adaptive string, so all display paths (turn summary, `/price`)
+  pick it up automatically; `/price` sorting still parses the numeric
+  value (both `$` and `¢` forms).
 - Renamed the per-turn history bookmarks from `Checkpoint`/`checkpoint` to
   `Turn`/`turn` throughout the code and user-facing strings (issue #65):
   `history_checkpoints` → `history_turns`, `conversation_checkpoint` →

@@ -158,7 +158,7 @@ if pytest is not None:
         text = _display_usage_text(
             "deepseek", "deepseek-v4-flash", _usage(1_000_000, 1_000_000, 0)
         )
-        assert "Cost: 0.880000$ (off-peak)" in text
+        assert "Cost: 88.0¢ (off-peak)" in text
 
     def test_usage_line_cost_bills_cached_input_at_cache_hit(monkeypatch):
         """Cached input tokens are billed at the provider's cache-hit rate."""
@@ -171,19 +171,19 @@ if pytest is not None:
         text = _display_usage_text(
             "deepseek", "deepseek-v4-flash", _usage(1_000_000, 1_000_000, 500_000)
         )
-        assert "Cost: 0.773500$ (off-peak)" in text
+        assert "Cost: 77.3¢ (off-peak)" in text
 
     def test_usage_line_cost_google_provider():
         """Google Gemini usage calculates cost using google.cost module."""
         text = _display_usage_text(
             "google", "gemini-3.7-flash", _usage(1_000_000, 1_000_000, 0)
         )
-        assert "Cost: 4.500000$" in text
+        assert "Cost: 4.5$" in text
 
     def test_usage_line_cost_minimax_provider():
         """MiniMax usage calculates cost using minimax.cost module."""
         text = _display_usage_text("minimax", "MiniMax-M3", _usage(100_000, 100_000, 0))
-        assert "Cost: 0.150000$" in text
+        assert "Cost: 15.0¢" in text
 
     def test_usage_line_cost_openai_provider():
         """OpenAI GPT-5.6 Luna usage calculates cost using openai.cost module."""
@@ -192,14 +192,14 @@ if pytest is not None:
         text = _display_usage_text(
             "openai", "gpt-5.6-luna", _usage(100_000, 1_000_000, 0)
         )
-        assert "Cost: 1.220000$" in text
+        assert "Cost: 1.2$" in text
 
     def test_usage_line_cost_openai_high_context():
         """High-context OpenAI requests (> 272K input tokens) bill at 2x/1.5x."""
         text = _display_usage_text(
             "openai", "gpt-5.6-luna", _usage(300_000, 1_000_000, 0)
         )
-        assert "Cost: 1.920000$" in text
+        assert "Cost: 1.9$" in text
 
     def test_usage_line_cost_anthropic_provider():
         """Anthropic usage calculates cost using anthropic.cost module."""
@@ -207,7 +207,7 @@ if pytest is not None:
         text = _display_usage_text(
             "anthropic", "claude-sonnet-5", _usage(1_000_000, 1_000_000, 0)
         )
-        assert "Cost: 12.000000$" in text
+        assert "Cost: 12.0$" in text
 
     def test_usage_line_cost_without_provider_model_is_na():
         """No provider/model falls back to Cost: N/A."""
@@ -244,7 +244,7 @@ if pytest is not None:
         text = _display_usage_text("deepseek", "deepseek-v4-flash", stats)
         # Cost from turn totals: 1.5M*$0.22 + 0.5M*$0.007 + 2M*$0.66
         #   = 0.33 + 0.0035 + 1.32 = 1.6535.
-        assert "Cost: 1.653500$ (off-peak)" in text
+        assert "Cost: 1.7$ (off-peak)" in text
         # The displayed counters still mirror the final round's request.
         assert "In: 1m" in text
         assert "Out: 1m" in text

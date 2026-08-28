@@ -648,6 +648,8 @@ def _display_usage(
     model and the token counts (cached input tokens are billed at the
     provider's cache-hit rate); it falls back to ``N/A`` when the provider
     or model is unknown, or when no cost module exists for the provider.
+    The estimate is rendered with an adaptive, magnitude-aware format
+    (issue #67), e.g. ``88.0¢ (off-peak)`` / ``1.2$`` / ``0.012¢``.
     When the usage is a :class:`~janito.agent.usage.TokenStats` (the turn
     report), the cost is billed against the turn-wide cumulative counters
     (``turn_input`` / ``turn_output`` / ``turn_cached``) so tool-call

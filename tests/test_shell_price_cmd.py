@@ -123,10 +123,10 @@ def test_price_shows_na_for_models_without_cost_module(monkeypatch, tmp_path, ca
     # claude-sonnet-5 -> $0.20 + $10 = 10.200000$.
     assert "anthropic" in out
     assert "claude-sonnet-5" in out
-    assert "10.200000$" in out
+    assert "10.2$" in out
     # OpenAI ships a cost module, so its model shows a real cost, not N/A.
     assert "gpt-5.6-luna" in out
-    assert "1.840000$" in out
+    assert "1.8$" in out
 
     # A provider without a cost module is reported as N/A.
     restore = _inject_fake_no_cost_provider()
@@ -151,9 +151,11 @@ def test_parse_cost_helper():
     """_parse_cost correctly parses numeric costs and handles N/A / invalid strings."""
     from janito.shell.cmds.price import _parse_cost
 
-    assert _parse_cost("6.250000$") == 6.25
-    assert _parse_cost("0.880000$ (off-peak)") == 0.88
-    assert _parse_cost("  3.937500$ ") == 3.9375
+    assert _parse_cost("6.3$") == 6.3
+    assert _parse_cost("88.0¢ (off-peak)") == 0.88
+    assert _parse_cost("  3.9$ ") == 3.9
+    assert _parse_cost("0.012¢") == 0.00012
+    assert _parse_cost("123$") == 123.0
     assert _parse_cost("N/A") == float("-inf")
     assert _parse_cost("") == float("-inf")
     assert _parse_cost(None) == float("-inf")

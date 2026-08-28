@@ -147,7 +147,8 @@ if pytest is not None:
         assert pa.get_responses_in_server_from_provider("openai") is False
 
     def test_get_provider_cost():
-        """get_provider_cost() delegates to the provider's cost module."""
+        """get_provider_cost() delegates to the provider's cost module and
+        renders the estimate with the adaptive magnitude-aware format."""
         from datetime import datetime, timezone
 
         # Weekday (Monday 2026-08-17 in Beijing Time) off-peak (12:00 UTC)
@@ -159,8 +160,8 @@ if pytest is not None:
         # the weekday peak window: weekends charge the off-peak rate all day.
         weekend_peak = datetime(2026, 8, 22, 8, 0, tzinfo=timezone.utc)
         # DeepSeek ships a cost module: V4-Flash at $0.22 / $0.007 (cache
-        # hit) / $0.66 output per 1M tokens (off-peak), formatted as
-        # NN.DDDDDD$ plus the applied rate band; peak hours double the rates.
+        # hit) / $0.66 output per 1M tokens (off-peak); the estimate is
+        # rendered with the adaptive format plus the applied rate band.
         assert (
             pa.get_provider_cost(
                 "deepseek",
@@ -170,7 +171,7 @@ if pytest is not None:
                 0,
                 now=off_peak,
             )
-            == "0.880000$ (off-peak)"
+            == "88.0\xa2 (off-peak)"
         )
         # Cached input tokens are billed at the cache-hit rate.
         assert (
@@ -182,14 +183,14 @@ if pytest is not None:
                 500_000,
                 now=off_peak,
             )
-            == "0.773500$ (off-peak)"
+            == "77.3\xa2 (off-peak)"
         )
         # Case-insensitive provider lookup (V4-Pro at $0.66 / $1.98).
         assert (
             pa.get_provider_cost(
                 "DeepSeek", "deepseek-v4-pro", 1_000_000, 1_000_000, 0, now=off_peak
             )
-            == "2.640000$ (off-peak)"
+            == "2.6$ (off-peak)"
         )
         # Peak-hour requests are billed at exactly double the off-peak rates.
         assert (
@@ -201,7 +202,7 @@ if pytest is not None:
                 0,
                 now=peak,
             )
-            == "1.760000$ (peak)"
+            == "1.8$ (peak)"
         )
         # Weekend requests are billed at the off-peak rate all day, even at
         # what would be a weekday peak hour (08:00 UTC).
@@ -214,202 +215,187 @@ if pytest is not None:
                 0,
                 now=weekend_peak,
             )
-            == "0.880000$ (off-peak)"
+            == "88.0\xa2 (off-peak)"
         )
         # Alibaba ships a cost module: qwen3.8-max at $2 / $0.25 (implicit
-        # cache hit) / $6 output per 1M tokens, formatted as NN.DDDDDD$.
+        # cache hit) / $6 output per 1M tokens.
         assert (
             pa.get_provider_cost("alibaba", "qwen3.8-max", 1_000_000, 1_000_000, 0)
-            == "8.000000$"
+            == "8.0$"
         )
         # Cached input tokens are billed at the implicit cache-hit rate.
         assert (
             pa.get_provider_cost(
                 "alibaba", "qwen3.8-max", 1_000_000, 1_000_000, 500_000
             )
-            == "7.125000$"
+            == "7.1$"
         )
         # qwen3.8-flash at $0.15 / $0.016 (implicit cache hit) / $0.47
         # output per 1M tokens.
         assert (
             pa.get_provider_cost("alibaba", "qwen3.8-flash", 1_000_000, 1_000_000, 0)
-            == "0.620000$"
+            == "62.0\xa2"
         )
         # Cached input tokens are billed at the implicit cache-hit rate.
         assert (
             pa.get_provider_cost(
                 "alibaba", "qwen3.8-flash", 1_000_000, 1_000_000, 500_000
             )
-            == "0.553000$"
+            == "55.3\xa2"
         )
         # Moonshot ships a cost module: kimi-k3 at $2.75 / $0.28 (cache
-        # hit) / $13.75 output per 1M tokens, formatted as NN.DDDDDD$.
+        # hit) / $13.75 output per 1M tokens.
         assert (
             pa.get_provider_cost("moonshot", "kimi-k3", 1_000_000, 1_000_000, 0)
-            == "16.500000$"
+            == "16.5$"
         )
         # Cached input tokens are billed at the cache-hit rate.
         assert (
             pa.get_provider_cost("moonshot", "kimi-k3", 1_000_000, 1_000_000, 500_000)
-            == "15.265000$"
+            == "15.3$"
         )
         # Case-insensitive provider lookup.
         assert (
             pa.get_provider_cost("Moonshot", "kimi-k3", 1_000_000, 1_000_000, 0)
-            == "16.500000$"
+            == "16.5$"
         )
         # Google ships a cost module: gemini-3.7-flash at $0.75 / $0.1875
-        # (context cache read) / $3.75 output per 1M tokens, formatted as NN.DDDDDD$.
+        # (context cache read) / $3.75 output per 1M tokens.
         assert (
             pa.get_provider_cost("google", "gemini-3.7-flash", 1_000_000, 1_000_000, 0)
-            == "4.500000$"
+            == "4.5$"
         )
         # Cached input tokens are billed at the context cache read rate.
         assert (
             pa.get_provider_cost(
                 "google", "gemini-3.7-flash", 1_000_000, 1_000_000, 500_000
             )
-            == "4.218750$"
+            == "4.2$"
         )
         # Case-insensitive provider lookup.
         assert (
             pa.get_provider_cost("Google", "gemini-3.7-flash", 1_000_000, 1_000_000, 0)
-            == "4.500000$"
+            == "4.5$"
         )
         # Z.ai ships a cost module: glm-5.3 at $1.40 / $0.26 (cache hit) /
-        # $4.40 output per 1M tokens, formatted as NN.DDDDDD$.
-        assert (
-            pa.get_provider_cost("zai", "glm-5.3", 1_000_000, 1_000_000, 0)
-            == "5.800000$"
-        )
+        # $4.40 output per 1M tokens.
+        assert pa.get_provider_cost("zai", "glm-5.3", 1_000_000, 1_000_000, 0) == "5.8$"
         # Cached input tokens are billed at the cache-hit rate.
         assert (
             pa.get_provider_cost("zai", "glm-5.3", 1_000_000, 1_000_000, 500_000)
-            == "5.230000$"
+            == "5.2$"
         )
         # Case-insensitive provider lookup.
-        assert (
-            pa.get_provider_cost("Zai", "glm-5.3", 1_000_000, 1_000_000, 0)
-            == "5.800000$"
-        )
+        assert pa.get_provider_cost("Zai", "glm-5.3", 1_000_000, 1_000_000, 0) == "5.8$"
         # GLM-5.3-Flash (default) at the 50% launch-promo price: $0.075 /
         # $0.015 (cache hit) / $0.25 output per 1M tokens.
         assert (
             pa.get_provider_cost("zai", "glm-5.3-flash", 1_000_000, 1_000_000, 0)
-            == "0.325000$"
+            == "32.5\xa2"
         )
         # Cached input tokens are billed at the cache-hit rate.
         assert (
             pa.get_provider_cost("zai", "glm-5.3-flash", 1_000_000, 1_000_000, 500_000)
-            == "0.295000$"
+            == "29.5\xa2"
         )
         # Xiaomi ships a cost module: mimo-v2.5 at $0.14 / $0.0028 (cache
-        # hit) / $0.28 output per 1M tokens, formatted as NN.DDDDDD$.
+        # hit) / $0.28 output per 1M tokens.
         assert (
             pa.get_provider_cost("xiaomi", "mimo-v2.5", 1_000_000, 1_000_000, 0)
-            == "0.420000$"
+            == "42.0\xa2"
         )
         # Cached input tokens are billed at the cache-hit rate.
         assert (
             pa.get_provider_cost("xiaomi", "mimo-v2.5", 1_000_000, 1_000_000, 500_000)
-            == "0.351400$"
+            == "35.1\xa2"
         )
         # Case-insensitive provider lookup.
         assert (
             pa.get_provider_cost("Xiaomi", "mimo-v2.5", 1_000_000, 1_000_000, 0)
-            == "0.420000$"
+            == "42.0\xa2"
         )
         # OpenAI ships a cost module: gpt-5.6-luna at $0.20 / $0.02 (cache
-        # read) / $1.20 output per 1M tokens, formatted as NN.DDDDDD$.
-        # Standard request (input <= 272K): 100k * $0.20 + 1M * $1.20 = 1.22.
+        # read) / $1.20 output per 1M tokens.  Standard request
+        # (input <= 272K): 100k * $0.20 + 1M * $1.20 = 1.22 -> 1.2$.
         assert (
             pa.get_provider_cost("openai", "gpt-5.6-luna", 100_000, 1_000_000, 0)
-            == "1.220000$"
+            == "1.2$"
         )
         # Cached input tokens are billed at the cache-read rate.
         assert (
             pa.get_provider_cost("openai", "gpt-5.6-luna", 100_000, 1_000_000, 40_000)
-            == "1.212800$"
+            == "1.2$"
         )
         # High-context prompts (> 272K input tokens) bill the whole request
         # at 2x input ($0.40) and 1.5x output ($1.80):
-        # 300k * $0.40 + 1M * $1.80 = 1.92.
+        # 300k * $0.40 + 1M * $1.80 = 1.92 -> 1.9$.
         assert (
             pa.get_provider_cost("openai", "gpt-5.6-luna", 300_000, 1_000_000, 0)
-            == "1.920000$"
+            == "1.9$"
         )
         # The GPT-5.6 family also covers Sol and Terra:
-        # sol: 100k * $4.00 + 1M * $20.00 = 20.40.
+        # sol: 100k * $4.00 + 1M * $20.00 = 20.40 -> 20.4$.
         assert (
             pa.get_provider_cost("openai", "gpt-5.6-sol", 100_000, 1_000_000, 0)
-            == "20.400000$"
+            == "20.4$"
         )
-        # terra: 100k * $2.00 + 1M * $12.00 = 12.20.
+        # terra: 100k * $2.00 + 1M * $12.00 = 12.20 -> 12.2$.
         assert (
             pa.get_provider_cost("openai", "gpt-5.6-terra", 100_000, 1_000_000, 0)
-            == "12.200000$"
+            == "12.2$"
         )
         # terra cached reads bill at the cache-read rate ($0.20):
-        # 60k * $2.00 + 40k * $0.20 + 1M * $12.00 = 12.128.
+        # 60k * $2.00 + 40k * $0.20 + 1M * $12.00 = 12.128 -> 12.1$.
         assert (
             pa.get_provider_cost("openai", "gpt-5.6-terra", 100_000, 1_000_000, 40_000)
-            == "12.128000$"
+            == "12.1$"
         )
         # xAI ships a cost module: grok-4.6 at $2.00 / $0.50 (cache hit) /
-        # $6.00 output per 1M tokens, formatted as NN.DDDDDD$.
-        # Standard request (input <= 200K): 100k * $2.00 + 1M * $6.00 = 6.20.
-        assert (
-            pa.get_provider_cost("xai", "grok-4.6", 100_000, 1_000_000, 0)
-            == "6.200000$"
-        )
+        # $6.00 output per 1M tokens.  Standard request (input <= 200K):
+        # 100k * $2.00 + 1M * $6.00 = 6.20 -> 6.2$.
+        assert pa.get_provider_cost("xai", "grok-4.6", 100_000, 1_000_000, 0) == "6.2$"
         # Cached input tokens are billed at the cache-hit rate.
         assert (
             pa.get_provider_cost("xai", "grok-4.6", 100_000, 1_000_000, 40_000)
-            == "6.140000$"
+            == "6.1$"
         )
         # Long-context prompts (> 200K input tokens) bill the whole request
         # at 2x input ($4.00) and 2x output ($12.00):
-        # 300k * $4.00 + 1M * $12.00 = 13.20.
-        assert (
-            pa.get_provider_cost("xai", "grok-4.6", 300_000, 1_000_000, 0)
-            == "13.200000$"
-        )
+        # 300k * $4.00 + 1M * $12.00 = 13.20 -> 13.2$.
+        assert pa.get_provider_cost("xai", "grok-4.6", 300_000, 1_000_000, 0) == "13.2$"
         # Case-insensitive provider lookup.
-        assert (
-            pa.get_provider_cost("Xai", "grok-4.6", 100_000, 1_000_000, 0)
-            == "6.200000$"
-        )
+        assert pa.get_provider_cost("Xai", "grok-4.6", 100_000, 1_000_000, 0) == "6.2$"
         # Anthropic ships a cost module: claude-sonnet-5 at $2 / $0.20 (cache
-        # hit) / $10 output per 1M tokens, formatted as NN.DDDDDD$.
+        # hit) / $10 output per 1M tokens.
         assert (
             pa.get_provider_cost(
                 "anthropic", "claude-sonnet-5", 1_000_000, 1_000_000, 0
             )
-            == "12.000000$"
+            == "12.0$"
         )
         # Cached input tokens are billed at the cache-hit rate.
         assert (
             pa.get_provider_cost(
                 "anthropic", "claude-sonnet-5", 1_000_000, 1_000_000, 500_000
             )
-            == "11.100000$"
+            == "11.1$"
         )
         # Case-insensitive provider lookup.
         assert (
             pa.get_provider_cost(
                 "Anthropic", "claude-sonnet-5", 1_000_000, 1_000_000, 0
             )
-            == "12.000000$"
+            == "12.0$"
         )
         # claude-opus-5 at $5 / $0.50 (cache hit) / $25 output per 1M tokens.
         assert (
             pa.get_provider_cost("anthropic", "claude-opus-5", 1_000_000, 1_000_000, 0)
-            == "30.000000$"
+            == "30.0$"
         )
         # claude-fable-5 at $10 / $1 (cache hit) / $50 output per 1M tokens.
         assert (
             pa.get_provider_cost("anthropic", "claude-fable-5", 1_000_000, 1_000_000, 0)
-            == "60.000000$"
+            == "60.0$"
         )
         # Unknown models within the provider fall back to "N/A".
         assert pa.get_provider_cost("deepseek", "bogus-model", 1000, 500, 100) == "N/A"
@@ -423,6 +409,34 @@ if pytest is not None:
         assert pa.get_provider_cost("anthropic", "bogus-model", 1000, 500, 100) == "N/A"
         # Unknown providers fall back to "N/A".
         assert pa.get_provider_cost("bogus", "model", 1000, 500, 100) == "N/A"
+
+    def test_format_cost_adaptive():
+        """_format_cost renders each magnitude band with the adaptive format."""
+        assert pa._format_cost(0.0001234) == "0.012\xa2"  # < 1 cent: 0.abc\xa2
+        assert pa._format_cost(0.005) == "0.500\xa2"
+        assert pa._format_cost(0.01) == "1.0\xa2"  # >= 1 cent: X.a\xa2
+        assert pa._format_cost(0.88) == "88.0\xa2"
+        assert pa._format_cost(0.999) == "99.9\xa2"
+        assert pa._format_cost(1.0) == "1.0$"  # >= 1$: X.a$
+        assert pa._format_cost(12.345) == "12.3$"
+        assert pa._format_cost(99.9) == "99.9$"
+        assert pa._format_cost(100.0) == "100$"  # >= 100$: X$
+        assert pa._format_cost(123.456) == "123$"
+
+    def test_format_cost_rounding_boundary_promotion():
+        """Values that round across a unit boundary promote to the next unit."""
+        # 0.9999 cents rounds to a full cent -> 1.0\xa2 (never 1.000\xa2).
+        assert pa._format_cost(0.009999) == "1.0\xa2"
+        # 99.96$ rounds to 100 -> 100$ (never 100.0$).
+        assert pa._format_cost(99.96) == "100$"
+        assert pa._format_cost(99.99) == "100$"
+
+    def test_adapt_cost_string_preserves_annotation_and_na():
+        """_adapt_cost_string re-renders the numeric part and keeps the band."""
+        assert pa._adapt_cost_string("0.880000$ (off-peak)") == "88.0\xa2 (off-peak)"
+        assert pa._adapt_cost_string("1.760000$ (peak)") == "1.8$ (peak)"
+        assert pa._adapt_cost_string("6.250000$") == "6.2$"
+        assert pa._adapt_cost_string("N/A") == "N/A"
 
     def test_provider_get_cost_accepts_is_reference():
         """Every provider's get_cost() accepts the is_reference parameter."""

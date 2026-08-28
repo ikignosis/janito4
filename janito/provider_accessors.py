@@ -626,6 +626,54 @@ def get_responses_in_server_from_provider(
     return found.responses_in_server(model)
 
 
+def _format_cost(cost: float) -> str:
+    """Render a dollar amount with an adaptive, magnitude-aware format.
+
+    The number of significant digits grows as the value shrinks, so both
+    tiny and large estimates stay readable (issue #67):
+
+    * value < 1 cent        -> ``0.abc¢`` (3 decimal digits, ``c`` rounded)
+    * 1 cent <= value < 1$  -> ``X.a¢``   (1 decimal digit, ``a`` rounded)
+    * 1$ <= value < 100$    -> ``X.a$``     (1 decimal digit, ``a`` rounded)
+    * value >= 100$         -> ``X$``       (integer, rounded)
+
+    A value that rounds up across a unit boundary is promoted to the next
+    unit (e.g. ``99.96$`` -> ``100$``, ``0.009999$`` -> ``1.0¢``) so the
+    output never shows ``100.0¢`` / ``100.0$``.
+    """
+    cents = cost * 100
+    if cost < 0.01:
+        if round(cents, 3) >= 1.0:  # 0.abc¢ rounded up to a full cent
+            return f"{cents:.1f}¢"
+        return f"{cents:.3f}¢"
+    if cost < 1.0:
+        if round(cents, 1) >= 100.0:  # X.a¢ rounded up to a full dollar
+            return f"{cost:.1f}$"
+        return f"{cents:.1f}¢"
+    if cost < 100.0:
+        if round(cost, 1) >= 100.0:  # X.a$ rounded up to 100
+            return f"{cost:.0f}$"
+        return f"{cost:.1f}$"
+    return f"{cost:.0f}$"
+
+
+def _adapt_cost_string(raw: str) -> str:
+    """Re-render a provider cost string with the adaptive format.
+
+    Provider cost modules return ``NN.DDDDDD$``, optionally followed by a
+    rate-band annotation such as `` (off-peak)``.  The numeric part is
+    re-rendered with :func:`_format_cost` and the annotation is preserved.
+    ``N/A`` and unparseable strings pass through unchanged.
+    """
+    value, sep, annotation = raw.partition("$")
+    if not sep:
+        return raw
+    try:
+        return _format_cost(float(value)) + annotation
+    except ValueError:
+        return raw
+
+
 def get_provider_cost(
     provider: str,
     model: str,
@@ -643,7 +691,9 @@ def get_provider_cost(
     ``get_cost(model, input, output, cached, is_reference=False)`` function
     returning a dollar-formatted string with six decimal digits (e.g.
     ``"0.880000$ (off-peak)"`` when the provider annotates the applied rate
-    band).  Providers without a cost module fall back to ``"N/A"``.
+    band).  The numeric part is re-rendered with the adaptive format of
+    :func:`_format_cost` (e.g. ``"88.0¢ (off-peak)"``) before being
+    returned.  Providers without a cost module fall back to ``"N/A"``.
 
     Args:
         provider: The provider name (case-insensitive).  Registered provider
@@ -663,10 +713,10 @@ def get_provider_cost(
             suffix from the returned string; other providers ignore it.
 
     Returns:
-        The estimated cost formatted as a dollar string with six decimal
-        digits, optionally annotated with the applied rate band
-        (e.g. ``"0.880000$ (off-peak)"``), or
-        ``"N/A"`` when the provider is unknown or has no cost module.
+        The estimated cost rendered with the adaptive format (e.g.
+        ``"88.0¢ (off-peak)"`` / ``"1.2$"``), preserving the provider's
+        rate-band annotation, or ``"N/A"`` when the provider is unknown or
+        has no cost module.
     """
     found = _registry.get(provider)
     if found is None:
@@ -678,9 +728,11 @@ def get_provider_cost(
         cost_module = import_module(f"janito.providers.{base}.cost")
         get_cost = getattr(cost_module, "get_cost")
         if now is None:
-            return get_cost(model, input, output, cached, is_reference=is_reference)
-        return get_cost(
-            model, input, output, cached, now=now, is_reference=is_reference
-        )
+            raw = get_cost(model, input, output, cached, is_reference=is_reference)
+        else:
+            raw = get_cost(
+                model, input, output, cached, now=now, is_reference=is_reference
+            )
+        return _adapt_cost_string(raw)
     except (ImportError, AttributeError, TypeError):
         return "N/A"
