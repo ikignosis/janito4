@@ -61,6 +61,10 @@ class HelpCmdHandler(CmdHandler):
             "/read", "Ask the LLM using the main history but read-only tools"
         )
         features.add_row(
+            "/rx",
+            "Ask the LLM using the main history but read + execute tools",
+        )
+        features.add_row(
             "/write", "Ask the LLM using the main history but write-only tools"
         )
         features.add_row(

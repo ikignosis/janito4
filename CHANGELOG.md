@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   conversation history while offering the model no tools for that message
   only (the per-message equivalent of `--no-tools`); the next prompt goes
   back to the session's default tool configuration.
+- `/rx <question>` shell command: send a prompt through the **main**
+  conversation history while restricting `tools=` to the read and execute
+  (`"r"`/`"x"` permission) built-in tools — the model can read/search/fetch
+  and run commands but cannot write or modify anything (issue #63).
 
 ### Changed
 
