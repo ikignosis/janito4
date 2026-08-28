@@ -198,6 +198,12 @@ def promote(
     if body:
         new_text += body + "\n\n"
     new_text += suffix_text
+    # Always end with exactly one trailing newline. When [Unreleased] is the
+    # last section of the file (the state right after a release reset),
+    # suffix_text is empty and the concatenation above would leave the file
+    # with a dangling blank line and no final newline, which pre-commit's
+    # end-of-file-fixer then rewrites, aborting the release commit.
+    new_text = new_text.rstrip("\n") + "\n"
 
     if dry_run:
         print(new_text)
