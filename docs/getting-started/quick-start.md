@@ -59,7 +59,7 @@ Type your messages and press Enter. Commands:
 | `/exit` | End the session |
 | `clear` | Clear conversation and start a new one |
 | `Ctrl+D` / `Ctrl+Z` | Exit the shell (EOF) |
-| `/help` | List all commands and shortcuts |
+| `/help` | List all commands (with descriptions), tool modes and shortcuts |
 
 For the full list of chat commands, see [Interactive Mode](../usage/interactive-mode.md).
 

@@ -26,6 +26,10 @@ class ChangesCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/changes"
 
+    @property
+    def description(self) -> str:
+        return "Show the file-changing tool executions for the current prompt"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /changes command."""
         if user_input.strip().lower() == self.name.lower():

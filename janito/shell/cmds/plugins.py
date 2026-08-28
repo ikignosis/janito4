@@ -31,6 +31,10 @@ class PluginsCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/plugins"
 
+    @property
+    def description(self) -> str:
+        return "List the installed plugins"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /plugins command."""
         if user_input.lower().strip() == self.name.lower():

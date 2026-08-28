@@ -21,6 +21,10 @@ class ThinkingCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/thinking"
 
+    @property
+    def description(self) -> str:
+        return "Show or change the session's thinking mode"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /thinking command."""
         parts = user_input.strip().split(None, 1)

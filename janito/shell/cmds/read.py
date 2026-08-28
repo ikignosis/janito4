@@ -36,6 +36,10 @@ class ReadCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/read"
 
+    @property
+    def description(self) -> str:
+        return "Send a prompt restricted to read-only tools"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /read command."""
         # Match '/read' exactly or '/read <question>' (not '/reads', etc.)

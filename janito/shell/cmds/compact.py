@@ -378,6 +378,10 @@ class CompactCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/compact"
 
+    @property
+    def description(self) -> str:
+        return "Compress older conversation history"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /compact command."""
         if user_input.lower().strip() == self.name.lower():

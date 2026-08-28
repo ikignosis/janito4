@@ -13,6 +13,10 @@ class PromptCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/prompt"
 
+    @property
+    def description(self) -> str:
+        return "Show the current system prompt"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /prompt command."""
         if user_input.lower() == self.name.lower():

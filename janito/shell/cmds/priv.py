@@ -13,6 +13,10 @@ class PrivCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/priv"
 
+    @property
+    def description(self) -> str:
+        return "Show the current running privileges"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /priv command."""
         if user_input.strip().lower() == self.name.lower():

@@ -123,7 +123,7 @@ Commands in chat mode:
 - `/exit` - End the session
 - `clear` - Clear conversation and start a new one
 - `Ctrl+D` / `Ctrl+Z` then Enter - Exit (EOF)
-- `/help` - List all commands
+- `/help` - List all commands (with descriptions) and shortcuts
 
 ### Web UI (Alpha)
 

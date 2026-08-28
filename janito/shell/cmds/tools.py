@@ -72,6 +72,10 @@ class ToolsCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/tools"
 
+    @property
+    def description(self) -> str:
+        return "List all loaded tools"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /tools command."""
         if user_input.strip().lower() == self.name.lower():

@@ -13,6 +13,10 @@ class MultiCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/multi"
 
+    @property
+    def description(self) -> str:
+        return "Enable multiline input for the next prompt"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /multi command."""
         if user_input.strip().lower() == self.name.lower():

@@ -40,6 +40,10 @@ class McpCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/mcp"
 
+    @property
+    def description(self) -> str:
+        return "Manage MCP (Model Context Protocol) services"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /mcp command."""
         if not user_input.lower().startswith(self.name.lower()):

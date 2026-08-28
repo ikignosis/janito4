@@ -80,6 +80,10 @@ class ModelCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/model"
 
+    @property
+    def description(self) -> str:
+        return "Show or switch the active model for the session"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /model command."""
         parts = user_input.strip().split(None, 1)

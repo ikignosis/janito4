@@ -22,6 +22,10 @@ class NoToolsCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/notools"
 
+    @property
+    def description(self) -> str:
+        return "Send a prompt without any tools (this message only)"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /notools command."""
         # Match '/notools' exactly or '/notools <question>' (not '/notoolsx')

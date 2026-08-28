@@ -20,6 +20,10 @@ class RewindCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/rewind"
 
+    @property
+    def description(self) -> str:
+        return "Undo the most recent turn"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /rewind command."""
         if user_input.lower().strip() == self.name:

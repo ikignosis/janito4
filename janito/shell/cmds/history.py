@@ -59,6 +59,10 @@ class HistoryCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/history"
 
+    @property
+    def description(self) -> str:
+        return "Show the conversation history"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /history command."""
         if user_input.lower() == self.name.lower():

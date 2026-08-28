@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `/help` now shows a short description right after every registered command
+  and splits the prompt tool modes into their own rich table: `/read`
+  (read-only tools), `/rx` (read + execute tools), `/write` (write-only
+  tools) and `/notools` (no tools) (issue #66).
 - `ReadMultipleFiles` tool: removed the `max_lines` parameter — files are now
   always read in full. For partial reads use `ReadFile` with
   `start_line`/`max_lines`.

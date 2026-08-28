@@ -54,7 +54,7 @@ Additional slash commands available in the terminal shell:
 
 | Command | Description |
 |---------|-------------|
-| `/help` | Show help information |
+| `/help` | Show help: every command with its description, the prompt tool modes (read-only / read + execute / write-only / no tools) and the keyboard shortcuts |
 | `/exit` | End the session |
 | `/ask <question>` | Send a one-off question to the LLM with a **fresh, isolated** chat history (the main conversation is not affected) |
 | `/skills` | List all available skills (home + agents + local) |

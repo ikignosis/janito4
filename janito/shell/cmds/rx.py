@@ -37,6 +37,10 @@ class RxCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/rx"
 
+    @property
+    def description(self) -> str:
+        return "Send a prompt restricted to read and execute tools"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /rx command."""
         # Match '/rx' exactly or '/rx <question>' (not '/rxs', etc.)

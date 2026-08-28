@@ -42,6 +42,10 @@ class PriceCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/price"
 
+    @property
+    def description(self) -> str:
+        return "Show per-model pricing for every built-in model"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /price command."""
         if user_input.strip().lower() == self.name.lower():

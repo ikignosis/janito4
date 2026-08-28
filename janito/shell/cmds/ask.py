@@ -17,6 +17,10 @@ class AskCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/ask"
 
+    @property
+    def description(self) -> str:
+        return "Send a one-off question with a fresh, isolated chat history"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /ask command."""
         # Match '/ask' exactly or '/ask <question>' (not '/askme', etc.)

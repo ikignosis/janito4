@@ -20,6 +20,10 @@ class ShowToolsStatsCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/show_tools_stats"
 
+    @property
+    def description(self) -> str:
+        return "Show tool usage statistics"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /show_tools_stats command."""
         if user_input.strip().lower() == self.name.lower():

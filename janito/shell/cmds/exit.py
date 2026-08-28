@@ -13,6 +13,10 @@ class ExitCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/exit"
 
+    @property
+    def description(self) -> str:
+        return "Exit the chat session"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /exit command."""
         if user_input.lower() == self.name.lower():

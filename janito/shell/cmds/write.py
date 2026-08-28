@@ -36,6 +36,10 @@ class WriteCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/write"
 
+    @property
+    def description(self) -> str:
+        return "Send a prompt restricted to write-only tools"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /write command."""
         # Match '/write' exactly or '/write <question>' (not '/writes', etc.)

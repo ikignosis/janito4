@@ -43,6 +43,10 @@ class SkillsCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/skills"
 
+    @property
+    def description(self) -> str:
+        return "List all available skills"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /skills command."""
         if user_input.lower() == self.name.lower():

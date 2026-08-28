@@ -22,6 +22,17 @@ class CmdHandler(ABC):
     def name(self) -> str:
         """The command name (e.g., '/status')."""
 
+    @property
+    def description(self) -> str:
+        """
+        A short human-readable description of the command.
+
+        Shown by the /help command right after the command name. Subclasses
+        should override this; the default is an empty string so third-party
+        (e.g. plugin) handlers keep working without one.
+        """
+        return ""
+
     @abstractmethod
     def handle(self, shell: "InteractiveShell", user_input: str) -> bool:
         """

@@ -207,6 +207,10 @@ class StatusCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/status"
 
+    @property
+    def description(self) -> str:
+        return "Show the resolved runtime configuration"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /status command."""
         if user_input.lower() == self.name.lower():

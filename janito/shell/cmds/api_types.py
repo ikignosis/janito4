@@ -29,6 +29,10 @@ class ApiTypesCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/api_types"
 
+    @property
+    def description(self) -> str:
+        return "List the API types supported by each provider/model"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /api_types command."""
         if user_input.strip().lower() == self.name.lower():

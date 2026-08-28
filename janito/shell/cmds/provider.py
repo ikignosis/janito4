@@ -68,6 +68,10 @@ class ProviderCmdHandler(CmdHandler):
     def name(self) -> str:
         return "/provider"
 
+    @property
+    def description(self) -> str:
+        return "Show or switch the active provider for the session"
+
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /provider command."""
         parts = user_input.strip().split(None, 1)
