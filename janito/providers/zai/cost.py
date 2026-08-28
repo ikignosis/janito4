@@ -3,17 +3,23 @@
 Rates source
 ------------
 The per-1M-token rates below were taken from the official Z.ai pricing page
-at https://docs.z.ai/guides/overview/pricing (last verified 2026-08-18) and
+at https://docs.z.ai/guides/overview/pricing (last verified 2026-08-28) and
 apply as of the verification date.  Z.ai adjusts figures frequently, so
 cross-check that page before relying on them.
+
+GLM-5.3-Flash launch promotion
+------------------------------
+GLM-5.3-Flash is billed at a 50% discount off the list price (input $0.15,
+cached input $0.03, output $0.50 per 1M tokens) until 2026-09-09 24:00
+(UTC+8).  The rates below reflect the discounted price; re-check the
+pricing page once the promotion ends.
 
 Prompt caching
 --------------
 Z.ai applies automatic context caching: cached input tokens are billed at
-the much lower cache-hit rate ($0.26/1M, ~19% of the cache-miss input rate)
-instead of the cache-miss rate.  Cached-input storage is billed as
-"Limited-time Free" per the official pricing page, so it does not
-contribute to the estimate.  There is no peak-hour surcharge.
+the much lower cache-hit rate instead of the cache-miss rate.  Cached-input
+storage is billed as "Limited-time Free" per the official pricing page, so
+it does not contribute to the estimate.  There is no peak-hour surcharge.
 """
 
 #: Per-1M-token rates (USD) keyed by model name:
@@ -25,6 +31,7 @@ contribute to the estimate.  There is no peak-hour surcharge.
 #: storage is "Limited-time Free" per the official pricing page, so it does
 #: not contribute to the estimate.
 _MODEL_RATES: dict[str, tuple[float, float, float]] = {
+    "glm-5.3-flash": (0.075, 0.015, 0.25),
     "glm-5.3": (1.40, 0.26, 4.40),
 }
 

@@ -297,6 +297,10 @@ if pytest is not None:
             get_default_max_output_tokens_from_provider("alibaba", "qwen3.8-flash")
             == 131072
         )
+        # Z.ai's default is the GLM-5.3-Flash model (1M input / 128K output).
+        assert get_default_model_from_provider("zai") == "glm-5.3-flash"
+        assert get_default_max_input_tokens_from_provider("zai") == 1000000
+        assert get_default_max_output_tokens_from_provider("zai") == 128000
         # The "custom" provider has no built-in defaults.
         assert get_default_model_from_provider("custom") is None
         assert get_default_max_input_tokens_from_provider("custom") is None

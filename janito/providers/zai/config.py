@@ -7,9 +7,15 @@ CONFIG option.
 
 #: The config entry for the ``zai`` provider.
 PROVIDER_CONFIG: dict = {
-    "default_model": "glm-5.3",
+    "default_model": "glm-5.3-flash",
     "endpoint": "https://api.z.ai/api/paas/v4/",
     "models": {
+        "glm-5.3-flash": {
+            "supported_api_types": ["Completions"],
+            "default_api_type": "Completions",  # built-in default (the first supported type)
+            "max_input_tokens": 1000000,  # 1M context window
+            "max_output_tokens": 128000,  # 128K
+        },
         "glm-5.3": {
             "supported_api_types": ["Completions"],
             "default_api_type": "Completions",  # built-in default (the first supported type)

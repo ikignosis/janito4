@@ -627,7 +627,7 @@ Use Z.AI to access GLM models (Zhipu AI).
 
 ```bash
 # Step 1: Set provider and model
-janito --set provider=zai --set model=glm-5.3
+janito --set provider=zai --set model=glm-5.3-flash
 # Step 2: Store API key
 janito --set-api-key="your-zai-api-key" --provider zai
 ```
@@ -636,7 +636,8 @@ janito --set-api-key="your-zai-api-key" --provider zai
 
 | Model | Description |
 |-------|-------------|
-| `glm-5.3` | Latest GLM-5 model (default, built-in) |
+| `glm-5.3-flash` | GLM-5.3-Flash, the fast/cheap GLM-5 model (default, built-in) |
+| `glm-5.3` | Full-size GLM-5.3 model |
 
 Model selection is restricted to the built-in models above.
 `janito --list-models` shows the accepted names.
@@ -645,7 +646,7 @@ Model selection is restricted to the built-in models above.
 
 ```bash
 # Step 1: Set provider and model
-janito --set provider=zai --set model=glm-5.3
+janito --set provider=zai --set model=glm-5.3-flash
 # Step 2: Store API key
 janito --set-api-key="your-zai-api-key" --provider zai
 # Step 3: Run prompt

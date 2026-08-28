@@ -32,6 +32,12 @@ Changes since `v4.31.0` (2026-08-25).
   built-in config and cost estimation ($0.15 / $0.016 cache-hit / $0.47
   output per 1M tokens; 991K max input, 131K max output; built-in tools on
   the Responses API).
+- `feat(zai)`: add the `glm-5.3-flash` model to the Z.ai provider's built-in
+  config and cost estimation, and make it the provider default (closes
+  #58).  GLM-5.3-Flash is the fast/cheap GLM-5 model (1M input / 128K
+  output); its cost rates reflect the 50% launch-promotion price ($0.075 /
+  $0.015 cache-hit / $0.25 output per 1M tokens) until 2026-09-09 24:00
+  (UTC+8), after which the list price ($0.15 / $0.03 / $0.50) applies.
 
 ### Changed
 

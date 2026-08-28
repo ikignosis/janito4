@@ -292,6 +292,17 @@ if pytest is not None:
             pa.get_provider_cost("Zai", "glm-5.3", 1_000_000, 1_000_000, 0)
             == "5.800000$"
         )
+        # GLM-5.3-Flash (default) at the 50% launch-promo price: $0.075 /
+        # $0.015 (cache hit) / $0.25 output per 1M tokens.
+        assert (
+            pa.get_provider_cost("zai", "glm-5.3-flash", 1_000_000, 1_000_000, 0)
+            == "0.325000$"
+        )
+        # Cached input tokens are billed at the cache-hit rate.
+        assert (
+            pa.get_provider_cost("zai", "glm-5.3-flash", 1_000_000, 1_000_000, 500_000)
+            == "0.295000$"
+        )
         # Xiaomi ships a cost module: mimo-v2.5 at $0.14 / $0.0028 (cache
         # hit) / $0.28 output per 1M tokens, formatted as NN.DDDDDD$.
         assert (
@@ -481,6 +492,11 @@ if pytest is not None:
         assert (
             zai_get_cost("glm-5.3", 1_000_000, 1_000_000, 0, is_reference=True)
             == "5.800000$"
+        )
+        # GLM-5.3-Flash: 1M * $0.075 + 1M * $0.25 = 0.325.
+        assert (
+            zai_get_cost("glm-5.3-flash", 1_000_000, 1_000_000, 0, is_reference=True)
+            == "0.325000$"
         )
         # DeepSeek bills reference requests at the peak rates (double the
         # off-peak: (0.22 + 0.66) * 2 = 1.76) and omits the rate-band suffix.
