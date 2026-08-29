@@ -1,14 +1,14 @@
 """
-Tests for the post-call turn report.
+Tests for the end-of-turn report.
 
 The CLI no longer prints the token-usage summary inside the per-client
 ``_finalize`` helpers.  Instead ``Client.run_turn`` folds every round's usage
 into a :class:`~janito.agent.usage.TokenStats` carried out on a
-:class:`~janito.openai_client.client_support.TurnUsage` out-param, and the
-CLI renders it once ``run_turn`` returns via
-:func:`~janito.openai_client.client_support.display_turn_usage` -- wired up
-by :func:`~janito.openai_client.client_support.wrap_turn_with_report`
-in ``janito/cli/chat.py``.  These tests pin that contract.
+:class:`~janito.openai_client.client_support.TurnUsage` out-param, and
+delivers it to the injected observer's ``on_turn_complete`` when the turn
+finishes (the CLI's ``RichTurnObserver`` renders it via
+:func:`~janito.openai_client.client_support.display_turn_usage` and records
+the overall-use accounting row).  These tests pin that contract.
 """
 
 import sys
@@ -30,7 +30,6 @@ from janito.agent.usage import TokenStats, normalize_usage  # noqa: E402
 from janito.openai_client.client_support import (  # noqa: E402
     TurnUsage,
     display_turn_usage,
-    wrap_turn_with_report,
 )
 
 
@@ -186,88 +185,93 @@ class TestDisplayTurnUsage:
         assert self._render(TurnUsage()) == ""
 
 
-class TestWrapLlmTurnWithReport:
-    def _make_turn(self, holder):
-        def fake_turn(
-            prompt,
-            verbose=False,
-            previous_messages=None,
-            previous_response_id=None,
-            previous_items=None,
-            instructions=None,
-            tools=None,
-            usage_out=None,
-        ):
-            usage_out.stats = _token_stats()
-            usage_out.provider = "deepseek"
-            usage_out.model = "deepseek-v4-flash"
-            usage_out.message_count = 2
-            usage_out.label = "Messages"
-            usage_out.show_cached = True
-            holder["usage_out"] = usage_out
-            holder["kwargs"] = dict(
-                verbose=verbose,
-                previous_messages=previous_messages,
-                previous_response_id=previous_response_id,
-                previous_items=previous_items,
-                instructions=instructions,
-                tools=tools,
+class TestRunTurnDeliversTurnReport:
+    """``Client.run_turn`` delivers the end-of-turn report to the injected
+    observer's ``on_turn_complete`` when the turn finishes (the CLI wrapper
+    that used to do it is gone)."""
+
+    def _client(self, monkeypatch, observer):
+        from conftest import make_config
+
+        from janito.openai_client.completions_api import CompletionsClient
+
+        def fake_run(func, client, call_kwargs, tools_schemas):
+            return (
+                "final answer",
+                None,
+                {},
+                SimpleNamespace(
+                    prompt_tokens=60,
+                    completion_tokens=40,
+                    total_tokens=100,
+                    prompt_tokens_details=SimpleNamespace(cached_tokens=5),
+                ),
+                {"id": "chatcmpl-1"},
             )
-            return "final answer"
 
-        return fake_turn
+        monkeypatch.setattr(
+            "janito.openai_client.client_support._load_mcp",
+            lambda use_mcp: (None, []),
+        )
+        return CompletionsClient(
+            make_config(
+                model="gpt-4",
+                use_mcp=False,
+                stream_runner=fake_run,
+                observer=observer,
+            )
+        )
 
-    def _make_observer(self, recorded):
-        class FakeObserver:
+    def test_run_turn_calls_on_turn_complete_with_populated_usage_out(
+        self, monkeypatch
+    ):
+        recorded = []
+
+        class Obs:
+            def on_reasoning(self, content):
+                pass
+
+            def on_message(self, content):
+                pass
+
             def on_turn_complete(self, usage_out):
                 recorded.append(usage_out)
 
-        return FakeObserver()
-
-    def test_wrapper_calls_api_then_displays_report(self):
-        holder = {}
-        recorded = []
-        wrapped = wrap_turn_with_report(
-            self._make_turn(holder), observer=self._make_observer(recorded)
-        )
-        result = wrapped("hi")
+        client = self._client(monkeypatch, Obs())
+        usage_out = TurnUsage()
+        result = client.run_turn("hi", tools=[], usage_out=usage_out)
         assert result == "final answer"
-        assert recorded == [holder["usage_out"]]
+        # on_turn_complete was invoked exactly once, with the populated
+        # out-param: usage folded from the stream round, provider/model and
+        # the display metadata set by the finalizer.
+        assert len(recorded) == 1
+        u = recorded[0]
+        assert u is usage_out
+        assert u.stats is not None
+        assert u.stats.turn_input == 60
+        assert u.stats.turn_output == 40
+        assert u.provider == "openai"
+        assert u.model == "gpt-4"
+        assert u.message_count == 2  # user + assistant
 
-    def test_wrapper_can_suppress_report(self):
-        holder = {}
-        recorded = []
-        wrapped = wrap_turn_with_report(
-            self._make_turn(holder), observer=self._make_observer(recorded)
-        )
-        result = wrapped("hi", display_turn_report=False)
-        assert result == "final answer"
-        assert recorded == []
+    def test_run_turn_without_usage_out_skips_report(self, monkeypatch):
+        """Without the usage_out out-param no report is delivered (the
+        headless/CLI callers opt in through the out-param)."""
+        called = []
 
-    def test_wrapper_without_observer_renders_nothing(self):
-        holder = {}
-        wrapped = wrap_turn_with_report(self._make_turn(holder))
-        result = wrapped("hi")
-        assert result == "final answer"
+        class Obs:
+            def on_reasoning(self, content):
+                pass
 
-    def test_wrapper_forwards_api_kwargs(self):
-        holder = {}
-        recorded = []
-        wrapped = wrap_turn_with_report(
-            self._make_turn(holder), observer=self._make_observer(recorded)
-        )
-        wrapped(
-            "hello",
-            verbose=True,
-            previous_messages=[{"role": "user", "content": "hello"}],
-            tools=[],
-        )
-        kw = holder["kwargs"]
-        assert kw["verbose"] is True
-        assert kw["previous_messages"] == [{"role": "user", "content": "hello"}]
-        assert kw["tools"] == []
-        # The usage out-param reaches the observer's on_turn_complete...
-        assert recorded == [holder["usage_out"]]
+            def on_message(self, content):
+                pass
+
+            def on_turn_complete(self, usage_out):
+                called.append(usage_out)
+
+        client = self._client(monkeypatch, Obs())
+        client.run_turn("hi", tools=[])
+        assert called == []
 
     def test_rich_observer_on_turn_complete_renders_report(self):
         """The CLI's RichTurnObserver renders the report through
@@ -292,3 +296,46 @@ class TestWrapLlmTurnWithReport:
         text = buf.getvalue()
         assert "Total: 100" in text
         assert "In: 60/65.5k" in text
+
+    def test_rich_observer_on_turn_complete_records_accounting(self):
+        """The observer's on_turn_complete also writes the overall-use
+        accounting row (the end-of-turn bookkeeping lives in the observer,
+        mirroring the web loop's own accounting)."""
+        import janito.tooling.accounting as accounting
+        from janito.openai_client.client_support import RichTurnObserver
+
+        accounting._store._turn_counter = 0
+        buf = StringIO()
+        observer = RichTurnObserver(
+            console=Console(file=buf, width=120, force_terminal=False)
+        )
+        u = TurnUsage(
+            stats=_token_stats(),
+            provider="deepseek",
+            model="deepseek-v4-flash",
+            show_cached=True,
+        )
+        observer.on_turn_complete(u)
+        records = accounting.get_records()
+        assert len(records) == 1
+        row = records[0]
+        # The turn-wide cumulative counters (tool-call rounds included).
+        assert row["provider"] == "deepseek"
+        assert row["model"] == "deepseek-v4-flash"
+        assert row["input_tokens"] == 180
+        assert row["cached_tokens"] == 10
+        assert row["output_tokens"] == 120
+
+    def test_rich_observer_on_turn_complete_without_usage_records_nothing(self):
+        """No usage reported -> no accounting row and no rendering."""
+        import janito.tooling.accounting as accounting
+        from janito.openai_client.client_support import RichTurnObserver
+
+        accounting._store._turn_counter = 0
+        buf = StringIO()
+        observer = RichTurnObserver(
+            console=Console(file=buf, width=120, force_terminal=False)
+        )
+        observer.on_turn_complete(TurnUsage())
+        assert accounting.get_records() == []
+        assert buf.getvalue() == ""

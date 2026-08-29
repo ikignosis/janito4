@@ -132,8 +132,10 @@ class Client:
         subclass's :meth:`_init_conversation_state` picks the ones it needs.
         The optional ``usage_out`` kwarg (a
         :class:`~janito.openai_client.client_support.TurnUsage`) is populated
-        with the turn's usage and display metadata so the caller can render
-        the end-of-turn reports after ``run_turn`` returns.  The conversation
+        with the turn's usage and display metadata; when it is given, the
+        end-of-turn report is delivered to the injected observer's
+        ``on_turn_complete`` once the turn finishes (see
+        :class:`~janito.agent.observer.TurnObserver`).  The conversation
         turn number is never passed here: it is display-only caller
         knowledge, supplied directly to the renderer by the caller.
 
@@ -157,8 +159,9 @@ class Client:
         reset_used_files()
 
         # Out-param for the post-call turn report (see TurnUsage): populated
-        # as the rounds stream so the caller can render the usage summary
-        # after run_turn() returns instead of inside the _finalize hooks.
+        # as the rounds stream so the end-of-turn report can be delivered to
+        # the observer's on_turn_complete when the turn finishes, instead of
+        # being rendered inside the _finalize hooks.
         usage_out = kwargs.pop("usage_out", None)
 
         base_url, api_key, model = (
@@ -289,8 +292,26 @@ class Client:
                 )
                 continue
 
-            # No more tool calls, return the final response.
-            return self._finalize(full_content, reasoning_content, state, usage_out)
+            # No more tool calls, return the final response.  The end-of-turn
+            # report is delivered to the injected observer here, at the end
+            # of the turn, like every other observer event: the observer's
+            # ``on_turn_complete`` renders the usage summary and records the
+            # overall-use accounting row (see RichTurnObserver).
+            return self._finish_turn(full_content, reasoning_content, state, usage_out)
+
+    def _finish_turn(self, full_content, reasoning_content, state, usage_out):
+        """Finalize the turn and deliver the end-of-turn report.
+
+        Runs the concrete client's :meth:`_finalize` hook and then hands the
+        populated ``usage_out`` out-param to the injected observer's
+        ``on_turn_complete`` (which renders the usage summary and records the
+        overall-use accounting row); without the out-param nothing is
+        delivered.
+        """
+        result = self._finalize(full_content, reasoning_content, state, usage_out)
+        if usage_out is not None:
+            self.observer.on_turn_complete(usage_out)
+        return result
 
     # ------------------------------------------------------------------
     # Shared helpers (base implementation; not monkeypatched by tests)
@@ -394,10 +415,11 @@ class Client:
 
         ``usage_out`` (a
         :class:`~janito.openai_client.client_support.TurnUsage`, or ``None``)
-        receives the display metadata the caller needs to render the
-        end-of-turn reports after ``run_turn`` returns (message count / label /
-        cached reporting); the token counters were already folded onto
-        ``usage_out.stats`` by :meth:`run_turn`.
+        receives the display metadata the end-of-turn report needs (message
+        count / label / cached reporting); the token counters were already
+        folded onto ``usage_out.stats`` by :meth:`run_turn`, and the report
+        is delivered to the observer's ``on_turn_complete`` right after this
+        hook returns.
         """
         raise NotImplementedError
 

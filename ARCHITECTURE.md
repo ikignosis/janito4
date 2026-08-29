@@ -162,12 +162,11 @@ The pipeline per turn:
    again; otherwise finalize (record the assistant message, return value).
    Each round's usage is folded into a `TokenStats` (`janito/agent/usage.py`)
    carried out of `Client.run_turn` on a `TurnUsage` out-param
-   (`openai_client/client_support.py`); the CLI's
-   `wrap_turn_with_report` wrapper (built by `_make_turn_func` in
-   `cli/chat.py`) delivers the end-of-turn reports
-   (used files + token-usage summary) to the observer after the API call
-   returns, so the `_finalize` hooks stay display-free and every CLI entry
-   point (interactive shell, `/ask`, `/compact`, one-shot prompt) gets the
+   (`openai_client/client_support.py`); `Client.run_turn` itself delivers the
+   end-of-turn reports (used files + token-usage summary) to the injected
+   observer's `on_turn_complete` when the turn finishes, so the
+   `_finalize` hooks stay display-free and every CLI entry point
+   (interactive shell, `/ask`, `/compact`, one-shot prompt) gets the
    same reports.
 
 The blocking work of each streaming round — thread creation, the Rich spinner
@@ -177,8 +176,8 @@ and Enter-to-cancel detection — lives in a **per-round stream runner**
 the caller through the `APIConfig` (`stream_runner`): `None` runs each
 stream worker directly in the calling thread — no thread, no spinner, no
 Enter-to-cancel — keeping `run_turn`/`Client.run_turn` purely API-side.
-`_make_turn_factory` in `cli/chat.py` (the same composition point as
-`wrap_turn_with_report`) wires in the TUI runner when it builds
+`_make_turn_factory` in `cli/chat.py` (the same composition point that
+injects the turn observer) wires in the TUI runner when it builds
 the config, so every CLI entry point (interactive shell, `/ask`, `/compact`,
 one-shot prompt) keeps the spinner. Because the runner is invoked **per
 round** from inside the `Client.run_turn` loop, the spinner is only visible while
@@ -193,8 +192,10 @@ call/response dumps (`on_verbose_info` / `on_verbose_call` /
 explicit `error_kind` -- `"not_found"` / `"auth"` -- passed by the OpenAI
 SDK clients' typed `except` blocks or derived for the native-SDK clients by
 `_classify_error` in `client_support.py`; the exception is always re-raised)
-and the end-of-turn report (`on_turn_complete`, delivered by the
-`wrap_turn_with_report` wrapper after `run_turn` returns). The
+and the end-of-turn report (`on_turn_complete`, invoked by
+`Client.run_turn` when the turn finishes -- the CLI's `RichTurnObserver`
+renders the usage summary *and* records the overall-use accounting row from
+that call). The
 default is the headless `NullObserver`, so
 `run_turn`/`Client.run_turn` produce no terminal output (the web loop emits
 its own structured events instead); the CLI injects the

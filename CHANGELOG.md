@@ -23,7 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the turn-wide token counters (`input_tokens`, `cached_tokens`,
   `output_tokens`, tool-call rounds included) plus the estimated cost as a
   numeric dollar value. Both the CLI (interactive shell, `/ask`, `/compact`,
-  one-shot prompts, via the turn-report wrapper) and the web UI (the
+  one-shot prompts; the observer's `on_turn_complete` records the row) and
+  the web UI (the
   `stream_prompt` loop) feed the log; it is best-effort and never raises.
   A new `get_provider_cost_value()` accessor returns the numeric cost (the
   display path keeps its adaptive format), and the database can be inspected
@@ -85,6 +86,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The end-of-turn report (`on_turn_complete`) is now delivered by
+  `Client.run_turn` itself at the end of the turn, like every other observer
+  event, instead of by the CLI's `wrap_turn_with_report` wrapper: `run_turn`
+  hands the populated `TurnUsage` out-param to the injected observer's
+  `on_turn_complete` when the turn finishes. The overall-use accounting row
+  (`_record_accounting`, the `accounting.db` write) moved into the observer
+  too -- the CLI's `RichTurnObserver.on_turn_complete` records it before
+  rendering the used-files + token-usage summary -- so neither the API
+  clients nor the CLI carry end-of-turn bookkeeping. The wrapper and its
+  `display_turn_report` suppression flag were removed; `_make_turn_func` in
+  `cli/chat.py` now just creates the `TurnUsage` out-param per call (the
+  suppression use case is expressed by injecting a headless observer).
 - Dropped the backward-compatibility re-exports from the client API modules
   (project convention: no backward compatibility — the repo controls all
   callers): the five `openai_client` modules (`completions_api`,

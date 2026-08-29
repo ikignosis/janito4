@@ -23,10 +23,11 @@ WebSocket events): ``on_reasoning`` ~ ``ReasoningEvent``, ``on_message`` ~
 fragment the client loop has (after a full stream round), not per-token
 deltas.
 
-The end-of-turn report (``on_turn_complete``) is delivered by the *caller*
-(the CLI's ``wrap_turn_with_report`` wrapper), keeping the API
-client free of UI concerns; the wrapper renders it once ``run_turn``
-returns.
+The end-of-turn report (``on_turn_complete``) is delivered by
+``Client.run_turn`` itself when the turn finishes -- like every other
+observer event -- so the caller has nothing to wrap; the CLI's
+``RichTurnObserver`` renders the report *and* records the overall-use
+accounting row from that call.
 """
 
 from __future__ import annotations
@@ -108,10 +109,14 @@ class TurnObserver(Protocol):
         ...
 
     def on_turn_complete(self, usage_out: Any) -> None:
-        """End-of-turn report (used files + token-usage summary).
+        """End-of-turn report (used files + token-usage summary + accounting).
 
-        Delivered by the caller after ``run_turn`` returns (the CLI's
-        ``wrap_turn_with_report`` wrapper).
+        Invoked by ``Client.run_turn`` at the end of the turn, with the
+        populated :class:`~janito.openai_client.client_support.TurnUsage`
+        out-param.  The CLI's ``RichTurnObserver`` renders the report and
+        records the overall-use accounting row from this call; the headless
+        ``NullObserver`` drops it (the web loop emits its own structured
+        events and records its own accounting).
         """
         ...
 

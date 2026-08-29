@@ -15,8 +15,8 @@ from ..openai_client import (
 )
 from ..openai_client.client_support import (
     RichTurnObserver,
+    TurnUsage,
     _run_with_progress_bar,
-    wrap_turn_with_report,
 )
 from ..provider_accessors import get_responses_in_server_from_provider
 from ..shell import InteractiveShell
@@ -47,11 +47,14 @@ def _make_turn_func(config: APIConfig):
     Each backend's ``_init_conversation_state`` already picks what it needs
     from the union kwargs, so there is a single body.
 
-    The returned callable is wrapped with ``wrap_turn_with_report``,
-    so it calls the API *and* prints the end-of-turn reports (used files +
-    token-usage summary) from the ``usage_out`` out-param the client
-    populates; pass ``display_turn_report=False`` to suppress them (e.g.
-    internal side calls).
+    The returned callable creates a fresh
+    :class:`~janito.openai_client.client_support.TurnUsage` out-param for
+    every call, so ``Client.run_turn`` can deliver the end-of-turn reports
+    (used files + token-usage summary) and the overall-use accounting row to
+    the injected observer's ``on_turn_complete`` when the turn finishes.  The
+    observer itself lives on the config (``config.observer``, injected at the
+    composition point), so the client is the only place that delivers turn
+    events.
 
     Args:
         config: The resolved, immutable
@@ -93,6 +96,11 @@ def _make_turn_func(config: APIConfig):
         # the session flag and /compact passes False to suppress the dumps.
         # Thinking mode is resolved into ``config.thinking`` at build time
         # (the shell's /thinking toggle rebuilds the config via the factory).
+        # A fresh TurnUsage out-param lets Client.run_turn deliver the
+        # end-of-turn report (usage summary + accounting) to the injected
+        # observer's on_turn_complete when the turn finishes.
+        if usage_out is None:
+            usage_out = TurnUsage()
         return client.run_turn(
             prompt,
             verbose=verbose,
@@ -104,7 +112,7 @@ def _make_turn_func(config: APIConfig):
             usage_out=usage_out,
         )
 
-    return wrap_turn_with_report(run_turn, observer=config.observer)
+    return run_turn
 
 
 def _make_turn_factory(

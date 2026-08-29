@@ -489,9 +489,11 @@ class RichTurnObserver(NullObserver):
     delegating to this module's display helpers (``_display_reasoning``,
     ``_display_content``, the verbose printers, the error explainers and
     ``display_turn_usage``), so the rendered output is byte-for-byte today's
-    behaviour while ``Client.run_turn`` itself stays UI-free.  The observer owns
-    its ``Console``; tests can inject ``Console(file=...)`` to capture the
-    output.
+    behaviour while ``Client.run_turn`` itself stays UI-free.  Its
+    ``on_turn_complete`` additionally records the overall-use accounting row
+    (:func:`_record_accounting`) -- the end-of-turn bookkeeping lives in the
+    observer.  The observer owns its ``Console``; tests can inject
+    ``Console(file=...)`` to capture the output.
     """
 
     def __init__(self, console: Console | None = None) -> None:
@@ -569,6 +571,16 @@ class RichTurnObserver(NullObserver):
         # else: unknown failure -- nothing to explain; the caller re-raises.
 
     def on_turn_complete(self, usage_out) -> None:
+        """End-of-turn report: record accounting, then render the usage summary.
+
+        Invoked by ``Client.run_turn`` at the end of every turn that reported
+        token usage.  The overall-use accounting row (:func:`_record_accounting`,
+        best effort, never raises) is written here -- from the observer -- so
+        neither the API clients nor the CLI carry it; the rendered report
+        (used files + token-usage summary) is delegated to
+        :func:`display_turn_usage`.
+        """
+        _record_accounting(usage_out)
         display_turn_usage(usage_out, console=self.console)
 
 
@@ -724,9 +736,11 @@ class TurnUsage:
     holds the normalized per-turn totals (:class:`~janito.agent.usage.TokenStats`
     mirrors the final request's counters and accumulates the tool-call
     rounds), and the remaining fields are the values :func:`_display_usage`
-    needs to render the summary line.  The caller renders it once the API
-    call returns with :func:`display_turn_usage`, keeping the end-of-turn
-    reports out of the client's ``_finalize`` hooks.
+    needs to render the summary line.  At the end of the turn ``run_turn``
+    hands the populated instance to the injected observer's
+    ``on_turn_complete`` (the CLI's ``RichTurnObserver`` renders it with
+    :func:`display_turn_usage` and records the overall-use accounting row),
+    keeping the end-of-turn reports out of the client's ``_finalize`` hooks.
     """
 
     stats: TokenStats | None = None
@@ -748,11 +762,12 @@ def display_turn_usage(
 ) -> None:
     """Print the end-of-turn reports (used files + token usage summary).
 
-    Called by the CLI after ``run_turn`` returns, using the ``usage_out``
-    out-param the client populated (see :class:`TurnUsage`).  Replaces the
-    reports the per-client ``_finalize`` helpers used to print inline: the
-    tracked used files first, then the magenta token-usage summary line.
-    Nothing is printed when no usage was reported.
+    Rendered by the CLI's ``RichTurnObserver.on_turn_complete`` -- which
+    ``Client.run_turn`` invokes at the end of every turn -- using the
+    ``usage_out`` out-param the client populated (see :class:`TurnUsage`).
+    Replaces the reports the per-client ``_finalize`` helpers used to print
+    inline: the tracked used files first, then the magenta token-usage
+    summary line.  Nothing is printed when no usage was reported.
     """
     console = console or Console()
 
@@ -795,6 +810,11 @@ def _record_accounting(usage_out: TurnUsage | None) -> None:
     :func:`janito.provider_accessors.get_provider_cost_value` (``None`` when
     the provider/model is unknown).  Never raises -- accounting must not be
     able to break the agent loop (issue #72).
+
+    Invoked from the observer's ``on_turn_complete`` (the CLI's
+    :class:`RichTurnObserver`), so every CLI entry point (interactive shell,
+    ``/ask``, ``/compact``, one-shot ``janito <prompt>``) feeds the
+    ``accounting.db`` log, mirroring the web loop's own accounting.
     """
     if usage_out is None or usage_out.stats is None:
         return
@@ -825,45 +845,6 @@ def _record_accounting(usage_out: TurnUsage | None) -> None:
         output_tokens,
         cost=cost,
     )
-
-
-def wrap_turn_with_report(turn_func, observer=None):
-    """Wrap a ``run_turn``-style callable: call the API, then deliver the
-    end-of-turn report to the injected :class:`TurnObserver`.
-
-    The end-of-turn reports (used-files report + token-usage summary) are
-    rendered by the observer's ``on_turn_complete`` once the API call
-    returns, using the :class:`TurnUsage` out-param the client populated.
-    For the CLI the observer is the RichTurnObserver (whose
-    ``on_turn_complete`` delegates to :func:`display_turn_usage`), so the
-    output matches the historical behaviour; with no observer (``None``)
-    nothing is rendered.
-
-    The wrapper also appends one overall-use accounting row (see
-    :func:`_record_accounting`) whenever the turn reported token usage, so
-    every CLI entry point (interactive shell, ``/ask``, ``/compact``, one-shot
-    ``janito <prompt>``) feeds the ``accounting.db`` log without duplicating
-    the call.
-
-    ``display_turn_report`` (default True) suppresses the report when False
-    (e.g. internal side calls).  This keeps a single wrapper responsible for
-    "call the API + deliver the turn report", so every CLI entry point
-    (interactive shell, ``/ask``, ``/compact``, one-shot ``janito <prompt>``)
-    gets it without duplicating the call.
-    """
-
-    def send_with_turn_report(prompt, *, display_turn_report=True, **kwargs):
-        usage_out = TurnUsage()
-        result = turn_func(prompt, usage_out=usage_out, **kwargs)
-        if observer is not None and display_turn_report:
-            observer.on_turn_complete(usage_out)
-        # Overall-use accounting (best effort, never raises) -- recorded even
-        # when the turn report is suppressed: the API call still consumed
-        # tokens and money.
-        _record_accounting(usage_out)
-        return result
-
-    return send_with_turn_report
 
 
 def _classify_error(e: Exception) -> str:
