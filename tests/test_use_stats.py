@@ -159,6 +159,72 @@ if pytest is not None:
         output = _render(handler, stats)
         assert "600 (25%)" in output
         assert "300 (25%)" in output
+        # Costs are rendered with the adaptive, magnitude-aware format the
+        # end-of-turn ``Cost:`` summary uses (issue #67), not a fixed
+        # 4-decimal dollar string: 0.0024$ -> 0.240\u00a2, 0.0017$ -> 0.170\u00a2.
+        assert "0.240\u00a2" in output
+        assert "0.170\u00a2" in output
+
+    def test_cost_rendered_with_adaptive_format():
+        handler = UseStatsCmdHandler()
+        stats = [
+            {
+                "day": "2026-08-29",
+                "input_tokens": 2400,
+                "cached_tokens": 600,
+                "output_tokens": 1600,
+                "cost": 0.0024,  # 0.240\u00a2
+            },
+            {
+                "day": "2026-08-28",
+                "input_tokens": 1200,
+                "cached_tokens": 300,
+                "output_tokens": 800,
+                "cost": 1.2,  # 1.2$
+            },
+            {
+                "day": "2026-08-27",
+                "input_tokens": 1200,
+                "cached_tokens": 300,
+                "output_tokens": 800,
+                "cost": None,  # N/A
+            },
+        ]
+        output = _render(handler, stats)
+        # Sub-cent values grow their significant digits (3 decimals).
+        assert "0.240\u00a2" in output
+        # Dollar values show one decimal.
+        assert "1.2$" in output
+        # Unknown cost keeps the N/A fallback.
+        assert "N/A" in output
+        # The old fixed 4-decimal dollar format is no longer used.
+        assert "$0.0024" not in output
+
+    def test_model_table_cost_rendered_with_adaptive_format():
+        handler = UseStatsCmdHandler()
+        stats = [
+            {
+                "day": "2026-08-28",
+                "provider": "deepseek",
+                "model": "deepseek-v4-flash",
+                "input_tokens": 300,
+                "cached_tokens": 30,
+                "output_tokens": 150,
+                "cost": 0.0001,  # 0.010\u00a2
+            },
+            {
+                "day": "2026-08-28",
+                "provider": "openai",
+                "model": "gpt-5.6-luna",
+                "input_tokens": 1000,
+                "cached_tokens": 100,
+                "output_tokens": 500,
+                "cost": 0.01,  # 1.0\u00a2
+            },
+        ]
+        output = _render_model_table(handler, stats)
+        assert "0.010\u00a2" in output
+        assert "1.0\u00a2" in output
 
     def test_model_table_built_from_recorded_usage(monkeypatch, tmp_path):
         _point_at(monkeypatch, tmp_path)

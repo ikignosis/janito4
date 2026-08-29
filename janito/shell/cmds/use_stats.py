@@ -10,6 +10,8 @@ day/provider/model (issue #75).
 
 from __future__ import annotations
 
+from janito.provider_accessors import _format_cost
+
 from .base import CmdHandler
 from .registry import register_command
 
@@ -65,7 +67,9 @@ class UseStatsCmdHandler(CmdHandler):
 
         Returns:
             rich.table.Table: A table with one row per day: the date, the
-                summed input/cached/output tokens and the estimated cost.
+                summed input/cached/output tokens and the estimated cost
+                (rendered with the same adaptive, magnitude-aware format the
+                end-of-turn ``Cost:`` summary uses, ``N/A`` when unknown).
         """
         from rich.table import Table
 
@@ -83,7 +87,7 @@ class UseStatsCmdHandler(CmdHandler):
 
         for row in stats:
             cost = row["cost"]
-            cost_text = f"${cost:.4f}" if cost is not None else "N/A"
+            cost_text = _format_cost(cost) if cost is not None else "N/A"
             table.add_row(
                 row["day"],
                 f"{row['input_tokens']:,}",
@@ -105,7 +109,9 @@ class UseStatsCmdHandler(CmdHandler):
         Returns:
             rich.table.Table: A table with one row per day/provider/model
                 group: the date, provider, model, the summed input/cached/
-                output tokens and the estimated cost. Unknown provider/model
+                output tokens and the estimated cost (rendered with the same
+                adaptive, magnitude-aware format the end-of-turn ``Cost:``
+                summary uses, ``N/A`` when unknown). Unknown provider/model
                 values are rendered as ``unknown``.
         """
         from rich.table import Table
@@ -126,7 +132,7 @@ class UseStatsCmdHandler(CmdHandler):
 
         for row in stats:
             cost = row["cost"]
-            cost_text = f"${cost:.4f}" if cost is not None else "N/A"
+            cost_text = _format_cost(cost) if cost is not None else "N/A"
             table.add_row(
                 row["day"],
                 row["provider"] or "unknown",

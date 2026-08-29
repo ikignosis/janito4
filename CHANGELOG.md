@@ -108,6 +108,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `/use_stats` now renders the cost column with the **same adaptive,
+  magnitude-aware format the end-of-turn `Cost:` summary uses** (issue #67)
+  instead of a fixed 4-decimal dollar string: sub-cent values grow their
+  significant digits (`0.240¢`), cents show one decimal (`88.0¢`), dollars
+  show one decimal (`1.2$`) and large amounts round to whole dollars
+  (`100$`), with the `N/A` fallback for unknown costs kept. Both the daily
+  and the per-model tables share the change, reusing
+  `provider_accessors._format_cost`.
 - The end-of-turn report (`on_turn_complete`) is now delivered by
   `Client.run_turn` itself at the end of the turn, like every other observer
   event, instead of by the CLI's `wrap_turn_with_report` wrapper: `run_turn`

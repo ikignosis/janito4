@@ -59,15 +59,19 @@ summed input/cached/output tokens and the summed estimated cost. The
 `input_tokens` column is the day's **total** input — the API reports
 `prompt_tokens`/`input_tokens` with the cached tokens counted inside them —
 and the cached-token value is followed by the percentage of that total input
-that was served from cache (`cached / input`, rounded to a whole number):
+that was served from cache (`cached / input`, rounded to a whole number).
+The cost column is rendered with the **same adaptive, magnitude-aware format
+the end-of-turn `Cost:` summary uses** (issue #67): `0.abc¢` below one cent,
+`X.a¢` below one dollar, `X.a$` below $100 and `X$` above — `N/A` when no
+cost was reported:
 
 ```text
                  Usage Statistics (last 10 days)
 ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┓
 ┃ Day          ┃ Input tokens   ┃ Cached tokens   ┃ Output tokens   ┃     Cost ┃
 ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━┩
-│ 2026-08-28   │          1,200 │     300 (25%)   │             800 │  $0.0017 │
-│ 2026-08-29   │          1,800 │     600 (33%)   │           1,600 │  $0.0024 │
+│ 2026-08-28   │          1,200 │     300 (25%)   │             800 │   0.170¢ │
+│ 2026-08-29   │          1,800 │     600 (33%)   │           1,600 │   0.240¢ │
 └──────────────┴────────────────┴─────────────────┴─────────────────┴──────────┘
 Database: /home/me/.janito/accounting.db
 ```
@@ -80,9 +84,9 @@ so you can see at a glance which model drove the usage on each day:
 ┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓
 ┃ Day            ┃ Provider  ┃ Model                 ┃ Input tokens    ┃ Cached tokens    ┃ Output tokens    ┃       Cost ┃
 ┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩
-│ 2026-08-28     │ deepseek  │ deepseek-v4-flash     │             180 │          6 (6%)  │              120 │    $0.0001 │
-│ 2026-08-28     │ openai    │ gpt-5.6-luna          │           1,200 │       300 (25%)  │              800 │    $0.0017 │
-│ 2026-08-29     │ openai    │ gpt-5.6-luna          │           1,800 │       600 (33%)  │            1,600 │    $0.0024 │
+│ 2026-08-28     │ deepseek  │ deepseek-v4-flash     │             180 │          6 (6%)  │              120 │    0.010¢ │
+│ 2026-08-28     │ openai    │ gpt-5.6-luna          │           1,200 │       300 (25%)  │              800 │    0.170¢ │
+│ 2026-08-29     │ openai    │ gpt-5.6-luna          │           1,800 │       600 (33%)  │            1,600 │    0.240¢ │
 └────────────────┴───────────┴───────────────────────┴─────────────────┴──────────────────┴──────────────────┴────────────┘
 ```
 
