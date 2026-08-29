@@ -54,13 +54,15 @@ Additional slash commands available in the terminal shell:
 
 | Command | Description |
 |---------|-------------|
-| `/help` | Show help: every command with its description, the prompt tool modes (read-only / read + execute / write-only / no tools) and the keyboard shortcuts |
+| `/help` | Show help: every command with its description, the prompt tool modes (read-only / read + write / read + write + execute / read + execute / write-only / no tools) and the keyboard shortcuts |
 | `/exit` | End the session |
 | `/ask <question>` | Send a one-off question to the LLM with a **fresh, isolated** chat history (the main conversation is not affected) |
 | `/skills` | List all available skills (home + agents + local) |
 | `/tools` | List all available tools |
 | `/plugins` | List the installed plugins (from `<config_dir>/plugins`, default `~/.janito/plugins`), their paths and whether they loaded in the current session |
 | `/read <question>` | Send the question to the LLM using the **main** conversation history, but with `tools=` filtered to the read-only (`"r"` permission) tools — the model can read/search/fetch but cannot write or execute. The exchange stays in the main history and rolls back like a normal prompt on cancel |
+| `/rw <question>` | Send the question to the LLM using the **main** conversation history, but with `tools=` filtered to the read and write (`"r"`/`"w"` permission) tools — the model can read/search/fetch and create, modify or delete files/dirs but cannot execute anything. The exchange stays in the main history and rolls back like a normal prompt on cancel |
+| `/rwx <question>` | Send the question to the LLM using the **main** conversation history, but with `tools=` filtered to the read, write and execute (`"r"`/`"w"`/`"x"` permission) tools — the model gets the full toolset (read, write and execute) in a single exchange. The exchange stays in the main history and rolls back like a normal prompt on cancel |
 | `/rx <question>` | Send the question to the LLM using the **main** conversation history, but with `tools=` filtered to the read and execute (`"r"`/`"x"` permission) tools — the model can read/search/fetch and run commands but cannot write or modify anything. The exchange stays in the main history and rolls back like a normal prompt on cancel |
 | `/write <question>` | Send the question to the LLM using the **main** conversation history, but with `tools=` filtered to the write-only (`"w"` permission) tools — the model can create, modify or delete files/dirs but cannot read, search or execute. The exchange stays in the main history and rolls back like a normal prompt on cancel |
 | `/notools <message>` | Send the message to the LLM using the **main** conversation history, but without offering any tools (the per-message equivalent of `--no-tools`). Only this message is affected — the next prompt goes back to the session's default tools. The exchange stays in the main history and rolls back like a normal prompt on cancel |

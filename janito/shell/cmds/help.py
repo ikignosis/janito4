@@ -67,6 +67,16 @@ class HelpCmdHandler(CmdHandler):
             "Ask the LLM using the main history but read-only tools",
         )
         tool_modes.add_row(
+            "/rw <question>",
+            "read + write",
+            "Ask the LLM using the main history but read + write tools",
+        )
+        tool_modes.add_row(
+            "/rwx <question>",
+            "read + write + execute",
+            "Ask the LLM using the main history but read + write + execute tools",
+        )
+        tool_modes.add_row(
             "/rx <question>",
             "read + execute",
             "Ask the LLM using the main history but read + execute tools",

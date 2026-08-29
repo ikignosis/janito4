@@ -79,6 +79,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   conversation history while restricting `tools=` to the read and execute
   (`"r"`/`"x"` permission) built-in tools — the model can read/search/fetch
   and run commands but cannot write or modify anything (issue #63).
+- `/rw <question>` and `/rwx <question>` shell commands (issue #84): like
+  `/rx`, they send a prompt through the **main** conversation history while
+  restricting `tools=` to a permission subset of the built-in tools — `/rw`
+  offers the read + write tools (permissions `"r"`, `"w"` and `"rw"`, e.g.
+  `move_file`/`replace_text_in_file`; no execute) and `/rwx` offers the
+  read + write + execute tools (every built-in tool that declares a
+  permission). Both mirror the subset semantics of the `-r`/`-w`/`-x`
+  privilege model and, like the other restricted modes, exclude tools that
+  declare no permission (skills, MCP).
 - The interactive shell now shows a rich horizontal rule labeled with the
   upcoming conversation turn (`Turn N`) right above the prompt (issue #69),
   so the turn number is visible *before* each submission instead of in the
