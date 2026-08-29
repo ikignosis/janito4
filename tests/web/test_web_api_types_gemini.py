@@ -82,7 +82,7 @@ def _cfg(thinking=False):
 
 
 def test_gemini_build_call_kwargs_converts_history_and_tools():
-    from janito.web.backend.agent import gemini
+    from janito.agent import gemini
 
     messages = [
         {"role": "system", "content": "Be helpful."},
@@ -121,7 +121,7 @@ def test_gemini_build_call_kwargs_converts_history_and_tools():
 
 
 def test_gemini_build_call_kwargs_omits_tools_when_none():
-    from janito.web.backend.agent import gemini
+    from janito.agent import gemini
 
     kwargs = gemini.build_call_kwargs(
         "gemini-3.7-flash",
@@ -137,7 +137,7 @@ def test_gemini_build_call_kwargs_omits_tools_when_none():
 
 
 def test_gemini_accumulator_folds_chunks():
-    from janito.web.backend.agent.gemini import GeminiTurnAccumulator
+    from janito.agent.gemini import GeminiTurnAccumulator
 
     acc = GeminiTurnAccumulator()
     chunks = [
@@ -189,7 +189,7 @@ def test_gemini_accumulator_folds_chunks():
 
 def test_gemini_accumulator_usage_event_none_without_usage():
     """No usage metadata -> no usage event."""
-    from janito.web.backend.agent.gemini import GeminiTurnAccumulator
+    from janito.agent.gemini import GeminiTurnAccumulator
 
     acc = GeminiTurnAccumulator()
     acc.handle(_chunk([_part(text="hi")], finish_reason=None))
@@ -224,8 +224,9 @@ def test_gemini_stream_turn_events_consumes_sync_stream(monkeypatch):
     event loop and yields reasoning/token events."""
     import asyncio
 
+    from janito.agent.events import ReasoningEvent, TokenEvent
+    from janito.agent.gemini import accumulator, build_call_kwargs
     from janito.web.backend.agent import gemini
-    from janito.web.backend.events import ReasoningEvent, TokenEvent
 
     stop = _chunk([_part(text="done")], finish_reason=SimpleNamespace(name="STOP"))
     calls = []
@@ -249,7 +250,7 @@ def test_gemini_stream_turn_events_consumes_sync_stream(monkeypatch):
             self.models = _FakeModels()
 
     handle = _FakeClient()
-    kwargs = gemini.build_call_kwargs(
+    kwargs = build_call_kwargs(
         "gemini-3.7-flash",
         [{"role": "user", "content": "hi"}],
         None,
@@ -258,7 +259,7 @@ def test_gemini_stream_turn_events_consumes_sync_stream(monkeypatch):
         None,
         None,
     )
-    acc = gemini.accumulator()
+    acc = accumulator()
 
     async def _run():
         events = []

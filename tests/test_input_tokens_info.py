@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import pytest
 
 if pytest is not None:
-    from janito.openai_client.completions_api import format_tokens
+    from janito.agent.usage import format_tokens
 
     # ---- format_tokens unit tests ------------------------------------
 
@@ -300,7 +300,7 @@ if pytest is not None:
     # ---- Web UsageEvent serialization --------------------------------
 
     def test_usage_event_to_dict_without_max():
-        from janito.web.backend.events import UsageEvent
+        from janito.agent.events import UsageEvent
 
         ev = UsageEvent(total=100, last_input=80, last_output=20, last_cached=10)
         d = ev.to_dict()
@@ -314,7 +314,7 @@ if pytest is not None:
         assert "max_tokens" not in d
 
     def test_usage_event_to_dict_with_max():
-        from janito.web.backend.events import UsageEvent
+        from janito.agent.events import UsageEvent
 
         ev = UsageEvent(
             total=100, last_input=80, last_output=20, last_cached=0, max_tokens=65536
@@ -325,7 +325,7 @@ if pytest is not None:
     # ---- StreamAccumulator.usage_event with max_tokens ---------------
 
     def test_stream_accumulator_usage_event_passes_max_tokens():
-        from janito.web.backend.agent.call import StreamAccumulator
+        from janito.agent.completions import CompletionsAccumulator as StreamAccumulator
 
         class FakeUsage:
             total_tokens = 200
@@ -340,7 +340,7 @@ if pytest is not None:
         assert ev.to_dict()["max_tokens"] == 32768
 
     def test_stream_accumulator_usage_event_no_max():
-        from janito.web.backend.agent.call import StreamAccumulator
+        from janito.agent.completions import CompletionsAccumulator as StreamAccumulator
 
         class FakeUsage:
             total_tokens = 200

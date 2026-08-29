@@ -58,7 +58,7 @@ def _cfg(thinking=False):
 
 
 def test_responses_build_call_kwargs_converts_history_and_tools():
-    from janito.web.backend.agent import responses
+    from janito.agent import responses
 
     messages = [
         {"role": "system", "content": "Be helpful."},
@@ -105,7 +105,7 @@ def test_responses_build_call_kwargs_converts_history_and_tools():
 
 
 def test_responses_build_call_kwargs_omits_optional_fields():
-    from janito.web.backend.agent import responses
+    from janito.agent import responses
 
     kwargs = responses.build_call_kwargs(
         "gpt-4",
@@ -125,7 +125,7 @@ def test_responses_build_call_kwargs_omits_optional_fields():
 def test_responses_build_call_kwargs_passes_structured_thinking_dict():
     """A structured thinking default (MiniMax-M3 {'type': 'adaptive'}) is sent
     through as extra_body thinking instead of enable_thinking."""
-    from janito.web.backend.agent import responses
+    from janito.agent import responses
 
     kwargs = responses.build_call_kwargs(
         "MiniMax-M3",
@@ -144,7 +144,7 @@ def test_responses_build_call_kwargs_appends_builtin_tools():
     """The effective model's built-in tools (e.g. Alibaba/Qwen's
     code_interpreter / web_search / web_extractor) are appended to the
     Responses tools array alongside any function tools."""
-    from janito.web.backend.agent import responses
+    from janito.agent import responses
 
     tools = [
         {
@@ -189,7 +189,7 @@ def test_responses_build_call_kwargs_appends_builtin_tools():
 def test_responses_build_call_kwargs_appends_builtin_tools_without_function_tools():
     """Built-in tools are still enabled with no function tools (like
     image_generation for gpt-5)."""
-    from janito.web.backend.agent import responses
+    from janito.agent import responses
 
     class _Cfg:
         effective_thinking = True
@@ -212,7 +212,7 @@ def test_responses_build_call_kwargs_appends_builtin_tools_without_function_tool
 
 def test_responses_build_call_kwargs_appends_image_generation_tool_for_gpt5():
     """Mainline gpt-5 models get the native ``image_generation`` tool."""
-    from janito.web.backend.agent import responses
+    from janito.agent import responses
 
     tools = [
         {
@@ -246,7 +246,7 @@ def test_responses_build_call_kwargs_appends_image_generation_tool_for_gpt5():
 
 def test_responses_build_call_kwargs_skips_image_generation_tool_for_other_models():
     """Older / third-party models do not get the image_generation tool."""
-    from janito.web.backend.agent import responses
+    from janito.agent import responses
 
     tools = [
         {
@@ -287,7 +287,7 @@ def test_responses_build_call_kwargs_skips_image_generation_tool_for_other_model
 def test_responses_build_call_kwargs_image_generation_tool_without_function_tools():
     """The native image_generation tool is enabled for gpt-5 even when no
     function tools are configured (it is a model capability, not a tool)."""
-    from janito.web.backend.agent import responses
+    from janito.agent import responses
 
     kwargs = responses.build_call_kwargs(
         "gpt-5.6",
@@ -303,7 +303,7 @@ def test_responses_build_call_kwargs_image_generation_tool_without_function_tool
 
 
 def test_responses_accumulator_folds_stream_events():
-    from janito.web.backend.agent.responses import ResponsesTurnAccumulator
+    from janito.agent.responses import ResponsesTurnAccumulator
 
     acc = ResponsesTurnAccumulator()
     events = [
@@ -355,7 +355,7 @@ def test_responses_accumulator_folds_stream_events():
 
 
 def test_responses_accumulator_raises_failed_error():
-    from janito.web.backend.agent.responses import ResponsesTurnAccumulator
+    from janito.agent.responses import ResponsesTurnAccumulator
 
     acc = ResponsesTurnAccumulator()
     with pytest.raises(RuntimeError, match="boom"):
@@ -372,7 +372,7 @@ def test_responses_accumulator_captures_image_generation_call():
     import base64
     import os
 
-    from janito.web.backend.agent.responses import ResponsesTurnAccumulator
+    from janito.agent.responses import ResponsesTurnAccumulator
 
     # A tiny valid PNG (signature + junk payload is enough for the test).
     png_bytes = b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\x0dIHDRjunk"
@@ -409,7 +409,7 @@ def test_responses_accumulator_ignores_invalid_image_generation_call():
     """A malformed image_generation_call result is skipped, not fatal."""
     import base64
 
-    from janito.web.backend.agent.responses import ResponsesTurnAccumulator
+    from janito.agent.responses import ResponsesTurnAccumulator
 
     acc = ResponsesTurnAccumulator()
     # Non-decodable base64 -> no image result, no crash.

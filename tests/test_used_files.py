@@ -243,7 +243,7 @@ if pytest is not None:
         import asyncio
 
         import janito.web.backend.agent.loop as loop_mod
-        from janito.web.backend.events import ErrorEvent
+        from janito.agent.events import ErrorEvent
 
         _register(monkeypatch, "ReadFile", "r")
         used_files.record_used_file("ReadFile", {"filepath": "/prev.py"})

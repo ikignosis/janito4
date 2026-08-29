@@ -33,8 +33,7 @@ model of ownership: the full conversation is tracked as Responses input items
 
 The Responses API stream handling lives in
 :mod:`janito.openai_client.responses_stream` and the shared client helpers in
-:mod:`janito.openai_client.client_support`; both are re-exported here so
-existing ``conversations_api.<name>`` references keep working.
+:mod:`janito.openai_client.client_support`.
 """
 
 from __future__ import annotations
@@ -56,20 +55,14 @@ from .api_config import APIConfig
 # Shared agent-loop pipeline (see Client.run_turn) implemented by ResponsesClient.
 from .base_client import Client
 
-# Shared client helpers (MCP loading, Rich console output, auth-error
-# explainer) and the Responses API stream consumer.  Names that are only
-# re-exported for backward compatibility are marked ``noqa: F401``.
-from .client_support import (  # noqa: F401 (re-exported for backward compat)
-    TurnUsage,
-    _display_usage,
-    _load_mcp,
-    format_tokens,
-)
+# Shared client helpers: the usage summary out-param used by the module's
+# remaining functions, and the RequestCancelled exception raised by the
+# injected per-round stream runner (see ``client_support``).
+from .client_support import RequestCancelled, TurnUsage
 
-# Shared helpers reused from the Chat Completions implementation so both
-# modules stay in sync: runtime config resolution and the RequestCancelled
-# exception (raised by the injected per-round stream runner).
-from .completions_api import RequestCancelled, resolve_runtime_config
+# Runtime config resolution, shared with the Chat Completions implementation
+# so both modules stay in sync.
+from .completions_api import resolve_runtime_config
 from .responses_helpers import (
     _finalize_conversation,
     _handle_tool_calls,
@@ -78,18 +71,7 @@ from .responses_helpers import (
     _validate_stream_result,
 )
 from .responses_state import _build_call_kwargs, _init_conversation_state
-from .responses_stream import (  # noqa: F401 (re-exported for backward compat)
-    _consume_response_stream,
-    _convert_tools_to_responses_format,
-    _handle_call_arguments,
-    _handle_completion_event,
-    _handle_output_item,
-    _handle_stream_event,
-    _handle_text_delta,
-    _handle_untyped_error,
-    _raise_failed_error,
-    _stream_response,
-)
+from .responses_stream import _stream_response
 
 # Import general configuration handling
 

@@ -5,21 +5,16 @@ The per-API adapter (call-kwargs building, stream accumulation) lives in
 loops.  This module keeps the web-only glue: :func:`create_client`
 (prepares the sync ``google-genai`` client, guarding the optional package)
 and :func:`stream_turn_events` (consumes the sync stream chunk-by-chunk
-through ``asyncio.to_thread``).
+through ``asyncio.to_thread``).  The loop builds call kwargs and
+accumulators directly from the shared adapters in :mod:`janito.agent.gemini`.
 """
 
 import asyncio
 import importlib.util
 import logging
 
-from janito.agent.gemini import (  # noqa: F401
-    GeminiTurnAccumulator,
-    accumulator,
-    build_call_kwargs,
-)
-from janito.agent.usage import usage_event_from_usage  # noqa: F401
-
-from ..events import ReasoningEvent, TokenEvent
+from janito.agent.events import ReasoningEvent, TokenEvent
+from janito.agent.gemini import GeminiTurnAccumulator
 
 logger = logging.getLogger(__name__)
 
@@ -90,12 +85,8 @@ async def stream_turn_events(client, call_kwargs: dict, acc: GeminiTurnAccumulat
 
 
 __all__ = [
-    "GeminiTurnAccumulator",
-    "accumulator",
-    "build_call_kwargs",
     "create_client",
     "stream_turn_events",
     "_gemini_chunks",
     "_next_or_none",
-    "usage_event_from_usage",
 ]

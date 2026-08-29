@@ -9,7 +9,8 @@ events — all in the order the client expects.
 import json
 import logging
 
-from ..events import AgentEvent, ToolCallEvent, ToolResultEvent
+from janito.agent.events import AgentEvent, ToolCallEvent, ToolResultEvent
+
 from .tooling import execute_tool, get_tool_permissions, is_mcp_tool
 
 logger = logging.getLogger(__name__)

@@ -381,7 +381,10 @@ if pytest is not None:
         def fake_run(func, client, call_kwargs, tools_schemas):
             return "hi", None, {}, None, {"id": "chatcmpl-1"}
 
-        monkeypatch.setattr(ca, "_load_mcp", lambda use_mcp: (None, []))
+        monkeypatch.setattr(
+            "janito.openai_client.client_support._load_mcp",
+            lambda use_mcp: (None, []),
+        )
 
         # A fake runner and a capturing observer are injected through the
         # APIConfig (the UI-side stream runner and the turn observer are no
@@ -433,7 +436,10 @@ if pytest is not None:
                 {"id": "resp_99", "status": "completed"},
             )
 
-        monkeypatch.setattr(ca, "_load_mcp", lambda use_mcp: (None, []))
+        monkeypatch.setattr(
+            "janito.openai_client.client_support._load_mcp",
+            lambda use_mcp: (None, []),
+        )
         monkeypatch.setattr(
             ca,
             "_init_conversation_state",

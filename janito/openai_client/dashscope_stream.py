@@ -10,8 +10,8 @@ across chunks.
 :class:`DashScopeStreamConsumer` is the real implementation: it holds the
 assembled response parts as instance attributes (no ``state`` dict plumbing)
 and drives the per-chunk handlers.  The module-level ``_consume_stream`` /
-``_consume_*`` functions are thin delegators kept for backward compatibility
-(they are re-exported from ``dashscope_api``).
+``_consume_*`` functions are thin delegators used by the module's own
+``_stream_response`` and by the client tests.
 """
 
 import logging
@@ -324,7 +324,7 @@ def _build_usage_info(state: dict[str, Any]) -> Any:
 
 
 # ---------------------------------------------------------------------------
-# Backward-compatibility delegators (re-exported from ``dashscope_api``).
+# Module-level delegators (thin wrappers over DashScopeStreamConsumer).
 # ---------------------------------------------------------------------------
 
 _STATE_KEYS = (

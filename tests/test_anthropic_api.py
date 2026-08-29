@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import pytest
 
 from janito.openai_client import anthropic_api
+from janito.openai_client.anthropic_stream import _consume_stream
 
 try:
     import anthropic  # noqa: F401
@@ -123,9 +124,7 @@ if pytest is not None:
             _event("message_stop"),
         ]
 
-        full, reasoning, tool_blocks, usage, raw_attrs = anthropic_api._consume_stream(
-            events
-        )
+        full, reasoning, tool_blocks, usage, raw_attrs = _consume_stream(events)
         assert full == "Hello world"
         assert reasoning is None
         assert tool_blocks == [
@@ -169,9 +168,7 @@ if pytest is not None:
             _event("message_stop"),
         ]
 
-        full, reasoning, tool_blocks, usage, raw_attrs = anthropic_api._consume_stream(
-            events
-        )
+        full, reasoning, tool_blocks, usage, raw_attrs = _consume_stream(events)
         assert full == "Answer"
         assert reasoning == "Let me think..."
         assert tool_blocks == []
@@ -180,13 +177,13 @@ if pytest is not None:
     def test_consume_stream_empty_raises():
         """A stream with zero events fails loudly (never an empty answer)."""
         with pytest.raises(RuntimeError, match="no stream events"):
-            anthropic_api._consume_stream([])
+            _consume_stream([])
 
     def test_consume_stream_error_event_raises():
         """An error event surfaces the API's message."""
         events = [_event("error", error=SimpleNamespace(message="boom"))]
         with pytest.raises(RuntimeError, match="boom"):
-            anthropic_api._consume_stream(events)
+            _consume_stream(events)
 
     @requires_no_anthropic
     def test_create_client_aborts_without_anthropic_package():

@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import pytest
 
 from janito import gemini_api
+from janito.openai_client.gemini_stream import _consume_stream
 
 try:
     import google.genai  # noqa: F401
@@ -81,7 +82,7 @@ if pytest is not None:
             usage,
             raw_attrs,
             thought_parts,
-        ) = gemini_api._consume_stream(chunks)
+        ) = _consume_stream(chunks)
         assert full == "Hello world"
         assert reasoning is None
         assert tool_calls == []
@@ -107,7 +108,7 @@ if pytest is not None:
             usage,
             raw_attrs,
             thought_parts,
-        ) = gemini_api._consume_stream(chunks)
+        ) = _consume_stream(chunks)
         assert full == "Answer"
         assert reasoning == "Let me think"
         assert thought_parts == [{"text": "Let me think", "thought_signature": "sig-1"}]
@@ -125,7 +126,7 @@ if pytest is not None:
             usage,
             raw_attrs,
             thought_parts,
-        ) = gemini_api._consume_stream(chunks)
+        ) = _consume_stream(chunks)
         assert full == "Visible"
         assert reasoning == "Hidden"
 
@@ -155,7 +156,7 @@ if pytest is not None:
             usage,
             raw_attrs,
             thought_parts,
-        ) = gemini_api._consume_stream(chunks)
+        ) = _consume_stream(chunks)
         assert full == "Final answer"
         assert tool_calls == [
             {
@@ -197,7 +198,7 @@ if pytest is not None:
             usage,
             raw_attrs,
             thought_parts,
-        ) = gemini_api._consume_stream(chunks)
+        ) = _consume_stream(chunks)
         assert tool_calls == [
             {
                 "id": "fc_1",
@@ -209,7 +210,7 @@ if pytest is not None:
     def test_consume_stream_empty_raises():
         """A stream with zero chunks fails loudly (never an empty answer)."""
         with pytest.raises(RuntimeError, match="no stream chunks"):
-            gemini_api._consume_stream([])
+            _consume_stream([])
 
     def test_create_client_aborts_without_google_genai_package(monkeypatch):
         """The optional `google-genai` package is guarded with an actionable
@@ -696,7 +697,7 @@ if pytest is not None:
             usage,
             raw_attrs,
             thought_parts,
-        ) = gemini_api._consume_stream([empty, _chunk([_part(text="hi")], None)])
+        ) = _consume_stream([empty, _chunk([_part(text="hi")], None)])
         assert full == "hi"
 
 else:  # pragma: no cover - fallback runner without pytest

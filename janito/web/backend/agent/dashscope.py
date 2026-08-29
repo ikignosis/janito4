@@ -5,7 +5,9 @@ The per-API adapter (call-kwargs building, stream accumulation) lives in
 loops.  This module keeps the web-only glue: :func:`create_client`
 (prepares the sync DashScope SDK), :func:`_dashscope_chunks` (consumes the
 sync stream chunk-by-chunk through ``asyncio.to_thread``, retrying once on
-a model/endpoint mismatch) and :func:`stream_turn_events`.
+a model/endpoint mismatch) and :func:`stream_turn_events`.  The loop
+builds call kwargs and accumulators directly from the shared adapters in
+:mod:`janito.agent.dashscope`.
 """
 
 import asyncio
@@ -13,15 +15,8 @@ import importlib.util
 import logging
 from types import SimpleNamespace
 
-from janito.agent.dashscope import (  # noqa: F401
-    DashScopeTurnAccumulator,
-    _get,
-    accumulator,
-    build_call_kwargs,
-)
-from janito.agent.usage import usage_event_from_usage  # noqa: F401
-
-from ..events import ReasoningEvent, TokenEvent
+from janito.agent.dashscope import DashScopeTurnAccumulator
+from janito.agent.events import ReasoningEvent, TokenEvent
 
 logger = logging.getLogger(__name__)
 
@@ -124,13 +119,8 @@ async def stream_turn_events(client, call_kwargs: dict, acc: DashScopeTurnAccumu
 
 
 __all__ = [
-    "DashScopeTurnAccumulator",
-    "accumulator",
-    "build_call_kwargs",
     "create_client",
     "stream_turn_events",
     "_dashscope_chunks",
-    "_get",
     "_next_or_none",
-    "usage_event_from_usage",
 ]

@@ -55,7 +55,7 @@ def _cfg(thinking=False):
 
 
 def test_anthropic_build_call_kwargs_extracts_system_and_converts_tools():
-    from janito.web.backend.agent import anthropic
+    from janito.agent import anthropic
 
     messages = [
         {"role": "system", "content": "Be helpful."},
@@ -81,7 +81,7 @@ def test_anthropic_build_call_kwargs_extracts_system_and_converts_tools():
 
 
 def test_anthropic_conversion_merges_consecutive_tool_messages():
-    from janito.web.backend.agent.anthropic import _to_anthropic
+    from janito.agent.anthropic import _to_anthropic
 
     messages = [
         {"role": "user", "content": "do it"},
@@ -128,7 +128,7 @@ def test_anthropic_conversion_merges_consecutive_tool_messages():
 
 
 def test_anthropic_accumulator_folds_stream_events():
-    from janito.web.backend.agent.anthropic import AnthropicTurnAccumulator
+    from janito.agent.anthropic import AnthropicTurnAccumulator
 
     acc = AnthropicTurnAccumulator()
     events = [

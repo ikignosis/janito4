@@ -53,6 +53,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Dropped the backward-compatibility re-exports from the client API modules
+  (project convention: no backward compatibility — the repo controls all
+  callers): the five `openai_client` modules (`completions_api`,
+  `conversations_api`, `anthropic_api`, `dashscope_api`, `gemini_api`) no
+  longer re-export stream/helper functions from their canonical homes. The
+  stream consumers (`_consume_stream`, `_consume_response_stream`,
+  `_handle_*`, ...) are imported from `janito.openai_client.*_stream`, the
+  shared client helpers (`RequestCancelled`, `_display_usage`, `_load_mcp`,
+  `format_tokens`) from `janito.openai_client.client_support` / the
+  `janito.agent.usage` / `janito.agent` layers, and `janito.openai_client`
+  now imports `RequestCancelled` from `client_support` directly.
+- Removed the web-layer re-export shims: `janito.web.backend.events` and
+  `janito.web.backend.agent.call` are deleted (callers import from
+  `janito.agent.events` and `janito.agent.completions` instead, and the
+  `StreamAccumulator` alias is gone). The per-API web runner modules
+  (`janito.web.backend.agent.{responses,anthropic,dashscope,gemini}`) now
+  keep only the web-only glue (`create_client`, `stream_turn_events`);
+  `loop.py` builds call kwargs and accumulators straight from the shared
+  `janito.agent` adapters through a small `_Runner` dataclass instead of
+  module re-exports.
+
 - Renamed the reasoning-depth concept to **reasoning effort** and consolidated
   the built-in provider config onto a single `default_reasoning_effort` key
   (issue #77): the model entries in `janito/providers/<name>/config.py`

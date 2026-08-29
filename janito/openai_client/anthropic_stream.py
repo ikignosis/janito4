@@ -11,8 +11,8 @@ triples, so each block is assembled per index and flushed when it stops, and
 :class:`AnthropicStreamConsumer` is the real implementation: it holds the
 assembled response parts as instance attributes (no ``state`` dict plumbing)
 and drives the per-event handlers.  The module-level ``_consume_stream`` /
-``_handle_*`` functions are thin delegators kept for backward compatibility
-(they are re-exported from ``anthropic_api``).
+``_handle_*`` functions are thin delegators used by the module's own
+``_stream_response`` and by the client tests.
 """
 
 import json
@@ -238,7 +238,7 @@ def _raise_anthropic_error(event) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Backward-compatibility delegators (re-exported from ``anthropic_api``).
+# Module-level delegators (thin wrappers over AnthropicStreamConsumer).
 # ---------------------------------------------------------------------------
 
 _STATE_KEYS = (

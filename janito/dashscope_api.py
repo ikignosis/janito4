@@ -34,8 +34,7 @@ each call.
 
 The DashScope stream handling lives in
 :mod:`janito.openai_client.dashscope_stream` and the shared client helpers in
-:mod:`janito.openai_client.client_support`; both are re-exported here so
-existing ``dashscope_api.<name>`` references keep working.
+:mod:`janito.openai_client.client_support`.
 """
 
 from __future__ import annotations
@@ -53,21 +52,7 @@ from janito.openai_client.base_client import Client
 # remaining functions, and the error classifier the native-SDK clients use
 # to pick the observer's explainer explicitly.
 from janito.openai_client.client_support import TurnUsage, _classify_error
-from janito.openai_client.dashscope_stream import (  # noqa: F401 (re-exported for backward compat)
-    _build_tool_use_blocks,
-    _build_usage_info,
-    _consume_dashscope_chunk,
-    _consume_message,
-    _consume_stream,
-    _consume_tool_call,
-    _consume_usage,
-    _get,
-    _is_multimodal_model,
-    _ModelEndpointMismatch,
-    _raise_dashscope_error,
-    _stream_response,
-    _to_multimodal_messages,
-)
+from janito.openai_client.dashscope_stream import _stream_response
 from janito.tooling.executor import ToolExecutor
 
 from .dashscope_helpers import (

@@ -34,8 +34,7 @@ them (``thought_parts`` plus the per-call ``thought_signature``) in the
 client-side history and echoes them back on the next round.
 
 The Gemini stream handling lives in :mod:`janito.openai_client.gemini_stream`
-and the wire-format helpers in :mod:`janito.gemini_helpers`; both are
-re-exported here so existing ``gemini_api.<name>`` references keep working.
+and the wire-format helpers in :mod:`janito.gemini_helpers`.
 """
 
 from __future__ import annotations
@@ -44,13 +43,11 @@ import importlib.util
 import logging
 from typing import Any
 
-from janito.gemini_helpers import (  # noqa: F401 (re-exported for backward compat)
+from janito.gemini_helpers import (
     _build_call_kwargs,
     _finalize_response,
     _handle_tool_parts,
     _init_state,
-    _messages_to_contents,
-    _resolve_system_instruction,
     _resolve_tools,
 )
 
@@ -65,11 +62,7 @@ from janito.openai_client.base_client import Client
 # remaining functions, and the error classifier the native-SDK clients use
 # to pick the observer's explainer explicitly.
 from janito.openai_client.client_support import TurnUsage, _classify_error
-from janito.openai_client.gemini_stream import (  # noqa: F401 (re-exported for backward compat)
-    _consume_chunk,
-    _consume_stream,
-    _stream_response,
-)
+from janito.openai_client.gemini_stream import _stream_response
 from janito.tooling.executor import ToolExecutor
 
 # Configure logger for this module

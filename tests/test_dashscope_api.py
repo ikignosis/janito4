@@ -17,6 +17,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import pytest
 
 from janito import dashscope_api
+from janito.openai_client.dashscope_stream import (
+    _consume_stream,
+    _get,
+    _is_multimodal_model,
+    _ModelEndpointMismatch,
+    _to_multimodal_messages,
+)
 
 
 def _chunk(
@@ -68,9 +75,7 @@ if pytest is not None:
                 ),
             ),
         ]
-        full, reasoning, tool_blocks, usage, raw_attrs = dashscope_api._consume_stream(
-            chunks
-        )
+        full, reasoning, tool_blocks, usage, raw_attrs = _consume_stream(chunks)
         assert full == "Hello world"
         assert reasoning is None
         assert tool_blocks == []
@@ -85,9 +90,7 @@ if pytest is not None:
             _chunk(content="", reasoning=" more.", finish_reason=None),
             _chunk(content="Answer", finish_reason="stop"),
         ]
-        full, reasoning, tool_blocks, usage, raw_attrs = dashscope_api._consume_stream(
-            chunks
-        )
+        full, reasoning, tool_blocks, usage, raw_attrs = _consume_stream(chunks)
         assert full == "Answer"
         assert reasoning == "Let me think... more."
         assert tool_blocks == []
@@ -107,9 +110,7 @@ if pytest is not None:
             _chunk(content="", tool_calls=tool_calls, finish_reason="tool_calls"),
             _chunk(content="Final answer", finish_reason="stop"),
         ]
-        full, reasoning, tool_blocks, usage, raw_attrs = dashscope_api._consume_stream(
-            chunks
-        )
+        full, reasoning, tool_blocks, usage, raw_attrs = _consume_stream(chunks)
         assert full == "Final answer"
         assert tool_blocks == [
             {"id": "call_1", "name": "read_file", "arguments": '{"filepath": "a.txt"}'}
@@ -119,19 +120,19 @@ if pytest is not None:
         """A non-200 chunk surfaces the API's code/message."""
         chunks = [_chunk(status_code=400, code="InvalidParameter", message="boom")]
         with pytest.raises(RuntimeError, match="boom"):
-            dashscope_api._consume_stream(chunks)
+            _consume_stream(chunks)
 
     def test_consume_stream_empty_raises():
         """A stream with zero chunks fails loudly (never an empty answer)."""
         with pytest.raises(RuntimeError, match="no stream chunks"):
-            dashscope_api._consume_stream([])
+            _consume_stream([])
 
     def test_get_handles_dict_and_attribute_access():
         """_get reads both plain dicts and DictMixin-style objects."""
-        assert dashscope_api._get({"a": 1}, "a") == 1
-        assert dashscope_api._get(SimpleNamespace(a=1), "a") == 1
-        assert dashscope_api._get(None, "a", "fallback") == "fallback"
-        assert dashscope_api._get({"a": 1}, "missing") is None
+        assert _get({"a": 1}, "a") == 1
+        assert _get(SimpleNamespace(a=1), "a") == 1
+        assert _get(None, "a", "fallback") == "fallback"
+        assert _get({"a": 1}, "missing") is None
 
     def test_dashscope_helpers_build_call_kwargs_passes_builtin_tools():
         """The CLI DashScope path sends the model's built-in tools as
@@ -209,9 +210,7 @@ if pytest is not None:
             _chunk(content=[{"text": "Hello "}], finish_reason=None),
             _chunk(content=[{"text": "world"}], finish_reason="stop"),
         ]
-        full, reasoning, tool_blocks, usage, raw_attrs = dashscope_api._consume_stream(
-            chunks
-        )
+        full, reasoning, tool_blocks, usage, raw_attrs = _consume_stream(chunks)
         assert full == "Hello world"
 
     def test_consume_stream_accumulates_tool_call_arguments():
@@ -243,9 +242,7 @@ if pytest is not None:
             ),
             _chunk(content="Final", finish_reason="stop"),
         ]
-        full, reasoning, tool_blocks, usage, raw_attrs = dashscope_api._consume_stream(
-            chunks
-        )
+        full, reasoning, tool_blocks, usage, raw_attrs = _consume_stream(chunks)
         assert full == "Final"
         assert tool_blocks == [
             {"id": "call_1", "name": "get_weather", "arguments": '{"city": "Lisbon"}'}
@@ -260,21 +257,21 @@ if pytest is not None:
                 message="url error, please check url!",
             )
         ]
-        with pytest.raises(dashscope_api._ModelEndpointMismatch):
-            dashscope_api._consume_stream(chunks)
+        with pytest.raises(_ModelEndpointMismatch):
+            _consume_stream(chunks)
 
     def test_is_multimodal_model():
         """Multimodal models are detected; plain-text models are not."""
-        assert dashscope_api._is_multimodal_model("qwen3.8-max")
-        assert dashscope_api._is_multimodal_model("qwen3.6-plus")
-        assert dashscope_api._is_multimodal_model("qwen3.7-plus")
-        assert dashscope_api._is_multimodal_model("qwen3-vl-plus")
-        assert dashscope_api._is_multimodal_model("qwen-omni-turbo")
-        assert not dashscope_api._is_multimodal_model("qwen3.7-max")
-        assert not dashscope_api._is_multimodal_model("qwen3-max")
-        assert not dashscope_api._is_multimodal_model("qwen-plus")
-        assert not dashscope_api._is_multimodal_model("qwen-flash")
-        assert not dashscope_api._is_multimodal_model("")
+        assert _is_multimodal_model("qwen3.8-max")
+        assert _is_multimodal_model("qwen3.6-plus")
+        assert _is_multimodal_model("qwen3.7-plus")
+        assert _is_multimodal_model("qwen3-vl-plus")
+        assert _is_multimodal_model("qwen-omni-turbo")
+        assert not _is_multimodal_model("qwen3.7-max")
+        assert not _is_multimodal_model("qwen3-max")
+        assert not _is_multimodal_model("qwen-plus")
+        assert not _is_multimodal_model("qwen-flash")
+        assert not _is_multimodal_model("")
 
     def test_to_multimodal_messages_wraps_string_content():
         """String content is wrapped into [{"text": ...}] for the multimodal API."""
@@ -283,7 +280,7 @@ if pytest is not None:
             {"role": "user", "content": "hi"},
             {"role": "tool", "content": "ok", "tool_call_id": "call_1"},
         ]
-        converted = dashscope_api._to_multimodal_messages(messages)
+        converted = _to_multimodal_messages(messages)
         assert converted == [
             {"role": "system", "content": [{"text": "be terse"}]},
             {"role": "user", "content": [{"text": "hi"}]},

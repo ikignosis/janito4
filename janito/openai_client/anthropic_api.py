@@ -28,8 +28,7 @@ interactive shell treats this mode exactly like Completions.
 
 The Messages API stream handling lives in
 :mod:`janito.openai_client.anthropic_stream` and the shared client helpers in
-:mod:`janito.openai_client.client_support`; both are re-exported here so
-existing ``anthropic_api.<name>`` references keep working.
+:mod:`janito.openai_client.client_support`.
 """
 
 from __future__ import annotations
@@ -46,19 +45,7 @@ from janito.tooling.executor import ToolExecutor
 # Import tools
 from janito.tooling.tools_registry import get_all_tool_schemas
 
-from .anthropic_stream import (  # noqa: F401 (re-exported for backward compat)
-    _consume_stream,
-    _convert_tools_to_anthropic_format,
-    _handle_anthropic_event,
-    _handle_content_block_delta,
-    _handle_content_block_start,
-    _handle_content_block_stop,
-    _handle_message_delta,
-    _handle_message_start,
-    _parse_tool_use_block,
-    _raise_anthropic_error,
-    _stream_response,
-)
+from .anthropic_stream import _convert_tools_to_anthropic_format, _stream_response
 
 # Resolved, immutable per-session configuration (issue #70): the turn
 # pipeline consumes it instead of re-reading the config/auth stores.

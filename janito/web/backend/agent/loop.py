@@ -9,9 +9,10 @@ The loop is API-type agnostic.  The API type for the turn is resolved for the
 ``resolve_api_type`` — ``--api-type`` first, then the provider's configured
 ``api-type`` (written by the web Settings drawer), then the provider's
 built-in default.  Each API type contributes a small runner (client factory,
-call-kwargs builder, accumulator, stream driver) exposing the same interface:
+stream driver) exposing the same interface; the call-kwargs builder and
+accumulator class come straight from the shared ``janito.agent`` adapters:
 
-- Completions  -> ``janito.web.backend.agent.call`` (this module's built-in)
+- Completions  -> the loop's built-in path (``janito.agent.completions``)
 - Responses    -> ``janito.web.backend.agent.responses``
 - Anthropic    -> ``janito.web.backend.agent.anthropic``
 - DashScope    -> ``janito.web.backend.agent.dashscope``
@@ -19,10 +20,30 @@ call-kwargs builder, accumulator, stream driver) exposing the same interface:
 """
 
 import logging
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
+from dataclasses import dataclass
+from typing import Any
 
 from openai import AsyncOpenAI
 
+from janito.agent.anthropic import accumulator as anthropic_accumulator
+from janito.agent.anthropic import build_call_kwargs as build_anthropic_kwargs
+from janito.agent.completions import CompletionsAccumulator
+from janito.agent.completions import build_call_kwargs as build_completions_kwargs
+from janito.agent.dashscope import accumulator as dashscope_accumulator
+from janito.agent.dashscope import build_call_kwargs as build_dashscope_kwargs
+from janito.agent.events import (
+    AgentEvent,
+    DoneEvent,
+    ErrorEvent,
+    ReasoningEvent,
+    TokenEvent,
+    WaitingEvent,
+)
+from janito.agent.gemini import accumulator as gemini_accumulator
+from janito.agent.gemini import build_call_kwargs as build_gemini_kwargs
+from janito.agent.responses import accumulator as responses_accumulator
+from janito.agent.responses import build_call_kwargs as build_responses_kwargs
 from janito.agent.usage import TokenStats
 from janito.config_loaders import load_max_output_tokens, load_reasoning_effort
 from janito.config_store import get_config_value
@@ -36,19 +57,10 @@ from janito.provider_accessors import (
 from janito.tooling.accounting import record_turn
 
 from ..config import WebServerConfig
-from ..events import (
-    AgentEvent,
-    DoneEvent,
-    ErrorEvent,
-    ReasoningEvent,
-    TokenEvent,
-    WaitingEvent,
-)
 from . import anthropic as anthropic_runner
 from . import dashscope as dashscope_runner
 from . import gemini as gemini_runner
 from . import responses as responses_runner
-from .call import StreamAccumulator, build_call_kwargs
 from .tooling import reset_used_files, resolve_tools
 from .turn import run_tool_turn
 
@@ -84,19 +96,56 @@ def _resolve_turn_config(config, effective_provider, model):
     return max_output_tokens, preserve_thinking, reasoning_effort
 
 
-def _runner_for(api_type: str):
-    """Return the web-agent runner module for a non-Completions API type.
+@dataclass(frozen=True)
+class _Runner:
+    """Per-API runner for the web agent loop (non-Completions types).
 
-    ``None`` means the built-in Completions path (``call.py``) applies.
+    Bundles the web-only glue (client creation, event streaming) from the
+    runner module with the shared call-kwargs builder and accumulator class
+    from the ``janito.agent`` adapters, so the loop keeps a single uniform
+    interface per API type.
+    """
+
+    create_client: Callable[..., Any]
+    build_call_kwargs: Callable[..., dict]
+    accumulator: type
+    stream_turn_events: Callable[..., Any]
+
+
+def _runner_for(api_type: str) -> _Runner | None:
+    """Return the runner for a non-Completions API type.
+
+    ``None`` means the built-in Completions path (handled inline in the
+    loop below).
     """
     if api_type == "Responses":
-        return responses_runner
+        return _Runner(
+            responses_runner.create_client,
+            build_responses_kwargs,
+            responses_accumulator,
+            responses_runner.stream_turn_events,
+        )
     if api_type == "Anthropic":
-        return anthropic_runner
+        return _Runner(
+            anthropic_runner.create_client,
+            build_anthropic_kwargs,
+            anthropic_accumulator,
+            anthropic_runner.stream_turn_events,
+        )
     if api_type == "DashScope":
-        return dashscope_runner
+        return _Runner(
+            dashscope_runner.create_client,
+            build_dashscope_kwargs,
+            dashscope_accumulator,
+            dashscope_runner.stream_turn_events,
+        )
     if api_type == "Gemini":
-        return gemini_runner
+        return _Runner(
+            gemini_runner.create_client,
+            build_gemini_kwargs,
+            gemini_accumulator,
+            gemini_runner.stream_turn_events,
+        )
     return None
 
 
@@ -110,7 +159,7 @@ def _build_turn_kwargs(
     reasoning_effort,
 ) -> dict:
     """Build the ``chat.completions.create`` kwargs for one turn."""
-    call_kwargs = build_call_kwargs(
+    call_kwargs = build_completions_kwargs(
         model,
         config,
         max_output_tokens,
@@ -124,7 +173,7 @@ def _build_turn_kwargs(
     return call_kwargs
 
 
-def _build_assistant_message(acc: StreamAccumulator, full_content: str) -> dict:
+def _build_assistant_message(acc: Any, full_content: str) -> dict:
     """Build the assistant message dict from the accumulated turn."""
     assistant_message = {"role": "assistant", "content": full_content}
     reasoning_content = acc.reasoning_content()
@@ -178,7 +227,7 @@ def _turn_call_kwargs_and_acc(
             preserve_thinking,
             reasoning_effort,
         )
-        return call_kwargs, StreamAccumulator()
+        return call_kwargs, CompletionsAccumulator()
     call_kwargs = runner.build_call_kwargs(
         model,
         messages,

@@ -30,6 +30,10 @@ from conftest import make_config
 import janito.config_dir as config_dir_mod
 import janito.tooling.used_files as used_files
 from janito.openai_client import conversations_api as api
+from janito.openai_client.responses_stream import (
+    _consume_response_stream,
+    _convert_tools_to_responses_format,
+)
 
 
 def _responses_config(model="gpt-4o", provider="openai"):
@@ -116,7 +120,7 @@ def test_consume_stream_assembles_text_and_usage():
         usage,
         response_id,
         raw_attrs,
-    ) = api._consume_response_stream(events)
+    ) = _consume_response_stream(events)
     assert content == "Hello world"
     assert reasoning is None
     assert tools == []
@@ -155,7 +159,7 @@ def test_consume_stream_assembles_split_tool_call_arguments():
         usage,
         response_id,
         raw_attrs,
-    ) = api._consume_response_stream(events)
+    ) = _consume_response_stream(events)
     assert content == "Let me check"
     assert reasoning == "thinking..."
     assert tools == [
@@ -180,7 +184,7 @@ def test_consume_stream_prefers_full_arguments_from_done_event():
             _Event("response.completed", response=_Response("resp_3")),
         ]
     )
-    _, _, tools, _, response_id, _ = api._consume_response_stream(events)
+    _, _, tools, _, response_id, _ = _consume_response_stream(events)
     assert tools == [{"call_id": "call_9", "name": "run_bash", "arguments": '{"x": 1}'}]
     assert response_id == "resp_3"
 
@@ -198,7 +202,7 @@ def test_consume_stream_raises_on_failed_response():
         ]
     )
     with pytest.raises(RuntimeError, match="boom"):
-        api._consume_response_stream(events)
+        _consume_response_stream(events)
 
 
 def test_consume_stream_raises_on_untyped_error_event():
@@ -219,14 +223,14 @@ def test_consume_stream_raises_on_untyped_error_event():
         ]
     )
     with pytest.raises(RuntimeError, match="Unsupported model: 'qwen3.8-max'"):
-        api._consume_response_stream(events)
+        _consume_response_stream(events)
 
 
 def test_consume_stream_raises_on_empty_stream():
     """A stream that yields no events at all must raise rather than silently
     returning an empty response."""
     with pytest.raises(RuntimeError, match="empty response"):
-        api._consume_response_stream(_stream([]))
+        _consume_response_stream(_stream([]))
 
 
 # ---- _convert_tools_to_responses_format ----------------------------------
@@ -257,7 +261,7 @@ def test_convert_tools_to_responses_format_lifts_name_to_top_level():
             },
         },
     ]
-    converted = api._convert_tools_to_responses_format(completions_schemas)
+    converted = _convert_tools_to_responses_format(completions_schemas)
     assert converted == [
         {
             "type": "function",
@@ -284,11 +288,11 @@ def test_convert_tools_to_responses_format_lifts_name_to_top_level():
 def test_convert_tools_to_responses_format_handles_already_converted_and_empty():
     # A schema that already has top-level name (no nested 'function') is kept.
     already = {"type": "function", "name": "x", "parameters": {}}
-    assert api._convert_tools_to_responses_format([already]) == [
+    assert _convert_tools_to_responses_format([already]) == [
         {"type": "function", "name": "x", "description": "", "parameters": {}}
     ]
     # An empty list stays empty.
-    assert api._convert_tools_to_responses_format([]) == []
+    assert _convert_tools_to_responses_format([]) == []
 
 
 # ---- run_turn (mocked network) ----------------------------------------
@@ -971,8 +975,8 @@ def test_conversation_result_defaults():
 
 
 def test_module_reexports_completions_api_helpers():
-    # Shared helpers are re-exported so callers can import everything from a
-    # single module.
+    # Runtime-config helpers are shared with the Completions implementation
+    # so callers can import everything from a single module.
     assert api.resolve_runtime_config is not None
     assert api.get_env_config is not None
 

@@ -6,12 +6,12 @@ that yields structured events instead of printing to a terminal.  It is the
 **web orchestration loop**; the per-API adapters it dispatches to (call-kwargs
 building, stream accumulation, history conversion) live in the shared
 ``janito.agent`` layer, also used by the CLI ``Client.run_turn`` loop.  The
-runner modules here are thin shims that re-export the shared adapters and
-keep the web-only async glue (SDK client creation + event-stream drivers).
+runner modules here are thin shims that keep the web-only async glue (SDK
+client creation + event-stream drivers); the loop pulls the shared
+call-kwargs builders and accumulator classes straight from ``janito.agent``.
 
 Modules:
   - :mod:`~.tooling` — tool discovery (built-in + MCP) and execution.
-  - :mod:`~.call`    — Completions adapter (shared) re-export.
   - :mod:`~.responses`  — Responses API runner (input-items conversation model).
   - :mod:`~.anthropic`  — native Anthropic SDK runner (system/tool conversion).
   - :mod:`~.dashscope`  — native DashScope SDK runner (off-thread stream).

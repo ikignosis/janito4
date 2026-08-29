@@ -5,23 +5,16 @@ accumulation) lives in :mod:`janito.agent.anthropic` — the shared adapter
 layer used by both agent loops.  This module keeps the web-only glue:
 :func:`create_client` (async Anthropic SDK client, lazily importing the
 optional ``anthropic`` package) and :func:`stream_turn_events` (which
-drives the stream and yields reasoning/token events to the browser).
+drives the stream and yields reasoning/token events to the browser).  The
+loop builds call kwargs and accumulators directly from the shared adapters
+in :mod:`janito.agent.anthropic`.
 """
 
 import importlib.util
 import logging
 
-from janito.agent.anthropic import (  # noqa: F401
-    AnthropicTurnAccumulator,
-    _convert_tools,
-    _parse_tool_input,
-    _to_anthropic,
-    accumulator,
-    build_call_kwargs,
-)
-from janito.agent.usage import usage_event_from_usage  # noqa: F401
-
-from ..events import ReasoningEvent, TokenEvent
+from janito.agent.anthropic import AnthropicTurnAccumulator
+from janito.agent.events import ReasoningEvent, TokenEvent
 
 logger = logging.getLogger(__name__)
 
@@ -56,13 +49,6 @@ async def stream_turn_events(client, call_kwargs: dict, acc: AnthropicTurnAccumu
 
 
 __all__ = [
-    "AnthropicTurnAccumulator",
-    "accumulator",
-    "build_call_kwargs",
     "create_client",
     "stream_turn_events",
-    "_convert_tools",
-    "_parse_tool_input",
-    "_to_anthropic",
-    "usage_event_from_usage",
 ]

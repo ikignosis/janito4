@@ -57,7 +57,7 @@ def _cfg(thinking=False):
 
 
 def test_dashscope_build_call_kwargs_passes_history_and_thinking():
-    from janito.web.backend.agent import dashscope
+    from janito.agent import dashscope
 
     messages = [
         {"role": "system", "content": "Be helpful."},
@@ -81,7 +81,7 @@ def test_dashscope_build_call_kwargs_passes_builtin_tools():
     """The effective model's built-in tools are sent as request-body enable_*
     kwargs on the native DashScope API (e.g. enable_code_interpreter /
     enable_search)."""
-    from janito.web.backend.agent import dashscope
+    from janito.agent import dashscope
 
     class _Cfg:
         effective_thinking = True
@@ -109,7 +109,7 @@ def test_dashscope_build_call_kwargs_passes_builtin_tools():
 
 def test_dashscope_build_call_kwargs_omits_builtin_tools_when_none():
     """Models without built-in tools send no enable_* tool kwargs."""
-    from janito.web.backend.agent import dashscope
+    from janito.agent import dashscope
 
     kwargs = dashscope.build_call_kwargs(
         "qwen3.8-max",
@@ -125,7 +125,7 @@ def test_dashscope_build_call_kwargs_omits_builtin_tools_when_none():
 
 
 def test_dashscope_accumulator_folds_chunks():
-    from janito.web.backend.agent.dashscope import DashScopeTurnAccumulator
+    from janito.agent.dashscope import DashScopeTurnAccumulator
 
     acc = DashScopeTurnAccumulator()
     chunks = [
@@ -206,9 +206,10 @@ def test_dashscope_stream_retries_on_endpoint_mismatch(monkeypatch):
     import dashscope as dashscope_mod
     from dashscope import Generation, MultiModalConversation
 
+    from janito.agent.dashscope import accumulator, build_call_kwargs
+    from janito.agent.events import TokenEvent
     from janito.openai_client.dashscope_stream import _ModelEndpointMismatch
     from janito.web.backend.agent import dashscope as ds
-    from janito.web.backend.events import TokenEvent
 
     calls = []
 
@@ -255,7 +256,7 @@ def test_dashscope_stream_retries_on_endpoint_mismatch(monkeypatch):
     )
 
     handle = ds.create_client("https://dashscope-intl.aliyuncs.com/api/v1", "sk-test")
-    kwargs = ds.build_call_kwargs(
+    kwargs = build_call_kwargs(
         "qwen-flash",
         [{"role": "user", "content": "hey"}],
         None,
@@ -264,7 +265,7 @@ def test_dashscope_stream_retries_on_endpoint_mismatch(monkeypatch):
         None,
         None,
     )
-    acc = ds.accumulator()
+    acc = accumulator()
 
     async def _run():
         events = []

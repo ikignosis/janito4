@@ -8,7 +8,7 @@ right next to the data it serializes (adding a field is a one-file change).
 
 This module used to live at ``janito.web.backend.events``; it moved into
 the shared ``janito.agent`` layer so both agent loops consume the same
-event types.  The web path re-exports these names unchanged.
+event types, and the historical web-path shim was removed.
 """
 
 from dataclasses import dataclass

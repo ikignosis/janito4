@@ -8,9 +8,8 @@ chunks -- whose ``candidates[0].content.parts`` carry thought text, final
 text and ``function_call`` parts -- into a single response.
 
 The per-chunk folding lives in :class:`GeminiStreamConsumer`; the module-level
-``_consume_stream`` / ``_consume_chunk`` functions are thin delegators kept for
-backward compatibility with the other client modules (they are re-exported
-from ``janito.gemini_api``).
+``_consume_stream`` / ``_consume_chunk`` functions are thin delegators used
+by the module's own ``_stream_response`` and by the client tests.
 
 Streaming chunks are ``GenerateContentResponse`` objects; each chunk exposes:
 
@@ -231,7 +230,7 @@ class GeminiStreamConsumer:
 
 
 # ---------------------------------------------------------------------------
-# Module-level delegators (re-exported from ``janito.gemini_api``).
+# Module-level delegators (thin wrappers over GeminiStreamConsumer).
 # ---------------------------------------------------------------------------
 
 

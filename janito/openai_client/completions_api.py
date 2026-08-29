@@ -33,26 +33,13 @@ from .api_config import APIConfig
 # Shared agent-loop pipeline (see Client.run_turn) implemented by CompletionsClient.
 from .base_client import Client
 
-# Shared helpers reused by every client module (token formatting, MCP
-# loading, Rich console output, auth-error explainer), the per-round stream
-# runner (``_run_with_progress_bar`` + ``RequestCancelled``, injected by the
-# CLI) and the Chat Completions stream consumer.  Re-exported here so
-# existing ``completions_api.<name>`` references (including tests) keep
-# working.
-from .client_support import (  # noqa: F401 (re-exported for backward compat)
-    RequestCancelled,
-    TurnUsage,
-    _display_usage,
-    _load_mcp,
-    format_tokens,
-)
+# Shared client helpers: the usage summary out-param used by the module's
+# remaining functions (the per-round stream runner, Rich console output and
+# auth-error explainer are injected by the CLI via ``Client``; see
+# ``client_support``).
+from .client_support import TurnUsage
 from .completions_helpers import _build_call_kwargs, _finalize_response, _resolve_tools
-from .completions_stream import (  # noqa: F401 (re-exported for backward compat)
-    _consume_chunk,
-    _consume_stream,
-    _consume_tool_call_delta,
-    _stream_response,
-)
+from .completions_stream import _stream_response
 
 # Import tools
 

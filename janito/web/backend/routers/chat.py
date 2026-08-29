@@ -12,11 +12,11 @@ import logging
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
+from janito.agent.events import event_to_dict
 from janito.config_loaders import load_model_from_config
 from janito.provider_accessors import get_default_model_from_provider
 
 from ..agent import stream_prompt
-from ..events import event_to_dict
 from ..prompts import PromptRegistry
 from ..session import ConversationSession, SessionManager
 from .chat_helpers import _read_client_message, _run_prompt_turn, _send_session_greeting

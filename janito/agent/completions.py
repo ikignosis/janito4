@@ -3,8 +3,7 @@
 Used by both agent loops:
 
 - the web ``stream_prompt()`` loop imports ``CompletionsAccumulator`` and
-  ``build_call_kwargs`` through the ``janito.web.backend.agent.call`` shim
-  (where the accumulator is still aliased as ``StreamAccumulator``);
+  ``build_call_kwargs`` directly from this module;
 - the CLI loop subclasses ``CompletionsAccumulator`` in
   ``janito.openai_client.completions_stream`` (``CompletionsStreamConsumer``)
   to add its synchronous Enter-to-cancel stream driver.

@@ -7,13 +7,12 @@ streamed deltas (content, reasoning/thinking text and tool-call arguments,
 which arrive split across many chunks) into a single response.
 
 The per-chunk folding lives in the shared
-:class:`~janito.agent.completions.CompletionsAccumulator` (also used by the
-web loop's ``StreamAccumulator``); :class:`CompletionsStreamConsumer` adds
+:class:`~janito.agent.completions.CompletionsAccumulator` (used directly by
+the web loop); :class:`CompletionsStreamConsumer` adds
 the CLI-specific driver — :meth:`consume` walks a sync stream with
 Enter-to-cancel support and returns the response parts.  The module-level
 ``_consume_stream`` / ``_consume_chunk`` / ``_consume_tool_call_delta``
-functions are thin delegators kept for backward compatibility (they are
-re-exported from ``completions_api``).
+functions are thin delegators used by ``_stream_response`` and its tests.
 """
 
 import logging
@@ -117,7 +116,7 @@ class CompletionsStreamConsumer(CompletionsAccumulator):
 
 
 # ---------------------------------------------------------------------------
-# Backward-compatibility delegators (re-exported from ``completions_api``).
+# Module-level delegators (thin wrappers over CompletionsStreamConsumer).
 # ---------------------------------------------------------------------------
 
 

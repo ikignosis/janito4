@@ -11,8 +11,8 @@ Completions, which splits tool calls across chunks indexed by position).
 :class:`ResponsesStreamConsumer` is the real implementation: it holds the
 assembled response parts as instance attributes (no ``state`` dict plumbing)
 and drives the per-event handlers.  The module-level ``_consume_response_stream``
-/ ``_handle_*`` functions are thin delegators kept for backward compatibility
-(they are re-exported from ``conversations_api``).
+/ ``_handle_*`` functions are thin delegators used by the module's own
+``_stream_response`` and by the client tests.
 """
 
 import logging
@@ -204,12 +204,11 @@ def _raise_failed_error(event) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Backward-compatibility delegators.
+# Module-level delegators (thin wrappers over ResponsesStreamConsumer).
 #
 # ``_consume_response_stream`` is the main entry point (exercised by the
-# tests).  The ``_handle_*`` functions are only re-exported from
-# ``conversations_api`` for backward compatibility; they remain functional by
-# bridging a caller-supplied ``state`` dict to a consumer instance.
+# tests).  The ``_handle_*`` functions bridge a caller-supplied ``state``
+# dict to a consumer instance.
 # ---------------------------------------------------------------------------
 
 _STATE_KEYS = (

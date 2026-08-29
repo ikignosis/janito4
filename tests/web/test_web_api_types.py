@@ -6,15 +6,16 @@ for the *effective provider* (``--api-type`` > the provider's configured
 ``api-type`` written by the Settings drawer > the provider's built-in
 default) and dispatches to a per-type runner:
 
-* ``Completions`` -> ``janito.web.backend.agent.call`` (the built-in path)
+* ``Completions`` -> the loop's built-in path (``janito.agent.completions``)
 * ``Responses``   -> ``janito.web.backend.agent.responses``
 * ``Anthropic``   -> ``janito.web.backend.agent.anthropic``
 * ``DashScope``   -> ``janito.web.backend.agent.dashscope``
 
-Each runner exposes the same interface (``create_client`` /
-``build_call_kwargs`` / ``accumulator`` / ``stream_turn_events``) and keeps
-the session history in the portable OpenAI chat format -- each API type
-converts it to its own wire format when calling.
+Each runner exposes the same interface (``create_client`` / stream driver),
+with the call-kwargs builder and accumulator coming straight from the
+shared ``janito.agent`` adapters, and keeps the session history in the
+portable OpenAI chat format -- each API type converts it to its own wire
+format when calling.
 
 These tests pin down:
 
@@ -72,13 +73,41 @@ def clean_config(request):
 
 
 def test_loop_dispatches_each_api_type_to_its_runner():
+    from janito.agent.anthropic import accumulator as anthropic_accumulator
+    from janito.agent.anthropic import build_call_kwargs as anthropic_build_call_kwargs
+    from janito.agent.dashscope import accumulator as dashscope_accumulator
+    from janito.agent.dashscope import build_call_kwargs as dashscope_build_call_kwargs
+    from janito.agent.gemini import accumulator as gemini_accumulator
+    from janito.agent.gemini import build_call_kwargs as gemini_build_call_kwargs
+    from janito.agent.responses import accumulator as responses_accumulator
+    from janito.agent.responses import build_call_kwargs as responses_build_call_kwargs
     from janito.web.backend.agent import loop
 
-    assert loop._runner_for("Responses") is loop.responses_runner
-    assert loop._runner_for("Anthropic") is loop.anthropic_runner
-    assert loop._runner_for("DashScope") is loop.dashscope_runner
-    assert loop._runner_for("Gemini") is loop.gemini_runner
-    # Completions is the built-in path (call.py) -- no runner module.
+    responses = loop._runner_for("Responses")
+    assert responses.build_call_kwargs is responses_build_call_kwargs
+    assert responses.accumulator is responses_accumulator
+    assert responses.create_client is loop.responses_runner.create_client
+    assert responses.stream_turn_events is loop.responses_runner.stream_turn_events
+
+    anthropic = loop._runner_for("Anthropic")
+    assert anthropic.build_call_kwargs is anthropic_build_call_kwargs
+    assert anthropic.accumulator is anthropic_accumulator
+    assert anthropic.create_client is loop.anthropic_runner.create_client
+    assert anthropic.stream_turn_events is loop.anthropic_runner.stream_turn_events
+
+    dashscope = loop._runner_for("DashScope")
+    assert dashscope.build_call_kwargs is dashscope_build_call_kwargs
+    assert dashscope.accumulator is dashscope_accumulator
+    assert dashscope.create_client is loop.dashscope_runner.create_client
+    assert dashscope.stream_turn_events is loop.dashscope_runner.stream_turn_events
+
+    gemini = loop._runner_for("Gemini")
+    assert gemini.build_call_kwargs is gemini_build_call_kwargs
+    assert gemini.accumulator is gemini_accumulator
+    assert gemini.create_client is loop.gemini_runner.create_client
+    assert gemini.stream_turn_events is loop.gemini_runner.stream_turn_events
+
+    # Completions is the built-in path -- no runner module.
     assert loop._runner_for("Completions") is None
 
 
@@ -124,8 +153,8 @@ def test_web_server_config_effective_tools_for_resolves_per_api_type():
 
 
 def test_usage_event_from_usage_handles_both_usage_shapes():
-    from janito.web.backend.agent.call import usage_event_from_usage
-    from janito.web.backend.events import UsageEvent
+    from janito.agent.events import UsageEvent
+    from janito.agent.usage import usage_event_from_usage
 
     # Chat Completions shape
     completions_usage = SimpleNamespace(
