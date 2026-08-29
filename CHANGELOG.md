@@ -53,6 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The built-in base system prompt moved from a code constant to the packaged
+  resource `janito/system-prompt.txt` (issue #73): it is installed as package
+  data (`[tool.setuptools.package-data]`) and read lazily from the resource
+  location each time the default prompt is resolved
+  (`default_system_prompt_manager()` / `get_builtin_system_prompt()`), so
+  importing `janito` never embeds or reads the prompt text.
 - The `alibaba` provider's built-in default model is now `qwen3.8-flash`
   instead of `qwen3.8-max` (issue #59): `janito --provider alibaba` without
   an explicit model resolves to the fast, cost-effective flash model. The

@@ -413,11 +413,13 @@ Key modules:
 
 The system prompt (`janito/system_prompt.py`) composes the base prompt, the
 skills advertisement section, the current project's `AGENTS.md` content, and
-any loaded plugins' `SYSTEM_PROMPT` sections. The composition is built from
-ordered sections (`start`, `skills`, `agents.md`, `plugins:<name>`) stored in
-a shared `SysPromptManager`; `sync_default_sections()` keeps the dynamic
-`skills`/`agents.md` sections in sync and `render()` joins every section with
-a trailing newline. The shell `/prompt` command and
+any loaded plugins' `SYSTEM_PROMPT` sections. The base prompt is the packaged
+resource `janito/system-prompt.txt` (installed as package data), read lazily
+from the resource location when the default prompt is resolved. The
+composition is built from ordered sections (`start`, `skills`, `agents.md`,
+`plugins:<name>`) stored in a shared `SysPromptManager`; `sync_default_sections()`
+keeps the dynamic `skills`/`agents.md` sections in sync and `render()` joins
+every section with a trailing newline. The shell `/prompt` command and
 `janito --show-system-prompt` display each section as a row of a rich table
 (Section, Lines, Content) via `get_all_sections()`.
 

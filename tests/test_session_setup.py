@@ -42,9 +42,11 @@ if pytest is not None:
     def test_default_uses_skills_prompt(monkeypatch):
         _patch_config_start(monkeypatch, None)
         setup = SessionSetup()
-        from janito.system_prompt import sync_default_sections
+        from janito.system_prompt import default_system_prompt_manager
 
-        assert setup.effective_system_prompt() == sync_default_sections().render()
+        assert (
+            setup.effective_system_prompt() == default_system_prompt_manager().render()
+        )
         assert setup.no_tools is False
 
     def test_custom_system_prompt_wins():
@@ -69,13 +71,16 @@ if pytest is not None:
 
     def test_config_start_does_not_mutate_shared_manager(monkeypatch):
         """Applying the config start per call leaves SYSTEM_PROMPT_MANAGER intact."""
-        from janito.system_prompt import SYSTEM_PROMPT, SYSTEM_PROMPT_MANAGER
+        from janito.system_prompt import SYSTEM_PROMPT_MANAGER
 
         _patch_config_start(monkeypatch, "configured start text")
         SessionSetup().effective_system_prompt()
         SessionSetup().effective_system_prompt()
         sections = dict(SYSTEM_PROMPT_MANAGER.get_all_sections())
-        assert sections["start"] == SYSTEM_PROMPT
+        # The shared manager's start stays at its lazy empty seed: the
+        # configured (or built-in resource) start is only applied to a
+        # per-call copy.
+        assert sections["start"] == ""
 
     def test_cli_system_prompt_wins_over_config(monkeypatch):
         """-S overrides the configured start without touching the config."""

@@ -43,14 +43,14 @@ def _patch_config_start(monkeypatch, start):
 
 def test_prompt_cmd_shows_section_table(monkeypatch, tmp_path, capfd):
     """The default prompt is displayed as a rich table with per-section rows."""
-    from janito.system_prompt import sync_default_sections
+    from janito.system_prompt import default_system_prompt_manager
 
     _patch_skills_section(monkeypatch)
     _patch_config_start(monkeypatch, None)
     monkeypatch.chdir(tmp_path)
 
     shell = InteractiveShell(model="test-model", no_history=True)
-    shell.initialize_history(system_prompt=sync_default_sections().render())
+    shell.initialize_history(system_prompt=default_system_prompt_manager().render())
 
     handler = PromptCmdHandler()
     assert handler.handle(shell, "/prompt") is True
@@ -68,14 +68,14 @@ def test_prompt_cmd_shows_section_table(monkeypatch, tmp_path, capfd):
 
 def test_prompt_cmd_no_skills_title_omits_skills(monkeypatch, tmp_path, capfd):
     """Without any skills the title omits the (with Skills) suffix."""
-    from janito.system_prompt import sync_default_sections
+    from janito.system_prompt import default_system_prompt_manager
 
     _patch_no_skills(monkeypatch)
     _patch_config_start(monkeypatch, None)
     monkeypatch.chdir(tmp_path)
 
     shell = InteractiveShell(model="test-model", no_history=True)
-    shell.initialize_history(system_prompt=sync_default_sections().render())
+    shell.initialize_history(system_prompt=default_system_prompt_manager().render())
 
     handler = PromptCmdHandler()
     assert handler.handle(shell, "/prompt") is True
@@ -89,7 +89,7 @@ def test_prompt_cmd_no_skills_title_omits_skills(monkeypatch, tmp_path, capfd):
 
 def test_prompt_cmd_includes_agents_md_section(monkeypatch, tmp_path, capfd):
     """An AGENTS.md in cwd appears as its own row in the table."""
-    from janito.system_prompt import sync_default_sections
+    from janito.system_prompt import default_system_prompt_manager
 
     _patch_skills_section(monkeypatch)
     _patch_config_start(monkeypatch, None)
@@ -97,7 +97,7 @@ def test_prompt_cmd_includes_agents_md_section(monkeypatch, tmp_path, capfd):
     (tmp_path / "AGENTS.md").write_text("agent line", encoding="utf-8")
 
     shell = InteractiveShell(model="test-model", no_history=True)
-    shell.initialize_history(system_prompt=sync_default_sections().render())
+    shell.initialize_history(system_prompt=default_system_prompt_manager().render())
 
     handler = PromptCmdHandler()
     assert handler.handle(shell, "/prompt") is True
@@ -164,7 +164,10 @@ def test_prompt_cmd_preserves_leading_whitespace_of_sections(
     (not ``strip``) keeps that leading whitespace so the rendered rows show
     the blank-line separation between sections.
     """
-    from janito.system_prompt import SYSTEM_PROMPT_MANAGER, sync_default_sections
+    from janito.system_prompt import (
+        SYSTEM_PROMPT_MANAGER,
+        default_system_prompt_manager,
+    )
 
     _patch_skills_section(monkeypatch)
     _patch_config_start(monkeypatch, None)
@@ -175,7 +178,7 @@ def test_prompt_cmd_preserves_leading_whitespace_of_sections(
     SYSTEM_PROMPT_MANAGER.add_section("plugins:testplugin", "\nplugin section text")
     try:
         shell = InteractiveShell(model="test-model", no_history=True)
-        shell.initialize_history(system_prompt=sync_default_sections().render())
+        shell.initialize_history(system_prompt=default_system_prompt_manager().render())
 
         handler = PromptCmdHandler()
         assert handler.handle(shell, "/prompt") is True

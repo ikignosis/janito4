@@ -62,6 +62,12 @@ overrides the config value for that run (without changing it), and
 and the shell `/prompt` command show the configured `start` section as part
 of the default section table.
 
+By default (neither key set) the `start` section is the built-in base prompt,
+shipped with janito as `janito/system-prompt.txt` — installed as package data
+and read from the resource location each time the default prompt is built, so
+editing the installed file (or the source-tree copy) is picked up without a
+code change.
+
 The file is read at session start (each new session re-reads it), so editing
 the file is picked up by the next session. The path is validated when the
 value is set (`janito --set system-prompt-file=...` rejects a missing file

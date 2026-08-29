@@ -10,3 +10,4 @@
 - Avoid defensive try/except import fallbacks
 - Do not keep backwards compatibility unless explicitely asked by the user
 - Do not stage/commit changes unless explicitely asked by the user
+- When there is an associated github issue, before executing a change plan, add it to the issue comments

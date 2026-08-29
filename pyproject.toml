@@ -50,6 +50,9 @@ where = ["."]
 include = ["janito*"]
 
 [tool.setuptools.package-data]
+"janito" = [
+    "system-prompt.txt",
+]
 "janito.web" = [
     "backend/templates/*.html",
     "backend/templates/partials/*.html",

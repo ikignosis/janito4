@@ -2,11 +2,13 @@
 
 The system prompt is an ordered list of named ``(section_name, section_text)``
 pairs owned by a :class:`SysPromptManager`.  The shared manager
-(:data:`SYSTEM_PROMPT_MANAGER`) is seeded with the ``start`` section holding
-the built-in base prompt; :func:`sync_default_sections` keeps the ``skills``
-and ``agents.md`` sections in sync with the tool registry and the cwd
-``AGENTS.md``; plugins register ``plugins:<name>`` sections at load time (see
-``janito.plugin_manager``).
+(:data:`SYSTEM_PROMPT_MANAGER`) is seeded with an empty ``start`` section;
+the built-in base prompt is read lazily from the packaged resource
+``janito/system-prompt.txt`` by :func:`get_builtin_system_prompt` when the
+default prompt is resolved (:func:`default_system_prompt_manager`).
+:func:`sync_default_sections` keeps the ``skills`` and ``agents.md`` sections
+in sync with the tool registry and the cwd ``AGENTS.md``; plugins register
+``plugins:<name>`` sections at load time (see ``janito.plugin_manager``).
 
 Every consumer (``janito.cli.session_setup.SessionSetup``, the shell ``/prompt``
 command, ``--show-system-prompt`` and the web backend) manipulates the prompt
@@ -22,13 +24,32 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
+from importlib.resources import files
 
-# The built-in base prompt used to seed the ``start`` section.  Kept without
-# leading/trailing newlines: :meth:`SysPromptManager.render` appends a newline
-# at the end of every section for visual separation.
-SYSTEM_PROMPT = (
-    "Explore the current directory for potential content related to the question"
-)
+# The packaged resource holding the built-in base prompt (the ``start``
+# section used when no ``system-prompt`` / ``system-prompt-file`` config is
+# set).  Installed as package data; read lazily via
+# :func:`get_builtin_system_prompt` so importing this module never reads it.
+BUILTIN_SYSTEM_PROMPT_RESOURCE = "system-prompt.txt"
+
+
+def get_builtin_system_prompt() -> str:
+    """Return the built-in base prompt read from the packaged resource.
+
+    The text lives in ``janito/system-prompt.txt`` (installed as package
+    data) and is read from the resource location on every call, so the
+    default prompt always reflects the shipped file.  The content is
+    stripped of leading/trailing whitespace, keeping the ``start`` section
+    without its own newlines: :meth:`SysPromptManager.render` appends one
+    newline at the end of every section for visual separation.
+    """
+    return (
+        files("janito")
+        .joinpath(BUILTIN_SYSTEM_PROMPT_RESOURCE)
+        .read_text(encoding="utf-8")
+        .strip()
+    )
+
 
 # Section names used when building the default prompt.
 SECTION_START = "start"
@@ -114,8 +135,13 @@ class SysPromptManager:
         return None
 
 
-# The shared manager used across the app (CLI, shell and web).
-SYSTEM_PROMPT_MANAGER = SysPromptManager(SYSTEM_PROMPT)
+# The shared manager used across the app (CLI, shell and web).  The ``start``
+# section is seeded empty and only populated lazily by
+# :func:`default_system_prompt_manager` (with the built-in resource prompt or
+# the configured start), so importing this module never reads
+# ``system-prompt.txt`` and the manager is never mutated by session-specific
+# starts.
+SYSTEM_PROMPT_MANAGER = SysPromptManager("")
 
 
 def _load_agents_md() -> str | None:
@@ -208,8 +234,11 @@ def default_system_prompt_manager() -> SysPromptManager:
     ``start`` section comes from config (``system-prompt-file`` /
     ``system-prompt``, see
     :func:`janito.config_loaders.load_system_prompt_start`) when set, else
-    the built-in base prompt.  Never mutates the shared
-    :data:`SYSTEM_PROMPT_MANAGER`.
+    the built-in base prompt, read **lazily** from the packaged
+    ``janito/system-prompt.txt`` resource via
+    :func:`get_builtin_system_prompt` (one resource read per call, so the
+    shipped file is always current and importing ``janito`` never reads it).
+    Never mutates the shared :data:`SYSTEM_PROMPT_MANAGER`.
 
     This is the single "default prompt" resolver shared by
     :class:`janito.cli.session_setup.SessionSetup` and the display paths
@@ -218,4 +247,7 @@ def default_system_prompt_manager() -> SysPromptManager:
     """
     from .config_loaders import load_system_prompt_start
 
-    return apply_start_section(sync_default_sections(), load_system_prompt_start())
+    start = load_system_prompt_start()
+    if start is None:
+        start = get_builtin_system_prompt()
+    return apply_start_section(sync_default_sections(), start)

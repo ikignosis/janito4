@@ -3,8 +3,9 @@ Tests for the system prompt management in ``janito/system_prompt.py``.
 
 The system prompt is assembled from named sections via
 :class:`SysPromptManager`.  These tests cover the manager's section operations
-(add/update/delete), rendering, and the default prompt built by
-``sync_default_sections`` (base + skills + optional ``AGENTS.md``).
+(add/update/delete), rendering, and the default prompt resolved by
+``default_system_prompt_manager`` (built-in base prompt read from the packaged
+``janito/system-prompt.txt`` resource + skills + optional ``AGENTS.md``).
 """
 
 import sys
@@ -18,11 +19,11 @@ import pytest
 import janito.tooling.tools_registry as tools_registry_mod
 from janito.system_prompt import (
     SECTION_START,
-    SYSTEM_PROMPT,
     SYSTEM_PROMPT_MANAGER,
     SysPromptManager,
     apply_start_section,
     default_system_prompt_manager,
+    get_builtin_system_prompt,
     sync_default_sections,
 )
 
@@ -132,12 +133,22 @@ def test_get_all_sections_returns_iterator():
 
 
 def test_system_prompt_content():
-    """SYSTEM_PROMPT contains directory exploration instructions."""
+    """get_builtin_system_prompt returns the packaged base prompt text."""
+    prompt = get_builtin_system_prompt()
     assert (
         "Explore the current directory for potential content related to the question"
-    ) in SYSTEM_PROMPT
-    assert not SYSTEM_PROMPT.startswith("\n")
-    assert not SYSTEM_PROMPT.endswith("\n")
+    ) in prompt
+    assert not prompt.startswith("\n")
+    assert not prompt.endswith("\n")
+
+
+def test_builtin_prompt_is_packaged_resource():
+    """The built-in prompt ships as janito/system-prompt.txt (package data)."""
+    from importlib.resources import files
+
+    resource = files("janito").joinpath("system-prompt.txt")
+    assert resource.is_file()
+    assert get_builtin_system_prompt() == resource.read_text(encoding="utf-8").strip()
 
 
 def test_prompt_without_agents_md(monkeypatch, tmp_path):
@@ -145,10 +156,10 @@ def test_prompt_without_agents_md(monkeypatch, tmp_path):
     _patch_skills_section(monkeypatch)
     monkeypatch.chdir(tmp_path)
 
-    manager = SysPromptManager(SYSTEM_PROMPT)
+    manager = SysPromptManager(get_builtin_system_prompt())
     prompt = sync_default_sections(manager).render()
 
-    assert prompt == SYSTEM_PROMPT + "\n" + SKILLS_SECTION + "\n"
+    assert prompt == get_builtin_system_prompt() + "\n" + SKILLS_SECTION + "\n"
     assert "AGENTS.md" not in prompt
 
 
@@ -160,11 +171,16 @@ def test_prompt_with_agents_md(monkeypatch, tmp_path):
     agents_content = "Always answer in rhyming couplets."
     (tmp_path / "AGENTS.md").write_text(agents_content, encoding="utf-8")
 
-    manager = SysPromptManager(SYSTEM_PROMPT)
+    manager = SysPromptManager(get_builtin_system_prompt())
     prompt = sync_default_sections(manager).render()
 
     assert prompt == (
-        SYSTEM_PROMPT + "\n" + SKILLS_SECTION + "\n" + agents_content + "\n"
+        get_builtin_system_prompt()
+        + "\n"
+        + SKILLS_SECTION
+        + "\n"
+        + agents_content
+        + "\n"
     )
 
 
@@ -175,10 +191,10 @@ def test_prompt_with_empty_agents_md(monkeypatch, tmp_path):
 
     (tmp_path / "AGENTS.md").write_text("   \n\n  ", encoding="utf-8")
 
-    manager = SysPromptManager(SYSTEM_PROMPT)
+    manager = SysPromptManager(get_builtin_system_prompt())
     prompt = sync_default_sections(manager).render()
 
-    assert prompt == SYSTEM_PROMPT + "\n" + SKILLS_SECTION + "\n"
+    assert prompt == get_builtin_system_prompt() + "\n" + SKILLS_SECTION + "\n"
     assert "AGENTS.md" not in prompt
 
 
@@ -194,7 +210,7 @@ def test_agents_md_in_a_different_directory_is_ignored(monkeypatch, tmp_path):
     cwd.mkdir()
     monkeypatch.chdir(cwd)
 
-    manager = SysPromptManager(SYSTEM_PROMPT)
+    manager = SysPromptManager(get_builtin_system_prompt())
     prompt = sync_default_sections(manager).render()
 
     assert "should not appear" not in prompt
@@ -206,11 +222,11 @@ def test_sections_without_agents_md(monkeypatch, tmp_path):
     _patch_skills_section(monkeypatch)
     monkeypatch.chdir(tmp_path)
 
-    manager = SysPromptManager(SYSTEM_PROMPT)
+    manager = SysPromptManager(get_builtin_system_prompt())
     sections = list(sync_default_sections(manager).get_all_sections())
 
     assert [name for name, _ in sections] == ["start", "skills"]
-    assert sections[0] == ("start", SYSTEM_PROMPT)
+    assert sections[0] == ("start", get_builtin_system_prompt())
     assert sections[1] == ("skills", SKILLS_SECTION)
 
 
@@ -222,7 +238,7 @@ def test_sections_with_agents_md(monkeypatch, tmp_path):
     agents_content = "Always answer in rhyming couplets."
     (tmp_path / "AGENTS.md").write_text(agents_content, encoding="utf-8")
 
-    manager = SysPromptManager(SYSTEM_PROMPT)
+    manager = SysPromptManager(get_builtin_system_prompt())
     sections = list(sync_default_sections(manager).get_all_sections())
 
     assert [name for name, _ in sections] == ["start", "skills", "agents.md"]
@@ -238,7 +254,7 @@ def test_sections_concatenation_reproduces_full_prompt(monkeypatch, tmp_path):
     agents_content = "agent line"
     (tmp_path / "AGENTS.md").write_text(agents_content, encoding="utf-8")
 
-    manager = SysPromptManager(SYSTEM_PROMPT)
+    manager = SysPromptManager(get_builtin_system_prompt())
     sections = list(sync_default_sections(manager).get_all_sections())
 
     assert manager.render() == "".join(text + "\n" for _, text in sections)
@@ -249,7 +265,7 @@ def test_sync_removes_sections_that_no_longer_apply(monkeypatch, tmp_path):
     _patch_skills_section(monkeypatch)
     monkeypatch.chdir(tmp_path)
 
-    manager = SysPromptManager(SYSTEM_PROMPT)
+    manager = SysPromptManager(get_builtin_system_prompt())
     (tmp_path / "AGENTS.md").write_text("agent line", encoding="utf-8")
     assert [name for name, _ in sync_default_sections(manager).get_all_sections()] == [
         "start",
@@ -314,7 +330,7 @@ def test_default_system_prompt_manager_applies_config_start(monkeypatch, tmp_pat
     assert [name for name, _ in sections] == ["start", "skills"]
     assert "configured start text" in manager.render()
     assert SKILLS_SECTION in manager.render()
-    assert SYSTEM_PROMPT not in manager.render()
+    assert get_builtin_system_prompt() not in manager.render()
 
 
 def test_default_system_prompt_manager_without_config_uses_base(monkeypatch, tmp_path):
@@ -326,7 +342,7 @@ def test_default_system_prompt_manager_without_config_uses_base(monkeypatch, tmp
     manager = default_system_prompt_manager()
     sections = list(manager.get_all_sections())
 
-    assert sections[0] == (SECTION_START, SYSTEM_PROMPT)
+    assert sections[0] == (SECTION_START, get_builtin_system_prompt())
     assert [name for name, _ in sections] == ["start", "skills"]
 
 
@@ -342,10 +358,11 @@ def test_default_system_prompt_manager_preserves_plugin_sections(monkeypatch, tm
         sections = dict(manager.get_all_sections())
         assert sections["start"] == "configured start text"
         assert sections["plugins:testplugin"] == "plugin section text"
-        # The shared manager's start is still the base prompt: the config
-        # application never leaks into it.
+        # The shared manager's start stays at its lazy empty seed: the
+        # config application (and the built-in resource prompt) is only ever
+        # applied to a per-call copy, never to the shared singleton.
         shared_sections = dict(SYSTEM_PROMPT_MANAGER.get_all_sections())
-        assert shared_sections["start"] == SYSTEM_PROMPT
+        assert shared_sections["start"] == ""
         assert shared_sections["plugins:testplugin"] == "plugin section text"
     finally:
         SYSTEM_PROMPT_MANAGER.del_section("plugins:testplugin")
