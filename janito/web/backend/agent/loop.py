@@ -31,7 +31,9 @@ from janito.openai_client.completions_api import resolve_runtime_config
 from janito.provider_accessors import (
     get_default_max_output_tokens_from_provider,
     get_default_reasoning_level_from_provider,
+    get_provider_cost_value,
 )
+from janito.tooling.accounting import record_turn
 
 from ..config import WebServerConfig
 from ..events import (
@@ -232,6 +234,50 @@ def _attach_turn_stats(usage_event, turn_stats: TokenStats | None) -> None:
     usage_event.turn_output = turn_stats.turn_output
 
 
+def _record_web_turn(
+    provider: str | None, model: str | None, turn_stats: TokenStats | None
+) -> None:
+    """Append one overall-use accounting row for a completed web turn.
+
+    Mirrors the CLI's end-of-turn accounting (issue #72): the turn-wide
+    cumulative counters (tool-call rounds included) are stored with the
+    numeric dollar cost estimate.  Best effort -- never raises, so accounting
+    cannot break the streaming loop.
+    """
+    if turn_stats is None:
+        return
+    input_tokens = (
+        turn_stats.turn_input if turn_stats.turn_input is not None else turn_stats.input
+    )
+    cached_tokens = (
+        turn_stats.turn_cached
+        if turn_stats.turn_cached is not None
+        else turn_stats.cached
+    )
+    output_tokens = (
+        turn_stats.turn_output
+        if turn_stats.turn_output is not None
+        else turn_stats.output
+    )
+    cost = None
+    if provider and model:
+        cost = get_provider_cost_value(
+            provider,
+            model,
+            input_tokens or 0,
+            output_tokens or 0,
+            cached_tokens or 0,
+        )
+    record_turn(
+        provider,
+        model,
+        input_tokens,
+        cached_tokens,
+        output_tokens,
+        cost=cost,
+    )
+
+
 async def stream_prompt(
     prompt: str,
     messages: list[dict],
@@ -357,6 +403,10 @@ async def stream_prompt(
             # API rounds.
             _attach_turn_stats(usage_event, turn_stats)
             yield usage_event
+        # Overall-use accounting (best effort, never raises): one row per
+        # completed turn that reported token usage, with the turn-wide
+        # counters and the numeric cost estimate (issue #72).
+        _record_web_turn(effective_provider, model, turn_stats)
 
         yield DoneEvent(full_content=full_content, message_count=len(messages))
         return

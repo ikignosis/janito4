@@ -1,3 +1,4 @@
+from .api_config import APIConfig, build_api_config
 from .completions_api import (
     RequestCancelled,
     get_env_config,
@@ -8,8 +9,10 @@ from .conversations_api import ConversationResult
 from .conversations_api import send_prompt as send_prompt_responses
 
 __all__ = [
+    "APIConfig",
     "ConversationResult",
     "RequestCancelled",
+    "build_api_config",
     "get_env_config",
     "resolve_runtime_config",
     "send_prompt",

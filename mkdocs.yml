@@ -51,6 +51,7 @@ nav:
       - usage/interactive-mode.md
       - usage/single-prompt.md
       - usage/logging.md
+      - usage/accounting.md
       - usage/web-ui.md
       - usage/cli-vs-web.md
   - Tools:

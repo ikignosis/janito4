@@ -6,9 +6,13 @@ import os
 from collections.abc import Callable
 
 from .. import __version__
-from ..agent.observer import TurnObserver
 from ..general_config import load_provider_from_config, resolve_api_type
-from ..openai_client import RequestCancelled, resolve_runtime_config, send_prompt
+from ..openai_client import (
+    APIConfig,
+    RequestCancelled,
+    build_api_config,
+    resolve_runtime_config,
+)
 from ..openai_client.client_support import (
     RichTurnObserver,
     _run_with_progress_bar,
@@ -24,228 +28,83 @@ from ..tooling.path_utils import display_path
 _banner_printed = False
 
 
-def _resolve_turn_observer(observer: TurnObserver | None) -> TurnObserver:
-    """Return the observer, defaulting to the CLI's Rich observer."""
-    return observer if observer is not None else RichTurnObserver()
+def _make_send_prompt_func(config: APIConfig):
+    """Return a send-prompt callable bound to a resolved APIConfig.
 
+    One closure replaces the previous five per-API-type closures (issue #70):
+    the client class is picked from ``config.api_type`` and the union
+    signature is kept so the interactive shell can call it identically in all
+    modes:
 
-def _make_send_prompt_func(
-    api_type: str,
-    cli_model: str | None = None,
-    cli_provider: str | None = None,
-    reasoning_level: str | None = None,
-    stream_runner: Callable | None = _run_with_progress_bar,
-    observer: TurnObserver | None = None,
-):
-    """Return a send-prompt callable bound to the resolved API type.
+      - Completions / Anthropic / DashScope / Gemini modes: the conversation
+        history is owned client-side (``previous_messages`` mutated in place,
+        ``instructions`` folded in); ``previous_response_id`` /
+        ``previous_items`` are ignored.
+      - Responses mode: ``previous_response_id`` (server-side providers) or
+        ``previous_items`` (stateless providers, e.g. DeepSeek) chain the
+        conversation; ``previous_messages`` is ignored.
 
-    The returned wrapper accepts the union of the Completions, Responses and
-    Anthropic call signatures so the interactive shell can call it identically
-    in all modes:
+    Each backend's ``_init_conversation_state`` already picks what it needs
+    from the union kwargs, so there is a single body.
 
-      - Completions mode: forwards ``previous_messages`` to
-        ``completions_api.send_prompt`` and returns the assistant text (the
-        history list is mutated as before).
-      - Responses mode: forwards ``previous_response_id`` / ``instructions``
-        (server-side providers) or ``previous_items`` (stateless providers,
-        e.g. DeepSeek) to ``conversations_api.send_prompt`` and returns a
-        ``ConversationResult``. For server-side providers the conversation
-        lives on the server, so ``previous_messages`` is ignored (the
-        history is no longer stored/updated on the client side); stateless
-        providers track the history in ``previous_items`` instead.
-      - Anthropic mode: forwards ``previous_messages`` / ``instructions`` to
-        ``anthropic_api.send_prompt`` (the native Anthropic SDK) and returns
-        the assistant text (the history list is mutated, like Completions).
-      - DashScope mode: forwards ``previous_messages`` / ``instructions`` to
-        ``dashscope_api.send_prompt`` (the native DashScope SDK) and returns
-        the assistant text (the history list is mutated, like Completions).
-      - Gemini mode: forwards ``previous_messages`` / ``instructions`` to
-        ``gemini_api.send_prompt`` (the native Gemini SDK) and returns the
-        assistant text (the history list is mutated, like Completions).
-
-    Each returned callable is wrapped with ``wrap_send_prompt_with_turn_report``,
+    The returned callable is wrapped with ``wrap_send_prompt_with_turn_report``,
     so it calls the API *and* prints the end-of-turn reports (used files +
     token-usage summary) from the ``usage_out`` out-param the client
     populates; pass ``display_turn_report=False`` to suppress them (e.g.
     internal side calls).
 
     Args:
-        api_type: The canonical API type: "Responses", "Completions",
-            "Anthropic", "DashScope" or "Gemini".
-        cli_model: Model passed via ``--model``.
-        cli_provider: Provider passed via ``--provider``.
-        reasoning_level: Reasoning depth passed via ``--reasoning-level``.
-        stream_runner: The per-round stream runner injected into the API
-            clients (a UI-side concern).  Defaults to the CLI's
-            ``_run_with_progress_bar`` (Rich spinner + Enter-to-cancel), so
-            every CLI entry point (shell, ``/ask``, ``/compact``, one-shot)
-            keeps the current TUI behaviour; ``None`` runs the API calls
-            directly with no thread/UI.
-        observer: The turn observer (a
-            :class:`~janito.agent.observer.TurnObserver`) injected into the
-            API clients and the end-of-turn report wrapper.  ``None``
-            (default) resolves to the CLI's RichTurnObserver, so every CLI
-            entry point keeps today's rendered output; tests and other
-            consumers inject a capturing or headless observer.
+        config: The resolved, immutable
+            :class:`~janito.openai_client.api_config.APIConfig` for this
+            session (provider, model, endpoint, api_key, token limits,
+            reasoning level, ``use_mcp`` and the UI-side ``stream_runner`` /
+            ``observer``).  Built once per session / provider switch by
+            ``build_api_config``; the returned send callable performs no
+            config-store / auth-store reads.
     """
-    observer = _resolve_turn_observer(observer)
-    if api_type == "Responses":
-        from ..openai_client.conversations_api import send_prompt as send_responses
+    from .. import dashscope_api, gemini_api
+    from ..openai_client import anthropic_api, completions_api, conversations_api
 
-        def send(
-            prompt,
-            verbose=False,
-            previous_messages=None,
-            previous_response_id=None,
-            previous_items=None,
-            instructions=None,
-            tools=None,
-            thinking=False,
-            usage_out=None,
-        ):
-            return send_responses(
-                prompt,
-                verbose=verbose,
-                previous_response_id=previous_response_id,
-                previous_items=previous_items,
-                instructions=instructions,
-                tools=tools,
-                thinking=thinking,
-                cli_model=cli_model,
-                cli_provider=cli_provider,
-                reasoning_level=reasoning_level,
-                usage_out=usage_out,
-                stream_runner=stream_runner,
-                observer=observer,
-            )
-
-        return wrap_send_prompt_with_turn_report(send, observer=observer)
-
-    if api_type == "Anthropic":
-        # Native Anthropic SDK client (the optional `anthropic` package; the
-        # API type is only settable when that package is installed).
-        from ..openai_client.anthropic_api import send_prompt as send_anthropic
-
-        def send(
-            prompt,
-            verbose=False,
-            previous_messages=None,
-            previous_response_id=None,
-            previous_items=None,
-            instructions=None,
-            tools=None,
-            thinking=False,
-            usage_out=None,
-        ):
-            return send_anthropic(
-                prompt,
-                verbose=verbose,
-                previous_messages=previous_messages,
-                instructions=instructions,
-                tools=tools,
-                thinking=thinking,
-                cli_model=cli_model,
-                cli_provider=cli_provider,
-                reasoning_level=reasoning_level,
-                usage_out=usage_out,
-                stream_runner=stream_runner,
-                observer=observer,
-            )
-
-        return wrap_send_prompt_with_turn_report(send, observer=observer)
-
-    if api_type == "DashScope":
-        # Native DashScope SDK client (the optional `dashscope` package; the
-        # API type is only settable when that package is installed).
-        from ..dashscope_api import send_prompt as send_dashscope
-
-        def send(
-            prompt,
-            verbose=False,
-            previous_messages=None,
-            previous_response_id=None,
-            previous_items=None,
-            instructions=None,
-            tools=None,
-            thinking=False,
-            usage_out=None,
-        ):
-            return send_dashscope(
-                prompt,
-                verbose=verbose,
-                previous_messages=previous_messages,
-                instructions=instructions,
-                tools=tools,
-                thinking=thinking,
-                cli_model=cli_model,
-                cli_provider=cli_provider,
-                reasoning_level=reasoning_level,
-                usage_out=usage_out,
-                stream_runner=stream_runner,
-                observer=observer,
-            )
-
-        return wrap_send_prompt_with_turn_report(send, observer=observer)
-
-    if api_type == "Gemini":
-        # Native Gemini SDK client (the optional `google-genai` package; the
-        # API type is only settable when that package is installed).
-        from ..gemini_api import send_prompt as send_gemini
-
-        def send(
-            prompt,
-            verbose=False,
-            previous_messages=None,
-            previous_response_id=None,
-            previous_items=None,
-            instructions=None,
-            tools=None,
-            thinking=False,
-            usage_out=None,
-        ):
-            return send_gemini(
-                prompt,
-                verbose=verbose,
-                previous_messages=previous_messages,
-                instructions=instructions,
-                tools=tools,
-                thinking=thinking,
-                cli_model=cli_model,
-                cli_provider=cli_provider,
-                reasoning_level=reasoning_level,
-                usage_out=usage_out,
-                stream_runner=stream_runner,
-                observer=observer,
-            )
-
-        return wrap_send_prompt_with_turn_report(send, observer=observer)
+    _CLIENTS = {
+        "Completions": completions_api.CompletionsClient,
+        "Responses": conversations_api.ResponsesClient,
+        "Anthropic": anthropic_api.AnthropicClient,
+        "DashScope": dashscope_api.DashScopeClient,
+        "Gemini": gemini_api.GeminiClient,
+    }
+    try:
+        client = _CLIENTS[config.api_type](config)
+    except KeyError:
+        raise ValueError(f"Unsupported API type: {config.api_type}")
 
     def send(
         prompt,
-        verbose=False,
+        *,
+        verbose=None,
         previous_messages=None,
         previous_response_id=None,
         previous_items=None,
         instructions=None,
         tools=None,
-        thinking=False,
         usage_out=None,
     ):
-        return send_prompt(
+        # ``verbose`` stays a per-call override (design doc §7): ``None``
+        # falls back to the session default from the config; /ask forwards
+        # the session flag and /compact passes False to suppress the dumps.
+        # Thinking mode is resolved into ``config.thinking`` at build time
+        # (the shell's /thinking toggle rebuilds the config via the factory).
+        return client.send(
             prompt,
             verbose=verbose,
             previous_messages=previous_messages,
+            previous_response_id=previous_response_id,
+            previous_items=previous_items,
+            instructions=instructions,
             tools=tools,
-            thinking=thinking,
-            cli_model=cli_model,
-            cli_provider=cli_provider,
-            reasoning_level=reasoning_level,
             usage_out=usage_out,
-            stream_runner=stream_runner,
-            observer=observer,
         )
 
-    return wrap_send_prompt_with_turn_report(send, observer=observer)
+    return wrap_send_prompt_with_turn_report(send, observer=config.observer)
 
 
 def _make_send_factory(
@@ -253,6 +112,8 @@ def _make_send_factory(
     cli_model: str | None,
     cli_provider: str | None,
     cli_reasoning_level: str | None,
+    verbose: bool = False,
+    cli_thinking: bool | None = None,
 ) -> Callable[[str | None, str | None], Callable]:
     """Return a factory that builds the send function for a provider.
 
@@ -268,19 +129,39 @@ def _make_send_factory(
       - **API type**: ``--api-type``, then the model-scoped configured
         value for that provider/model, then the built-in default.
 
+    The resolved model / provider / API type are then handed to
+    ``build_api_config`` -- the single resolution point (issue #70) -- so a
+    provider switch rebuilds the immutable :class:`APIConfig`, exactly when a
+    new one is needed.  Thinking mode is resolved into the config the same
+    way: the shell's runtime ``/thinking`` toggle re-invokes the factory with
+    ``thinking_override`` set, so the flip takes effect by rebuilding the
+    config.  The CLI's TUI stream runner and Rich turn observer are injected
+    here (composition point), so every CLI entry point keeps the spinner /
+    Enter-to-cancel and rendered output.
+
     Args:
         cli_api_type: API type passed via ``--api-type`` (may be None).
         cli_model: Model passed via ``--model`` (may be None).
         cli_provider: Provider passed via ``--provider`` (may be None).
         cli_reasoning_level: Reasoning depth passed via ``--reasoning-level``
             (may be None).
+        verbose: Session default for verbose output (stored on the config;
+            per-call overrides still possible via ``Client.send(verbose=...)``).
+        cli_thinking: The ``--thinking`` CLI flag for the session (may be
+            None).  ``True`` forces thinking on; ``False``/``None`` leaves it
+            to the provider's built-in default.  A ``thinking_override``
+            passed to the returned factory wins over this value (the shell's
+            runtime ``/thinking`` toggle).
 
     Returns:
-        A callable ``factory(provider, model_override=None) -> send_prompt_func``.
+        A callable ``factory(provider, model_override=None, thinking_override=None)
+        -> send_prompt_func``.
     """
 
     def send_factory(
-        provider: str | None, model_override: str | None = None
+        provider: str | None,
+        model_override: str | None = None,
+        thinking_override: bool | None = None,
     ) -> Callable:
         from janito.config_loaders import load_model_from_config
         from janito.provider_accessors import get_default_model_from_provider
@@ -297,11 +178,23 @@ def _make_send_factory(
             model = load_model_from_config(provider) or get_default_model_from_provider(
                 provider
             )
+        # Thinking is resolved into the config at build time (issue #70): the
+        # shell's runtime /thinking toggle passes thinking_override (the
+        # shell's current flag) so a mid-session flip takes effect by
+        # rebuilding the config; otherwise the session's --thinking flag
+        # applies.
+        thinking = thinking_override if thinking_override is not None else cli_thinking
         return _make_send_prompt_func(
-            resolve_api_type(cli_api_type, provider, model),
-            cli_model=model,
-            cli_provider=provider,
-            reasoning_level=cli_reasoning_level,
+            build_api_config(
+                api_type=resolve_api_type(cli_api_type, provider, model),
+                cli_model=model,
+                cli_provider=provider,
+                reasoning_level=cli_reasoning_level,
+                thinking=thinking,
+                verbose=verbose,
+                stream_runner=_run_with_progress_bar,
+                observer=RichTurnObserver(),
+            )
         )
 
     return send_factory
@@ -431,8 +324,15 @@ def run_interactive_chat(args):
     # Factory to (re)build the send function per provider: ``/provider`` calls
     # it with the new provider so the switch takes effect in real time
     # (provider, model and API type are re-resolved, see _make_send_factory).
+    # The session's verbose flag is baked into the config at build time
+    # (issue #70); the shell keeps its own copy for /status display.
     shell.send_factory = _make_send_factory(
-        cli_api_type, cli_model, cli_provider, cli_reasoning_level
+        cli_api_type,
+        cli_model,
+        cli_provider,
+        cli_reasoning_level,
+        verbose=args.verbose,
+        cli_thinking=getattr(args, "thinking", False),
     )
     shell.initialize_history(system_prompt=effective_system_prompt)
     shell.run(
@@ -476,15 +376,24 @@ def run_single_prompt(args):
 
     try:
         # Select the API type for the provider: --api-type, then the
-        # provider's configured api-type, then its built-in default.
+        # provider's configured api-type, then its built-in default, and
+        # build the resolved per-session APIConfig once (issue #70).  The
+        # CLI's TUI stream runner and Rich turn observer are injected at this
+        # composition point.
         send_prompt_func = _make_send_prompt_func(
-            resolve_api_type(
-                getattr(args, "api_type", None),
-                getattr(args, "provider", None),
-            ),
-            cli_model=getattr(args, "model", None),
-            cli_provider=getattr(args, "provider", None),
-            reasoning_level=getattr(args, "reasoning_level", None),
+            build_api_config(
+                api_type=resolve_api_type(
+                    getattr(args, "api_type", None),
+                    getattr(args, "provider", None),
+                ),
+                cli_model=getattr(args, "model", None),
+                cli_provider=getattr(args, "provider", None),
+                reasoning_level=getattr(args, "reasoning_level", None),
+                thinking=getattr(args, "thinking", False),
+                verbose=args.verbose,
+                stream_runner=_run_with_progress_bar,
+                observer=RichTurnObserver(),
+            )
         )
         # In Responses mode the system prompt is sent as `instructions` on the
         # first turn (extracted from the seeded history); in Completions mode
@@ -494,11 +403,9 @@ def run_single_prompt(args):
             instructions = messages_history[0].get("content")
         send_prompt_func(
             prompt,
-            verbose=args.verbose,
             previous_messages=messages_history,
             instructions=instructions,
             tools=tools_to_use,
-            thinking=args.thinking,
         )
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.", file=sys.stderr)

@@ -14,13 +14,7 @@ import logging
 from types import SimpleNamespace
 from typing import Any
 
-from janito.config_loaders import load_max_input_tokens, load_max_output_tokens
 from janito.openai_client.client_support import TurnUsage
-from janito.provider_accessors import (
-    get_default_max_input_tokens_from_provider,
-    get_default_max_output_tokens_from_provider,
-    get_default_thinking_from_provider,
-)
 from janito.tooling.executor import ToolExecutor
 from janito.tooling.tools_registry import get_all_tool_schemas
 
@@ -219,35 +213,6 @@ def _build_usage_info(usage_metadata: Any) -> SimpleNamespace | None:
         input_tokens=getattr(usage_metadata, "prompt_token_count", None),
         output_tokens=getattr(usage_metadata, "response_token_count", None),
     )
-
-
-def _resolve_model_settings(
-    provider: str, model: str, thinking: bool, reasoning_level: str | None
-) -> tuple[bool, int, int | None, str | None]:
-    """Resolve thinking mode, token limits and reasoning level for ``model``."""
-    # Thinking mode: the explicit --thinking flag wins, otherwise the model's
-    # built-in default applies.  Gemini 3.x models reason by default, but the
-    # thinking flag itself is not sent on the native API (thinking depth is
-    # controlled through reasoning_level -> thinking_level instead).
-    if not thinking:
-        thinking = get_default_thinking_from_provider(provider, model)
-
-    # Max output tokens: the resolved value (config > model built-in default
-    # > 100k) is sent as the Gemini ``max_output_tokens`` config field.
-    max_output_tokens = load_max_output_tokens(provider, model)
-    if max_output_tokens is None:
-        max_output_tokens = get_default_max_output_tokens_from_provider(provider, model)
-    if max_output_tokens is None:
-        max_output_tokens = 100000  # default to 100k tokens if not set in config
-
-    # Load the model's max input tokens (context window) for the usage
-    # summary display: a config override (--set max-input-tokens=... or the
-    # interactive --config wizard) wins, otherwise the model's built-in
-    # default applies.
-    max_input_tokens = load_max_input_tokens(provider, model)
-    if max_input_tokens is None:
-        max_input_tokens = get_default_max_input_tokens_from_provider(provider, model)
-    return thinking, max_output_tokens, max_input_tokens, reasoning_level
 
 
 def _init_state(

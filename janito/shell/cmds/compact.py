@@ -491,7 +491,6 @@ class CompactCmdHandler(CmdHandler):
                 previous_items=compact_items,
                 instructions=SYSTEM_COMPACT_PROMPT,
                 tools=[],
-                thinking=getattr(shell, "thinking", False),
             )
         except KeyboardInterrupt:
             print("Compaction interrupted; conversation left unchanged.")

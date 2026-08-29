@@ -8,14 +8,8 @@ on the ``send_prompt`` entry point and the :class:`DashScopeClient` class.
 import logging
 from typing import Any
 
-from janito.config_loaders import load_max_input_tokens, load_max_output_tokens
 from janito.openai_client.client_support import TurnUsage
-from janito.provider_accessors import (
-    builtin_tools_enable_flags,
-    get_default_max_input_tokens_from_provider,
-    get_default_max_output_tokens_from_provider,
-    get_default_thinking_from_provider,
-)
+from janito.provider_accessors import builtin_tools_enable_flags
 from janito.tooling.executor import ToolExecutor
 from janito.tooling.tools_registry import get_all_tool_schemas
 
@@ -38,36 +32,6 @@ def _resolve_tools(
         tools_schemas = tools
         logger.debug(f"Using {len(tools_schemas)} provided tools")
     return tools_schemas
-
-
-def _resolve_model_settings(
-    provider: str, model: str, thinking: bool
-) -> tuple[bool, int, int | None]:
-    """Resolve thinking mode and token limits for ``model``."""
-    # Thinking mode: the explicit --thinking flag wins, otherwise the
-    # model's built-in default applies (True for Alibaba/Qwen, which reason
-    # by default; the resolved value may be a dict for other providers, in
-    # which case its truthiness enables thinking here). See
-    # janito.providers.get_provider_config.
-    if not thinking:
-        thinking = get_default_thinking_from_provider(provider, model)
-
-    # Max output tokens: the resolved value (config > model built-in
-    # default > 100k) is sent as the DashScope ``max_tokens`` parameter.
-    max_output_tokens = load_max_output_tokens(provider, model)
-    if max_output_tokens is None:
-        max_output_tokens = get_default_max_output_tokens_from_provider(provider, model)
-    if max_output_tokens is None:
-        max_output_tokens = 100000  # default to 100k tokens if not set in config
-
-    # Load the model's max input tokens (context window) for the usage
-    # summary display: a config override (--set max-input-tokens=... or the
-    # interactive --config wizard) wins, otherwise the model's built-in
-    # default applies.
-    max_input_tokens = load_max_input_tokens(provider, model)
-    if max_input_tokens is None:
-        max_input_tokens = get_default_max_input_tokens_from_provider(provider, model)
-    return thinking, max_output_tokens, max_input_tokens
 
 
 def _init_messages(

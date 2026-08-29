@@ -209,7 +209,7 @@ def test_switch_model_rebinds_send_function(monkeypatch, tmp_path, capsys):
     shell = _shell_with_history(provider="deepseek")
     calls = []
 
-    def factory(provider, model_override=None):
+    def factory(provider, model_override=None, thinking_override=None):
         calls.append((provider, model_override))
         return f"send:{provider}:{model_override}"
 
@@ -228,7 +228,9 @@ def test_provider_switch_clears_model_override(monkeypatch, tmp_path, capsys):
     """A /model override is scoped to its provider: /provider clears it."""
     _use_temp_config(monkeypatch, tmp_path)
     shell = _shell_with_history(provider="openai")
-    shell.send_factory = lambda provider, model_override=None: f"send:{provider}"
+    shell.send_factory = (
+        lambda provider, model_override=None, thinking_override=None: f"send:{provider}"
+    )
     shell.send_prompt_func = "send:openai"
 
     # /model sets a session override on the current provider.

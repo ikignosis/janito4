@@ -216,10 +216,12 @@ if pytest is not None:
     def test_cli_send_prompt_clears_used_files_at_start(monkeypatch):
         """``send_prompt`` must reset the tracker before processing a prompt.
 
-        ``resolve_runtime_config`` is patched to fail immediately so the test
-        never reaches the network; the reset happens before that call, so any
-        state left over from a previous prompt must already be gone.
+        ``OpenAI`` is patched to fail immediately so the test never reaches
+        the network; the reset happens before the SDK client is created, so
+        any state left over from a previous prompt must already be gone.
         """
+        from conftest import make_config
+
         import janito.openai_client.completions_api as client_mod
 
         _register(monkeypatch, "ReadFile", "r")
@@ -229,9 +231,9 @@ if pytest is not None:
         def boom(*args, **kwargs):
             raise RuntimeError("stop before network")
 
-        monkeypatch.setattr(client_mod, "resolve_runtime_config", boom)
+        monkeypatch.setattr(client_mod, "OpenAI", boom)
         try:
-            client_mod.send_prompt("hello", use_mcp=False)
+            client_mod.send_prompt(make_config(), "hello")
         except RuntimeError:
             pass
         assert used_files.get_used_files() == {"READ": [], "WRITE": []}

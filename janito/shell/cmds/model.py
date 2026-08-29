@@ -157,7 +157,14 @@ class ModelCmdHandler(CmdHandler):
         if (previous or "").lower() != canonical.lower():
             factory = getattr(shell, "send_factory", None)
             if factory is not None and hasattr(shell, "send_prompt_func"):
-                shell.send_prompt_func = factory(provider, model_override=canonical)
+                # thinking_override keeps the session's runtime /thinking
+                # toggle across the model switch (the config is rebuilt with
+                # the shell's current flag).
+                shell.send_prompt_func = factory(
+                    provider,
+                    model_override=canonical,
+                    thinking_override=getattr(shell, "thinking", None),
+                )
             shell.initialize_history(
                 system_prompt=getattr(shell, "_system_prompt", None)
             )

@@ -718,9 +718,53 @@ def get_provider_cost(
         rate-band annotation, or ``"N/A"`` when the provider is unknown or
         has no cost module.
     """
+    raw = _provider_cost_raw(
+        provider, model, input, output, cached, now=now, is_reference=is_reference
+    )
+    if raw is None:
+        return "N/A"
+    return _adapt_cost_string(raw)
+
+
+def _provider_cost_raw(
+    provider: str,
+    model: str,
+    input: int,
+    output: int,
+    cached: int,
+    now: datetime | None = None,
+    is_reference: bool = False,
+) -> str | None:
+    """Return the raw dollar-formatted cost string from the provider's cost module.
+
+    Resolves the provider (variants resolve to their base provider's cost
+    module) and calls its ``get_cost(model, input, output, cached, ...)``,
+    returning the raw string (e.g. ``"0.880000$ (off-peak)"``) exactly as the
+    module produced it.  ``None`` is returned when the provider is unknown,
+    has no cost module, or the module raised -- the callers decide how to
+    render that (``"N/A"`` / ``None``).
+
+    Args:
+        provider: The provider name (case-insensitive).  Registered provider
+            variants (``<provider>-<word>``) resolve to their base
+            provider's cost module.
+        model: The model name.
+        input: The number of input tokens.
+        output: The number of output tokens.
+        cached: The number of cached input tokens.
+        now: Optional request time forwarded to the provider's ``get_cost``
+            (when it accepts it) to pick peak/off-peak rates (e.g. DeepSeek).
+        is_reference: Marks the request as a reference request (e.g. tokens
+            from attached reference documents); forwarded to the provider's
+            ``get_cost``.
+
+    Returns:
+        The raw cost string, or ``None`` when the provider is unknown or has
+        no cost module.
+    """
     found = _registry.get(provider)
     if found is None:
-        return "N/A"
+        return None
     base = found.base_name or found.name
     try:
         from importlib import import_module
@@ -728,11 +772,55 @@ def get_provider_cost(
         cost_module = import_module(f"janito.providers.{base}.cost")
         get_cost = getattr(cost_module, "get_cost")
         if now is None:
-            raw = get_cost(model, input, output, cached, is_reference=is_reference)
-        else:
-            raw = get_cost(
-                model, input, output, cached, now=now, is_reference=is_reference
-            )
-        return _adapt_cost_string(raw)
+            return get_cost(model, input, output, cached, is_reference=is_reference)
+        return get_cost(
+            model, input, output, cached, now=now, is_reference=is_reference
+        )
     except (ImportError, AttributeError, TypeError):
-        return "N/A"
+        return None
+
+
+def get_provider_cost_value(
+    provider: str,
+    model: str,
+    input: int,
+    output: int,
+    cached: int,
+    now: datetime | None = None,
+    is_reference: bool = False,
+) -> float | None:
+    """Return the estimated cost of a request as a plain dollar amount.
+
+    Same computation as :func:`get_provider_cost` (the provider's ``cost.py``
+    module), but returns the numeric dollar value instead of the adaptive
+    display string -- suitable for aggregation (e.g. the accounting database,
+    issue #72) where a formatted ``"88.0\u00a2 (off-peak)"`` string would not
+    be summable.
+
+    Args:
+        provider: The provider name (case-insensitive).
+        model: The model name.
+        input: The number of input tokens.
+        output: The number of output tokens.
+        cached: The number of cached input tokens.
+        now: Optional request time forwarded to the provider's ``get_cost``.
+        is_reference: Marks the request as a reference request; forwarded to
+            the provider's ``get_cost``.
+
+    Returns:
+        The estimated cost in dollars (e.g. ``0.88``), or ``None`` when the
+        provider is unknown, has no cost module, or the cost could not be
+        parsed as a number.
+    """
+    raw = _provider_cost_raw(
+        provider, model, input, output, cached, now=now, is_reference=is_reference
+    )
+    if raw is None:
+        return None
+    value, sep, _ = raw.partition("$")
+    if not sep:
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None

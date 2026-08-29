@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Overall-use accounting (issue #72): every completed LLM turn that reports
+  token usage is appended as one row to `<config dir>/accounting.db` (a
+  SQLite database, default `~/.janito/accounting.db`) recording the working
+  directory, a per-process turn ordinal, a UTC timestamp, the provider/model
+  and the turn-wide token counters (`input_tokens`, `cached_tokens`,
+  `output_tokens`, tool-call rounds included) plus the estimated cost as a
+  numeric dollar value. Both the CLI (interactive shell, `/ask`, `/compact`,
+  one-shot prompts, via the turn-report wrapper) and the web UI (the
+  `stream_prompt` loop) feed the log; it is best-effort and never raises.
+  A new `get_provider_cost_value()` accessor returns the numeric cost (the
+  display path keeps its adaptive format), and the database can be inspected
+  with `python -m janito.tooling.accounting` (see `docs/usage/accounting.md`).
+
 - `--set system-prompt="..."` and `--set system-prompt-file=path` config keys
   (issue #60): the configured text/file becomes the system prompt's `start`
   section, replacing the built-in base prompt while `skills`, `agents.md` and
@@ -40,6 +53,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Restructure the API layer around an immutable per-session `APIConfig`
+  (issue #70): a new `janito/openai_client/api_config.py` defines the frozen
+  `APIConfig` dataclass (provider, api type, model, endpoint, api key,
+  resolved max-output/input tokens, reasoning level, `preserve_thinking`,
+  `use_mcp`, `verbose`, `stream_runner`, `observer`) and `build_api_config` —
+  the **single resolution point** that hoists `resolve_runtime_config`, the
+  `load_*`/`get_default_*` token & reasoning reads, `preserve_thinking` and
+  `get_active_provider`. The five `send_prompt` entry points
+  (`completions_api`, `conversations_api`, `anthropic_api`, `dashscope_api`,
+  `gemini_api`) became thin `send_prompt(config, prompt, *, ...)` wrappers and
+  `Client.send` now reads everything from `config` — the turn pipeline makes
+  no config-store / auth-store reads and is a pure function of
+  `(config, request)`. The CLI composition point (`cli/chat.py`) builds the
+  config once per session / `/provider` switch (injecting the TUI stream
+  runner and Rich observer) and `_make_send_prompt_func` became a single
+  `{api_type: client}` dispatch with one union-signature closure; the
+  interactive shell no longer forwards `verbose` per call (it stays a session
+  default, with an optional per-call override on `Client.send` used by
+  `/ask` and `/compact`). `thinking` stayed a per-call flag at that point
+  (resolved against the static provider registry; it moved onto the config
+  in the next entry). Old `send_prompt` signatures are broken
+  (project convention: no backward compatibility); tests build a config via
+  the new `tests/conftest.py::make_config` helper and `tests/test_api_config.py`
+  pins the builder.
+- Thinking mode moved onto the `APIConfig`: `thinking` is no longer a
+  per-call argument of the five `send_prompt` entry points or `Client.send`.
+  `build_api_config` now resolves it at build time (`--thinking` /
+  `/thinking` flag, else the provider's static built-in default — a `True`
+  flag or a pass-through dict such as MiniMax-M3's `{'type': 'adaptive'}`)
+  into `config.thinking`, so the pipeline performs no static-registry reads
+  at all (`_resolve_model_settings` became a pure passthrough of config
+  values and the `get_default_thinking_from_provider` calls inside the
+  clients were removed). The shell's `/thinking` toggle now takes effect by
+  rebuilding the send function through the session's send factory
+  (`thinking_override`), the same cheap rebuild `/provider` and `/model`
+  perform, and `/provider` / `/model` preserve the runtime toggle across
+  switches; `/ask` and `/compact` no longer forward a `thinking` flag (the
+  config carries it). CLI semantics are unchanged: `-t` forces thinking on,
+  a falsy flag leaves it to the provider's built-in default.
 - The `Cost:` estimate in the end-of-turn usage summary and the `/price`
   table is now rendered with an adaptive, magnitude-aware format (issue
   #67) instead of six fixed decimals: sub-cent costs show as `0.abc¢`,

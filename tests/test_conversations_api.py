@@ -25,10 +25,22 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from unittest import mock
 
 import pytest
+from conftest import make_config
 
 import janito.config_dir as config_dir_mod
 import janito.tooling.used_files as used_files
 from janito.openai_client import conversations_api as api
+
+
+def _responses_config(model="gpt-4o", provider="openai"):
+    """Minimal Responses APIConfig for the mocked-network tests."""
+    return make_config(
+        api_type="Responses",
+        provider=provider,
+        model=model,
+        base_url="https://api.example.com",
+        use_mcp=False,
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -288,11 +300,6 @@ def _mock_send_prompt(monkeypatch, create_side_effect):
     client_inst.responses.create.side_effect = create_side_effect
     monkeypatch.setattr(api, "OpenAI", mock.Mock(return_value=client_inst))
     monkeypatch.setattr(
-        api,
-        "resolve_runtime_config",
-        lambda *a, **k: ("https://api.example.com", "sk-test", "gpt-4o"),
-    )
-    monkeypatch.setattr(
         "janito.openai_client.responses_helpers.get_all_tool_schemas",
         lambda: [{"type": "function", "function": {"name": "list_files"}}],
     )
@@ -313,11 +320,6 @@ def _mock_send_prompt_for_model(monkeypatch, model, builtin_tools, create_side_e
     client_inst = mock.Mock()
     client_inst.responses.create.side_effect = create_side_effect
     monkeypatch.setattr(api, "OpenAI", mock.Mock(return_value=client_inst))
-    monkeypatch.setattr(
-        api,
-        "resolve_runtime_config",
-        lambda *a, **k: ("https://api.example.com", "sk-test", model),
-    )
     monkeypatch.setattr(
         "janito.openai_client.responses_helpers.get_all_tool_schemas",
         lambda: [{"type": "function", "function": {"name": "list_files"}}],
@@ -423,7 +425,7 @@ def test_send_prompt_stateless_replays_full_history(monkeypatch):
     _mock_send_prompt(monkeypatch, create)
 
     result = api.send_prompt(
-        "List files", instructions="Be helpful", tools=None, use_mcp=False
+        _responses_config(), "List files", instructions="Be helpful", tools=None
     )
 
     assert result.content == "Here are the files"
@@ -463,7 +465,7 @@ def test_send_prompt_stateless_continues_with_previous_items(monkeypatch):
     _mock_send_prompt(monkeypatch, create)
 
     # First turn (fresh conversation).
-    first = api.send_prompt("Hello", instructions="Sys", tools=[], use_mcp=False)
+    first = api.send_prompt(_responses_config(), "Hello", instructions="Sys", tools=[])
     assert seen[-1]["input"] == [
         {
             "type": "message",
@@ -480,11 +482,11 @@ def test_send_prompt_stateless_continues_with_previous_items(monkeypatch):
     # Second turn: the full history is re-sent with the new user prompt
     # appended; instructions are NOT folded again (already in the history).
     second = api.send_prompt(
+        _responses_config(),
         "Follow up",
         previous_items=first.input_items,
         instructions="Sys",
         tools=[],
-        use_mcp=False,
     )
     assert seen[-1]["input"] == first.input_items + [
         {
@@ -524,7 +526,7 @@ def test_send_prompt_plain_response(monkeypatch):
         )
 
     _mock_send_prompt(monkeypatch, create)
-    result = api.send_prompt("Hello", tools=None, use_mcp=False)
+    result = api.send_prompt(_responses_config(), "Hello", tools=None)
 
     assert result.content == "Hi there"
     assert result.response_id == "resp_1"
@@ -552,7 +554,7 @@ def test_send_prompt_raises_on_untyped_error_event(monkeypatch):
 
     _mock_send_prompt(monkeypatch, create)
     with pytest.raises(RuntimeError, match="Unsupported model: 'qwen3.8-max'"):
-        api.send_prompt("Hello", tools=None, use_mcp=False)
+        api.send_prompt(_responses_config(), "Hello", tools=None)
 
 
 def test_send_prompt_raises_on_empty_stream(monkeypatch):
@@ -564,7 +566,7 @@ def test_send_prompt_raises_on_empty_stream(monkeypatch):
 
     _mock_send_prompt(monkeypatch, create)
     with pytest.raises(RuntimeError, match="empty response"):
-        api.send_prompt("Hello", tools=None, use_mcp=False)
+        api.send_prompt(_responses_config(), "Hello", tools=None)
 
 
 def test_send_prompt_raises_when_no_response_id_and_no_output(monkeypatch):
@@ -581,7 +583,7 @@ def test_send_prompt_raises_when_no_response_id_and_no_output(monkeypatch):
 
     _mock_send_prompt(monkeypatch, create)
     with pytest.raises(RuntimeError, match="gpt-4o"):
-        api.send_prompt("Hello", tools=None, use_mcp=False)
+        api.send_prompt(_responses_config(), "Hello", tools=None)
 
 
 def test_send_prompt_sends_instructions_only_on_first_turn(monkeypatch):
@@ -600,17 +602,17 @@ def test_send_prompt_sends_instructions_only_on_first_turn(monkeypatch):
     _mock_send_prompt(monkeypatch, create)
 
     # Fresh conversation: instructions are sent.
-    api.send_prompt("First", instructions="Be helpful", tools=[], use_mcp=False)
+    api.send_prompt(_responses_config(), "First", instructions="Be helpful", tools=[])
     assert seen[-1]["instructions"] == "Be helpful"
 
     # Continuing a conversation: instructions are NOT re-sent; the turn is
     # chained via previous_response_id instead.
     api.send_prompt(
+        _responses_config(),
         "Follow up",
         previous_response_id="resp_prev",
         instructions="Be helpful",
         tools=[],
-        use_mcp=False,
     )
     assert "instructions" not in seen[-1]
     assert seen[-1]["previous_response_id"] == "resp_prev"
@@ -651,6 +653,7 @@ def test_send_prompt_server_side_resends_pending_items_with_completed_id(
     _mock_send_prompt(monkeypatch, create)
 
     result = api.send_prompt(
+        _responses_config(),
         "follow up",
         previous_response_id="resp_prev",
         previous_items=[
@@ -662,7 +665,6 @@ def test_send_prompt_server_side_resends_pending_items_with_completed_id(
         ],
         instructions="Be helpful",
         tools=[],
-        use_mcp=False,
     )
     assert result.response_id == "resp_n"
     # Server-side success: the pending items are folded into the server
@@ -735,7 +737,7 @@ def test_send_prompt_chains_tool_calls_without_client_history(monkeypatch):
     _mock_send_prompt(monkeypatch, create)
 
     caller_history = [{"role": "system", "content": "seed"}]
-    result = api.send_prompt("List files", tools=None, use_mcp=False)
+    result = api.send_prompt(_responses_config(), "List files", tools=None)
 
     assert result.content == "Here are the files"
     assert result.response_id == "resp_b"
@@ -785,7 +787,7 @@ def test_send_prompt_server_side_turn_items_mirror_tool_round(monkeypatch):
         raise AssertionError(f"unexpected round {round_no}")
 
     _mock_send_prompt(monkeypatch, create)
-    result = api.send_prompt("List files", tools=None, use_mcp=False)
+    result = api.send_prompt(_responses_config(), "List files", tools=None)
 
     assert result.content == "Here are the files"
     assert result.response_id == "resp_b"
@@ -836,7 +838,7 @@ def test_send_prompt_server_side_turn_items_plain_response(monkeypatch):
         )
 
     _mock_send_prompt(monkeypatch, create)
-    result = api.send_prompt("Hello", tools=None, use_mcp=False)
+    result = api.send_prompt(_responses_config(), "Hello", tools=None)
 
     assert result.input_items is None
     assert result.turn_items == [
@@ -880,7 +882,9 @@ def test_send_prompt_appends_builtin_tools_without_function_tools(monkeypatch):
         ],
         create,
     )
-    api.send_prompt("Hello", tools=[], use_mcp=False, cli_provider="alibaba")
+    api.send_prompt(
+        _responses_config(model="qwen3.8-max", provider="alibaba"), "Hello", tools=[]
+    )
     assert seen[-1]["tools"] == [
         {"type": "code_interpreter"},
         {"type": "web_search"},
@@ -914,7 +918,9 @@ def test_send_prompt_merges_builtin_tools_with_function_tools(monkeypatch):
         ],
         create,
     )
-    api.send_prompt("Hello", tools=None, use_mcp=False, cli_provider="alibaba")
+    api.send_prompt(
+        _responses_config(model="qwen3.8-max", provider="alibaba"), "Hello", tools=None
+    )
     assert seen[-1]["tools"] == [
         {
             "type": "function",
@@ -944,7 +950,9 @@ def test_send_prompt_no_builtin_tools_for_openai_responses(monkeypatch):
         )
 
     _mock_send_prompt_for_model(monkeypatch, "gpt-4o", None, create)
-    api.send_prompt("Hello", tools=None, use_mcp=False, cli_provider="openai")
+    api.send_prompt(
+        _responses_config(model="gpt-4o", provider="openai"), "Hello", tools=None
+    )
     # Only the converted function tools; no code_interpreter / web_search.
     assert seen[-1]["tools"] == [
         {
@@ -973,45 +981,27 @@ def test_module_reexports_completions_api_helpers():
 
 
 def test_make_send_prompt_func_responses_dispatch(monkeypatch):
-    """In Responses mode the wrapper chains via previous_response_id and
-    ignores previous_messages (no client-side history)."""
+    """The single closure dispatches by ``config.api_type`` to the Responses
+    client and forwards the union kwargs via ``client.send`` (each backend's
+    ``_init_conversation_state`` picks what it needs)."""
     import janito.cli.chat as chat_mod
+    import janito.openai_client.conversations_api as conv_api
 
     captured = {}
 
-    def fake_send_responses(
-        prompt,
-        verbose=False,
-        previous_response_id=None,
-        previous_items=None,
-        instructions=None,
-        tools=None,
-        thinking=False,
-        cli_model=None,
-        cli_provider=None,
-        reasoning_level=None,
-        usage_out=None,
-        stream_runner=None,
-        observer=None,
-    ):
-        captured["prompt"] = prompt
-        captured["previous_response_id"] = previous_response_id
-        captured["previous_items"] = previous_items
-        captured["instructions"] = instructions
-        captured["tools"] = tools
-        captured["cli_model"] = cli_model
-        captured["cli_provider"] = cli_provider
-        captured["usage_out"] = usage_out
-        captured["stream_runner"] = stream_runner
-        captured["observer"] = observer
-        return api.ConversationResult(content="hi", response_id="resp_z")
+    class FakeClient:
+        def __init__(self, config):
+            captured["config"] = config
 
-    # The wrapper imports send_prompt from conversations_api at call time, so
-    # patching the module attribute is enough.
-    monkeypatch.setattr(api, "send_prompt", fake_send_responses)
+        def send(self, prompt, **kwargs):
+            captured["prompt"] = prompt
+            captured.update(kwargs)
+            return api.ConversationResult(content="hi", response_id="resp_z")
+
+    monkeypatch.setattr(conv_api, "ResponsesClient", FakeClient)
 
     func = chat_mod._make_send_prompt_func(
-        "Responses", cli_model="gpt-4", cli_provider="openai"
+        make_config(api_type="Responses", model="gpt-4", provider="openai")
     )
     result = func(
         "hello",
@@ -1020,64 +1010,47 @@ def test_make_send_prompt_func_responses_dispatch(monkeypatch):
         previous_items=[{"type": "message", "role": "user", "content": []}],
         instructions="sys",
         tools=[],
-        thinking=False,
     )
 
     assert isinstance(result, api.ConversationResult)
     assert result.response_id == "resp_z"
+    assert captured["config"].api_type == "Responses"
     assert captured["previous_response_id"] == "resp_y"
     assert captured["previous_items"] == [
         {"type": "message", "role": "user", "content": []}
     ]
     assert captured["instructions"] == "sys"
     assert captured["tools"] == []
-    assert captured["cli_model"] == "gpt-4"
-    assert captured["cli_provider"] == "openai"
+    # previous_messages IS forwarded by the union signature (the Responses
+    # backend ignores it -- each _init_conversation_state picks its own).
+    assert captured["previous_messages"] == [{"role": "system", "content": "x"}]
     # The turn report out-param is threaded so the wrapper can render the
     # usage summary after the API call returns.
     assert captured["usage_out"] is not None
-    # previous_messages is deliberately not forwarded in Responses mode.
-    assert "previous_messages" not in captured
-    # The CLI's TUI stream runner is injected by default (all CLI entry
-    # points keep the spinner + Enter-to-cancel behaviour).
-    assert captured["stream_runner"] is chat_mod._run_with_progress_bar
-    # The CLI's Rich turn observer is injected by default (all CLI entry
-    # points keep the rendered output).
-    assert isinstance(captured["observer"], chat_mod.RichTurnObserver)
 
 
 def test_make_send_prompt_func_completions_dispatch(monkeypatch):
-    """In Completions mode the wrapper keeps the previous behaviour: it
-    forwards previous_messages and returns the assistant text."""
+    """In Completions mode the same closure forwards previous_messages (the
+    history list is mutated in place by the Completions client) and returns
+    the assistant text."""
     import janito.cli.chat as chat_mod
+    import janito.openai_client.completions_api as comp_api
 
     captured = {}
 
-    def fake_send_completions(
-        prompt,
-        verbose=False,
-        previous_messages=None,
-        tools=None,
-        thinking=False,
-        cli_model=None,
-        cli_provider=None,
-        reasoning_level=None,
-        usage_out=None,
-        stream_runner=None,
-        observer=None,
-    ):
-        captured["prompt"] = prompt
-        captured["previous_messages"] = previous_messages
-        captured["cli_provider"] = cli_provider
-        captured["usage_out"] = usage_out
-        captured["stream_runner"] = stream_runner
-        captured["observer"] = observer
-        return "completions answer"
+    class FakeClient:
+        def __init__(self, config):
+            captured["config"] = config
 
-    monkeypatch.setattr(chat_mod, "send_prompt", fake_send_completions)
+        def send(self, prompt, **kwargs):
+            captured["prompt"] = prompt
+            captured.update(kwargs)
+            return "completions answer"
+
+    monkeypatch.setattr(comp_api, "CompletionsClient", FakeClient)
 
     func = chat_mod._make_send_prompt_func(
-        "Completions", cli_model="gpt-4", cli_provider="openai"
+        make_config(api_type="Completions", model="gpt-4", provider="openai")
     )
     result = func(
         "hello",
@@ -1085,39 +1058,37 @@ def test_make_send_prompt_func_completions_dispatch(monkeypatch):
         previous_response_id="resp_y",
         instructions="sys",
         tools=None,
-        thinking=False,
     )
 
     assert result == "completions answer"
+    assert captured["config"].api_type == "Completions"
     assert captured["previous_messages"] == [{"role": "user", "content": "hello"}]
-    assert captured["cli_provider"] == "openai"
-    # The turn report out-param is threaded so the wrapper can render the
-    # usage summary after the API call returns.
+    # The turn report out-param is threaded.
     assert captured["usage_out"] is not None
-    # The CLI's TUI stream runner is injected by default.
-    assert captured["stream_runner"] is chat_mod._run_with_progress_bar
-    # The CLI's Rich turn observer is injected by default.
-    assert isinstance(captured["observer"], chat_mod.RichTurnObserver)
 
 
 # ---- send_factory (real-time /provider switch) -----------------------------
 
 
 def test_send_factory_honors_cli_model_for_startup_provider(monkeypatch):
-    """The factory keeps ``--model`` for the provider it was given for."""
+    """The factory keeps ``--model`` for the provider it was given for and
+    builds the config via build_api_config (the single resolution point),
+    injecting the CLI's TUI runner and Rich observer at build time."""
     import janito.cli.chat as chat_mod
-    import janito.openai_client.conversations_api as conv_api
 
     captured = {}
+    fake_config = make_config()
 
-    def capturer(*a, **kw):
-        captured.update(kw)
-        return "ok"
+    def fake_build(**kwargs):
+        captured.update(kwargs)
+        return fake_config
 
-    # openai/gpt-5.6-luna resolves to Responses -> the wrapper calls the
-    # conversations client; patch it (Completions path patched for safety).
-    monkeypatch.setattr(conv_api, "send_prompt", capturer)
-    monkeypatch.setattr(chat_mod, "send_prompt", capturer)
+    def fake_make(config):
+        captured["config"] = config
+        return lambda prompt, **kw: "ok"
+
+    monkeypatch.setattr(chat_mod, "build_api_config", fake_build)
+    monkeypatch.setattr(chat_mod, "_make_send_prompt_func", fake_make)
 
     factory = chat_mod._make_send_factory(
         cli_api_type=None,
@@ -1129,12 +1100,29 @@ def test_send_factory_honors_cli_model_for_startup_provider(monkeypatch):
     send("hello", previous_messages=[])
     assert captured["cli_model"] == "gpt-5.6-luna"
     assert captured["cli_provider"] == "openai"
+    assert captured["api_type"] == "Responses"  # openai's built-in default
+    assert captured["config"] is fake_config
+    # The CLI's TUI stream runner and Rich observer are injected at build time.
+    assert captured["stream_runner"] is chat_mod._run_with_progress_bar
+    assert isinstance(captured["observer"], chat_mod.RichTurnObserver)
 
 
 def test_send_factory_resolves_new_provider_model_and_api_type(monkeypatch):
     """After a /provider switch the new provider's own model and API type are
     resolved (the startup ``--model`` does not leak into it)."""
     import janito.cli.chat as chat_mod
+
+    captured = {}
+
+    def fake_build(**kwargs):
+        captured.update(kwargs)
+        return make_config(api_type=kwargs["api_type"])
+
+    def fake_make(config):
+        return lambda prompt, **kw: "ok"
+
+    monkeypatch.setattr(chat_mod, "build_api_config", fake_build)
+    monkeypatch.setattr(chat_mod, "_make_send_prompt_func", fake_make)
 
     factory = chat_mod._make_send_factory(
         cli_api_type=None,
@@ -1143,26 +1131,18 @@ def test_send_factory_resolves_new_provider_model_and_api_type(monkeypatch):
         cli_reasoning_level=None,
     )
     send = factory("moonshot")  # switched provider
-
-    captured = {}
-    monkeypatch.setattr(
-        chat_mod,
-        "send_prompt",
-        lambda *a, **kw: captured.update(kw) or "ok",
-    )
     send("hello", previous_messages=[])
     # The new provider's built-in default model is used, not the startup one.
     assert captured["cli_model"] == "kimi-k3"
     assert captured["cli_provider"] == "moonshot"
+    assert captured["api_type"] == "Completions"
 
 
 def test_send_factory_resolves_configured_model_for_new_provider(monkeypatch, tmp_path):
     """A configured model for the switched-to provider is picked up."""
     import janito.cli.chat as chat_mod
     import janito.config_dir as config_dir_mod
-    import janito.openai_client.conversations_api as conv_api
 
-    # Point the config directory at a temp dir and set a provider model.
     config_path = tmp_path / ".janito" / "config.json"
     monkeypatch.setattr(config_dir_mod, "_config_dir", config_path.parent)
     from janito.config_store import set_config_value
@@ -1171,13 +1151,15 @@ def test_send_factory_resolves_configured_model_for_new_provider(monkeypatch, tm
 
     captured = {}
 
-    def capturer(*a, **kw):
-        captured.update(kw)
-        return "ok"
+    def fake_build(**kwargs):
+        captured.update(kwargs)
+        return make_config(api_type=kwargs["api_type"])
 
-    # deepseek/deepseek-v4-pro resolves to Responses -> conversations client.
-    monkeypatch.setattr(conv_api, "send_prompt", capturer)
-    monkeypatch.setattr(chat_mod, "send_prompt", capturer)
+    def fake_make(config):
+        return lambda prompt, **kw: "ok"
+
+    monkeypatch.setattr(chat_mod, "build_api_config", fake_build)
+    monkeypatch.setattr(chat_mod, "_make_send_prompt_func", fake_make)
 
     factory = chat_mod._make_send_factory(
         cli_api_type=None,
@@ -1196,15 +1178,18 @@ def test_send_factory_resolves_api_type_per_new_provider(monkeypatch):
     only supported type is Completions, openai's default is Responses."""
     import janito.cli.chat as chat_mod
 
-    # Capture the api_type passed to _make_send_prompt_func.
     captured = {}
 
-    def fake_make(api_type, **kwargs):
-        captured["api_type"] = api_type
+    def fake_build(**kwargs):
+        captured["api_type"] = kwargs["api_type"]
         captured["cli_model"] = kwargs["cli_model"]
         captured["cli_provider"] = kwargs["cli_provider"]
-        return lambda **kw: "ok"
+        return make_config(api_type=kwargs["api_type"])
 
+    def fake_make(config):
+        return lambda prompt, **kw: "ok"
+
+    monkeypatch.setattr(chat_mod, "build_api_config", fake_build)
     monkeypatch.setattr(chat_mod, "_make_send_prompt_func", fake_make)
 
     factory = chat_mod._make_send_factory(
@@ -1220,7 +1205,9 @@ def test_send_factory_resolves_api_type_per_new_provider(monkeypatch):
 
     factory("openai")
     assert captured["api_type"] == "Responses"
-    assert captured["cli_model"] is None  # openai default model resolved in-client
+    # openai's default model is resolved inside build_api_config (cli_model
+    # stays None, matching the old "resolved in-client" contract).
+    assert captured["cli_model"] is None
 
 
 def test_shell_tracks_and_resets_previous_response_id():
@@ -1631,7 +1618,9 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
     exc.partial_result = ("", None, [], None, "resp_aborted")
     # The runner is a UI-side concern injected through the constructor (a
     # fake runner that raises the cancelled request).
-    client = api.ResponsesClient(stream_runner=mock.Mock(side_effect=exc))
+    client = api.ResponsesClient(
+        make_config(api_type="Responses", stream_runner=mock.Mock(side_effect=exc))
+    )
 
     with pytest.raises(RequestCancelled) as excinfo:
         client._run_stream_round(
@@ -1658,7 +1647,9 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
     # into a user message item so the shell can re-send it.
     exc3 = RequestCancelled("cancelled")
     exc3.partial_result = ("", None, [], None, "resp_aborted")
-    client3 = api.ResponsesClient(stream_runner=mock.Mock(side_effect=exc3))
+    client3 = api.ResponsesClient(
+        make_config(api_type="Responses", stream_runner=mock.Mock(side_effect=exc3))
+    )
 
     with pytest.raises(RequestCancelled) as excinfo3:
         client3._run_stream_round(
@@ -1693,7 +1684,9 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
     ]
     exc2 = RequestCancelled("cancelled")
     exc2.partial_result = ("", None, [], None, "resp_x")
-    client2 = api.ResponsesClient(stream_runner=mock.Mock(side_effect=exc2))
+    client2 = api.ResponsesClient(
+        make_config(api_type="Responses", stream_runner=mock.Mock(side_effect=exc2))
+    )
 
     with pytest.raises(RequestCancelled) as excinfo2:
         client2._run_stream_round(

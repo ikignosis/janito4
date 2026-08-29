@@ -37,20 +37,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import logging
-from collections.abc import Callable
 from typing import Any
-
-# Pluggable UI observer (headless default; the CLI injects the Rich observer).
-from janito.agent.observer import TurnObserver
-
-# Import general configuration handling
-from janito.config_loaders import load_max_input_tokens, load_max_output_tokens
-
-# Import provider configuration for built-in defaults
-from janito.provider_accessors import (
-    get_default_max_input_tokens_from_provider,
-    get_default_max_output_tokens_from_provider,
-)
 
 # Import the tool executor (routes tool calls to the MCP manager or the
 # built-in registry and tracks usage/used-files/changes around each call)
@@ -73,6 +60,10 @@ from .anthropic_stream import (  # noqa: F401 (re-exported for backward compat)
     _stream_response,
 )
 
+# Resolved, immutable per-session configuration (issue #70): the turn
+# pipeline consumes it instead of re-reading the config/auth stores.
+from .api_config import APIConfig
+
 # Shared agent-loop pipeline (see Client.send) implemented by AnthropicClient.
 from .base_client import Client
 
@@ -80,10 +71,6 @@ from .base_client import Client
 # remaining functions, and the error classifier the native-SDK clients use
 # to pick the observer's explainer explicitly.
 from .client_support import TurnUsage, _classify_error
-
-# Shared helpers reused from the Chat Completions implementation so all
-# client modules stay in sync: runtime config resolution.
-from .completions_api import resolve_runtime_config
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -121,32 +108,32 @@ def _create_client(base_url: str | None, api_key: str) -> Any:
 
 
 def send_prompt(
+    config: APIConfig,
     prompt: str,
-    verbose: bool = False,
+    *,
     previous_messages: list[dict[str, Any]] | None = None,
     instructions: str | None = None,
     tools: list[dict[str, Any]] | None = None,
-    use_mcp: bool = True,
-    thinking: bool = False,
-    cli_model: str | None = None,
-    cli_provider: str | None = None,
-    reasoning_level: str | None = None,
     usage_out: TurnUsage | None = None,
-    stream_runner: Callable | None = None,
-    observer: TurnObserver | None = None,
 ) -> str:
     """Send a prompt through the native Anthropic SDK and return the answer.
 
-    Mirrors :func:`completions_api.send_prompt` (same config resolution, tool
-    loading, spinner, reasoning panel, used-files report and usage summary)
-    but targets the Anthropic Messages API.  The conversation history is owned
-    **client-side**: ``previous_messages`` is mutated in place (user and
-    assistant turns are appended) so the interactive shell's history keeps
-    growing, exactly like Completions mode.
+    Thin config-driven wrapper (issue #70): all resolved session config
+    (provider, model, endpoint, api_key, token limits, reasoning level,
+    thinking, preserve_thinking, use_mcp, verbose, stream_runner, observer)
+    arrives in ``config`` -- built once per session by ``build_api_config`` --
+    so this entry point performs no config-store / auth-store reads of its
+    own.
+
+    The conversation history is owned **client-side**: ``previous_messages``
+    is mutated in place (user and assistant turns are appended) so the
+    interactive shell's history keeps growing, exactly like Completions mode.
 
     Args:
+        config: The resolved, immutable
+            :class:`~janito.openai_client.api_config.APIConfig` for this
+            session.
         prompt: The user prompt to send
-        verbose: If True, print model and backend info
         previous_messages: List of previous message dicts for conversation
             context (mutated in place). A leading ``"system"``-role message is
             extracted and sent as the top-level Anthropic ``system`` parameter.
@@ -155,46 +142,29 @@ def send_prompt(
             leading ``"system"``-role message in ``previous_messages`` is used.
         tools: Optional list of tool schemas to pass. If None, uses all
             available tools. If an empty list, no tools are passed.
-        use_mcp: If True, load and use MCP tools (default True)
-        thinking: Accepted for signature parity with the other clients. The
-            native Anthropic extended-thinking mode is not wired yet; thinking
-            text is still displayed when the model streams it.
-        cli_model: Model passed via ``--model`` (overrides the provider's config).
-        cli_provider: Provider passed via ``--provider`` (overrides config/auth).
-        reasoning_level: Accepted for signature parity with the other clients.
-            The native Anthropic SDK does not use ``reasoning_effort``.
         usage_out: Optional out-param (a
             :class:`~janito.openai_client.client_support.TurnUsage`) populated
             with the turn's usage and display metadata, so the caller can
             render the end-of-turn reports after the call returns (see
             :func:`~janito.openai_client.client_support.display_turn_usage`).
-        observer: Optional UI observer (a
-            :class:`~janito.agent.observer.TurnObserver`) receiving the
-            turn's user-visible events (reasoning/message fragments, verbose
-            dumps, error explainers). ``None`` (default) is headless -- no
-            terminal output; the CLI injects the Rich observer.
 
     Returns:
         The assistant's final text (after any tool-call rounds).
 
     Raises:
         RuntimeError: If the ``anthropic`` package is not installed.
+
+    Note:
+        Thinking mode is resolved into ``config.thinking`` at build time. The
+        native Anthropic extended-thinking mode is not wired yet; thinking
+        text is still displayed when the model streams it.
     """
     logger.info("Sending prompt to Anthropic API (native SDK)")
-    return AnthropicClient(
-        cli_model=cli_model,
-        cli_provider=cli_provider,
-        reasoning_level=reasoning_level,
-        use_mcp=use_mcp,
-        stream_runner=stream_runner,
-        observer=observer,
-    ).send(
+    return AnthropicClient(config).send(
         prompt,
-        verbose=verbose,
         previous_messages=previous_messages,
         instructions=instructions,
         tools=tools,
-        thinking=thinking,
         usage_out=usage_out,
     )
 
@@ -214,13 +184,6 @@ class AnthropicClient(Client):
     api_type = "Anthropic"
     backend_default = "https://api.anthropic.com"
 
-    def _resolve_runtime_config(self):
-        # This module is the "Anthropic" API type, so endpoint resolution
-        # picks the native-SDK base URL from the endpoint_by_api_type map.
-        return resolve_runtime_config(
-            self.cli_model, self.cli_provider, cli_api_type="Anthropic"
-        )
-
     def _create_sdk_client(self, base_url, api_key):
         return _create_client(base_url, api_key)
 
@@ -230,16 +193,17 @@ class AnthropicClient(Client):
     def _resolve_tools(self, tools, mcp_tools):
         return _resolve_tools(tools, mcp_tools)
 
-    def _resolve_model_settings(self, provider, model, thinking, reasoning_level):
-        # The Anthropic Messages API requires max_tokens, so the resolved
-        # value (config > model built-in default > 100k) is always passed.
-        # thinking / reasoning_level are accepted for signature parity but the
-        # native extended-thinking mode is not wired yet.
+    def _resolve_model_settings(self, provider, model):
+        # All resolved at build time into the APIConfig (issue #70).  The
+        # Anthropic Messages API requires max_tokens, so the resolved value
+        # (config > built-in default > 100k) comes straight from the
+        # APIConfig; thinking / reasoning_level are carried for signature
+        # parity but the native extended-thinking mode is not wired yet.
         return (
-            thinking,
-            _resolve_max_output_tokens(provider, model),
-            _resolve_max_input_tokens(provider, model),
-            None,
+            self.config.thinking,
+            self.config.max_output_tokens,
+            self.config.max_input_tokens,
+            self.config.reasoning_level,
         )
 
     def _init_conversation_state(self, prompt, provider, model, **kwargs):
@@ -302,7 +266,7 @@ class AnthropicClient(Client):
             # picks the right explainer (the exception is always re-raised).
             self.observer.on_error(
                 e,
-                provider=self.cli_provider,
+                provider=self.config.provider,
                 api_key=api_key,
                 base_url=base_url,
                 model=model,
@@ -350,28 +314,6 @@ def _resolve_tools(
     # top level, while the shared schema builders emit the Chat Completions
     # shape (nested under "function"). Convert once up front.
     return _convert_tools_to_anthropic_format(tools_schemas)
-
-
-def _resolve_max_output_tokens(provider: str, model: str | None = None) -> int:
-    """Resolve max_tokens (config > model built-in default > 100k)."""
-    max_output_tokens = load_max_output_tokens(provider, model)
-    if max_output_tokens is None:
-        max_output_tokens = get_default_max_output_tokens_from_provider(provider, model)
-    if max_output_tokens is None:
-        max_output_tokens = 100000  # default to 100k tokens if not set in config
-    return max_output_tokens
-
-
-def _resolve_max_input_tokens(provider: str, model: str | None = None) -> int | None:
-    """Resolve max input tokens (config override > model built-in default).
-
-    Used for the usage summary display only; ``None`` means the context window
-    is unknown, in which case the display omits the total.
-    """
-    max_input_tokens = load_max_input_tokens(provider, model)
-    if max_input_tokens is None:
-        max_input_tokens = get_default_max_input_tokens_from_provider(provider, model)
-    return max_input_tokens
 
 
 def _resolve_system_prompt(

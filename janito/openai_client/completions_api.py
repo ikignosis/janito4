@@ -4,13 +4,9 @@ Uses streaming (SSE) to display tokens as they arrive.
 """
 
 import logging
-from collections.abc import Callable
 from typing import Any
 
 from openai import AuthenticationError, NotFoundError, OpenAI
-
-# Pluggable UI observer (headless default; the CLI injects the Rich observer).
-from janito.agent.observer import TurnObserver
 
 # Import auth handling (API keys come from the auth store, not the environment)
 from janito.auth_config import get_api_key
@@ -19,7 +15,7 @@ from janito.auth_config import get_api_key
 from janito.config_loaders import load_endpoint_from_config, load_model_from_config
 from janito.general_config import load_provider_from_config
 
-# Import provider configuration for base URLs and built-in defaults
+# Import provider configuration for base URLs and built-in defaults.
 from ..provider_accessors import (
     get_default_model_from_provider,
     requires_explicit_model,
@@ -29,6 +25,10 @@ from ..provider_validation import is_custom_provider
 # Import the tool executor (routes tool calls to the MCP manager or the
 # built-in registry and tracks usage/used-files/changes around each call)
 from ..tooling.executor import ToolExecutor
+
+# Resolved, immutable per-session configuration (issue #70): the turn
+# pipeline consumes it instead of re-reading the config/auth stores.
+from .api_config import APIConfig
 
 # Shared agent-loop pipeline (see Client.send) implemented by CompletionsClient.
 from .base_client import Client
@@ -46,12 +46,7 @@ from .client_support import (  # noqa: F401 (re-exported for backward compat)
     _load_mcp,
     format_tokens,
 )
-from .completions_helpers import (
-    _build_call_kwargs,
-    _finalize_response,
-    _resolve_model_settings,
-    _resolve_tools,
-)
+from .completions_helpers import _build_call_kwargs, _finalize_response, _resolve_tools
 from .completions_stream import (  # noqa: F401 (re-exported for backward compat)
     _consume_chunk,
     _consume_stream,
@@ -188,67 +183,50 @@ def get_env_config() -> tuple[str | None, str, str]:
 
 
 def send_prompt(
+    config: APIConfig,
     prompt: str,
-    verbose: bool = False,
-    previous_messages: list[dict[str, Any]] = None,
+    *,
+    previous_messages: list[dict[str, Any]] | None = None,
     tools: list[dict[str, Any]] | None = None,
-    use_mcp: bool = True,
-    thinking: bool = False,
-    cli_model: str | None = None,
-    cli_provider: str | None = None,
-    reasoning_level: str | None = None,
     usage_out: TurnUsage | None = None,
-    stream_runner: Callable | None = None,
-    observer: TurnObserver | None = None,
 ) -> str:
     """Send prompt to OpenAI endpoint and return response using streaming.
 
+    Thin config-driven wrapper (issue #70): all resolved session config
+    (provider, model, endpoint, api_key, token limits, reasoning level,
+    thinking, preserve_thinking, use_mcp, verbose, stream_runner, observer)
+    arrives in ``config`` -- built once per session by ``build_api_config`` --
+    so this entry point performs no config-store / auth-store reads of its
+    own.
+
     Args:
+        config: The resolved, immutable
+            :class:`~janito.openai_client.api_config.APIConfig` for this
+            session.
         prompt: The user prompt to send
-        verbose: If True, print model and backend info
-        previous_messages: List of previous message dicts for conversation context
-        tools: Optional list of tool schemas to pass. If None, uses all available tools.
-               If an empty list, no tools are passed.
-        use_mcp: If True, load and use MCP tools (default True)
-        thinking: If True, enable thinking mode (extra_body={'enable_thinking':
-            True}). When False (default), falls back to the provider's built-in
-            default, which is True for DeepSeek and Alibaba/Qwen.
-        cli_model: Model passed via ``--model`` (overrides the provider's config).
-        cli_provider: Provider passed via ``--provider`` (overrides config/auth).
-        reasoning_level: Reasoning depth passed via ``--reasoning-level``
-            (overrides the provider's configured value and built-in default).
-            Sent to the API as ``reasoning_effort``.
+        previous_messages: List of previous message dicts for conversation
+            context (mutated in place).
+        tools: Optional list of tool schemas to pass. If None, uses all
+            available tools. If an empty list, no tools are passed.
         usage_out: Optional out-param (a
             :class:`~janito.openai_client.client_support.TurnUsage`) populated
             with the turn's usage and display metadata, so the caller can
             render the end-of-turn reports after the call returns (see
             :func:`~janito.openai_client.client_support.display_turn_usage`).
-        stream_runner: Optional per-round stream runner (a UI-side concern,
-            e.g. ``_run_with_progress_bar``). ``None`` (default) runs each
-            streaming round directly in the calling thread -- no progress
-            spinner, no Enter-to-cancel -- keeping ``send_prompt`` purely
-            API-side; the CLI injects its TUI runner through
-            ``_make_send_prompt_func``.
-        observer: Optional UI observer (a
-            :class:`~janito.agent.observer.TurnObserver`) receiving the
-            turn's user-visible events (reasoning/message fragments, verbose
-            dumps, error explainers). ``None`` (default) is headless -- no
-            terminal output; the CLI injects the Rich observer.
+
+    Note:
+        Thinking mode is resolved into ``config.thinking`` at build time: the
+        explicit ``--thinking`` / ``/thinking`` flag wins, otherwise the
+        provider's built-in default applies (``True`` for DeepSeek and
+        Alibaba/Qwen, sent as ``extra_body={'enable_thinking': True}``; a
+        pass-through dict such as MiniMax-M3's ``{'type': 'adaptive'}`` is
+        sent as ``extra_body={'thinking': {...}}``).
     """
     logger.info("Sending prompt to API")
-    return CompletionsClient(
-        cli_model=cli_model,
-        cli_provider=cli_provider,
-        reasoning_level=reasoning_level,
-        use_mcp=use_mcp,
-        stream_runner=stream_runner,
-        observer=observer,
-    ).send(
+    return CompletionsClient(config).send(
         prompt,
-        verbose=verbose,
         previous_messages=previous_messages,
         tools=tools,
-        thinking=thinking,
         usage_out=usage_out,
     )
 
@@ -264,9 +242,6 @@ class CompletionsClient(Client):
 
     api_type = "Completions"
 
-    def _resolve_runtime_config(self):
-        return resolve_runtime_config(self.cli_model, self.cli_provider)
-
     def _create_sdk_client(self, base_url, api_key):
         # base_url can be None for standard OpenAI
         return OpenAI(api_key=api_key, base_url=base_url)
@@ -277,8 +252,18 @@ class CompletionsClient(Client):
     def _resolve_tools(self, tools, mcp_tools):
         return _resolve_tools(tools, mcp_tools)
 
-    def _resolve_model_settings(self, provider, model, thinking, reasoning_level):
-        return _resolve_model_settings(provider, model, thinking, reasoning_level)
+    def _resolve_model_settings(self, provider, model):
+        # All resolved at build time into the APIConfig (issue #70): thinking
+        # (the --thinking / /thinking flag, or the model's built-in default:
+        # a True flag or a pass-through dict such as MiniMax-M3's
+        # {'type': 'adaptive'}) and the token limits / reasoning level.  The
+        # config store / provider registry is never read here.
+        return (
+            self.config.thinking,
+            self.config.max_output_tokens,
+            self.config.max_input_tokens,
+            self.config.reasoning_level,
+        )
 
     def _init_conversation_state(self, prompt, provider, model, **kwargs):
         # Use previous messages if provided, otherwise start with the user
@@ -310,7 +295,7 @@ class CompletionsClient(Client):
         from janito.provider_accessors import get_default_tools_from_provider
 
         tools = get_default_tools_from_provider(
-            self._active_provider(), model, api_type="Completions"
+            self.config.provider, model, api_type="Completions"
         )
         return _build_call_kwargs(
             model,
@@ -320,7 +305,7 @@ class CompletionsClient(Client):
             preserve_thinking,
             thinking,
             tools,
-            provider=self._active_provider(),
+            provider=self.config.provider,
         )
 
     def _run_stream_round(
@@ -352,7 +337,7 @@ class CompletionsClient(Client):
         except AuthenticationError as e:
             self.observer.on_error(
                 e,
-                provider=self.cli_provider,
+                provider=self.config.provider,
                 api_key=api_key,
                 base_url=base_url,
                 model=model,

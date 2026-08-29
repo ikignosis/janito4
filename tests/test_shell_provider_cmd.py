@@ -265,7 +265,7 @@ def test_cli_bound_session_switch_to_other_provider_clears_history(
     shell = _shell_with_history(provider="openai")
     calls = []
 
-    def factory(provider):
+    def factory(provider, thinking_override=None):
         calls.append(provider)
         return f"send:{provider}"
 
@@ -287,7 +287,7 @@ def test_switch_to_same_provider_keeps_send_function(monkeypatch, tmp_path, caps
     """Switching to the provider already in effect keeps history and send function."""
     _use_temp_config(monkeypatch, tmp_path)
     shell = _shell_with_history(provider="openai")
-    shell.send_factory = lambda provider: f"send:{provider}"
+    shell.send_factory = lambda provider, thinking_override=None: f"send:{provider}"
     shell.send_prompt_func = "send:openai"
 
     assert _provider_handler().handle(shell, "/provider openai") is True

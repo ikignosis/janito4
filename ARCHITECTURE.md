@@ -13,22 +13,27 @@ Janito is a Python 3.10+ application organized as a single `janito` package
 plus a `tests/` suite. At a high level it is a loop:
 
 ```
-user prompt ──► resolve config ──► create SDK client ──► stream model response
-                                                              │
-                                              model wants tools? │
-                                                              ▼
-                                                     execute tools
-                                                              │
-                                                              ▼
-                                                   append results, loop
-                                                              │
-                                              no more tools?   │
-                                                              ▼
-                                                      display final answer
+user prompt ──► stream model response
+                       │
+       model wants tools? │
+                       ▼
+              execute tools
+                       │
+                       ▼
+            append results, loop
+                       │
+       no more tools?   │
+                       ▼
+               display final answer
 ```
 
 Everything else — CLI parsing, tool discovery, MCP, skills, the web UI,
-configuration — exists to feed or present this loop.
+configuration — exists to feed or present this loop. The per-session
+configuration (provider, model, endpoint, api key, token limits, reasoning
+level) is resolved **once** into an immutable `APIConfig`
+(`openai_client/api_config.py` → `build_api_config`) at the composition
+point; the turn pipeline is a pure function of `(config, request)` (issue
+#70).
 
 ### Top-level layout
 
@@ -81,10 +86,12 @@ the `janito` console script). Flow:
    - prompt argument present (positional, or piped) → `run_single_prompt`;
      otherwise `run_interactive_chat` (both in `janito/cli/chat.py`).
 
-`janito/cli/chat.py` builds a `send_prompt_func` bound to the resolved API
-type (Responses / Completions / Anthropic / DashScope / Gemini) and drives either the
-interactive shell or a single prompt. `janito/cli/session_setup.py` decides
-the effective system prompt and which toolsets to enable.
+`janito/cli/chat.py` builds the per-session `APIConfig` via
+`build_api_config` and returns a `send_prompt_func` bound to the resolved API
+type (Responses / Completions / Anthropic / DashScope / Gemini); it drives
+either the interactive shell or a single prompt.
+`janito/cli/session_setup.py` decides the effective system prompt and which
+toolsets to enable.
 
 ---
 
@@ -120,14 +127,35 @@ The heart of the engine is a **template-method turn pipeline** defined in
 | DashScope | native `dashscope` SDK | `dashscope_api.py` + `openai_client/dashscope_stream.py` |
 | Gemini | native `google-genai` SDK | `gemini_api.py` + `openai_client/gemini_stream.py` |
 
+**Configuration is resolved once, not per turn** (issue #70). The immutable
+`APIConfig` dataclass (`openai_client/api_config.py`) carries everything a
+turn needs that can be decided before the call starts — provider, API type,
+model, base URL, api key, resolved max-output/input tokens, reasoning level,
+thinking mode, `preserve_thinking`, `use_mcp`, and the UI-side
+`stream_runner` / `observer`.
+`build_api_config` is the **single resolution point**: the only place that
+touches the config store / auth store / provider registry. It is called at
+the composition point (`cli/chat.py`'s `_make_send_factory`, which rebuilds
+it on every `/provider` / `/model` / `/thinking` switch) and handed to the
+client constructor. The five module-level `send_prompt(config, prompt, *, ...)`
+functions and `Client.send` therefore make **no** config-store or auth-store
+reads — the turn pipeline is a pure function of `(config, request)`.
+Thinking mode is resolved into `config.thinking` at build time too (the
+`--thinking` flag, or the provider's *static* built-in default — a `True`
+flag or a pass-through dict such as MiniMax-M3's `{'type': 'adaptive'}`);
+the shell's `/thinking` toggle flips it mid-session by re-invoking the send
+factory with the shell's current flag, so no resolution is left inside the
+pipeline (the web backend keeps its own `WebServerConfig` and
+`effective_thinking`; see [Web backend](#web-backend)).
+
 The pipeline per turn:
 
 1. Reset per-prompt tracking (`clear_changes`, `reset_used_files`).
-2. Resolve `(base_url, api_key, model)` from CLI args / config / provider data.
+2. Read `(base_url, api_key, model)` straight from the config.
 3. Create the SDK client; load MCP services and tools (if enabled).
 4. Create a `ToolExecutor` (tool-call routing + bookkeeping).
-5. Resolve tool schemas (built-in registry + MCP), model settings
-   (max tokens, thinking, reasoning level).
+5. Resolve tool schemas (built-in registry + MCP); model settings come from
+   the config (max tokens, reasoning level, thinking).
 6. Loop: stream a response → display reasoning/content (routed through the
    injected `TurnObserver`, see below) → if tool calls were
    requested, execute them (see [Tool execution](#tool-execution)) and loop
@@ -146,19 +174,19 @@ The blocking work of each streaming round — thread creation, the Rich spinner
 and Enter-to-cancel detection — lives in a **per-round stream runner**
 (`_run_with_progress_bar` + its `_is_enter_pressed` stdin poller, in
 `openai_client/client_support.py`). It is a UI-side concern **injected** by
-the caller: `Client.__init__` takes `stream_runner=None`, which runs each
+the caller through the `APIConfig` (`stream_runner`): `None` runs each
 stream worker directly in the calling thread — no thread, no spinner, no
 Enter-to-cancel — keeping `send_prompt`/`Client.send` purely API-side.
-`_make_send_prompt_func` in `cli/chat.py` (the same composition point as
-`wrap_send_prompt_with_turn_report`) wires in the TUI runner, so every CLI
-entry point (interactive shell, `/ask`, `/compact`, one-shot prompt) keeps
-the spinner. Because the runner is invoked **per round** from inside the
-`Client.send` loop, the spinner is only visible while the API stream is in
-flight — never during tool execution.
+`_make_send_factory` in `cli/chat.py` (the same composition point as
+`wrap_send_prompt_with_turn_report`) wires in the TUI runner when it builds
+the config, so every CLI entry point (interactive shell, `/ask`, `/compact`,
+one-shot prompt) keeps the spinner. Because the runner is invoked **per
+round** from inside the `Client.send` loop, the spinner is only visible while
+the API stream is in flight — never during tool execution.
 
 All other user-visible output of the turn is routed through a **turn
 observer** (`TurnObserver` protocol in `janito/agent/observer.py`), injected
-into `Client.__init__` the same way as the stream runner: `on_reasoning` /
+through the `APIConfig` the same way as the stream runner: `on_reasoning` /
 `on_message` (per-round reasoning/content fragments), the verbose
 call/response dumps (`on_verbose_info` / `on_verbose_call` /
 `on_verbose_response`), the error explainers (`on_error`, dispatched by an
@@ -170,8 +198,11 @@ and the end-of-turn report (`on_turn_complete`, delivered by the
 default is the headless `NullObserver`, so
 `send_prompt`/`Client.send` produce no terminal output (the web loop emits
 its own structured events instead); the CLI injects the
-`RichTurnObserver` (`openai_client/client_support.py`) through
-`_make_send_prompt_func`, keeping today's rendered output byte-for-byte.
+`RichTurnObserver` (`openai_client/client_support.py`) when it builds the
+config through `_make_send_factory`, keeping today's rendered output
+byte-for-byte. `verbose` is likewise a session default on the config, with an
+optional per-call override on `Client.send(verbose=...)` (used by `/ask` and
+`/compact`).
 
 The web loop (`janito/web/backend/agent/loop.py`) drives the **same turn
 pipeline asynchronously**, yielding structured events instead of printing

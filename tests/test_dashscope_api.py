@@ -186,21 +186,21 @@ if pytest is not None:
 
     def test_send_prompt_aborts_without_dashscope_package(monkeypatch):
         """send_prompt refuses to run when the `dashscope` package is missing,
-        even when the rest of the runtime config resolves."""
+        even when the rest of the runtime config resolves (issue #70: the
+        config carries the resolved endpoint/key/model)."""
         import importlib.util
 
+        from conftest import make_config
+
         monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
-        monkeypatch.setattr(
-            dashscope_api,
-            "resolve_runtime_config",
-            lambda *a, **k: (
-                "https://dashscope-intl.aliyuncs.com/api/v1",
-                "sk-test",
-                "qwen-plus",
-            ),
+        config = make_config(
+            api_type="DashScope",
+            provider="alibaba",
+            model="qwen-plus",
+            base_url="https://dashscope-intl.aliyuncs.com/api/v1",
         )
         with pytest.raises(RuntimeError) as exc:
-            dashscope_api.send_prompt("hello")
+            dashscope_api.send_prompt(config, "hello")
         assert "pip install dashscope" in str(exc.value)
 
     def test_consume_stream_joins_multimodal_content():

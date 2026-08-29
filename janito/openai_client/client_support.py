@@ -39,7 +39,8 @@ from janito.agent.usage import TokenStats, format_tokens, normalize_usage
 
 # Import MCP manager
 from janito.mcp_manager import get_mcp_manager
-from janito.provider_accessors import get_provider_cost
+from janito.provider_accessors import get_provider_cost, get_provider_cost_value
+from janito.tooling.accounting import record_turn
 from janito.tooling.tools_registry import tools_loading_enabled
 from janito.tooling.used_files import format_used_files
 
@@ -779,6 +780,43 @@ def display_turn_usage(
     )
 
 
+def _record_accounting(usage_out: TurnUsage | None) -> None:
+    """Append one overall-use accounting row for a completed turn (best effort).
+
+    Uses the turn-wide cumulative counters (:class:`~janito.agent.usage.TokenStats`
+    accumulates every round of the turn, tool-call rounds included) so the
+    accounting log reflects the billed usage; falls back to the final round's
+    counters when the turn-wide ones were not reported.  The cost is the
+    numeric dollar estimate from
+    :func:`janito.provider_accessors.get_provider_cost_value` (``None`` when
+    the provider/model is unknown).  Never raises -- accounting must not be
+    able to break the agent loop (issue #72).
+    """
+    if usage_out is None or usage_out.stats is None:
+        return
+    stats = usage_out.stats
+    input_tokens = stats.turn_input if stats.turn_input is not None else stats.input
+    cached_tokens = stats.turn_cached if stats.turn_cached is not None else stats.cached
+    output_tokens = stats.turn_output if stats.turn_output is not None else stats.output
+    cost = None
+    if usage_out.provider and usage_out.model:
+        cost = get_provider_cost_value(
+            usage_out.provider,
+            usage_out.model,
+            input_tokens or 0,
+            output_tokens or 0,
+            cached_tokens or 0,
+        )
+    record_turn(
+        usage_out.provider,
+        usage_out.model,
+        input_tokens,
+        cached_tokens,
+        output_tokens,
+        cost=cost,
+    )
+
+
 def wrap_send_prompt_with_turn_report(send_func, observer=None):
     """Wrap a ``send_prompt``-style callable: call the API, then deliver the
     end-of-turn report to the injected :class:`TurnObserver`.
@@ -790,6 +828,12 @@ def wrap_send_prompt_with_turn_report(send_func, observer=None):
     ``on_turn_complete`` delegates to :func:`display_turn_usage`), so the
     output matches the historical behaviour; with no observer (``None``)
     nothing is rendered.
+
+    The wrapper also appends one overall-use accounting row (see
+    :func:`_record_accounting`) whenever the turn reported token usage, so
+    every CLI entry point (interactive shell, ``/ask``, ``/compact``, one-shot
+    ``janito <prompt>``) feeds the ``accounting.db`` log without duplicating
+    the call.
 
     ``display_turn_report`` (default True) suppresses the report when False
     (e.g. internal side calls).  This keeps a single wrapper responsible for
@@ -803,6 +847,10 @@ def wrap_send_prompt_with_turn_report(send_func, observer=None):
         result = send_func(prompt, usage_out=usage_out, **kwargs)
         if observer is not None and display_turn_report:
             observer.on_turn_complete(usage_out)
+        # Overall-use accounting (best effort, never raises) -- recorded even
+        # when the turn report is suppressed: the API call still consumed
+        # tokens and money.
+        _record_accounting(usage_out)
         return result
 
     return send_with_turn_report

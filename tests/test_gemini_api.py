@@ -225,21 +225,21 @@ if pytest is not None:
 
     def test_send_prompt_aborts_without_google_genai_package(monkeypatch):
         """send_prompt refuses to run when the `google-genai` package is
-        missing, even when the rest of the runtime config resolves."""
+        missing, even when the rest of the runtime config resolves (issue #70:
+        the config carries the resolved endpoint/key/model)."""
         import importlib.util
 
+        from conftest import make_config
+
         monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
-        monkeypatch.setattr(
-            gemini_api,
-            "resolve_runtime_config",
-            lambda *a, **k: (
-                "https://generativelanguage.googleapis.com",
-                "sk-test",
-                "gemini-3.7-flash",
-            ),
+        config = make_config(
+            api_type="Gemini",
+            provider="google",
+            model="gemini-3.7-flash",
+            base_url="https://generativelanguage.googleapis.com",
         )
         with pytest.raises(RuntimeError) as exc:
-            gemini_api.send_prompt("hello")
+            gemini_api.send_prompt(config, "hello")
         assert "pip install google-genai" in str(exc.value)
 
     @requires_genai
@@ -253,25 +253,22 @@ if pytest is not None:
             "https://generativelanguage.googleapis.com"
         )
 
-    def test_gemini_client_resolves_native_api_type(monkeypatch):
-        """The Gemini client resolves the runtime config with the native
-        "Gemini" API type so the endpoint_by_api_type map is honored."""
-        calls = {}
+    def test_gemini_client_carries_resolved_config():
+        """The Gemini client consumes the resolved APIConfig directly (issue
+        #70): the native endpoint selection moved into build_api_config (see
+        test_api_config), and the client no longer resolves config itself."""
+        from conftest import make_config
 
-        def fake_resolve(cli_model, cli_provider, cli_api_type=None):
-            calls["api_type"] = cli_api_type
-            return (
-                "https://generativelanguage.googleapis.com",
-                "sk-test",
-                "gemini-3.7-flash",
-            )
-
-        monkeypatch.setattr(gemini_api, "resolve_runtime_config", fake_resolve)
-        client = gemini_api.GeminiClient(cli_model=None, cli_provider="google")
-        base_url, api_key, model = client._resolve_runtime_config()
-        assert calls["api_type"] == "Gemini"
-        assert base_url == "https://generativelanguage.googleapis.com"
-        assert model == "gemini-3.7-flash"
+        config = make_config(
+            api_type="Gemini",
+            provider="google",
+            model="gemini-3.7-flash",
+            base_url="https://generativelanguage.googleapis.com",
+        )
+        client = gemini_api.GeminiClient(config)
+        assert client.config is config
+        assert client.config.api_type == "Gemini"
+        assert client.config.base_url == "https://generativelanguage.googleapis.com"
 
     def test_gemini_helpers_build_call_kwargs_sends_config():
         """The CLI Gemini path sends system_instruction, max_output_tokens,

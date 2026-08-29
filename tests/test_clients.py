@@ -25,6 +25,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
+from conftest import make_config
 
 from janito.openai_client.base_client import Client
 
@@ -32,15 +33,14 @@ if pytest is not None:
     # ---- base class contract -------------------------------------------
 
     def test_base_hooks_raise_not_implemented():
-        c = Client()
+        c = Client(make_config())
         # (hook, args) -- each hook must raise NotImplementedError when the
         # base implementation is reached (before any argument validation).
         hooks = {
-            "_resolve_runtime_config": (),
             "_create_sdk_client": ("http://example.test", "dummy-key"),
             "_create_tool_executor": (None,),
             "_resolve_tools": (None, []),
-            "_resolve_model_settings": ("openai", "gpt-4", False, None),
+            "_resolve_model_settings": ("openai", "gpt-4"),
             "_init_conversation_state": ("hi", "openai", "gpt-4"),
             "_build_call_kwargs": ("m", {}, 1000, None, None, False),
             "_run_stream_round": (
@@ -81,14 +81,23 @@ if pytest is not None:
         assert issubclass(AnthropicClient, Client)
         assert issubclass(DashScopeClient, Client)
 
-        assert CompletionsClient().api_type == "Completions"
-        assert ResponsesClient().api_type == "Responses"
-        assert AnthropicClient().api_type == "Anthropic"
-        assert DashScopeClient().api_type == "DashScope"
-
-        assert AnthropicClient().backend_default == "https://api.anthropic.com"
+        assert CompletionsClient(make_config()).api_type == "Completions"
         assert (
-            DashScopeClient().backend_default
+            ResponsesClient(make_config(api_type="Responses")).api_type == "Responses"
+        )
+        assert (
+            AnthropicClient(make_config(api_type="Anthropic")).api_type == "Anthropic"
+        )
+        assert (
+            DashScopeClient(make_config(api_type="DashScope")).api_type == "DashScope"
+        )
+
+        assert (
+            AnthropicClient(make_config(api_type="Anthropic")).backend_default
+            == "https://api.anthropic.com"
+        )
+        assert (
+            DashScopeClient(make_config(api_type="DashScope")).backend_default
             == "https://dashscope-intl.aliyuncs.com/api/v1"
         )
 
@@ -98,7 +107,7 @@ if pytest is not None:
         """An empty caller-owned history must be kept (not replaced)."""
         from janito.openai_client.completions_api import CompletionsClient
 
-        c = CompletionsClient()
+        c = CompletionsClient(make_config())
         history: list = []
         state = c._init_conversation_state(
             "hi", "openai", "gpt-4", previous_messages=history
@@ -110,7 +119,7 @@ if pytest is not None:
     def test_completions_state_none_starts_fresh():
         from janito.openai_client.completions_api import CompletionsClient
 
-        c = CompletionsClient()
+        c = CompletionsClient(make_config())
         state = c._init_conversation_state(
             "hi", "openai", "gpt-4", previous_messages=None
         )
@@ -121,7 +130,7 @@ if pytest is not None:
         the in-place history keeps the system-role message."""
         from janito.openai_client.anthropic_api import AnthropicClient
 
-        c = AnthropicClient()
+        c = AnthropicClient(make_config(api_type="Anthropic"))
         history = [{"role": "system", "content": "Be helpful"}]
         state = c._init_conversation_state(
             "hi",
@@ -140,7 +149,7 @@ if pytest is not None:
     def test_responses_state_dict_shape():
         from janito.openai_client.conversations_api import ResponsesClient
 
-        c = ResponsesClient()
+        c = ResponsesClient(make_config(api_type="Responses"))
         state = c._init_conversation_state(
             "hi",
             "openai",
@@ -159,7 +168,7 @@ if pytest is not None:
     def test_dashscope_state_prepends_instructions():
         from janito.dashscope_api import DashScopeClient
 
-        c = DashScopeClient()
+        c = DashScopeClient(make_config(api_type="DashScope"))
         state = c._init_conversation_state(
             "hi",
             "alibaba",
@@ -174,67 +183,56 @@ if pytest is not None:
 
     # ---- model-settings shape for the native-SDK clients ----------------
 
-    def test_anthropic_model_settings_returns_4_tuple(monkeypatch):
+    def test_anthropic_model_settings_returns_4_tuple():
+        """The hook passes the config's token limits and thinking through."""
         from janito.openai_client import anthropic_api
 
-        monkeypatch.setattr(
-            anthropic_api,
-            "_resolve_max_output_tokens",
-            lambda provider, model=None: 64000,
+        config = make_config(
+            api_type="Anthropic",
+            max_output_tokens=64000,
+            max_input_tokens=200000,
+            reasoning_level=None,
         )
-        # No config override: the provider's built-in default applies.
-        monkeypatch.setattr(
-            anthropic_api, "load_max_input_tokens", lambda provider, model=None: None
-        )
-        monkeypatch.setattr(
-            anthropic_api,
-            "get_default_max_input_tokens_from_provider",
-            lambda provider, model=None: 200000,
-        )
-        c = anthropic_api.AnthropicClient()
+        c = anthropic_api.AnthropicClient(config)
         thinking, max_out, max_in, reasoning = c._resolve_model_settings(
-            "anthropic", "claude-sonnet-5", False, "high"
+            "anthropic", "claude-sonnet-5"
         )
+        # thinking comes from the resolved config (make_config defaults it
+        # to False).
         assert thinking is False
         assert max_out == 64000
         assert max_in == 200000
         # reasoning_level is accepted but not used by the native SDK.
         assert reasoning is None
 
-    def test_anthropic_model_settings_config_override_wins(monkeypatch):
+    def test_anthropic_model_settings_config_override_wins():
+        """The resolved config value is passed through unchanged -- no
+        config-store read in the hook."""
         from janito.openai_client import anthropic_api
 
-        monkeypatch.setattr(
-            anthropic_api,
-            "_resolve_max_output_tokens",
-            lambda provider, model=None: 64000,
+        config = make_config(
+            api_type="Anthropic",
+            max_output_tokens=64000,
+            max_input_tokens=4096,
+            reasoning_level=None,
         )
-        # A configured max-input-tokens override beats the built-in default.
-        monkeypatch.setattr(
-            anthropic_api, "load_max_input_tokens", lambda provider, model=None: 4096
-        )
-        monkeypatch.setattr(
-            anthropic_api,
-            "get_default_max_input_tokens_from_provider",
-            lambda provider, model=None: 200000,
-        )
-        c = anthropic_api.AnthropicClient()
-        _, _, max_in, _ = c._resolve_model_settings(
-            "anthropic", "claude-sonnet-5", False, "high"
-        )
+        c = anthropic_api.AnthropicClient(config)
+        _, _, max_in, _ = c._resolve_model_settings("anthropic", "claude-sonnet-5")
         assert max_in == 4096
 
-    def test_dashscope_model_settings_returns_4_tuple(monkeypatch):
+    def test_dashscope_model_settings_returns_4_tuple():
         import janito.dashscope_api as dsa
 
-        monkeypatch.setattr(
-            dsa,
-            "_resolve_model_settings",
-            lambda provider, model, thinking: (True, 8192, 128000),
+        config = make_config(
+            api_type="DashScope",
+            max_output_tokens=8192,
+            max_input_tokens=128000,
+            reasoning_level="xhigh",
+            thinking=True,
         )
-        c = dsa.DashScopeClient()
+        c = dsa.DashScopeClient(config)
         thinking, max_out, max_in, reasoning = c._resolve_model_settings(
-            "alibaba", "qwen3.8-max", True, "xhigh"
+            "alibaba", "qwen3.8-max"
         )
         assert (thinking, max_out, max_in) == (True, 8192, 128000)
         # reasoning_level is dropped (not used by the native SDK).
@@ -383,26 +381,23 @@ if pytest is not None:
         def fake_run(func, client, call_kwargs, tools_schemas):
             return "hi", None, {}, None, {"id": "chatcmpl-1"}
 
-        monkeypatch.setattr(
-            ca,
-            "resolve_runtime_config",
-            lambda *a, **k: (None, "sk-test", "gpt-4"),
-        )
         monkeypatch.setattr(ca, "_load_mcp", lambda use_mcp: (None, []))
 
         # A fake runner and a capturing observer are injected through the
-        # constructor (the UI-side stream runner and the turn observer are no
-        # longer module globals to monkeypatch).
+        # APIConfig (the UI-side stream runner and the turn observer are no
+        # longer constructor params / module globals to monkeypatch).
         observer = FakeObserver()
         client = ca.CompletionsClient(
-            use_mcp=False, stream_runner=fake_run, observer=observer
+            make_config(
+                model="gpt-4", use_mcp=False, stream_runner=fake_run, observer=observer
+            )
         )
 
-        client.send("hello", verbose=True, tools=[], thinking=False)
+        client.send("hello", verbose=True, tools=[])
         assert observer.events == ["info", "call", "response"]
 
         observer.events.clear()
-        client.send("hello", verbose=False, tools=[], thinking=False)
+        client.send("hello", verbose=False, tools=[])
         assert observer.events == []
 
     def test_verbose_responses_response_id_from_state(monkeypatch):
@@ -438,11 +433,6 @@ if pytest is not None:
                 {"id": "resp_99", "status": "completed"},
             )
 
-        monkeypatch.setattr(
-            ca,
-            "resolve_runtime_config",
-            lambda *a, **k: (None, "sk-test", "gpt-4o"),
-        )
         monkeypatch.setattr(ca, "_load_mcp", lambda use_mcp: (None, []))
         monkeypatch.setattr(
             ca,
@@ -462,10 +452,16 @@ if pytest is not None:
         )
 
         client = ca.ResponsesClient(
-            use_mcp=False, stream_runner=fake_run, observer=FakeObserver()
+            make_config(
+                api_type="Responses",
+                model="gpt-4o",
+                use_mcp=False,
+                stream_runner=fake_run,
+                observer=FakeObserver(),
+            )
         )
 
-        result = client.send("hello", verbose=True, tools=[], thinking=False)
+        result = client.send("hello", verbose=True, tools=[])
         assert result.response_id == "resp_99"
         # send() extracts the server-side response id from the Responses
         # state dict and hands it to the observer's on_verbose_response.

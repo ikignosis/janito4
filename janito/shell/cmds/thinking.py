@@ -6,10 +6,11 @@ Usage:
     /thinking on|off     - Enable or disable runtime config thinking for the current session
 
 The switch is **runtime-only**: it updates the shell's thinking state for the
-running session, but it does **not** change any persisted configuration.
+running session and rebuilds the send function through the session's send
+factory (so the new flag is baked into the APIConfig the next turn uses), but
+it does **not** change any persisted configuration.
 """
 
-from ...provider_accessors import get_gemini_flavor_from_provider
 from .base import CmdHandler
 from .registry import register_command
 
@@ -41,7 +42,7 @@ class ThinkingCmdHandler(CmdHandler):
     def _show_status(shell) -> None:
         """Print the current thinking status and usage."""
         provider = getattr(shell, "provider", None)
-        if provider and get_gemini_flavor_from_provider(provider):
+        if provider and _is_gemini_flavor(provider):
             print(
                 "Thinking mode is N/A for this session "
                 "(controlled via Reasoning Level for Gemini models)."
@@ -55,7 +56,14 @@ class ThinkingCmdHandler(CmdHandler):
 
     @staticmethod
     def _set_thinking(shell, mode: str) -> None:
-        """Enable or disable thinking for this shell session."""
+        """Enable or disable thinking for this shell session.
+
+        Thinking is resolved into the immutable APIConfig at build time, so a
+        runtime flip rebuilds the send function through the session's send
+        factory (the same cheap rebuild /provider and /model perform).  When
+        no factory is available (e.g. tests building a bare shell), only the
+        shell flag is updated.
+        """
         mode_lower = mode.lower()
         if mode_lower == "on":
             shell.thinking = True
@@ -64,7 +72,7 @@ class ThinkingCmdHandler(CmdHandler):
                 "(config default unchanged)."
             )
             provider = getattr(shell, "provider", None)
-            if provider and get_gemini_flavor_from_provider(provider):
+            if provider and _is_gemini_flavor(provider):
                 print(
                     "[WARN] Gemini models reason by default; thinking depth is controlled "
                     "via reasoning level rather than the thinking flag."
@@ -76,7 +84,7 @@ class ThinkingCmdHandler(CmdHandler):
                 "(config default unchanged)."
             )
             provider = getattr(shell, "provider", None)
-            if provider and get_gemini_flavor_from_provider(provider):
+            if provider and _is_gemini_flavor(provider):
                 print(
                     "[WARN] Gemini models reason by default; thinking depth is controlled "
                     "via reasoning level rather than the thinking flag."
@@ -85,6 +93,33 @@ class ThinkingCmdHandler(CmdHandler):
             print(
                 f"Error: Invalid option '{mode}'. Use '/thinking on' or '/thinking off'."
             )
+            return
+        _rebind_send_function(shell)
+
+
+def _is_gemini_flavor(provider: str | None) -> bool:
+    """Return True when the provider is Gemini-flavored (thinking via reasoning level)."""
+    from ...provider_accessors import get_gemini_flavor_from_provider
+
+    return bool(provider) and get_gemini_flavor_from_provider(provider)
+
+
+def _rebind_send_function(shell) -> None:
+    """Rebuild ``shell.send_prompt_func`` so the new thinking flag takes effect.
+
+    The send function is bound to a resolved APIConfig (thinking baked in at
+    build time), so a runtime /thinking flip re-invokes the session's send
+    factory with the shell's current flag.  No-op when the factory or the
+    current send function is absent (e.g. bare test shells).
+    """
+    factory = getattr(shell, "send_factory", None)
+    if factory is None or not hasattr(shell, "send_prompt_func"):
+        return
+    shell.send_prompt_func = factory(
+        getattr(shell, "provider", None),
+        model_override=getattr(shell, "model_override", None),
+        thinking_override=getattr(shell, "thinking", False),
+    )
 
 
 # Register this handler

@@ -42,24 +42,17 @@ from __future__ import annotations
 
 import importlib.util
 import logging
-from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Any
 
-# Pluggable UI observer (headless default; the CLI injects the Rich observer).
-from janito.agent.observer import TurnObserver
-
 # Shared agent-loop pipeline (see Client.send) implemented by DashScopeClient.
+from janito.openai_client.api_config import APIConfig
 from janito.openai_client.base_client import Client
 
 # Shared client helpers: the usage summary out-param used by the module's
 # remaining functions, and the error classifier the native-SDK clients use
 # to pick the observer's explainer explicitly.
 from janito.openai_client.client_support import TurnUsage, _classify_error
-
-# Shared helpers reused from the Chat Completions implementation so all
-# client modules stay in sync: runtime config resolution.
-from janito.openai_client.completions_api import resolve_runtime_config
 from janito.openai_client.dashscope_stream import (  # noqa: F401 (re-exported for backward compat)
     _build_tool_use_blocks,
     _build_usage_info,
@@ -82,7 +75,6 @@ from .dashscope_helpers import (
     _finalize_response,
     _handle_tool_blocks,
     _init_messages,
-    _resolve_model_settings,
     _resolve_tools,
 )
 
@@ -136,32 +128,32 @@ def _create_client(base_url: str | None, api_key: str) -> SimpleNamespace:
 
 
 def send_prompt(
+    config: APIConfig,
     prompt: str,
-    verbose: bool = False,
+    *,
     previous_messages: list[dict[str, Any]] | None = None,
     instructions: str | None = None,
     tools: list[dict[str, Any]] | None = None,
-    use_mcp: bool = True,
-    thinking: bool = False,
-    cli_model: str | None = None,
-    cli_provider: str | None = None,
-    reasoning_level: str | None = None,
     usage_out: TurnUsage | None = None,
-    stream_runner: Callable | None = None,
-    observer: TurnObserver | None = None,
 ) -> str:
     """Send a prompt through the native DashScope SDK and return the answer.
 
-    Mirrors :func:`completions_api.send_prompt` (same config resolution, tool
-    loading, spinner, reasoning panel, used-files report and usage summary)
-    but targets the DashScope native generation API.  The conversation
-    history is owned **client-side**: ``previous_messages`` is mutated in
-    place (user and assistant turns are appended) so the interactive shell's
-    history keeps growing, exactly like Completions mode.
+    Thin config-driven wrapper (issue #70): all resolved session config
+    (provider, model, endpoint, api_key, token limits, reasoning level,
+    thinking, preserve_thinking, use_mcp, verbose, stream_runner, observer)
+    arrives in ``config`` -- built once per session by ``build_api_config`` --
+    so this entry point performs no config-store / auth-store reads of its
+    own.
+
+    The conversation history is owned **client-side**: ``previous_messages``
+    is mutated in place (user and assistant turns are appended) so the
+    interactive shell's history keeps growing, exactly like Completions mode.
 
     Args:
+        config: The resolved, immutable
+            :class:`~janito.openai_client.api_config.APIConfig` for this
+            session.
         prompt: The user prompt to send
-        verbose: If True, print model and backend info
         previous_messages: List of previous message dicts for conversation
             context (mutated in place).  DashScope accepts ``system``-role
             messages directly, so no extraction is needed (unlike the
@@ -171,48 +163,30 @@ def send_prompt(
             ``messages``; when provided as a string it is prepended as one.
         tools: Optional list of tool schemas to pass. If None, uses all
             available tools. If an empty list, no tools are passed.
-        use_mcp: If True, load and use MCP tools (default True)
-        thinking: If True, enable thinking mode (``enable_thinking=True``).
-            When False (default), falls back to the provider's built-in
-            default, which is True for Alibaba/Qwen.
-        cli_model: Model passed via ``--model`` (overrides the provider's config).
-        cli_provider: Provider passed via ``--provider`` (overrides config/auth).
-        reasoning_level: Accepted for signature parity with the other clients.
-            The native DashScope SDK does not use ``reasoning_effort``
-            (thinking depth is controlled by ``thinking_budget``, which is not
-            wired yet).
         usage_out: Optional out-param (a
             :class:`~janito.openai_client.client_support.TurnUsage`) populated
             with the turn's usage and display metadata, so the caller can
             render the end-of-turn reports after the call returns (see
             :func:`~janito.openai_client.client_support.display_turn_usage`).
-        observer: Optional UI observer (a
-            :class:`~janito.agent.observer.TurnObserver`) receiving the
-            turn's user-visible events (reasoning/message fragments, verbose
-            dumps, error explainers). ``None`` (default) is headless -- no
-            terminal output; the CLI injects the Rich observer.
 
     Returns:
         The assistant's final text (after any tool-call rounds).
 
     Raises:
         RuntimeError: If the ``dashscope`` package is not installed.
+
+    Note:
+        Thinking mode is resolved into ``config.thinking`` at build time: the
+        explicit ``--thinking`` / ``/thinking`` flag wins, otherwise the
+        provider's built-in default applies (``True`` for Alibaba/Qwen,
+        sent as ``enable_thinking=True``).
     """
     logger.info("Sending prompt to DashScope API (native SDK)")
-    return DashScopeClient(
-        cli_model=cli_model,
-        cli_provider=cli_provider,
-        reasoning_level=reasoning_level,
-        use_mcp=use_mcp,
-        stream_runner=stream_runner,
-        observer=observer,
-    ).send(
+    return DashScopeClient(config).send(
         prompt,
-        verbose=verbose,
         previous_messages=previous_messages,
         instructions=instructions,
         tools=tools,
-        thinking=thinking,
         usage_out=usage_out,
     )
 
@@ -230,13 +204,6 @@ class DashScopeClient(Client):
     api_type = "DashScope"
     backend_default = "https://dashscope-intl.aliyuncs.com/api/v1"
 
-    def _resolve_runtime_config(self):
-        # This module is the "DashScope" API type, so endpoint resolution
-        # picks the native-SDK base URL from the endpoint_by_api_type map.
-        return resolve_runtime_config(
-            self.cli_model, self.cli_provider, cli_api_type="DashScope"
-        )
-
     def _create_sdk_client(self, base_url, api_key):
         return _create_client(base_url, api_key)
 
@@ -246,13 +213,17 @@ class DashScopeClient(Client):
     def _resolve_tools(self, tools, mcp_tools):
         return _resolve_tools(tools, mcp_tools)
 
-    def _resolve_model_settings(self, provider, model, thinking, reasoning_level):
-        # The native DashScope SDK does not use reasoning_effort, so the
-        # reasoning level is dropped (accepted for signature parity).
-        thinking, max_output_tokens, max_input_tokens = _resolve_model_settings(
-            provider, model, thinking
+    def _resolve_model_settings(self, provider, model):
+        # All resolved at build time into the APIConfig (issue #70).  The
+        # native DashScope SDK does not use reasoning_effort, so the
+        # reasoning level is dropped; the token limits and thinking come
+        # straight from the resolved APIConfig.
+        return (
+            self.config.thinking,
+            self.config.max_output_tokens,
+            self.config.max_input_tokens,
+            None,
         )
-        return thinking, max_output_tokens, max_input_tokens, None
 
     def _init_conversation_state(self, prompt, provider, model, **kwargs):
         # Build the conversation.  Unlike the Anthropic Messages API, DashScope
@@ -281,7 +252,7 @@ class DashScopeClient(Client):
         from janito.provider_accessors import get_default_tools_from_provider
 
         tools = get_default_tools_from_provider(
-            self._active_provider(), model, api_type="DashScope"
+            self.config.provider, model, api_type="DashScope"
         )
         # The DashScope native API is stateless and the full history is
         # re-sent on every round.
@@ -314,7 +285,7 @@ class DashScopeClient(Client):
             # picks the right explainer (the exception is always re-raised).
             self.observer.on_error(
                 e,
-                provider=self.cli_provider,
+                provider=self.config.provider,
                 api_key=api_key,
                 base_url=base_url,
                 model=model,

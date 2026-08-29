@@ -153,7 +153,13 @@ class ProviderCmdHandler(CmdHandler):
         if (previous or "").lower() != canonical.lower():
             factory = getattr(shell, "send_factory", None)
             if factory is not None and hasattr(shell, "send_prompt_func"):
-                shell.send_prompt_func = factory(canonical)
+                # thinking_override keeps the session's runtime /thinking
+                # toggle across the provider switch (the config is rebuilt
+                # with the shell's current flag).
+                shell.send_prompt_func = factory(
+                    canonical,
+                    thinking_override=getattr(shell, "thinking", None),
+                )
             # A session model switch (/model) was scoped to the previous
             # provider: the new provider resolves its own effective model.
             shell.model_override = None

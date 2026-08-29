@@ -370,13 +370,15 @@ class InteractiveShell(_SessionMixin):
         try:
             result = self.send_prompt_func(
                 user_input,
-                verbose=self.verbose,
+                # verbose is a session default carried by the APIConfig
+                # (issue #70); thinking is resolved into the config at build
+                # time too -- the /thinking command rebuilds the send
+                # function through the factory so the flip takes effect.
                 previous_messages=self.messages_history,
                 previous_response_id=self.previous_response_id,
                 previous_items=self.conversation_items,
                 instructions=self.get_system_prompt(),
                 tools=tools_to_use,
-                thinking=self.thinking,
             )
             # Responses API mode keeps the conversation state the provider
             # uses; Completions mode returns plain text and updates

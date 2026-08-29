@@ -196,16 +196,20 @@ if pytest is not None:
         assert "pip install anthropic" in str(exc.value)
 
     @requires_no_anthropic
-    def test_send_prompt_aborts_without_anthropic_package(monkeypatch):
+    def test_send_prompt_aborts_without_anthropic_package():
         """send_prompt refuses to run when the `anthropic` package is missing,
-        even when the rest of the runtime config resolves."""
-        monkeypatch.setattr(
-            anthropic_api,
-            "resolve_runtime_config",
-            lambda *a, **k: ("https://api.anthropic.com", "sk-test", "claude-sonnet-5"),
+        even when the rest of the runtime config resolves (issue #70: the
+        config carries the resolved endpoint/key/model)."""
+        from conftest import make_config
+
+        config = make_config(
+            api_type="Anthropic",
+            provider="anthropic",
+            model="claude-sonnet-5",
+            base_url="https://api.anthropic.com",
         )
         with pytest.raises(RuntimeError) as exc:
-            anthropic_api.send_prompt("hello")
+            anthropic_api.send_prompt(config, "hello")
         assert "pip install anthropic" in str(exc.value)
 
 else:  # pragma: no cover - fallback runner without pytest

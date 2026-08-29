@@ -32,6 +32,8 @@ if pytest is not None:
 
     def test_banner_precedes_full_privileges_warning(monkeypatch, capsys):
         """run_single_prompt prints the banner before the warning."""
+        from conftest import make_config
+
         import janito.cli.chat as chat_mod
 
         # The banner must not have been printed yet in this test process
@@ -49,7 +51,13 @@ if pytest is not None:
             system_prompt = None
             no_system_prompt = False
 
-        monkeypatch.setattr(chat_mod, "send_prompt", lambda *a, **k: None)
+        # Avoid real config/auth resolution and the network (issue #70): the
+        # one-shot path builds the resolved APIConfig at the composition
+        # point, so inject a config and a no-op send function.
+        monkeypatch.setattr(chat_mod, "build_api_config", lambda **kw: make_config())
+        monkeypatch.setattr(
+            chat_mod, "_make_send_prompt_func", lambda config: lambda prompt, **kw: None
+        )
         # Avoid a real system-prompt build: force the shared SessionSetup to
         # resolve a fixed prompt so the test does not depend on skills/cwd.
         import janito.cli.session_setup as session_setup_mod

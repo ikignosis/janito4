@@ -20,8 +20,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from io import StringIO  # noqa: E402
 
+import pytest  # noqa: E402
 from rich.console import Console  # noqa: E402
 
+import janito.config_dir as config_dir_mod  # noqa: E402
 import janito.tooling.tools_registry as tools_registry  # noqa: E402
 import janito.tooling.used_files as used_files  # noqa: E402
 from janito.agent.usage import TokenStats, normalize_usage  # noqa: E402
@@ -30,6 +32,12 @@ from janito.openai_client.client_support import (  # noqa: E402
     display_turn_usage,
     wrap_send_prompt_with_turn_report,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_config_dir(tmp_path, monkeypatch):
+    """Point the config dir at a temp dir so accounting.db writes stay local."""
+    monkeypatch.setattr(config_dir_mod, "_config_dir", tmp_path / "janito")
 
 
 def _register(monkeypatch, name, permissions):
@@ -149,7 +157,6 @@ class TestWrapSendPromptWithTurnReport:
             previous_items=None,
             instructions=None,
             tools=None,
-            thinking=False,
             usage_out=None,
         ):
             usage_out.stats = _token_stats()
@@ -166,7 +173,6 @@ class TestWrapSendPromptWithTurnReport:
                 previous_items=previous_items,
                 instructions=instructions,
                 tools=tools,
-                thinking=thinking,
             )
             return "final answer"
 
@@ -216,13 +222,11 @@ class TestWrapSendPromptWithTurnReport:
             verbose=True,
             previous_messages=[{"role": "user", "content": "hello"}],
             tools=[],
-            thinking=False,
         )
         kw = holder["kwargs"]
         assert kw["verbose"] is True
         assert kw["previous_messages"] == [{"role": "user", "content": "hello"}]
         assert kw["tools"] == []
-        assert kw["thinking"] is False
         # The usage out-param reaches the observer's on_turn_complete...
         assert recorded == [holder["usage_out"]]
 

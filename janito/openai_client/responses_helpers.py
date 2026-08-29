@@ -9,21 +9,6 @@ module stays focused on the ``send_prompt`` entry point and the
 import logging
 from typing import Any
 
-# Import general configuration handling
-from janito.config_loaders import (
-    load_max_input_tokens,
-    load_max_output_tokens,
-    load_reasoning_level,
-)
-
-# Import provider configuration for built-in defaults
-from janito.provider_accessors import (
-    get_default_max_input_tokens_from_provider,
-    get_default_max_output_tokens_from_provider,
-    get_default_reasoning_level_from_provider,
-    get_default_thinking_from_provider,
-)
-
 # Import the tool executor (routes tool calls to the MCP manager or the
 # built-in registry and tracks usage/used-files/changes around each call)
 from janito.tooling.executor import ToolExecutor
@@ -87,53 +72,6 @@ def _resolve_tools(
     # Completions shape with those fields nested under "function". Convert once
     # up front so every stream round sends the correct shape.
     return _convert_tools_to_responses_format(tools_schemas)
-
-
-def _resolve_model_settings(
-    provider: str,
-    model: str,
-    thinking: bool,
-    reasoning_level: str | None,
-) -> tuple[bool, int | None, int | None, str | None]:
-    """Resolve thinking mode, token limits and reasoning level for ``model``.
-
-    Returns ``(thinking, max_output_tokens, max_input_tokens,
-    reasoning_level)`` where ``thinking`` is the resolved value: the
-    explicit ``--thinking`` flag (``True``) when given, otherwise the
-    model's built-in default (a ``True`` flag or a pass-through dict such as
-    MiniMax-M3's ``{'type': 'adaptive'}``).  See
-    :func:`apply_thinking_to_extra_body`.
-    """
-    # Thinking mode: the explicit --thinking flag wins, otherwise the
-    # model's built-in default applies (True for DeepSeek and Alibaba/Qwen,
-    # a dict for MiniMax-M3, which reason by default). See
-    # janito.providers.get_provider_config.
-    if not thinking:
-        thinking = get_default_thinking_from_provider(provider, model)
-    max_output_tokens = load_max_output_tokens(provider, model)
-    if max_output_tokens is None:
-        # Fall back to the model's built-in default (from the provider
-        # config), then to a global default of 100k tokens.
-        max_output_tokens = get_default_max_output_tokens_from_provider(provider, model)
-    if max_output_tokens is None:
-        max_output_tokens = 100000  # default to 100k tokens if not set in config
-
-    # Load the model's max input tokens (context window) for the usage
-    # summary display: a config override (--set max-input-tokens=... or the
-    # interactive --config wizard) wins, otherwise the model's built-in
-    # default applies.
-    max_input_tokens = load_max_input_tokens(provider, model)
-    if max_input_tokens is None:
-        max_input_tokens = get_default_max_input_tokens_from_provider(provider, model)
-
-    # Reasoning level (reasoning_effort): --reasoning-level CLI arg, then the
-    # model-scoped configured value (--set reasoning-level=...), and finally
-    # the model's built-in default (from the provider config). None means the
-    # API's own default applies.
-    reasoning_level = reasoning_level or load_reasoning_level(provider, model)
-    if reasoning_level is None:
-        reasoning_level = get_default_reasoning_level_from_provider(provider, model)
-    return thinking, max_output_tokens, max_input_tokens, reasoning_level
 
 
 def _validate_stream_result(

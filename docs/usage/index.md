@@ -9,6 +9,7 @@ Learn different ways to use janito.
 - [Web UI](web-ui.md) - Browser-based chat with `janito --web`
 - [CLI vs Web UI](cli-vs-web.md) - Which features are available in each interface
 - [Logging](logging.md) - Enable debug logging and troubleshooting
+- [Accounting](accounting.md) - Track overall token/cost usage in a local SQLite log
 
 ## Two Interfaces
 

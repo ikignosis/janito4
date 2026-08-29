@@ -40,18 +40,18 @@ existing ``conversations_api.<name>`` references keep working.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 from openai import AuthenticationError, NotFoundError, OpenAI
 
-# Pluggable UI observer (headless default; the CLI injects the Rich observer).
-from janito.agent.observer import TurnObserver
-
 # Import the tool executor (routes tool calls to the MCP manager or the
 # built-in registry and tracks usage/used-files/changes around each call)
 from janito.tooling.executor import ToolExecutor
+
+# Resolved, immutable per-session configuration (issue #70): the turn
+# pipeline consumes it instead of re-reading the config/auth stores.
+from .api_config import APIConfig
 
 # Shared agent-loop pipeline (see Client.send) implemented by ResponsesClient.
 from .base_client import Client
@@ -74,7 +74,6 @@ from .responses_helpers import (
     _finalize_conversation,
     _handle_tool_calls,
     _pending_items_for_cancel,
-    _resolve_model_settings,
     _resolve_tools,
     _validate_stream_result,
 )
@@ -154,34 +153,35 @@ def get_env_config() -> tuple[str | None, str, str]:
 
 
 def send_prompt(
+    config: APIConfig,
     prompt: str,
-    verbose: bool = False,
+    *,
     previous_response_id: str | None = None,
     previous_items: list[dict[str, Any]] | None = None,
     instructions: str | None = None,
     tools: list[dict[str, Any]] | None = None,
-    use_mcp: bool = True,
-    thinking: bool = False,
-    cli_model: str | None = None,
-    cli_provider: str | None = None,
-    reasoning_level: str | None = None,
     usage_out: TurnUsage | None = None,
-    stream_runner: Callable | None = None,
-    observer: TurnObserver | None = None,
 ) -> ConversationResult:
     """Send a prompt to the Responses API and return the final answer.
 
-    Mirrors :func:`completions_api.send_prompt` (same config resolution, tool
-    loading, spinner, reasoning panel, used-files report and usage summary)
-    but the conversation history lives **server-side**: the client neither
+    Thin config-driven wrapper (issue #70): all resolved session config
+    (provider, model, endpoint, api_key, token limits, reasoning level,
+    thinking, preserve_thinking, use_mcp, verbose, stream_runner, observer)
+    arrives in ``config`` -- built once per session by ``build_api_config`` --
+    so this entry point performs no config-store / auth-store reads of its
+    own.
+
+    The conversation history lives **server-side**: the client neither
     stores nor updates a ``messages`` list. Multi-turn conversations chain
     responses with ``previous_response_id``; tool-call rounds are chained
     internally the same way, so only the final ``response_id`` matters to the
     caller.
 
     Args:
+        config: The resolved, immutable
+            :class:`~janito.openai_client.api_config.APIConfig` for this
+            session.
         prompt: The user prompt to send
-        verbose: If True, print model and backend info
         previous_response_id: The server-side id of the previous response to
             continue from (``None`` for a fresh conversation). Obtained from
             the ``response_id`` of the previous ``ConversationResult``. Only
@@ -202,49 +202,31 @@ def send_prompt(
             request carries the full context.
         tools: Optional list of tool schemas to pass. If None, uses all
             available tools. If an empty list, no tools are passed.
-        use_mcp: If True, load and use MCP tools (default True)
-        thinking: If True, enable thinking mode (extra_body=
-            {'enable_thinking': True}). When False (default), falls back to
-            the provider's built-in default.
-        cli_model: Model passed via ``--model`` (overrides the provider's config).
-        cli_provider: Provider passed via ``--provider`` (overrides config/auth).
-        reasoning_level: Reasoning depth passed via ``--reasoning-level``
-            (overrides the provider's configured value and built-in default).
-            Sent to the API as ``reasoning_effort`` under the ``reasoning``
-            parameter.
         usage_out: Optional out-param (a
             :class:`~janito.openai_client.client_support.TurnUsage`) populated
             with the turn's usage and display metadata, so the caller can
             render the end-of-turn reports after the call returns (see
             :func:`~janito.openai_client.client_support.display_turn_usage`).
-        observer: Optional UI observer (a
-            :class:`~janito.agent.observer.TurnObserver`) receiving the
-            turn's user-visible events (reasoning/message fragments, verbose
-            dumps, error explainers). ``None`` (default) is headless -- no
-            terminal output; the CLI injects the Rich observer.
 
     Returns:
         ConversationResult: the final assistant text plus, depending on the
         provider's conversation model, the server-side response id (to chain
         the next turn with ``previous_response_id``) or the full client-side
         input items (to re-send with ``previous_items``).
+
+    Note:
+        Thinking mode is resolved into ``config.thinking`` at build time: the
+        explicit ``--thinking`` / ``/thinking`` flag wins, otherwise the
+        provider's built-in default applies (sent as
+        ``extra_body={'enable_thinking': True}``).
     """
     logger.info("Sending prompt to Responses API")
-    return ResponsesClient(
-        cli_model=cli_model,
-        cli_provider=cli_provider,
-        reasoning_level=reasoning_level,
-        use_mcp=use_mcp,
-        stream_runner=stream_runner,
-        observer=observer,
-    ).send(
+    return ResponsesClient(config).send(
         prompt,
-        verbose=verbose,
         previous_response_id=previous_response_id,
         previous_items=previous_items,
         instructions=instructions,
         tools=tools,
-        thinking=thinking,
         usage_out=usage_out,
     )
 
@@ -262,9 +244,6 @@ class ResponsesClient(Client):
 
     api_type = "Responses"
 
-    def _resolve_runtime_config(self):
-        return resolve_runtime_config(self.cli_model, self.cli_provider)
-
     def _create_sdk_client(self, base_url, api_key):
         # base_url can be None for standard OpenAI
         return OpenAI(api_key=api_key, base_url=base_url)
@@ -275,8 +254,17 @@ class ResponsesClient(Client):
     def _resolve_tools(self, tools, mcp_tools):
         return _resolve_tools(tools, mcp_tools)
 
-    def _resolve_model_settings(self, provider, model, thinking, reasoning_level):
-        return _resolve_model_settings(provider, model, thinking, reasoning_level)
+    def _resolve_model_settings(self, provider, model):
+        # All resolved at build time into the APIConfig (issue #70): thinking
+        # (the --thinking / /thinking flag, or the model's built-in default)
+        # and the token limits / reasoning level.  The config store /
+        # provider registry is never read here.
+        return (
+            self.config.thinking,
+            self.config.max_output_tokens,
+            self.config.max_input_tokens,
+            self.config.reasoning_level,
+        )
 
     def _init_conversation_state(self, prompt, provider, model, **kwargs):
         # Conversation-state model depends on the provider: some Responses
@@ -341,7 +329,7 @@ class ResponsesClient(Client):
         from janito.provider_accessors import get_default_tools_from_provider
 
         builtin_tools = get_default_tools_from_provider(
-            self._active_provider(), model, api_type="Responses"
+            self.config.provider, model, api_type="Responses"
         )
         return _build_call_kwargs(
             model,
@@ -354,7 +342,7 @@ class ResponsesClient(Client):
             state["responses_in_server"],
             state["instructions"],
             builtin_tools,
-            provider=self._active_provider(),
+            provider=self.config.provider,
         )
 
     def _run_stream_round(
@@ -406,7 +394,7 @@ class ResponsesClient(Client):
         except AuthenticationError as e:
             self.observer.on_error(
                 e,
-                provider=self.cli_provider,
+                provider=self.config.provider,
                 api_key=api_key,
                 base_url=base_url,
                 model=model,

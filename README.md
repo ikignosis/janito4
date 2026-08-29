@@ -4,7 +4,7 @@
 
 > 📖 **Full documentation available at [https://joaompinto.github.io/janito/](https://joaompinto.github.io/janito/)**
 
-> ⚠️ **Disclaimer:** The code on this repo has been developed mostly using AI, more specifically the Qwen models.
+> ⚠️ **Disclaimer:** The code on this repo has been developed mostly using AI.
 
 ## Features
 

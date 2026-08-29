@@ -58,7 +58,6 @@ class AskCmdHandler(CmdHandler):
             return
 
         verbose = getattr(shell, "verbose", False)
-        thinking = getattr(shell, "thinking", False)
 
         print()
         try:
@@ -73,7 +72,6 @@ class AskCmdHandler(CmdHandler):
                 previous_response_id=None,
                 instructions="You are an helpful assistant",
                 tools=[],
-                thinking=thinking,
             )
         except KeyboardInterrupt:
             print(
