@@ -63,6 +63,11 @@ Check that janito is installed correctly:
 uv run janito --version
 ```
 
+> When running from a git checkout (editable install), `--version` shows the
+> version derived from the latest git tag (e.g. `4.33.0.post1+g6412eb8`);
+> installed wheels/sdists show the released version from the distribution
+> metadata.
+
 Or run the help command:
 
 ```bash

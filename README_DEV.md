@@ -21,6 +21,11 @@ cd janito
 The project uses [setuptools-scm](https://github.com/pypa/setuptools_scm) for automatic version management based on git tags.
 
 - Version is automatically derived from the latest git tag
+- The CLI resolves its version at runtime (`janito/_version.py`): in a git
+  checkout (editable install / `uv sync`) it runs `git describe --tags --long`
+  so `janito --version` always reflects the latest tag (e.g.
+  `4.33.0.post1+g6412eb8`) without reinstalling; installed wheels/sdists fall
+  back to the version in the distribution metadata.
 - To release a new version, create an annotated tag:
   ```bash
   git tag -a v1.0.0 -m "Release version 1.0.0"
