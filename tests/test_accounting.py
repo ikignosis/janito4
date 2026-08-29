@@ -252,6 +252,273 @@ if pytest is not None:
     def test_cost_value_none_for_unknown_model():
         assert get_provider_cost_value("openai", "not-a-real-model", 1, 1, 0) is None
 
+    def test_daily_stats_groups_and_sums_by_day(monkeypatch, tmp_path):
+        _point_at(monkeypatch, tmp_path)
+        now = datetime.now(timezone.utc)
+        accounting.record_turn(
+            "openai",
+            "m",
+            input_tokens=1000,
+            cached_tokens=100,
+            output_tokens=500,
+            cost=0.01,
+            timestamp=(now - timedelta(days=1)).isoformat(),
+        )
+        accounting.record_turn(
+            "openai",
+            "m",
+            input_tokens=2000,
+            cached_tokens=200,
+            output_tokens=600,
+            cost=0.02,
+            timestamp=(now - timedelta(days=1)).isoformat(),
+        )
+        accounting.record_turn(
+            "openai",
+            "m",
+            input_tokens=3000,
+            cached_tokens=300,
+            output_tokens=700,
+            cost=0.03,
+            timestamp=now.isoformat(),
+        )
+
+        stats = accounting.get_daily_stats()
+        assert [row["day"] for row in stats] == [
+            (now - timedelta(days=1)).date().isoformat(),
+            now.date().isoformat(),
+        ]
+        older, today = stats
+        assert older["input_tokens"] == 3000
+        assert older["cached_tokens"] == 300
+        assert older["output_tokens"] == 1100
+        assert older["cost"] == pytest.approx(0.03)
+        assert today["cost"] == pytest.approx(0.03)
+
+    def test_daily_stats_null_tokens_and_cost(monkeypatch, tmp_path):
+        _point_at(monkeypatch, tmp_path)
+        accounting.record_turn(
+            "anthropic",
+            "claude-x",
+            input_tokens=None,
+            cached_tokens=None,
+            output_tokens=None,
+            cost=None,
+        )
+        row = accounting.get_daily_stats()[0]
+        # Unknown token counters aggregate to 0; unknown cost stays None.
+        assert row["input_tokens"] == 0
+        assert row["cached_tokens"] == 0
+        assert row["output_tokens"] == 0
+        assert row["cost"] is None
+
+    def test_daily_stats_limits_to_last_days(monkeypatch, tmp_path):
+        _point_at(monkeypatch, tmp_path)
+        now = datetime.now(timezone.utc)
+        for offset in range(15):
+            accounting.record_turn(
+                "openai",
+                "m",
+                input_tokens=1,
+                cached_tokens=0,
+                output_tokens=1,
+                timestamp=(now - timedelta(days=offset)).isoformat(),
+            )
+
+        stats = accounting.get_daily_stats(days=5)
+        assert len(stats) == 5
+        days = [row["day"] for row in stats]
+        assert days == sorted(days)  # chronological order
+        assert days[-1] == now.date().isoformat()
+
+    def test_daily_stats_empty_db(monkeypatch, tmp_path):
+        _point_at(monkeypatch, tmp_path)
+        assert accounting.get_daily_stats() == []
+
+    def test_daily_stats_clamps_days_below_one(monkeypatch, tmp_path):
+        _point_at(monkeypatch, tmp_path)
+        now = datetime.now(timezone.utc)
+        accounting.record_turn(
+            "openai",
+            "m",
+            input_tokens=1,
+            cached_tokens=0,
+            output_tokens=1,
+            timestamp=now.isoformat(),
+        )
+        stats = accounting.get_daily_stats(days=0)
+        assert len(stats) == 1
+        assert stats[0]["day"] == now.date().isoformat()
+
+    def test_per_model_stats_groups_by_day_provider_model(monkeypatch, tmp_path):
+        _point_at(monkeypatch, tmp_path)
+        now = datetime.now(timezone.utc)
+        yesterday = (now - timedelta(days=1)).isoformat()
+        today = now.isoformat()
+        # Two providers on yesterday, one provider/model on today, plus a
+        # second turn that must be summed into the same group.
+        accounting.record_turn(
+            "openai",
+            "gpt-5.6-luna",
+            input_tokens=1000,
+            cached_tokens=100,
+            output_tokens=500,
+            cost=0.01,
+            timestamp=yesterday,
+        )
+        accounting.record_turn(
+            "openai",
+            "gpt-5.6-luna",
+            input_tokens=2000,
+            cached_tokens=200,
+            output_tokens=600,
+            cost=0.02,
+            timestamp=yesterday,
+        )
+        accounting.record_turn(
+            "deepseek",
+            "deepseek-v4-flash",
+            input_tokens=300,
+            cached_tokens=30,
+            output_tokens=150,
+            cost=0.003,
+            timestamp=yesterday,
+        )
+        accounting.record_turn(
+            "openai",
+            "gpt-5.6-luna",
+            input_tokens=4000,
+            cached_tokens=400,
+            output_tokens=700,
+            cost=0.04,
+            timestamp=today,
+        )
+
+        stats = accounting.get_per_model_stats()
+        # Oldest day first, then provider, then model (rows checked below).
+        rows = [
+            (
+                r["day"],
+                r["provider"],
+                r["model"],
+                r["input_tokens"],
+                r["cached_tokens"],
+                r["output_tokens"],
+                r["cost"],
+            )
+            for r in stats
+        ]
+        assert rows == [
+            (
+                (now - timedelta(days=1)).date().isoformat(),
+                "deepseek",
+                "deepseek-v4-flash",
+                300,
+                30,
+                150,
+                pytest.approx(0.003),
+            ),
+            (
+                (now - timedelta(days=1)).date().isoformat(),
+                "openai",
+                "gpt-5.6-luna",
+                3000,
+                300,
+                1100,
+                pytest.approx(0.03),
+            ),
+            (
+                now.date().isoformat(),
+                "openai",
+                "gpt-5.6-luna",
+                4000,
+                400,
+                700,
+                pytest.approx(0.04),
+            ),
+        ]
+
+    def test_per_model_stats_null_tokens_and_cost(monkeypatch, tmp_path):
+        _point_at(monkeypatch, tmp_path)
+        accounting.record_turn(
+            "anthropic",
+            "claude-x",
+            input_tokens=None,
+            cached_tokens=None,
+            output_tokens=None,
+            cost=None,
+        )
+        row = accounting.get_per_model_stats()[0]
+        assert row["provider"] == "anthropic"
+        assert row["model"] == "claude-x"
+        # Unknown token counters aggregate to 0; unknown cost stays None.
+        assert row["input_tokens"] == 0
+        assert row["cached_tokens"] == 0
+        assert row["output_tokens"] == 0
+        assert row["cost"] is None
+
+    def test_per_model_stats_unknown_provider_model_grouped(monkeypatch, tmp_path):
+        _point_at(monkeypatch, tmp_path)
+        accounting.record_turn(
+            None,
+            None,
+            input_tokens=5,
+            cached_tokens=1,
+            output_tokens=2,
+            cost=None,
+        )
+        accounting.record_turn(
+            None,
+            None,
+            input_tokens=5,
+            cached_tokens=1,
+            output_tokens=2,
+            cost=None,
+        )
+        rows = accounting.get_per_model_stats()
+        assert len(rows) == 1
+        assert rows[0]["provider"] is None
+        assert rows[0]["model"] is None
+        assert rows[0]["input_tokens"] == 10
+
+    def test_per_model_stats_limits_to_last_days(monkeypatch, tmp_path):
+        _point_at(monkeypatch, tmp_path)
+        now = datetime.now(timezone.utc)
+        for offset in range(15):
+            accounting.record_turn(
+                "openai",
+                "m",
+                input_tokens=1,
+                cached_tokens=0,
+                output_tokens=1,
+                timestamp=(now - timedelta(days=offset)).isoformat(),
+            )
+
+        rows = accounting.get_per_model_stats(days=5)
+        days = [r["day"] for r in rows]
+        assert len(days) == 5
+        assert days == sorted(days)  # chronological order
+        assert days[-1] == now.date().isoformat()
+
+    def test_per_model_stats_empty_db(monkeypatch, tmp_path):
+        _point_at(monkeypatch, tmp_path)
+        assert accounting.get_per_model_stats() == []
+
+    def test_per_model_stats_clamps_days_below_one(monkeypatch, tmp_path):
+        _point_at(monkeypatch, tmp_path)
+        now = datetime.now(timezone.utc)
+        accounting.record_turn(
+            "openai",
+            "m",
+            input_tokens=1,
+            cached_tokens=0,
+            output_tokens=1,
+            timestamp=now.isoformat(),
+        )
+        rows = accounting.get_per_model_stats(days=0)
+        assert len(rows) == 1
+        assert rows[0]["day"] == now.date().isoformat()
+
 else:  # pragma: no cover - fallback runner without pytest
 
     def _main():

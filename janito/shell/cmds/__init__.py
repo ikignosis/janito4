@@ -28,6 +28,7 @@ from . import (
     status,
     thinking,
     tools,
+    use_stats,
     write,
 )
 from .base import CmdHandler
@@ -61,5 +62,6 @@ __all__ = [
     "status",
     "thinking",
     "tools",
+    "use_stats",
     "write",
 ]

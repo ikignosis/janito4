@@ -30,6 +30,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with `python -m janito.tooling.accounting` (see `docs/usage/accounting.md`).
   On every startup the database is pruned of entries older than 10 days
   (issue #76) so it does not grow unbounded — best-effort, never raises.
+- `/use_stats` shell command (issue #75): reads the accounting database,
+  groups the rows **by calendar day** and prints the **last 10 days** as a
+  rich table — one row per day with the summed input/cached/output tokens
+  and the summed estimated cost (`N/A` when no cost was reported). The
+  cached-token value is followed by the percentage of the day's total input
+  tokens that was served from cache (the `input_tokens` column already
+  includes the cached tokens), e.g. `600 (25%)`.
+  Backed by a new best-effort `accounting.get_daily_stats(days=10)` accessor
+  that aggregates per-day totals (tokens default to 0, cost stays `None`
+  when unknown) and returns only the most recent days that have recorded
+  usage, oldest first. The command is auto-discovered by `/help` and the
+  completer, and the empty state prints a friendly message plus the
+  database path.
+- `/use_stats` now also prints a **Per Model Statistics (last 10 days)**
+  table (issue #75): the same period broken down **by day, provider and
+  model**, with one row per day/provider/model group summing the
+  input/cached/output tokens and the estimated cost (same cached-percentage
+  formatting and `N/A` cost fallback as the daily table; unknown
+  provider/model values are grouped and rendered as `unknown`). Backed by a
+  new best-effort `accounting.get_per_model_stats(days=10)` accessor that
+  aggregates per day/provider/model (tokens default to 0, cost stays `None`
+  when unknown) and returns only the most recent days that have recorded
+  usage, ordered oldest day first then provider/model.
 
 - `--set system-prompt="..."` and `--set system-prompt-file=path` config keys
   (issue #60): the configured text/file becomes the system prompt's `start`
@@ -256,6 +279,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `/use_stats` cached-token percentage no longer double-counts the cached
+  tokens: the accounting database stores `input_tokens` as the **total**
+  input (the API reports `prompt_tokens`/`input_tokens` with the cached
+  tokens counted inside them, and the provider cost modules bill
+  `input - cached` at the miss rate), so the percentage is now
+  `cached / input` instead of `cached / (input + cached)`. A day where ~99%
+  of the input was served from cache previously showed `50%`; it now shows
+  `99%` (issue #75). When no input was reported the plain cached count is
+  still shown without a percentage.
 - The interactive shell's pre-prompt `Turn N` rule no longer counts turns
   that are rolled back (issue #78): the turn number is now derived from the
   recorded turn list (`history_turns`, one entry per submitted turn), so a

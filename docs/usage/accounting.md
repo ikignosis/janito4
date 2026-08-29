@@ -53,7 +53,45 @@ other database access — it never raises and never breaks startup.
 
 ## Inspecting the log
 
-The module ships a small command-line inspector:
+The interactive shell offers a `/use_stats` command (issue #75) that reads
+the accounting database and prints the **last 10 days** as two rich tables.
+The first groups the rows **by calendar day** — one row per day with the
+summed input/cached/output tokens and the summed estimated cost. The
+`input_tokens` column is the day's **total** input — the API reports
+`prompt_tokens`/`input_tokens` with the cached tokens counted inside them —
+and the cached-token value is followed by the percentage of that total input
+that was served from cache (`cached / input`, rounded to a whole number):
+
+```text
+                 Usage Statistics (last 10 days)
+┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┓
+┃ Day          ┃ Input tokens   ┃ Cached tokens   ┃ Output tokens   ┃     Cost ┃
+┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━┩
+│ 2026-08-28   │          1,200 │     300 (25%)   │             800 │  $0.0017 │
+│ 2026-08-29   │          1,800 │     600 (33%)   │           1,600 │  $0.0024 │
+└──────────────┴────────────────┴─────────────────┴─────────────────┴──────────┘
+Database: /home/me/.janito/accounting.db
+```
+
+The second table breaks the same period down **by day, provider and model**,
+so you can see at a glance which model drove the usage on each day:
+
+```text
+                                 Per Model Statistics (last 10 days)
+┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓
+┃ Day            ┃ Provider  ┃ Model                 ┃ Input tokens    ┃ Cached tokens    ┃ Output tokens    ┃       Cost ┃
+┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩
+│ 2026-08-28     │ deepseek  │ deepseek-v4-flash     │             180 │          6 (6%)  │              120 │    $0.0001 │
+│ 2026-08-28     │ openai    │ gpt-5.6-luna          │           1,200 │       300 (25%)  │              800 │    $0.0017 │
+│ 2026-08-29     │ openai    │ gpt-5.6-luna          │           1,800 │       600 (33%)  │            1,600 │    $0.0024 │
+└────────────────┴───────────┴───────────────────────┴─────────────────┴──────────────────┴──────────────────┴────────────┘
+```
+
+Turns whose provider or model is unknown (e.g. rows recorded without one)
+are grouped under `unknown`, and their cost column shows `N/A` when no cost
+was reported — the same best-effort fallbacks the daily table uses.
+
+The module also ships a small command-line inspector:
 
 ```bash
 python -m janito.tooling.accounting            # last 10 rows

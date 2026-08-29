@@ -214,6 +214,148 @@ class AccountingStore:
             logger.debug(f"Failed to read accounting entries: {e}")
             return []
 
+    def daily_stats(self, days: int = 10) -> list[dict]:
+        """Return per-day usage aggregates for the most recent ``days`` days.
+
+        Rows are grouped by calendar day (the UTC date part of the stored
+        ISO-8601 ``timestamp``) and aggregated into per-day totals: the
+        input/cached/output token counts (summed, ``0`` when nothing was
+        reported) and the estimated cost (summed dollars, ``None`` when no
+        cost was reported for any of the day's turns).  Only the ``days``
+        most recent days that actually have recorded usage are returned,
+        ordered oldest first.
+
+        Best-effort, like every other access in this module: never raises,
+        failures are logged and ``[]`` is returned.
+
+        Args:
+            days: Maximum number of days (with recorded usage) to return.
+                Clamped to at least 1.
+
+        Returns:
+            list[dict]: One dict per day with keys ``day`` (``YYYY-MM-DD``),
+            ``input_tokens``, ``cached_tokens``, ``output_tokens`` and
+            ``cost`` (float or ``None``). Empty if nothing has been recorded
+            or the database cannot be read.
+        """
+        if days < 1:
+            days = 1
+        try:
+            with self._lock:
+                conn = self._connect()
+                try:
+                    cursor = conn.execute(
+                        """
+                        SELECT day, input_tokens, cached_tokens,
+                               output_tokens, cost
+                        FROM (
+                            SELECT substr(timestamp, 1, 10) AS day,
+                                   COALESCE(SUM(input_tokens), 0) AS input_tokens,
+                                   COALESCE(SUM(cached_tokens), 0) AS cached_tokens,
+                                   COALESCE(SUM(output_tokens), 0) AS output_tokens,
+                                   SUM(cost) AS cost
+                            FROM accounting
+                            GROUP BY day
+                        )
+                        ORDER BY day DESC
+                        LIMIT ?
+                        """,
+                        (days,),
+                    )
+                    columns = [
+                        "day",
+                        "input_tokens",
+                        "cached_tokens",
+                        "output_tokens",
+                        "cost",
+                    ]
+                    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+                    # Newest first from SQL; flip to chronological order for
+                    # display (oldest day on top).
+                    rows.reverse()
+                    return rows
+                finally:
+                    conn.close()
+        except Exception as e:  # noqa: BLE001 - accounting must never break execution
+            logger.debug(f"Failed to read daily accounting stats: {e}")
+            return []
+
+    def per_model_stats(self, days: int = 10) -> list[dict]:
+        """Return per-day / per-provider / per-model usage aggregates.
+
+        Rows are grouped by calendar day (the UTC date part of the stored
+        ISO-8601 ``timestamp``) *and* by ``provider``/``model``, then
+        aggregated per group: the input/cached/output token counts (summed,
+        ``0`` when nothing was reported) and the estimated cost (summed
+        dollars, ``None`` when no cost was reported for any of the group's
+        turns).  Only the ``days`` most recent days that actually have
+        recorded usage are returned, ordered oldest first and, within a day,
+        by provider then model.
+
+        Best-effort, like every other access in this module: never raises,
+        failures are logged and ``[]`` is returned.
+
+        Args:
+            days: Maximum number of days (with recorded usage) to return.
+                Clamped to at least 1.
+
+        Returns:
+            list[dict]: One dict per day/provider/model group with keys
+            ``day`` (``YYYY-MM-DD``), ``provider``, ``model``,
+            ``input_tokens``, ``cached_tokens``, ``output_tokens`` and
+            ``cost`` (float or ``None``). Empty if nothing has been recorded
+            or the database cannot be read.
+        """
+        if days < 1:
+            days = 1
+        try:
+            with self._lock:
+                conn = self._connect()
+                try:
+                    cursor = conn.execute(
+                        """
+                        SELECT day, provider, model,
+                               input_tokens, cached_tokens, output_tokens, cost
+                        FROM (
+                            SELECT substr(timestamp, 1, 10) AS day,
+                                   provider,
+                                   model,
+                                   COALESCE(SUM(input_tokens), 0) AS input_tokens,
+                                   COALESCE(SUM(cached_tokens), 0) AS cached_tokens,
+                                   COALESCE(SUM(output_tokens), 0) AS output_tokens,
+                                   SUM(cost) AS cost
+                            FROM accounting
+                            GROUP BY day, provider, model
+                        )
+                        WHERE day IN (
+                            SELECT day FROM (
+                                SELECT substr(timestamp, 1, 10) AS day
+                                FROM accounting
+                                GROUP BY day
+                                ORDER BY day DESC
+                                LIMIT ?
+                            )
+                        )
+                        ORDER BY day, provider, model
+                        """,
+                        (days,),
+                    )
+                    columns = [
+                        "day",
+                        "provider",
+                        "model",
+                        "input_tokens",
+                        "cached_tokens",
+                        "output_tokens",
+                        "cost",
+                    ]
+                    return [dict(zip(columns, row)) for row in cursor.fetchall()]
+                finally:
+                    conn.close()
+        except Exception as e:  # noqa: BLE001 - accounting must never break execution
+            logger.debug(f"Failed to read per-model accounting stats: {e}")
+            return []
+
     def prune_old_entries(self, days: int = 10) -> int:
         """Delete accounting rows older than ``days`` days (default 10).
 
@@ -308,6 +450,44 @@ def get_records(limit: int | None = None) -> list[dict]:
             been recorded or the database cannot be read.
     """
     return _store.all_records(limit)
+
+
+def get_daily_stats(days: int = 10) -> list[dict]:
+    """Return per-day usage aggregates for the most recent ``days`` days.
+
+    Thin wrapper over :meth:`AccountingStore.daily_stats` (the module-level
+    singleton); see it for details.  Grouped by calendar day and ordered
+    oldest first, best-effort: never raises, ``[]`` when nothing has been
+    recorded or the database cannot be read.
+
+    Args:
+        days: Maximum number of days (with recorded usage) to return.
+
+    Returns:
+        list[dict]: One dict per day with keys ``day``, ``input_tokens``,
+        ``cached_tokens``, ``output_tokens`` and ``cost``.
+    """
+    return _store.daily_stats(days)
+
+
+def get_per_model_stats(days: int = 10) -> list[dict]:
+    """Return per-day / per-provider / per-model usage aggregates.
+
+    Thin wrapper over :meth:`AccountingStore.per_model_stats` (the
+    module-level singleton); see it for details.  Grouped by calendar day,
+    provider and model, ordered oldest day first then provider/model,
+    best-effort: never raises, ``[]`` when nothing has been recorded or the
+    database cannot be read.
+
+    Args:
+        days: Maximum number of days (with recorded usage) to return.
+
+    Returns:
+        list[dict]: One dict per day/provider/model group with keys ``day``,
+        ``provider``, ``model``, ``input_tokens``, ``cached_tokens``,
+        ``output_tokens`` and ``cost``.
+    """
+    return _store.per_model_stats(days)
 
 
 def prune_old_entries(days: int = 10) -> int:
