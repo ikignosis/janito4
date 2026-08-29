@@ -244,6 +244,56 @@ if pytest is not None:
         assert str(missing) in str(exc.value)
         assert "does not exist" in str(exc.value)
 
+    # ---- flat used-files flag --------------------------------------------
+
+    def test_load_used_files_enabled_defaults_to_false(monkeypatch, tmp_path):
+        _use_temp_config(monkeypatch, tmp_path)
+        from janito.config_loaders import load_used_files_enabled
+
+        assert load_used_files_enabled() is False
+
+    def test_load_used_files_enabled_coerced_via_set(monkeypatch, tmp_path):
+        _use_temp_config(monkeypatch, tmp_path)
+        from janito.config_loaders import load_used_files_enabled
+
+        # --set used-files=True stores a real boolean (BOOL_VALUED_KEYS).
+        key, value = set_config_from_cli("used-files=True")
+        assert key == "used-files"
+        assert value is True
+        assert load_used_files_enabled() is True
+
+        key, value = set_config_from_cli("used-files=off")
+        assert value is False
+        assert load_used_files_enabled() is False
+
+    def test_load_used_files_enabled_string_tolerance(monkeypatch, tmp_path):
+        config_path = _use_temp_config(monkeypatch, tmp_path)
+        from janito.config_loaders import load_used_files_enabled
+
+        # Hand-written string forms are tolerated (flat key).
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(json.dumps({"used-files": "TRUE"}))
+        assert load_used_files_enabled() is True
+        config_path.write_text(json.dumps({"used-files": "false"}))
+        assert load_used_files_enabled() is False
+        config_path.write_text(json.dumps({"used-files": "1"}))
+        assert load_used_files_enabled() is True
+
+    def test_load_used_files_enabled_non_bool_value_is_falsy(monkeypatch, tmp_path):
+        config_path = _use_temp_config(monkeypatch, tmp_path)
+        from janito.config_loaders import load_used_files_enabled
+
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        # A string that is not a known true form is treated as False
+        # (mirrors load_responses_in_server); a numeric 0 is falsy too.
+        config_path.write_text(json.dumps({"used-files": "x"}))
+        assert load_used_files_enabled() is False
+        config_path.write_text(json.dumps({"used-files": 0}))
+        assert load_used_files_enabled() is False
+        # A truthy non-string (e.g. a numeric 1 written by hand) is True.
+        config_path.write_text(json.dumps({"used-files": 1}))
+        assert load_used_files_enabled() is True
+
 else:  # pragma: no cover - fallback runner without pytest
 
     def _main():

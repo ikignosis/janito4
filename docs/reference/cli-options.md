@@ -243,6 +243,7 @@ Values stored in `~/.janito/config.json` via `--set`. Keys are scoped:
 | `reasoning-effort` | model-scoped | Reasoning depth (`none`…`max`) | model built-in |
 | `api-type` | model-scoped | API type (`Responses`, `Completions`, `Anthropic`, `DashScope`, `Gemini`) | model built-in default |
 | `responses-in-server` | model-scoped | Whether the Responses API keeps conversation state server-side (bool) | model built-in default |
+| `used-files` | flat | Whether the end-of-turn `Used files` report is printed by the CLI/shell (bool, opt-in) | `false` |
 | `system-prompt` | flat | Literal text used as the system prompt's `start` section | built-in base prompt |
 | `system-prompt-file` | flat | Path to a file whose content becomes the `start` section (`~` is expanded, relative paths resolve against the cwd); wins over `system-prompt` when both are set. Validated when set and at startup: janito fails (exit 1) with an actionable error when the file does not exist | unset |
 

@@ -30,7 +30,7 @@ MODEL_SCOPED_KEYS = {
 INT_VALUED_KEYS = {"max-input-tokens", "max-output-tokens"}
 
 # Config keys whose values should be coerced to bool when set via CLI.
-BOOL_VALUED_KEYS = {"responses-in-server"}
+BOOL_VALUED_KEYS = {"responses-in-server", "used-files"}
 
 
 def split_model_scoped_key(key: str) -> tuple[str, str, str] | None:

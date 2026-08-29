@@ -502,6 +502,29 @@ def load_system_prompt_start() -> str | None:
     return None
 
 
+def load_used_files_enabled() -> bool:
+    """Load the flat ``used-files`` config flag (default ``False``).
+
+    When set to ``True`` (``janito --set used-files=True``) the CLI/shell
+    prints the end-of-turn ``Used files`` report; when unset or ``False``
+    (the default) the report is suppressed.  String forms written by hand /
+    older configs (``"true"``/``"false"``/``"1"``/``"0"``/``"yes"``/``"no"``/
+    ``"on"``/``"off"`` in any case) are tolerated, mirroring
+    :meth:`ProviderConfigLoader.load_responses_in_server`.
+
+    Returns:
+        bool: ``True`` when the flag is set, ``False`` when unset or falsy.
+    """
+    from .config_store import get_config_value
+
+    value = get_config_value("used-files")
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes", "on")
+    return bool(value)
+
+
 def validate_system_prompt_file_path(file_value: str) -> str:
     """Validate that a ``system-prompt-file`` value points at an existing file.
 

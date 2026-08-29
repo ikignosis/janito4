@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `--set used-files=True` config key (issue #74): a flat boolean flag that
+  controls whether the end-of-turn `Used files` report (the list of files the
+  tools read/wrote during the prompt) is printed by the CLI/shell. Defaults to
+  `False` when unset, so the report is opt-in; when enabled it is rendered
+  right before the token-usage summary for every turn (interactive shell,
+  one-shot prompts, `/ask`, `/compact`). Accepts `true`/`false`/`1`/`0`/
+  `yes`/`no`/`on`/`off` in any case and tolerates hand-written string forms.
 - Overall-use accounting (issue #72): every completed LLM turn that reports
   token usage is appended as one row to `<config dir>/accounting.db` (a
   SQLite database, default `~/.janito/accounting.db`) recording the working

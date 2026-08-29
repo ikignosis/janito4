@@ -38,6 +38,7 @@ from janito.agent.observer import NullObserver
 from janito.agent.usage import TokenStats, format_tokens, normalize_usage
 
 # Import MCP manager
+from janito.config_loaders import load_used_files_enabled
 from janito.mcp_manager import get_mcp_manager
 from janito.provider_accessors import get_provider_cost, get_provider_cost_value
 from janito.tooling.accounting import record_turn
@@ -755,11 +756,14 @@ def display_turn_usage(
     """
     console = console or Console()
 
-    # Display the tracked used files before the token usage summary.
-    # Nothing is printed when no files were tracked (empty Text).
-    used_files_report = format_used_files()
-    if used_files_report:
-        console.print(used_files_report, highlight=False)
+    # Display the tracked used files before the token usage summary (only
+    # when the ``used-files`` config flag is enabled -- default False, so the
+    # report is opt-in, issue #74). Nothing is printed when no files were
+    # tracked (empty Text) either.
+    if load_used_files_enabled():
+        used_files_report = format_used_files()
+        if used_files_report:
+            console.print(used_files_report, highlight=False)
 
     if usage_out is None or usage_out.stats is None:
         return

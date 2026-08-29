@@ -45,6 +45,7 @@ keys per provider **and** model (see the note below and
 | `reasoning-effort` | per provider/model | Reasoning depth (`none`…`max`) | model built-in |
 | `api-type` | per provider/model | API type (`Responses`, `Completions`, `Anthropic`, `DashScope`, `Gemini`) | model built-in default |
 | `responses-in-server` | per provider/model | Whether the Responses API keeps conversation state server-side | model built-in default |
+| `used-files` | flat | Whether the end-of-turn `Used files` report is printed by the CLI/shell | `false` |
 | `system-prompt` | flat | Literal text used as the system prompt's `start` section | built-in base prompt |
 | `system-prompt-file` | flat | Path to a file whose content becomes the `start` section (`~` is expanded, relative paths resolve against the working directory); wins over `system-prompt` when both are set | unset |
 
@@ -86,6 +87,26 @@ the provider/model's built-in limit (e.g. OpenAI's `gpt-5.6-luna`:
 has none is `128000` input / `100000` output.
 
 > Provider base URLs are built in for known providers, so you normally only need `endpoint` for the `custom` provider. At runtime the endpoint is used directly as the API base URL. The model-level keys (`max-input-tokens`, `max-output-tokens`, `reasoning-effort`, `api-type`, `responses-in-server`) are stored per provider **and** model, under `providers.<provider>.models.<model>.<key>` in `config.json`.
+
+### Used files report (`used-files`)
+
+```bash
+janito --set used-files=True
+```
+
+By default janito does **not** print the end-of-turn `Used files` report (the
+list of files the tools read/wrote during the prompt). Set the flat
+`used-files` key to `True` to enable it:
+
+```bash
+janito --set used-files=True   # or 1/yes/on
+janito --unset used-files      # back to the default (off)
+```
+
+When enabled, the report is printed right before the token-usage summary at
+the end of every turn (interactive shell, one-shot prompts, `/ask`,
+`/compact`). The tracking itself always runs — the flag only controls whether
+the report is displayed.
 
 ## Configuration Priority
 

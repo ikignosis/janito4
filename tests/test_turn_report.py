@@ -131,9 +131,12 @@ class TestDisplayTurnUsage:
         assert "Cached:" not in text
 
     def test_prints_used_files_before_usage_line(self, monkeypatch):
+        from janito.config_store import set_config_value, unset_config_value
+
         _register(monkeypatch, "ReadFile", "r")
         used_files.reset_used_files()
         used_files.record_used_file("ReadFile", {"filepath": "/a.py"})
+        set_config_value("used-files", True)
         try:
             u = TurnUsage(stats=_token_stats(), message_count=1)
             text = self._render(u)
@@ -141,6 +144,42 @@ class TestDisplayTurnUsage:
             assert "1 read : /a.py" in text
         finally:
             used_files.reset_used_files()
+            unset_config_value("used-files")
+
+    def test_used_files_report_suppressed_when_disabled(self, monkeypatch):
+        """The used-files report is hidden by default (issue #74)."""
+        from janito.config_store import unset_config_value
+
+        _register(monkeypatch, "ReadFile", "r")
+        used_files.reset_used_files()
+        used_files.record_used_file("ReadFile", {"filepath": "/a.py"})
+        unset_config_value("used-files")
+        try:
+            u = TurnUsage(stats=_token_stats(), message_count=1)
+            text = self._render(u)
+            assert "Used files" not in text
+            assert "1 read : /a.py" not in text
+            # The token-usage summary is still printed.
+            assert "===" in text
+        finally:
+            used_files.reset_used_files()
+
+    def test_used_files_report_printed_when_enabled(self, monkeypatch):
+        """With ``used-files=True`` the report is printed (issue #74)."""
+        from janito.config_store import set_config_value, unset_config_value
+
+        _register(monkeypatch, "ReadFile", "r")
+        used_files.reset_used_files()
+        used_files.record_used_file("ReadFile", {"filepath": "/a.py"})
+        set_config_value("used-files", True)
+        try:
+            u = TurnUsage(stats=_token_stats(), message_count=1)
+            text = self._render(u)
+            assert "Used files" in text
+            assert "1 read : /a.py" in text
+        finally:
+            used_files.reset_used_files()
+            unset_config_value("used-files")
 
     def test_no_usage_prints_nothing(self):
         used_files.reset_used_files()
