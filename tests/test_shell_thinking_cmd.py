@@ -52,13 +52,13 @@ def test_no_argument_shows_disabled_status_by_default(capsys):
 
 
 def test_no_argument_shows_na_for_gemini_flavor_provider(capsys):
-    """``/thinking`` alone for Google reports N/A (controlled via Reasoning Level)."""
+    """``/thinking`` alone for Google reports N/A (controlled via Reasoning Effort)."""
     shell = _shell(thinking=False, provider="google")
     assert _thinking_handler().handle(shell, "/thinking") is True
 
     out = capsys.readouterr().out
     assert "Thinking mode is N/A for this session" in out
-    assert "controlled via Reasoning Level" in out
+    assert "controlled via Reasoning Effort" in out
 
 
 def test_thinking_on_warns_for_gemini_flavor_provider(capsys):

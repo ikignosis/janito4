@@ -304,7 +304,7 @@ def get_default_max_input_tokens_from_provider(
     return found.max_input_tokens(model) if found is not None else None
 
 
-def get_default_reasoning_level_from_provider(
+def get_default_reasoning_effort_from_provider(
     provider: str, model: str | None = None
 ) -> str | None:
     """
@@ -324,21 +324,10 @@ def get_default_reasoning_level_from_provider(
         built-in default).
     """
     found = _registry.get(provider)
-    return found.reasoning_level(model) if found is not None else None
+    return found.reasoning_effort(model) if found is not None else None
 
 
-def get_default_effort_level_from_provider(
-    provider: str, model: str | None = None
-) -> str | None:
-    """
-    Get the built-in default effort/reasoning level for a provider's model.
-
-    Alias for :func:`get_default_reasoning_level_from_provider`.
-    """
-    return get_default_reasoning_level_from_provider(provider, model)
-
-
-def get_supported_reasoning_levels_from_provider(
+def get_supported_reasoning_efforts_from_provider(
     provider: str, model: str | None = None
 ) -> list | None:
     """
@@ -358,7 +347,7 @@ def get_supported_reasoning_levels_from_provider(
         no configurable reasoning).
     """
     found = _registry.get(provider)
-    return found.supported_reasoning_levels(model) if found is not None else None
+    return found.supported_reasoning_efforts(model) if found is not None else None
 
 
 def get_default_thinking_from_provider(provider: str, model: str | None = None):
@@ -527,8 +516,8 @@ def format_thinking_display(thinking, provider: str | None = None) -> str:
 
     When ``provider`` is given and uses the Gemini flavor (e.g. ``google``),
     the boolean thinking flag is not applicable because Gemini models reason by
-    default and control reasoning depth through the reasoning level; in that
-    case returns ``"N/A (controlled via Reasoning Level)"``.
+    default and control reasoning depth through the reasoning effort; in that
+    case returns ``"N/A (controlled via Reasoning Effort)"``.
 
     Otherwise:
     ``True`` (or any truthy non-dict) renders as ``"enabled"``; a structured
@@ -536,7 +525,7 @@ def format_thinking_display(thinking, provider: str | None = None) -> str:
     ``"enabled (<type>)"``; falsy values render as ``"disabled"``.
     """
     if provider and get_gemini_flavor_from_provider(provider):
-        return "N/A (controlled via Reasoning Level)"
+        return "N/A (controlled via Reasoning Effort)"
     if isinstance(thinking, dict) and thinking.get("type"):
         return f"enabled ({thinking['type']})"
     return "enabled" if thinking else "disabled"

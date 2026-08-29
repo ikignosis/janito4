@@ -110,7 +110,7 @@ def _build_call_kwargs(
     model: str,
     input_items: str | list[dict[str, Any]],
     max_output_tokens: int | None,
-    reasoning_level: str | None,
+    reasoning_effort: str | None,
     preserve_thinking: Any,
     thinking,
     response_id: str | None,
@@ -144,8 +144,8 @@ def _build_call_kwargs(
 
     # Reasoning effort: sent whenever a reasoning level resolves (None means
     # the API's own default applies).
-    if reasoning_level:
-        call_kwargs["reasoning"] = {"effort": reasoning_level}
+    if reasoning_effort:
+        call_kwargs["reasoning"] = {"effort": reasoning_effort}
 
     # Pass preserve_thinking in extra_body if defined in config
     if preserve_thinking is not None:

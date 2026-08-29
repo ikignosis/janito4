@@ -72,8 +72,8 @@ See [Provider Variants](../configuration/variants.md) for the full guide.
 | `-S`, `--system-prompt <prompt>` | Override the system prompt (tools stay enabled) |
 | `--no-tools` | Do not load tools (skill tools stay enabled) |
 | `--show-system-prompt` | Display the resolved system prompt and exit |
-| `-t`, `--thinking` | Enable thinking mode (sends `extra_body={'enable_thinking': True}`). DeepSeek, Alibaba/Qwen and MiniMax-M3 have thinking enabled by default. Gemini-flavored providers (google) do not accept this flag; thinking depth is controlled through `--reasoning-level` instead. |
-| `--reasoning-level <level>` | Set the reasoning depth for the API call (sends `reasoning_effort=<level>`). Overrides the provider's configured value and built-in default. Values: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`. |
+| `-t`, `--thinking` | Enable thinking mode (sends `extra_body={'enable_thinking': True}`). DeepSeek, Alibaba/Qwen and MiniMax-M3 have thinking enabled by default. Gemini-flavored providers (google) do not accept this flag; thinking depth is controlled through `--reasoning-effort` instead. |
+| `--reasoning-effort <level>` | Set the reasoning depth for the API call (sends `reasoning_effort=<level>`). Overrides the provider's configured value and built-in default. Values: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`. |
 
 ## API Type
 
@@ -240,7 +240,7 @@ Values stored in `~/.janito/config.json` via `--set`. Keys are scoped:
 | `endpoint` | provider-scoped | API endpoint URL (required for `custom`) | provider built-in default |
 | `max-input-tokens` | model-scoped | Maximum input tokens (context window) | model built-in |
 | `max-output-tokens` | model-scoped | Maximum output tokens | model built-in |
-| `reasoning-level` | model-scoped | Reasoning depth (`none`…`max`) | model built-in |
+| `reasoning-effort` | model-scoped | Reasoning depth (`none`…`max`) | model built-in |
 | `api-type` | model-scoped | API type (`Responses`, `Completions`, `Anthropic`, `DashScope`, `Gemini`) | model built-in default |
 | `responses-in-server` | model-scoped | Whether the Responses API keeps conversation state server-side (bool) | model built-in default |
 | `system-prompt` | flat | Literal text used as the system prompt's `start` section | built-in base prompt |

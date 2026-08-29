@@ -11,7 +11,7 @@ from ...provider_accessors import (
     get_default_max_input_tokens_from_provider,
     get_default_max_output_tokens_from_provider,
     get_default_model_from_provider,
-    get_default_reasoning_level_from_provider,
+    get_default_reasoning_effort_from_provider,
     get_default_thinking_from_provider,
     get_default_tools_from_provider,
     get_endpoint_for_api_type,
@@ -107,7 +107,7 @@ def _model_rows(
     if tools_display:
         rows.append((f"{label} tools", tools_display))
 
-    reasoning = get_default_reasoning_level_from_provider(provider, model)
+    reasoning = get_default_reasoning_effort_from_provider(provider, model)
     if reasoning:
         rows.append((f"{label} reasoning", f"{reasoning} (default)"))
 

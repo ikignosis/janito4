@@ -237,7 +237,7 @@ def _build_call_kwargs(
     messages: list[dict[str, Any]],
     max_output_tokens: int,
     system: str | None,
-    reasoning_level: str | None,
+    reasoning_effort: str | None,
     tools: list[dict[str, Any]] | None,
 ) -> dict[str, Any]:
     """Build the native Gemini ``generate_content`` call parameters.
@@ -255,8 +255,8 @@ def _build_call_kwargs(
     config: dict[str, Any] = {"max_output_tokens": max_output_tokens}
     if system:
         config["system_instruction"] = system
-    if reasoning_level:
-        config["thinking_config"] = {"thinking_level": reasoning_level}
+    if reasoning_effort:
+        config["thinking_config"] = {"thinking_level": reasoning_effort}
     function_tools = _convert_tools_to_gemini_format(tools)
     if function_tools:
         config["tools"] = function_tools

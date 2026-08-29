@@ -138,9 +138,9 @@ class TestPrintConfigInfo:
         assert "disabled" in out
 
     def test_thinking_gemini_flavor_shows_na(self, capsys):
-        """Google uses Gemini flavor: thinking shows 'N/A (controlled via Reasoning Level)'."""
+        """Google uses Gemini flavor: thinking shows 'N/A (controlled via Reasoning Effort)'."""
         out = self._run(capsys, provider="google")
-        assert "N/A (controlled via Reasoning Level)" in out
+        assert "N/A (controlled via Reasoning Effort)" in out
 
     def test_thinking_flag_overrides_provider_default(self, capsys):
         """The --thinking flag forces thinking on without the '(model default)' note."""

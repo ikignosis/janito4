@@ -111,7 +111,7 @@ def _make_turn_factory(
     cli_api_type: str | None,
     cli_model: str | None,
     cli_provider: str | None,
-    cli_reasoning_level: str | None,
+    cli_reasoning_effort: str | None,
     verbose: bool = False,
     cli_thinking: bool | None = None,
 ) -> Callable[[str | None, str | None], Callable]:
@@ -143,7 +143,7 @@ def _make_turn_factory(
         cli_api_type: API type passed via ``--api-type`` (may be None).
         cli_model: Model passed via ``--model`` (may be None).
         cli_provider: Provider passed via ``--provider`` (may be None).
-        cli_reasoning_level: Reasoning depth passed via ``--reasoning-level``
+        cli_reasoning_effort: Reasoning depth passed via ``--reasoning-effort``
             (may be None).
         verbose: Session default for verbose output (stored on the config;
             per-call overrides still possible via ``Client.run_turn(verbose=...)``).
@@ -189,7 +189,7 @@ def _make_turn_factory(
                 api_type=resolve_api_type(cli_api_type, provider, model),
                 cli_model=model,
                 cli_provider=provider,
-                reasoning_level=cli_reasoning_level,
+                reasoning_effort=cli_reasoning_effort,
                 thinking=thinking,
                 verbose=verbose,
                 stream_runner=_run_with_progress_bar,
@@ -281,7 +281,7 @@ def run_interactive_chat(args):
     # prompt uses the same configuration without environment variables).
     cli_model = getattr(args, "model", None)
     cli_provider = getattr(args, "provider", None)
-    cli_reasoning_level = getattr(args, "reasoning_level", None)
+    cli_reasoning_effort = getattr(args, "reasoning_effort", None)
     cli_api_type = getattr(args, "api_type", None)
     try:
         _, _, model = resolve_runtime_config(cli_model, cli_provider)
@@ -331,7 +331,7 @@ def run_interactive_chat(args):
         cli_api_type,
         cli_model,
         cli_provider,
-        cli_reasoning_level,
+        cli_reasoning_effort,
         verbose=args.verbose,
         cli_thinking=getattr(args, "thinking", False),
     )
@@ -389,7 +389,7 @@ def run_single_prompt(args):
                 ),
                 cli_model=getattr(args, "model", None),
                 cli_provider=getattr(args, "provider", None),
-                reasoning_level=getattr(args, "reasoning_level", None),
+                reasoning_effort=getattr(args, "reasoning_effort", None),
                 thinking=getattr(args, "thinking", False),
                 verbose=args.verbose,
                 stream_runner=_run_with_progress_bar,

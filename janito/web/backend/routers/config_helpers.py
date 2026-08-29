@@ -266,7 +266,7 @@ def _build_provider_entry(
     (``providers.<name>.*``) and API key are read off the variant name.
 
     The ``default_*`` fields (and the plain ``responses_in_server`` /
-    ``supported_api_types`` / ``supported_reasoning_levels`` fields) are
+    ``supported_api_types`` / ``supported_reasoning_efforts`` fields) are
     computed for the entry's **effective model**: the configured model
     (``providers.<name>.model``), else the built-in ``default_model``.  A
     ``models`` summary lists every built-in model with its defaults so the
@@ -292,13 +292,13 @@ def _build_provider_entry(
         get_default_api_type_from_provider,
         get_default_max_input_tokens_from_provider,
         get_default_max_output_tokens_from_provider,
-        get_default_reasoning_level_from_provider,
+        get_default_reasoning_effort_from_provider,
         get_default_thinking_from_provider,
         get_endpoint_for_api_type,
         get_required_package_for_api_type,
         get_responses_in_server_from_provider,
         get_supported_api_types_from_provider,
-        get_supported_reasoning_levels_from_provider,
+        get_supported_reasoning_efforts_from_provider,
         is_api_type_available,
         requires_explicit_model,
     )
@@ -387,10 +387,10 @@ def _build_provider_entry(
                 "max_output_tokens": get_default_max_output_tokens_from_provider(
                     name, model_name
                 ),
-                "reasoning_level": get_default_reasoning_level_from_provider(
+                "reasoning_effort": get_default_reasoning_effort_from_provider(
                     name, model_name
                 ),
-                "supported_reasoning_levels": get_supported_reasoning_levels_from_provider(
+                "supported_reasoning_efforts": get_supported_reasoning_efforts_from_provider(
                     name, model_name
                 ),
                 "thinking": get_default_thinking_from_provider(name, model_name),
@@ -430,10 +430,10 @@ def _build_provider_entry(
         "default_max_output_tokens": get_default_max_output_tokens_from_provider(
             name, entry_model
         ),
-        "default_reasoning_level": get_default_reasoning_level_from_provider(
+        "default_reasoning_effort": get_default_reasoning_effort_from_provider(
             name, entry_model
         ),
-        "supported_reasoning_levels": get_supported_reasoning_levels_from_provider(
+        "supported_reasoning_efforts": get_supported_reasoning_efforts_from_provider(
             name, entry_model
         ),
         "default_thinking": get_default_thinking_from_provider(name, entry_model),

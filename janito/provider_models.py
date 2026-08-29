@@ -51,19 +51,13 @@ class ModelConfig:
         """
         return self._data.get("default_api_type")
 
-    def reasoning_level(self) -> str | None:
-        """The built-in default reasoning level, or ``None``."""
-        return self._data.get("reasoning_level") or self._data.get(
-            "default_effort_level"
-        )
+    def reasoning_effort(self) -> str | None:
+        """The built-in default reasoning effort, or ``None``."""
+        return self._data.get("default_reasoning_effort")
 
-    def default_effort_level(self) -> str | None:
-        """The built-in default reasoning/effort level, or ``None``."""
-        return self.reasoning_level()
-
-    def supported_reasoning_levels(self) -> list | None:
-        """The list of supported reasoning levels, or ``None``."""
-        return self._data.get("supported_reasoning_levels")
+    def supported_reasoning_efforts(self) -> list | None:
+        """The list of supported reasoning efforts, or ``None``."""
+        return self._data.get("supported_reasoning_efforts")
 
     def default_thinking(self):
         """The model's built-in thinking default, or ``False`` when none.
@@ -116,7 +110,7 @@ class Provider:
     entry, so the variant inherits the base's built-in defaults (including
     its ``models`` dict) while keeping its own per-variant config overrides.
 
-    The model-level accessors (``max_output_tokens``, ``reasoning_level``,
+    The model-level accessors (``max_output_tokens``, ``reasoning_effort``,
     ...) accept an optional ``model`` argument; ``None`` (the default)
     resolves to the provider's ``default_model``.  When the requested model
     has no built-in entry, the default model's entry applies; when neither
@@ -253,17 +247,13 @@ class Provider:
         """The built-in max output-token limit, or ``None``."""
         return self.model_config(model).max_output_tokens()
 
-    def reasoning_level(self, model: str | None = None) -> str | None:
-        """The built-in default reasoning level, or ``None``."""
-        return self.model_config(model).reasoning_level()
+    def reasoning_effort(self, model: str | None = None) -> str | None:
+        """The built-in default reasoning effort, or ``None``."""
+        return self.model_config(model).reasoning_effort()
 
-    def default_effort_level(self, model: str | None = None) -> str | None:
-        """The built-in default reasoning/effort level, or ``None``."""
-        return self.model_config(model).default_effort_level()
-
-    def supported_reasoning_levels(self, model: str | None = None) -> list | None:
-        """The list of supported reasoning levels, or ``None``."""
-        return self.model_config(model).supported_reasoning_levels()
+    def supported_reasoning_efforts(self, model: str | None = None) -> list | None:
+        """The list of supported reasoning efforts, or ``None``."""
+        return self.model_config(model).supported_reasoning_efforts()
 
     def default_thinking(self, model: str | None = None):
         """The model's built-in thinking default, or ``False`` when none.

@@ -30,7 +30,7 @@ def build_call_kwargs(
     config,
     max_output_tokens: int | None,
     preserve_thinking,
-    reasoning_level: str | None = None,
+    reasoning_effort: str | None = None,
 ) -> dict:
     """Build the base ``chat.completions.create`` parameters for one turn.
 
@@ -42,7 +42,7 @@ def build_call_kwargs(
       - max output tokens from ``janito.general_config`` -> max_tokens
         (``max_completion_tokens`` for gpt-5 models)
       - ``preserve_thinking`` config value -> extra_body
-      - ``reasoning_level`` -> ``reasoning_effort`` (e.g. low/medium/xhigh)
+      - ``reasoning_effort`` -> ``reasoning_effort`` (e.g. low/medium/xhigh)
 
     Note: the CLI loop keeps its own ``_build_call_kwargs`` (in
     ``janito.openai_client.completions_api``) because it threads the
@@ -63,8 +63,8 @@ def build_call_kwargs(
     # Reasoning effort: sent whenever a reasoning level resolves (None means
     # the API's own default applies).
     provider = getattr(config, "effective_provider", None)
-    if reasoning_level:
-        call_kwargs["reasoning_effort"] = reasoning_level
+    if reasoning_effort:
+        call_kwargs["reasoning_effort"] = reasoning_effort
 
     if preserve_thinking is not None:
         call_kwargs.setdefault("extra_body", {})[

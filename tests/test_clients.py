@@ -14,7 +14,7 @@ tests pin the new class contract:
 
 The behavioural equivalence of the four ``run_turn`` functions is covered
 by the existing client tests (``test_conversations_api``,
-``test_anthropic_api``, ``test_dashscope_api``, ``test_reasoning_level``),
+``test_anthropic_api``, ``test_dashscope_api``, ``test_reasoning_effort``),
 which monkeypatch the module globals that the subclasses forward to.
 """
 
@@ -191,7 +191,7 @@ if pytest is not None:
             api_type="Anthropic",
             max_output_tokens=64000,
             max_input_tokens=200000,
-            reasoning_level=None,
+            reasoning_effort=None,
         )
         c = anthropic_api.AnthropicClient(config)
         thinking, max_out, max_in, reasoning = c._resolve_model_settings(
@@ -202,7 +202,7 @@ if pytest is not None:
         assert thinking is False
         assert max_out == 64000
         assert max_in == 200000
-        # reasoning_level is accepted but not used by the native SDK.
+        # reasoning_effort is accepted but not used by the native SDK.
         assert reasoning is None
 
     def test_anthropic_model_settings_config_override_wins():
@@ -214,7 +214,7 @@ if pytest is not None:
             api_type="Anthropic",
             max_output_tokens=64000,
             max_input_tokens=4096,
-            reasoning_level=None,
+            reasoning_effort=None,
         )
         c = anthropic_api.AnthropicClient(config)
         _, _, max_in, _ = c._resolve_model_settings("anthropic", "claude-sonnet-5")
@@ -227,7 +227,7 @@ if pytest is not None:
             api_type="DashScope",
             max_output_tokens=8192,
             max_input_tokens=128000,
-            reasoning_level="xhigh",
+            reasoning_effort="xhigh",
             thinking=True,
         )
         c = dsa.DashScopeClient(config)
@@ -235,7 +235,7 @@ if pytest is not None:
             "alibaba", "qwen3.8-max"
         )
         assert (thinking, max_out, max_in) == (True, 8192, 128000)
-        # reasoning_level is dropped (not used by the native SDK).
+        # reasoning_effort is dropped (not used by the native SDK).
         assert reasoning is None
 
     # ---- pipeline wiring through module globals -------------------------

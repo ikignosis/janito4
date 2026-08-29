@@ -17,8 +17,8 @@ PROVIDER_CONFIG: dict = {
             "max_output_tokens": 250000,  # 256k
             # Per the Moonshot/Kimi API reference, reasoning_effort accepts
             # low/high/max (default max). Kimi K3 models always reason.
-            "reasoning_level": "max",
-            "supported_reasoning_levels": [
+            "default_reasoning_effort": "max",
+            "supported_reasoning_efforts": [
                 {
                     "effort": "low",
                     "description": "Lighter reasoning for fast responses",

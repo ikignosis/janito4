@@ -24,13 +24,13 @@ from collections.abc import AsyncGenerator
 from openai import AsyncOpenAI
 
 from janito.agent.usage import TokenStats
-from janito.config_loaders import load_max_output_tokens, load_reasoning_level
+from janito.config_loaders import load_max_output_tokens, load_reasoning_effort
 from janito.config_store import get_config_value
 from janito.general_config import get_active_provider, resolve_api_type
 from janito.openai_client.completions_api import resolve_runtime_config
 from janito.provider_accessors import (
     get_default_max_output_tokens_from_provider,
-    get_default_reasoning_level_from_provider,
+    get_default_reasoning_effort_from_provider,
     get_provider_cost_value,
 )
 from janito.tooling.accounting import record_turn
@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 def _resolve_turn_config(config, effective_provider, model):
     """Resolve max tokens / preserve_thinking / reasoning level for the turn.
 
-    The max-tokens and reasoning-level defaults are resolved for the
+    The max-tokens and reasoning-effort defaults are resolved for the
     **effective model** (the one returned by ``resolve_runtime_config``):
     a model-scoped config override wins, then the model's built-in default
     from the provider config (falling back to the default model's entry for
@@ -75,13 +75,13 @@ def _resolve_turn_config(config, effective_provider, model):
 
     # Reasoning level (reasoning_effort): model-scoped config value first,
     # then the model's built-in default (e.g. "xhigh" for qwen3.8-max).
-    reasoning_level = load_reasoning_level(effective_provider, model)
-    if reasoning_level is None:
-        reasoning_level = get_default_reasoning_level_from_provider(
+    reasoning_effort = load_reasoning_effort(effective_provider, model)
+    if reasoning_effort is None:
+        reasoning_effort = get_default_reasoning_effort_from_provider(
             effective_provider, model
         )
 
-    return max_output_tokens, preserve_thinking, reasoning_level
+    return max_output_tokens, preserve_thinking, reasoning_effort
 
 
 def _runner_for(api_type: str):
@@ -107,7 +107,7 @@ def _build_turn_kwargs(
     messages,
     max_output_tokens,
     preserve_thinking,
-    reasoning_level,
+    reasoning_effort,
 ) -> dict:
     """Build the ``chat.completions.create`` kwargs for one turn."""
     call_kwargs = build_call_kwargs(
@@ -115,7 +115,7 @@ def _build_turn_kwargs(
         config,
         max_output_tokens,
         preserve_thinking,
-        reasoning_level,
+        reasoning_effort,
     )
     call_kwargs["messages"] = messages
     if tools_schemas:
@@ -165,7 +165,7 @@ def _turn_call_kwargs_and_acc(
     messages,
     max_output_tokens,
     preserve_thinking,
-    reasoning_level,
+    reasoning_effort,
 ):
     """Build the per-type call kwargs and a fresh accumulator for one turn."""
     if runner is None:
@@ -176,7 +176,7 @@ def _turn_call_kwargs_and_acc(
             messages,
             max_output_tokens,
             preserve_thinking,
-            reasoning_level,
+            reasoning_effort,
         )
         return call_kwargs, StreamAccumulator()
     call_kwargs = runner.build_call_kwargs(
@@ -186,7 +186,7 @@ def _turn_call_kwargs_and_acc(
         config,
         max_output_tokens,
         preserve_thinking,
-        reasoning_level,
+        reasoning_effort,
     )
     return call_kwargs, runner.accumulator()
 
@@ -341,7 +341,7 @@ async def stream_prompt(
     mcp_enabled = use_mcp
     tools_schemas = await resolve_tools(config, tools, use_mcp)
 
-    max_output_tokens, preserve_thinking, reasoning_level = _resolve_turn_config(
+    max_output_tokens, preserve_thinking, reasoning_effort = _resolve_turn_config(
         config, effective_provider, model
     )
 
@@ -361,7 +361,7 @@ async def stream_prompt(
             messages,
             max_output_tokens,
             preserve_thinking,
-            reasoning_level,
+            reasoning_effort,
         )
 
         # Signal the browser that we're waiting for the API (replaces CLI spinner)

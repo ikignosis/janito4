@@ -60,9 +60,8 @@ PROVIDER_CONFIG: dict = {
             # disabled for them.  Per the Gemini 3.7 Flash reference,
             # reasoning_effort maps to the model's thinking_level, which
             # accepts low/medium/high (default medium).
-            "default_effort_level": "medium",
-            "reasoning_level": "medium",
-            "supported_reasoning_levels": [
+            "default_reasoning_effort": "medium",
+            "supported_reasoning_efforts": [
                 {
                     "effort": "low",
                     "description": "Lighter reasoning for fast responses",

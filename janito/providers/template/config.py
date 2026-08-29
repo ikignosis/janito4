@@ -102,18 +102,16 @@ PROVIDER_CONFIG: dict = {
             #: one.  Absent/``None`` means there is no built-in limit (the
             #: caller falls back to its own default).
             "max_output_tokens": 32768,
-            #: The reasoning level/effort used by default for the model
-            #: when it supports configurable reasoning depth (can also be
-            #: declared as ``default_effort_level``).  Must be one
+            #: The reasoning effort used by default for the model
+            #: when it supports configurable reasoning depth.  Must be one
             #: of the ``effort`` values declared in
-            #: ``supported_reasoning_levels``.  Absent means there is no
+            #: ``supported_reasoning_efforts``.  Absent means there is no
             #: built-in default.
-            "default_effort_level": "high",
-            "reasoning_level": "high",
-            #: The list of reasoning levels supported by the model, each
+            "default_reasoning_effort": "high",
+            #: The list of reasoning efforts supported by the model, each
             #: with an ``effort`` key and a human-readable ``description``.
             #: Absent when the model has no configurable reasoning.
-            "supported_reasoning_levels": [
+            "supported_reasoning_efforts": [
                 {
                     "effort": "low",
                     "description": "Lighter reasoning for fast responses",

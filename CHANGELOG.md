@@ -53,6 +53,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Renamed the reasoning-depth concept to **reasoning effort** and consolidated
+  the built-in provider config onto a single `default_reasoning_effort` key
+  (issue #77): the model entries in `janito/providers/<name>/config.py`
+  declare `default_reasoning_effort` / `supported_reasoning_efforts` only --
+  the old `reasoning_level` / `default_effort_level` builtin keys and the
+  `get_default_effort_level_from_provider` alias are gone. All accessors,
+  config-store keys, the `APIConfig` field and the API-call kwargs are now
+  `reasoning_effort` (matching the API field), and the user-facing flag is
+  `--reasoning-effort` with the model-scoped config key `reasoning-effort`
+  (breaking rename of the previous `--reasoning-level` / `reasoning-level`
+  key). The template, google (`medium`), moonshot (`max`) and alibaba
+  (`xhigh`) configs now declare the consolidated keys.
 - The built-in base system prompt moved from a code constant to the packaged
   resource `janito/system-prompt.txt` (issue #73): it is installed as package
   data (`[tool.setuptools.package-data]`) and read lazily from the resource
@@ -67,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   DashScope endpoint are unchanged) and can still be selected explicitly
   with `--set model=qwen3.8-max`. Configurable reasoning depth
   (`reasoning_effort`) is now exclusive to `qwen3.8-max`: `qwen3.8-flash`
-  has no built-in reasoning-level default.
+  has no built-in reasoning-effort default.
 - Renamed the final-round token counters on `TokenStats`
   (`janito.agent.usage`) and the web `UsageEvent` from `input`/`output`/
   `cached` to `last_input`/`last_output`/`last_cached` to make explicit that

@@ -94,11 +94,11 @@ def test_custom_provider_shows_endpoint_hint(monkeypatch, tmp_path, capsys):
 
 
 def test_google_shows_thinking_na(monkeypatch, tmp_path, capsys):
-    """Google's gemini-3.7-flash surfaces thinking as N/A (controlled via Reasoning Level)."""
+    """Google's gemini-3.7-flash surfaces thinking as N/A (controlled via Reasoning Effort)."""
     _, out = _run(monkeypatch, tmp_path, capsys)
 
     assert "gemini-3.7-flash (default) thinking" in out
-    assert "N/A (controlled via Reasoning Level)" in out
+    assert "N/A (controlled via Reasoning Effort)" in out
     assert "gemini-3.7-flash (default) reasoning" in out
     assert "medium (default)" in out
 

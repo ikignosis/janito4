@@ -189,7 +189,7 @@ async def list_providers(request: Request):
     * ``janito.providers.get_provider_config`` -- the built-in per-provider
       defaults
       (``endpoint``, ``model``, ``max_input_tokens``, ``max_output_tokens``,
-      ``reasoning_level``, ``supported_reasoning_levels`` and ``thinking``).
+      ``reasoning_effort``, ``supported_reasoning_efforts`` and ``thinking``).
       ``endpoint`` is ``None`` for standard OpenAI and the ``CUSTOM_ENDPOINT``
       marker for "custom".
     * ``config_store`` -- the per-provider ``model`` and ``endpoint``

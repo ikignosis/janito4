@@ -37,14 +37,14 @@ def build_call_kwargs(
     config,
     max_output_tokens: int | None,
     preserve_thinking,
-    reasoning_level: str | None,
+    reasoning_effort: str | None,
 ) -> dict:
     """Build the DashScope generation kwargs for one turn.
 
     Mirrors ``janito.dashscope_api._build_call_kwargs`` (``result_format``,
     streaming, incremental output, ``enable_thinking``).  The OpenAI-format
     ``messages`` history is sent as-is -- the native API accepts that shape.
-    ``preserve_thinking`` / ``reasoning_level`` are accepted for signature
+    ``preserve_thinking`` / ``reasoning_effort`` are accepted for signature
     parity but are not used by the native SDK (like the CLI client).
     """
     if max_output_tokens is None:

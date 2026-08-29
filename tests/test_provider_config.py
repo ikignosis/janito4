@@ -26,7 +26,7 @@ from janito.provider_accessors import (
     get_default_max_input_tokens_from_provider,
     get_default_max_output_tokens_from_provider,
     get_default_model_from_provider,
-    get_default_reasoning_level_from_provider,
+    get_default_reasoning_effort_from_provider,
     get_default_thinking_from_provider,
     get_default_tools_from_provider,
     get_endpoint_by_api_type,
@@ -36,7 +36,7 @@ from janito.provider_accessors import (
     get_required_package_for_api_type,
     get_responses_in_server_from_provider,
     get_supported_api_types_from_provider,
-    get_supported_reasoning_levels_from_provider,
+    get_supported_reasoning_efforts_from_provider,
     is_api_type_available,
 )
 from janito.provider_validation import (
@@ -271,9 +271,13 @@ if pytest is not None:
         assert get_default_max_output_tokens_from_provider("google") == 65536
         # Gemini 3.x models reason by default; reasoning_effort maps to the
         # model's thinking_level (low/medium/high, default medium).
-        assert get_default_reasoning_level_from_provider("google") == "medium"
-        assert model_entry["default_effort_level"] == "medium"
-        supported = get_supported_reasoning_levels_from_provider("google")
+        assert get_default_reasoning_effort_from_provider("google") == "medium"
+        # The built-in default lives under the single
+        # "default_reasoning_effort" key (the old "reasoning_level" alias is
+        # not supported).
+        assert model_entry["default_reasoning_effort"] == "medium"
+        assert "reasoning_level" not in model_entry
+        supported = get_supported_reasoning_efforts_from_provider("google")
         assert supported is not None
         assert [entry["effort"] for entry in supported] == [
             "low",
@@ -310,16 +314,22 @@ if pytest is not None:
         assert get_default_max_input_tokens_from_provider("bogus") is None
         assert get_default_max_output_tokens_from_provider("bogus") is None
 
-    def test_default_and_supported_reasoning_levels():
+    def test_default_and_supported_reasoning_efforts():
         # Alibaba's default model (qwen3.8-flash) has no configurable
         # reasoning level; the flagship qwen3.8-max declares them.
-        assert get_default_reasoning_level_from_provider("alibaba") is None
-        assert get_supported_reasoning_levels_from_provider("alibaba") is None
+        assert get_default_reasoning_effort_from_provider("alibaba") is None
+        assert get_supported_reasoning_efforts_from_provider("alibaba") is None
         assert (
-            get_default_reasoning_level_from_provider("alibaba", "qwen3.8-max")
+            get_default_reasoning_effort_from_provider("alibaba", "qwen3.8-max")
             == "xhigh"
         )
-        supported = get_supported_reasoning_levels_from_provider(
+        # The built-in default lives under the single
+        # "default_reasoning_effort" key (the old "reasoning_level" alias is
+        # not supported).
+        qwen_entry = get_provider_config("alibaba")["models"]["qwen3.8-max"]
+        assert qwen_entry["default_reasoning_effort"] == "xhigh"
+        assert "reasoning_level" not in qwen_entry
+        supported = get_supported_reasoning_efforts_from_provider(
             "alibaba", "qwen3.8-max"
         )
         assert supported is not None
@@ -329,7 +339,7 @@ if pytest is not None:
             assert "description" in entry
         # DeepSeek's default model (deepseek-v4-flash) declares reasoning
         # levels too (low/high/max per the DeepSeek API reference).
-        supported = get_supported_reasoning_levels_from_provider("deepseek")
+        supported = get_supported_reasoning_efforts_from_provider("deepseek")
         assert supported is not None
         assert [entry["effort"] for entry in supported] == ["low", "high", "max"]
         for entry in supported:
@@ -337,8 +347,11 @@ if pytest is not None:
             assert "description" in entry
         # Moonshot's default model (kimi-k3) declares reasoning levels
         # too (low/high/max per the Moonshot API reference, default max).
-        assert get_default_reasoning_level_from_provider("moonshot") == "max"
-        supported = get_supported_reasoning_levels_from_provider("moonshot")
+        assert get_default_reasoning_effort_from_provider("moonshot") == "max"
+        kimi_entry = get_provider_config("moonshot")["models"]["kimi-k3"]
+        assert kimi_entry["default_reasoning_effort"] == "max"
+        assert "reasoning_level" not in kimi_entry
+        supported = get_supported_reasoning_efforts_from_provider("moonshot")
         assert supported is not None
         assert [entry["effort"] for entry in supported] == ["low", "high", "max"]
         for entry in supported:
@@ -346,18 +359,18 @@ if pytest is not None:
             assert "description" in entry
         # Case-insensitive lookup works.
         assert (
-            get_default_reasoning_level_from_provider("Alibaba", "qwen3.8-max")
+            get_default_reasoning_effort_from_provider("Alibaba", "qwen3.8-max")
             == "xhigh"
         )
-        assert get_supported_reasoning_levels_from_provider("DeepSeek") is not None
-        assert get_supported_reasoning_levels_from_provider("Moonshot") is not None
+        assert get_supported_reasoning_efforts_from_provider("DeepSeek") is not None
+        assert get_supported_reasoning_efforts_from_provider("Moonshot") is not None
         # Providers without configurable reasoning expose None.
-        assert get_default_reasoning_level_from_provider("openai") is None
-        assert get_supported_reasoning_levels_from_provider("openai") is None
-        assert get_default_reasoning_level_from_provider("custom") is None
+        assert get_default_reasoning_effort_from_provider("openai") is None
+        assert get_supported_reasoning_efforts_from_provider("openai") is None
+        assert get_default_reasoning_effort_from_provider("custom") is None
         # Unknown provider returns None.
-        assert get_default_reasoning_level_from_provider("bogus") is None
-        assert get_supported_reasoning_levels_from_provider("bogus") is None
+        assert get_default_reasoning_effort_from_provider("bogus") is None
+        assert get_supported_reasoning_efforts_from_provider("bogus") is None
 
     def test_default_thinking():
         # DeepSeek and Alibaba/Qwen reason by default (flag-style); MiniMax-M3
@@ -1022,8 +1035,8 @@ if pytest is not None:
         assert get_default_max_input_tokens_from_provider("custom") is None
         assert get_supported_api_types_from_provider("custom") is None
         assert get_default_api_type_from_provider("custom") is None
-        assert get_default_reasoning_level_from_provider("custom") is None
-        assert get_supported_reasoning_levels_from_provider("custom") is None
+        assert get_default_reasoning_effort_from_provider("custom") is None
+        assert get_supported_reasoning_efforts_from_provider("custom") is None
         assert get_default_thinking_from_provider("custom") is False
         # The Provider class exposes the same empties.
         provider = pm.Provider("custom")

@@ -42,7 +42,7 @@ def build_call_kwargs(
     config,
     max_output_tokens: int | None,
     preserve_thinking,
-    reasoning_level: str | None,
+    reasoning_effort: str | None,
 ) -> dict:
     """Build the ``generate_content_stream`` kwargs for one turn.
 
@@ -62,7 +62,7 @@ def build_call_kwargs(
         messages,
         max_output_tokens,
         system,
-        reasoning_level,
+        reasoning_effort,
         tools_schemas,
     )
 

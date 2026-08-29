@@ -45,7 +45,7 @@ class ThinkingCmdHandler(CmdHandler):
         if provider and _is_gemini_flavor(provider):
             print(
                 "Thinking mode is N/A for this session "
-                "(controlled via Reasoning Level for Gemini models)."
+                "(controlled via Reasoning Effort for Gemini models)."
             )
             print("Usage: /thinking on|off")
             return

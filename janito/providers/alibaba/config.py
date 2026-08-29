@@ -36,7 +36,7 @@ PROVIDER_CONFIG: dict = {
             "default_api_type": "Responses",  # built-in default
             "max_input_tokens": 1000000,  # 1M
             "max_output_tokens": 131072,
-            "reasoning_level": "xhigh",
+            "default_reasoning_effort": "xhigh",
             "thinking": True,  # Qwen models reason by default
             # Built-in (native) tools, enabled per API type.  These are
             # *not* function tools: on the Responses API they are entries in
@@ -60,7 +60,7 @@ PROVIDER_CONFIG: dict = {
                     {"type": "web_extractor"},
                 ],
             },
-            "supported_reasoning_levels": [
+            "supported_reasoning_efforts": [
                 {
                     "effort": "low",
                     "description": "Fast responses with lighter reasoning",

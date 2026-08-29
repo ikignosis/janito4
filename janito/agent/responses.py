@@ -149,7 +149,7 @@ def build_call_kwargs(
     config,
     max_output_tokens: int | None,
     preserve_thinking,
-    reasoning_level: str | None,
+    reasoning_effort: str | None,
 ) -> dict:
     """Build the ``client.responses.create`` kwargs for one turn.
 
@@ -172,8 +172,8 @@ def build_call_kwargs(
     # Reasoning effort: sent whenever a reasoning level resolves (None means
     # the API's own default applies).
     provider = getattr(config, "effective_provider", None)
-    if reasoning_level:
-        call_kwargs["reasoning"] = {"effort": reasoning_level}
+    if reasoning_effort:
+        call_kwargs["reasoning"] = {"effort": reasoning_effort}
 
     if preserve_thinking is not None:
         call_kwargs.setdefault("extra_body", {})[

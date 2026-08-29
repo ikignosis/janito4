@@ -21,7 +21,7 @@ PROVIDER_SCOPED_KEYS = {
 MODEL_SCOPED_KEYS = {
     "max-input-tokens",
     "max-output-tokens",
-    "reasoning-level",
+    "reasoning-effort",
     "api-type",
     "responses-in-server",
 }

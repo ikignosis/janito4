@@ -110,13 +110,13 @@ def build_call_kwargs(
     config,
     max_output_tokens: int | None,
     preserve_thinking,
-    reasoning_level: str | None,
+    reasoning_effort: str | None,
 ) -> dict:
     """Build the ``client.messages.create`` kwargs for one turn.
 
     The Messages API requires ``max_tokens``, so a resolved value always
     lands in the payload (config > provider built-in default > 100k, same as
-    the CLI client).  ``preserve_thinking`` / ``reasoning_level`` / thinking
+    the CLI client).  ``preserve_thinking`` / ``reasoning_effort`` / thinking
     are accepted for signature parity with the other runners but the native
     extended-thinking mode is not wired yet (thinking text is still streamed
     and displayed when the model emits it).

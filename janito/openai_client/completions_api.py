@@ -262,7 +262,7 @@ class CompletionsClient(Client):
             self.config.thinking,
             self.config.max_output_tokens,
             self.config.max_input_tokens,
-            self.config.reasoning_level,
+            self.config.reasoning_effort,
         )
 
     def _init_conversation_state(self, prompt, provider, model, **kwargs):
@@ -282,7 +282,7 @@ class CompletionsClient(Client):
         model,
         state,
         max_output_tokens,
-        reasoning_level,
+        reasoning_effort,
         preserve_thinking,
         thinking,
     ):
@@ -301,7 +301,7 @@ class CompletionsClient(Client):
             model,
             state,
             max_output_tokens,
-            reasoning_level,
+            reasoning_effort,
             preserve_thinking,
             thinking,
             tools,

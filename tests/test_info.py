@@ -114,10 +114,10 @@ def test_responses_in_server_shown_when_api_type_forced_responses(capsys):
 
 
 def test_thinking_gemini_flavor_shows_na_in_show_config(capsys):
-    """Google uses Gemini flavor: thinking in --show-config reports N/A (controlled via Reasoning Level)."""
+    """Google uses Gemini flavor: thinking in --show-config reports N/A (controlled via Reasoning Effort)."""
     out = _run_show_config(capsys, provider="google")
     assert "Thinking" in out
-    assert "N/A (controlled via Reasoning Level)" in out
+    assert "N/A (controlled via Reasoning Effort)" in out
 
 
 def _run_show_config(

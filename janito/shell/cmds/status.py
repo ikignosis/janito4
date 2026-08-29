@@ -10,14 +10,14 @@ from janito.config_loaders import (
     load_endpoint_from_config,
     load_max_output_tokens,
     load_model_from_config,
-    load_reasoning_level,
+    load_reasoning_effort,
 )
 from janito.general_config import get_active_provider, resolve_api_type
 from janito.provider_accessors import (
     format_thinking_display,
     get_default_max_output_tokens_from_provider,
     get_default_model_from_provider,
-    get_default_reasoning_level_from_provider,
+    get_default_reasoning_effort_from_provider,
     get_default_thinking_from_provider,
     get_gemini_flavor_from_provider,
     get_responses_in_server_from_provider,
@@ -133,16 +133,16 @@ def _print_config_info(
     # Resolve the effective reasoning level: an explicit configuration value
     # first, otherwise the effective model's built-in default from
     # the provider config.
-    reasoning_level = load_reasoning_level(provider, model)
-    if reasoning_level:
-        reasoning_level_display = reasoning_level
+    reasoning_effort = load_reasoning_effort(provider, model)
+    if reasoning_effort:
+        reasoning_effort_display = reasoning_effort
     else:
-        default_reasoning_level = get_default_reasoning_level_from_provider(
+        default_reasoning_effort = get_default_reasoning_effort_from_provider(
             provider, model
         )
-        reasoning_level_display = (
-            f"{default_reasoning_level} (default)"
-            if default_reasoning_level
+        reasoning_effort_display = (
+            f"{default_reasoning_effort} (default)"
+            if default_reasoning_effort
             else "(not set)"
         )
 
@@ -195,7 +195,7 @@ def _print_config_info(
     table.add_row("Base URL", base_url_display)
     table.add_row("API Key", masked_key)
     table.add_row("Max Output Tokens", max_output_tokens_display)
-    table.add_row("Reasoning Level", reasoning_level_display)
+    table.add_row("Reasoning Effort", reasoning_effort_display)
     table.add_row("Thinking", thinking_display)
     Console(markup=False).print(table)
 

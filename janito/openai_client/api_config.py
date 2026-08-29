@@ -37,7 +37,7 @@ class APIConfig:
             back to the built-in default, then to 100_000).
         max_input_tokens: Resolved max input tokens (``None`` = unknown
             context window; the usage display omits the total).
-        reasoning_level: Resolved reasoning depth (``None`` = the API's own
+        reasoning_effort: Resolved reasoning depth (``None`` = the API's own
             default applies).
         thinking: The resolved thinking mode for the session: the explicit
             ``--thinking`` / ``/thinking`` flag when set, otherwise the
@@ -68,7 +68,7 @@ class APIConfig:
     # --- Resolved model settings (config override -> built-in default) ---
     max_output_tokens: int  # never None: falls back to 100_000
     max_input_tokens: int | None
-    reasoning_level: str | None  # None = API's own default applies
+    reasoning_effort: str | None  # None = API's own default applies
     thinking: bool | dict | None  # resolved: --thinking / /thinking flag or provider built-in default
     preserve_thinking: Any  # config value; may be None
     use_mcp: bool
@@ -84,7 +84,7 @@ def build_api_config(
     api_type: str,
     cli_provider: str | None = None,
     cli_model: str | None = None,
-    reasoning_level: str | None = None,
+    reasoning_effort: str | None = None,
     thinking: bool | None = None,
     use_mcp: bool = True,
     verbose: bool = False,
@@ -111,7 +111,7 @@ def build_api_config(
             base URL, e.g. the Anthropic / DashScope / Gemini SDK endpoints).
         cli_provider: Provider passed via ``--provider`` (may be ``None``).
         cli_model: Model passed via ``--model`` (may be ``None``).
-        reasoning_level: Reasoning depth passed via ``--reasoning-level``
+        reasoning_effort: Reasoning depth passed via ``--reasoning-effort``
             (may be ``None``).
         thinking: The ``--thinking`` CLI flag / shell ``/thinking`` override
             (may be ``None``).  ``True`` forces thinking on; ``False`` (or
@@ -135,7 +135,7 @@ def build_api_config(
     from janito.config_loaders import (
         load_max_input_tokens,
         load_max_output_tokens,
-        load_reasoning_level,
+        load_reasoning_effort,
     )
     from janito.config_store import get_config_value
     from janito.general_config import get_active_provider
@@ -143,7 +143,7 @@ def build_api_config(
     from janito.provider_accessors import (
         get_default_max_input_tokens_from_provider,
         get_default_max_output_tokens_from_provider,
-        get_default_reasoning_level_from_provider,
+        get_default_reasoning_effort_from_provider,
         get_default_thinking_from_provider,
     )
 
@@ -160,10 +160,10 @@ def build_api_config(
     max_input_tokens = load_max_input_tokens(
         provider, model
     ) or get_default_max_input_tokens_from_provider(provider, model)
-    reasoning_level = (
-        reasoning_level
-        or load_reasoning_level(provider, model)
-        or get_default_reasoning_level_from_provider(provider, model)
+    reasoning_effort = (
+        reasoning_effort
+        or load_reasoning_effort(provider, model)
+        or get_default_reasoning_effort_from_provider(provider, model)
     )
     thinking = thinking or get_default_thinking_from_provider(provider, model)
 
@@ -175,7 +175,7 @@ def build_api_config(
         api_key=api_key,
         max_output_tokens=max_output_tokens,
         max_input_tokens=max_input_tokens,
-        reasoning_level=reasoning_level,
+        reasoning_effort=reasoning_effort,
         thinking=thinking,
         preserve_thinking=get_config_value("preserve_thinking"),
         use_mcp=use_mcp,

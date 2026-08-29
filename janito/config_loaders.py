@@ -3,7 +3,7 @@ Per-provider config loaders.
 
 These helpers read provider-scoped values (``model``, ``endpoint``) and
 model-scoped values (``max-output-tokens``, ``max-input-tokens``,
-``reasoning-level``, ``api-type``, ``responses-in-server``) from
+``reasoning-effort``, ``api-type``, ``responses-in-server``) from
 ``~/.janito/config.json``.  They were extracted from
 :mod:`janito.general_config` so the core config storage module stays focused
 on read/write primitives.
@@ -165,13 +165,13 @@ class ProviderConfigLoader:
             return int(value)
         return None
 
-    def load_reasoning_level(
+    def load_reasoning_effort(
         self, cli_provider: str | None = None, model: str | None = None
     ) -> str | None:
         """Load the reasoning level for the active provider/model from config.json.
 
         The reasoning level is stored under a model-scoped key
-        (``providers.<provider>.models.<model>.reasoning-level``) so that
+        (``providers.<provider>.models.<model>.reasoning-effort``) so that
         different provider/model pairs can each have their own reasoning
         depth (e.g. ``low``/``medium``/``xhigh`` for Qwen3.8-Max).
 
@@ -194,7 +194,7 @@ class ProviderConfigLoader:
         if not model:
             return None
         value = get_config_value(
-            model_scoped_config_key(provider, model, "reasoning-level")
+            model_scoped_config_key(provider, model, "reasoning-effort")
         )
         if value is not None:
             return str(value)
@@ -368,13 +368,13 @@ def load_max_input_tokens(
     return _loader.load_max_input_tokens(cli_provider, model)
 
 
-def load_reasoning_level(
+def load_reasoning_effort(
     cli_provider: str | None = None, model: str | None = None
 ) -> str | None:
     """Load the reasoning level for the active provider/model from config.json.
 
     The reasoning level is stored under a model-scoped key
-    (``providers.<provider>.models.<model>.reasoning-level``) so that
+    (``providers.<provider>.models.<model>.reasoning-effort``) so that
     different provider/model pairs can each have their own reasoning depth
     (e.g. ``low``/``medium``/``xhigh`` for Qwen3.8-Max).
 
@@ -387,7 +387,7 @@ def load_reasoning_level(
     Returns:
         str: The reasoning level from config, or None if not found
     """
-    return _loader.load_reasoning_level(cli_provider, model)
+    return _loader.load_reasoning_effort(cli_provider, model)
 
 
 def load_api_type(

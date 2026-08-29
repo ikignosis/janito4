@@ -197,13 +197,13 @@ class AnthropicClient(Client):
         # All resolved at build time into the APIConfig (issue #70).  The
         # Anthropic Messages API requires max_tokens, so the resolved value
         # (config > built-in default > 100k) comes straight from the
-        # APIConfig; thinking / reasoning_level are carried for signature
+        # APIConfig; thinking / reasoning_effort are carried for signature
         # parity but the native extended-thinking mode is not wired yet.
         return (
             self.config.thinking,
             self.config.max_output_tokens,
             self.config.max_input_tokens,
-            self.config.reasoning_level,
+            self.config.reasoning_effort,
         )
 
     def _init_conversation_state(self, prompt, provider, model, **kwargs):
@@ -229,7 +229,7 @@ class AnthropicClient(Client):
         model,
         state,
         max_output_tokens,
-        reasoning_level,
+        reasoning_effort,
         preserve_thinking,
         thinking,
     ):

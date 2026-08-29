@@ -1,3 +1,5 @@
 Explore the current directory for potential content related to the question
 Before making any change, check for a plan. If none exists, act as planner,
 create one, and get the user’s approval or feedback before implementing.
+After every change, assume the role of a critic and honestly assess
+After every change, step back and evaluate it critically.

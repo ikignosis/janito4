@@ -183,7 +183,7 @@ class Client:
             thinking,
             max_output_tokens,
             max_input_tokens,
-            reasoning_level,
+            reasoning_effort,
         ) = self._resolve_model_settings(provider, model)
         preserve_thinking = self.config.preserve_thinking
         if preserve_thinking is not None:
@@ -219,7 +219,7 @@ class Client:
                 model,
                 state,
                 max_output_tokens,
-                reasoning_level,
+                reasoning_effort,
                 preserve_thinking,
                 thinking,
             )
@@ -328,7 +328,7 @@ class Client:
         raise NotImplementedError
 
     def _resolve_model_settings(self, provider, model):
-        """Resolve ``(thinking, max_output_tokens, max_input_tokens, reasoning_level)``.
+        """Resolve ``(thinking, max_output_tokens, max_input_tokens, reasoning_effort)``.
 
         All four come straight from the resolved ``self.config`` (issue #70):
         ``thinking`` is resolved at build time by ``build_api_config`` (the
@@ -349,7 +349,7 @@ class Client:
         model,
         state,
         max_output_tokens,
-        reasoning_level,
+        reasoning_effort,
         preserve_thinking,
         thinking,
     ):

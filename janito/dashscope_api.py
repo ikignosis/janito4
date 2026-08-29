@@ -239,7 +239,7 @@ class DashScopeClient(Client):
         model,
         state,
         max_output_tokens,
-        reasoning_level,
+        reasoning_effort,
         preserve_thinking,
         thinking,
     ):

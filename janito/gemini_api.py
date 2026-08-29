@@ -167,7 +167,7 @@ def run_turn(
         Thinking mode is resolved into ``config.thinking`` at build time.
         For Gemini models the flag is accepted for parity only: Gemini 3.x
         models reason by default and thinking depth is controlled through
-        ``reasoning_level`` (mapped to the model's ``thinking_level``)
+        ``reasoning_effort`` (mapped to the model's ``thinking_level``)
         instead of a thinking flag.
     """
     logger.info("Sending prompt to Gemini API (native SDK)")
@@ -207,13 +207,13 @@ class GeminiClient(Client):
         # All resolved at build time into the APIConfig (issue #70): Gemini
         # 3.x models reason by default, and the thinking flag itself is not
         # sent on the native API (thinking depth is controlled through
-        # reasoning_level -> thinking_level instead); the token limits and
+        # reasoning_effort -> thinking_level instead); the token limits and
         # reasoning level come straight from the resolved APIConfig.
         return (
             self.config.thinking,
             self.config.max_output_tokens,
             self.config.max_input_tokens,
-            self.config.reasoning_level,
+            self.config.reasoning_effort,
         )
 
     def _init_conversation_state(self, prompt, provider, model, **kwargs):
@@ -231,7 +231,7 @@ class GeminiClient(Client):
         model,
         state,
         max_output_tokens,
-        reasoning_level,
+        reasoning_effort,
         preserve_thinking,
         thinking,
     ):
@@ -252,7 +252,7 @@ class GeminiClient(Client):
             state["messages"],
             max_output_tokens,
             state["system"],
-            reasoning_level,
+            reasoning_effort,
             tools,
         )
 

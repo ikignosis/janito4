@@ -35,7 +35,7 @@ PROVIDER_CONFIG: dict = {
             # Per the DeepSeek API reference, reasoning_effort accepts
             # low/high/max (default high; medium/xhigh map to high for
             # compatibility). deepseek-v4-flash supports all three levels.
-            "supported_reasoning_levels": [
+            "supported_reasoning_efforts": [
                 {
                     "effort": "low",
                     "description": "Lighter reasoning for fast responses",
@@ -62,7 +62,7 @@ PROVIDER_CONFIG: dict = {
             "thinking": True,  # DeepSeek models reason by default
             # Per the DeepSeek API reference, deepseek-v4-pro supports only
             # high/max (low is treated as high, xhigh as max).
-            "supported_reasoning_levels": [
+            "supported_reasoning_efforts": [
                 {
                     "effort": "high",
                     "description": "Standard reasoning depth (the API default)",
