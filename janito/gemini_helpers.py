@@ -16,7 +16,7 @@ from typing import Any
 
 from janito.openai_client.client_support import TurnUsage
 from janito.tooling.executor import ToolExecutor
-from janito.tooling.tools_registry import get_all_tool_schemas
+from janito.tooling.tools_registry import get_session_tool_schemas
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ def _resolve_tools(
     """Resolve the tool schemas (built-in + MCP) in OpenAI format."""
     if tools is None:
         # Merge built-in tools with MCP tools
-        built_in_tools = get_all_tool_schemas()
+        built_in_tools = get_session_tool_schemas()
         tools_schemas = built_in_tools + mcp_tools
         logger.debug(
             f"Using {len(built_in_tools)} built-in tools + {len(mcp_tools)} MCP tools"

@@ -55,6 +55,7 @@ from janito.provider_accessors import (
     get_provider_cost_value,
 )
 from janito.tooling.accounting import record_turn
+from janito.tooling.executor import extract_tool_names
 
 from ..config import WebServerConfig
 from . import anthropic as anthropic_runner
@@ -390,6 +391,11 @@ async def stream_prompt(
     mcp_enabled = use_mcp
     tools_schemas = await resolve_tools(config, tools, use_mcp)
 
+    # Execution-time privilege gate (issue #87): the model may only call the
+    # tools offered in this turn (the session default is privilege-filtered;
+    # the web UI has no per-message tool override).
+    allowed_tool_names = extract_tool_names(tools_schemas)
+
     max_output_tokens, preserve_thinking, reasoning_effort = _resolve_turn_config(
         config, effective_provider, model
     )
@@ -440,6 +446,7 @@ async def stream_prompt(
                 messages,
                 mcp_enabled,
                 thought_parts=getattr(acc, "thought_parts", None) or [],
+                allowed_tools=allowed_tool_names,
             ):
                 yield ev
             continue

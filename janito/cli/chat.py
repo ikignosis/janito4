@@ -256,12 +256,20 @@ def _resolve_system_prompt(args) -> tuple[str | None, bool]:
 
 def _print_tool_summary(args) -> None:
     """Report the total number of active and skipped tools."""
-    from ..tooling.tools_registry import get_all_tools
+    from .. import privileges as _privileges_mod
+    from ..tooling.tools_registry import get_all_tools, get_session_tool_schemas
     from ..tools import get_skipped_tools
 
-    active_tools = get_all_tools()
+    all_tools = get_all_tools()
+    active_tools = get_session_tool_schemas()
     skipped_tools = get_skipped_tools()
-    print(f"\u2713 {len(active_tools)} tool(s) active, {len(skipped_tools)} skipped")
+    parts = [f"\u2713 {len(active_tools)} tool(s) active"]
+    if _privileges_mod.running_privileges is not None:
+        restricted = len(all_tools) - len(active_tools)
+        if restricted:
+            parts.append(f"{restricted} restricted")
+    parts.append(f"{len(skipped_tools)} skipped")
+    print(", ".join(parts))
     if skipped_tools and args.verbose:
         for tool_name, reason in skipped_tools.items():
             print(f"    - {tool_name}: {reason}")

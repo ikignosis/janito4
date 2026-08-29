@@ -12,7 +12,10 @@ the model can read, search, fetch and modify files but cannot execute
 anything.
 """
 
-from ._tool_filters import get_tool_schemas_by_permission_letters
+from ._tool_filters import (
+    get_tool_schemas_by_permission_letters,
+    warn_if_privilege_override,
+)
 from .base import CmdHandler
 from .registry import register_command
 
@@ -79,6 +82,7 @@ class RwCmdHandler(CmdHandler):
             return
 
         read_write_schemas = get_read_write_tool_schemas()
+        warn_if_privilege_override(read_write_schemas)
         print()  # blank line before the streamed response, like /ask
         # Reuse the shell's main-prompt path: same history, turns,
         # Responses state sync and cancel/rollback handling -- only the tool

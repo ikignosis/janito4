@@ -11,7 +11,7 @@ declares ``"r"`` or ``"x"`` and nothing else, so the model can read, search,
 fetch and run commands but cannot write or modify anything.
 """
 
-from ._tool_filters import get_tool_schemas_by_permissions
+from ._tool_filters import get_tool_schemas_by_permissions, warn_if_privilege_override
 from .base import CmdHandler
 from .registry import register_command
 
@@ -78,6 +78,7 @@ class RxCmdHandler(CmdHandler):
             return
 
         read_exec_schemas = get_read_exec_tool_schemas()
+        warn_if_privilege_override(read_exec_schemas)
         print()  # blank line before the streamed response, like /ask
         # Reuse the shell's main-prompt path: same history, turns,
         # Responses state sync and cancel/rollback handling -- only the tool

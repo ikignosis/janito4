@@ -142,9 +142,15 @@ def test_stream_prompt_responses_round_trip(monkeypatch):
     )
 
     async def _fake_run_tool_turn(
-        tool_calls_list, full_content, messages, use_mcp, thought_parts=None
+        tool_calls_list,
+        full_content,
+        messages,
+        use_mcp,
+        thought_parts=None,
+        allowed_tools=None,
     ):
         # Mirror run_tool_turn's OpenAI-format appends without executing tools.
+        assert allowed_tools is not None  # the loop always passes the gate
         assistant_msg = {
             "role": "assistant",
             "content": full_content or None,

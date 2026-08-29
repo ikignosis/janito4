@@ -14,7 +14,7 @@ from typing import Any
 from janito.tooling.executor import ToolExecutor
 
 # Import tools
-from janito.tooling.tools_registry import get_all_tool_schemas
+from janito.tooling.tools_registry import get_session_tool_schemas
 
 # Shared client helpers (usage summary out-param) and the Responses API
 # stream consumer.
@@ -59,7 +59,7 @@ def _resolve_tools(
 ) -> list[dict[str, Any]]:
     """Resolve the tool schemas (built-in + MCP) and convert to Responses format."""
     if tools is None:
-        built_in_tools = get_all_tool_schemas()
+        built_in_tools = get_session_tool_schemas()
         tools_schemas = built_in_tools + mcp_tools
         logger.debug(
             f"Using {len(built_in_tools)} built-in tools + {len(mcp_tools)} MCP tools"

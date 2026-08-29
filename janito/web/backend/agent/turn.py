@@ -22,6 +22,7 @@ async def run_tool_turn(
     messages: list[dict],
     use_mcp: bool,
     thought_parts: list[dict] | None = None,
+    allowed_tools: set[str] | None = None,
 ):
     """Execute one turn's tool calls, mutating ``messages`` and yielding events.
 
@@ -33,6 +34,9 @@ async def run_tool_turn(
         thought_parts: Native Gemini thought blocks (text + signature) to
             keep on the assistant message so stateless follow-up turns resend
             them verbatim.  ``None`` (other API types) omits the key.
+        allowed_tools: The execution-time privilege gate (issue #87): names
+            of the tools offered in this turn; a call to any other tool is
+            rejected with a structured error instead of executing.
 
     Yields:
         ToolCallEvent, ToolProgressEvent*, ToolResultEvent  (per tool)
@@ -78,6 +82,7 @@ async def run_tool_turn(
             tool_name,
             tool_args,
             use_mcp,
+            allowed_tools=allowed_tools,
         )
 
         # Yield captured progress events (report_* output)

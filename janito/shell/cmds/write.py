@@ -11,7 +11,7 @@ declares write access and nothing else, so the model can create, modify or
 delete but cannot read, search or execute.
 """
 
-from ._tool_filters import get_tool_schemas_by_permission
+from ._tool_filters import get_tool_schemas_by_permission, warn_if_privilege_override
 from .base import CmdHandler
 from .registry import register_command
 
@@ -77,6 +77,7 @@ class WriteCmdHandler(CmdHandler):
             return
 
         write_only_schemas = get_write_only_tool_schemas()
+        warn_if_privilege_override(write_only_schemas)
         print()  # blank line before the streamed response, like /ask
         # Reuse the shell's main-prompt path: same history, turns,
         # Responses state sync and cancel/rollback handling -- only the tool

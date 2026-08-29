@@ -17,7 +17,7 @@ from janito.provider_accessors import (
 )
 
 # Import tools
-from janito.tooling.tools_registry import get_all_tool_schemas
+from janito.tooling.tools_registry import get_session_tool_schemas
 
 # Shared client helpers (Rich console output, usage summary out-param)
 from .client_support import TurnUsage
@@ -32,7 +32,7 @@ def _resolve_tools(
     """Resolve the tool schemas (built-in + MCP)."""
     if tools is None:
         # Merge built-in tools with MCP tools
-        built_in_tools = get_all_tool_schemas()
+        built_in_tools = get_session_tool_schemas()
         tools_schemas = built_in_tools + mcp_tools
         logger.debug(
             f"Using {len(built_in_tools)} built-in tools + {len(mcp_tools)} MCP tools"

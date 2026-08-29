@@ -24,7 +24,7 @@ declare ``global`` only where they rebind a name (``_tools_initialized``,
 from collections.abc import Callable
 from typing import Any
 
-from ..tools import discover_toolsets
+from ..tools import discover_toolsets, tool_is_allowed_by_privileges
 from .schema import get_function_schema
 from .skills_provider import get_skills_advertisement, get_skills_tools
 
@@ -71,8 +71,13 @@ class ToolsRegistry:
         """
         Run tool discovery on first access (lazy initialization).
 
-        This ensures ``running_privileges`` is already set by the time
-        ``discover_toolsets`` applies its privilege-based filtering.
+        Discovery loads **every** tool whose ``should_load()`` gate passes;
+        privilege restrictions (``-r``/``-w``/``-x``) are not applied here so
+        the per-command tool modes (``/read`` ``/write`` ``/rx`` ``/rw``
+        ``/rwx``) can override the session privileges for a single exchange
+        (issue #87).  The session tool selector
+        (:meth:`session_schemas` / :meth:`session_tool_names`) applies the
+        privilege filter to what a normal prompt may offer.
 
         When tool loading is disabled (``--no-tools``), the autoload
         toolsets are skipped but the skill tools are still registered, so
@@ -125,10 +130,10 @@ class ToolsRegistry:
         """
         Register tools contributed by a plugin.
 
-        Plugin tools go through the same ``should_load()`` / privilege
-        gating as built-in tools (applied by ``wrap_tool_class`` /
-        ``discover_module_tools`` in the plugin manager), so only surviving
-        callables should be passed here.  Plugin tools are **not** gated by
+        Plugin tools go through the same ``should_load()`` gate as built-in
+        tools (applied by ``wrap_tool_class`` / ``discover_module_tools`` in
+        the plugin manager); privileges are applied by the session tool
+        selector like every other tool.  Plugin tools are **not** gated by
         ``_tools_loading_enabled`` (``--no-tools``): plugins are disabled
         independently via ``--no-plugins``.
 
@@ -171,6 +176,50 @@ class ToolsRegistry:
         return {
             name: getattr(tool, "_tool_permissions", "")
             for name, tool in AVAILABLE_TOOLS.items()
+        }
+
+    def session_schemas(self) -> list[dict[str, Any]]:
+        """Schemas of the tools the current session may offer by default.
+
+        Applies the ``-r``/``-w``/``-x`` privilege filter on top of the
+        complete registry (see :func:`janito.tools.tool_is_allowed_by_privileges`):
+        with no privilege flags everything is allowed, otherwise only the
+        tools whose declared permissions are satisfied are returned.  This is
+        the default ``tools=`` set for a normal prompt; the per-command tool
+        modes (``/read`` ``/write`` ``/rx`` ``/rw`` ``/rwx``) bypass it by
+        passing their own explicit list (issue #87).
+
+        Returns:
+            List[Dict[str, Any]]: List of function-calling schemas allowed by
+            the current session privileges.
+        """
+        self.ensure_initialized()
+        return [
+            get_function_schema(tool)
+            for tool in AVAILABLE_TOOLS.values()
+            if tool_is_allowed_by_privileges(
+                getattr(tool, "_tool_permissions", "") or ""
+            )
+        ]
+
+    def session_tool_names(self) -> set[str]:
+        """Names of the tools the current session may offer by default.
+
+        Same privilege filtering as :meth:`session_schemas`, returning just
+        the tool names (used by the execution-time gate and the privilege
+        override warning).
+
+        Returns:
+            Set[str]: Names of the tools allowed by the current session
+            privileges.
+        """
+        self.ensure_initialized()
+        return {
+            name
+            for name, tool in AVAILABLE_TOOLS.items()
+            if tool_is_allowed_by_privileges(
+                getattr(tool, "_tool_permissions", "") or ""
+            )
         }
 
     def get(self, name: str) -> Callable:
@@ -339,6 +388,37 @@ def get_all_tool_permissions() -> dict[str, str]:
         Dict[str, str]: Dictionary mapping tool names to their permission strings
     """
     return _registry.all_permissions()
+
+
+def get_session_tool_schemas() -> list[dict[str, Any]]:
+    """Schemas of the tools the current session may offer by default.
+
+    The ``-r``/``-w``/``-x`` privilege-filtered view of the registry: with no
+    privilege flags this equals :func:`get_all_tool_schemas`; otherwise it
+    drops the tools whose declared permissions the session privileges do not
+    grant.  This is the default ``tools=`` set for a normal prompt (the CLI
+    and web clients resolve it when ``tools is None``); the per-command tool
+    modes (``/read`` ``/write`` ``/rx`` ``/rw`` ``/rwx``) bypass it by
+    passing their own explicit list (issue #87).
+
+    Returns:
+        List[Dict[str, Any]]: List of function-calling schemas allowed by the
+        current session privileges.
+    """
+    return _registry.session_schemas()
+
+
+def get_session_tool_names() -> set[str]:
+    """Names of the tools the current session may offer by default.
+
+    Privilege-filtered tool names (see :func:`get_session_tool_schemas`);
+    used by the execution-time gate and the privilege override warning.
+
+    Returns:
+        Set[str]: Names of the tools allowed by the current session
+        privileges.
+    """
+    return _registry.session_tool_names()
 
 
 def get_tool_by_name(name: str) -> Callable:

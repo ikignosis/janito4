@@ -10,19 +10,49 @@ from .registry import register_command
 
 
 def _load_builtin_tools():
-    """Load built-in tools and their schemas from the tools registry."""
-    try:
-        from janito.tooling.tools_registry import get_all_tool_schemas, get_all_tools
+    """Load the built-in tools offered in this session (privilege-filtered).
 
-        builtin_tools = get_all_tools()
-        builtin_schemas = {
-            s["function"]["name"]: s["function"] for s in get_all_tool_schemas()
+    Under ``-r``/``-w``/``-x`` the "Built-in Tools" table shows what the
+    model may actually call in a normal prompt (the session tool set); the
+    tools excluded by the session privileges are returned separately so
+    ``/tools`` can list them as "Privilege-restricted" (issue #87).
+
+    Returns:
+        Tuple of ``(offered_tools, offered_schemas, restricted)`` where
+        ``restricted`` maps the names of the loaded-but-privilege-excluded
+        tools to a human-readable reason.
+    """
+    try:
+        from janito import privileges as _privileges_mod
+        from janito.tooling.tools_registry import (
+            get_all_tool_permissions,
+            get_all_tools,
+            get_session_tool_names,
+            get_session_tool_schemas,
+        )
+        from janito.tools import privilege_restriction_reason
+
+        all_tools = get_all_tools()
+        session_names = get_session_tool_names()
+        offered_tools = {
+            name: tool for name, tool in all_tools.items() if name in session_names
         }
+        offered_schemas = {
+            s["function"]["name"]: s["function"] for s in get_session_tool_schemas()
+        }
+        restricted = {}
+        if _privileges_mod.running_privileges is not None:
+            permissions = get_all_tool_permissions()
+            for name in all_tools:
+                if name not in session_names:
+                    reason = privilege_restriction_reason(permissions.get(name, ""))
+                    restricted[name] = reason or "restricted by session privileges"
     except Exception as e:
-        builtin_tools = {}
-        builtin_schemas = {}
+        offered_tools = {}
+        offered_schemas = {}
+        restricted = {}
         print(f"Warning: Could not load built-in tools: {e}")
-    return builtin_tools, builtin_schemas
+    return offered_tools, offered_schemas, restricted
 
 
 def _load_mcp_tools():
@@ -95,8 +125,9 @@ class ToolsCmdHandler(CmdHandler):
                 "(load_skill, read_skill_resource)."
             )
 
-        # Get built-in tools from tools_registry
-        builtin_tools, builtin_schemas = _load_builtin_tools()
+        # Get built-in tools from tools_registry (the session/offered set,
+        # privilege-filtered under -r/-w/-x; restricted tools listed below).
+        builtin_tools, builtin_schemas, restricted = _load_builtin_tools()
 
         # Get MCP tools from MCP manager
         mcp_tools = _load_mcp_tools()
@@ -109,6 +140,13 @@ class ToolsCmdHandler(CmdHandler):
                 description = _truncate(schema.get("description", "No description"))
                 builtin_rows.append((name, description))
         _tools_table("Built-in Tools", builtin_rows)
+
+        # Tools loaded but excluded by the session privileges (-r/-w/-x).
+        # They are available to the /read /write /rx /rw /rwx overrides
+        # (issue #87), so list them separately instead of hiding them.
+        if restricted:
+            restricted_rows = sorted(restricted.items())
+            _tools_table("Privilege-restricted", restricted_rows)
 
         skipped_rows = []
         try:

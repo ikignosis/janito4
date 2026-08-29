@@ -48,6 +48,7 @@ from typing import Any
 
 from janito.agent.usage import TokenStats
 from janito.tooling.changes import clear_changes
+from janito.tooling.executor import extract_tool_names
 from janito.tooling.used_files import reset_used_files
 
 from .api_config import APIConfig
@@ -178,6 +179,12 @@ class Client:
         mcp_manager, mcp_tools = _load_mcp(self.config.use_mcp)
         tool_executor = self._create_tool_executor(mcp_manager)
         tools_schemas = self._resolve_tools(tools, mcp_tools)
+
+        # Execution-time privilege gate (issue #87): the registry is complete
+        # (all tools load regardless of -r/-w/-x), so the session restriction
+        # is enforced here against the tools actually offered in this turn --
+        # the model may only call tools whose schemas were passed above.
+        tool_executor.allowed_tools = extract_tool_names(tools_schemas)
 
         logger.debug(f"Using {len(tools_schemas)} tools total")
 

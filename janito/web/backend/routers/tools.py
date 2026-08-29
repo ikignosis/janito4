@@ -11,15 +11,22 @@ router = APIRouter()
 
 @router.get("")
 async def list_tools(request: Request):
-    """List all loaded tools + schemas + permissions."""
+    """List the tools offered in this session + schemas + permissions."""
+    from janito import privileges as _privileges_mod
     from janito.tooling.tools_registry import (
         get_all_tool_permissions,
-        get_all_tool_schemas,
+        get_all_tools,
+        get_session_tool_names,
+        get_session_tool_schemas,
         tools_loading_enabled,
     )
+    from janito.tools import privilege_restriction_reason
 
-    schemas = get_all_tool_schemas()
+    # The session tool set: privilege-filtered under -r/-w/-x (issue #87).
+    schemas = get_session_tool_schemas()
     permissions = get_all_tool_permissions()
+    all_tools = get_all_tools()
+    session_names = get_session_tool_names()
 
     tools = []
     for schema in schemas:
@@ -34,9 +41,27 @@ async def list_tools(request: Request):
             }
         )
 
+    # Loaded but excluded by the session privileges; the /read /write /rx
+    # /rw /rwx overrides can still offer them (issue #87).
+    privilege_restricted = []
+    if _privileges_mod.running_privileges is not None:
+        for name in sorted(all_tools):
+            if name not in session_names:
+                privilege_restricted.append(
+                    {
+                        "name": name,
+                        "permissions": permissions.get(name, ""),
+                        "reason": privilege_restriction_reason(
+                            permissions.get(name, "")
+                        )
+                        or "restricted by session privileges",
+                    }
+                )
+
     return {
         "tools": tools,
         "count": len(tools),
+        "privilege_restricted": privilege_restricted,
         "tools_enabled": tools_loading_enabled(),
     }
 

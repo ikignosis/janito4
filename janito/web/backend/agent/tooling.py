@@ -20,7 +20,7 @@ from janito.tooling.executor import (
     is_mcp_tool as is_mcp_tool,  # re-exported for turn.py
 )
 from janito.tooling.executor import run_tool
-from janito.tooling.tools_registry import get_all_tool_schemas
+from janito.tooling.tools_registry import get_session_tool_schemas
 from janito.tooling.tools_registry import (
     get_tool_permissions as get_tool_permissions,  # re-exported for turn.py
 )
@@ -60,14 +60,23 @@ async def resolve_tools(config, tools: list[dict] | None, use_mcp: bool) -> list
         except Exception as e:
             logger.warning(f"Failed to load MCP tools: {e}")
 
-    built_in_tools = get_all_tool_schemas()
+    built_in_tools = get_session_tool_schemas()
     return built_in_tools + mcp_tools
 
 
 async def execute_tool(
-    tool_call_id: str, tool_name: str, tool_args: dict, use_mcp: bool
+    tool_call_id: str,
+    tool_name: str,
+    tool_args: dict,
+    use_mcp: bool,
+    allowed_tools: set[str] | None = None,
 ):
     """Execute a single tool call, capturing report_* output as progress events.
+
+    ``allowed_tools`` is the execution-time privilege gate (issue #87): when
+    given, a call to a tool that was not offered in the current turn is
+    rejected by the shared :func:`run_tool` core with a structured error
+    instead of executing.
 
     Returns a tuple ``(result_dict, progress_events, error, exec_time_ms)``.
     The tool runs in a thread via the shared :func:`run_tool` core; the
@@ -87,6 +96,11 @@ async def execute_tool(
         )
 
     result, error, exec_time_ms = await asyncio.to_thread(
-        run_tool, tool_name, tool_args, use_mcp, progress=handler
+        run_tool,
+        tool_name,
+        tool_args,
+        use_mcp,
+        progress=handler,
+        allowed_tools=allowed_tools,
     )
     return result, progress_events, error, exec_time_ms

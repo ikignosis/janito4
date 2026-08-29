@@ -8,10 +8,53 @@ offers the read-only (``"r"``) tools, /write offers the write-only (``"w"``)
 tools, /rx offers the read + execute (``"r"``/``"x"``) tools, /rw offers the
 read + write (``"r"``/``"w"``) tools and /rwx offers the read + write +
 execute tools. The filtering itself is identical, so it lives here.
+
+The registry is **complete** (discovery loads every tool regardless of the
+``-r``/``-w``/``-x`` flags), so these commands can also *expand* beyond the
+session privileges for a single turn (issue #87): under ``janito -r``,
+``/write <msg>`` still offers the write-only tools.  When a command offers
+tools the session privileges would not normally allow,
+:func:`warn_if_privilege_override` prints a one-line note so the escalation
+is visible.
 """
 
 from collections.abc import Iterable
 from typing import Any
+
+
+def warn_if_privilege_override(schemas: list[dict[str, Any]]) -> None:
+    """Print a one-line warning when ``schemas`` expand beyond the session
+    privileges.
+
+    The /read, /write, /rx, /rw and /rwx commands explicitly override the
+    runtime ``-r``/``-w``/``-x`` restrictions for the current turn (issue
+    #87); surface that so the escalation is visible, mirroring the
+    full-privileges warning at startup.  Prints nothing when the offered
+    schemas are a subset of the session's allowed tools (or when no
+    privilege flags were passed).
+    """
+    if not schemas:
+        return
+    from janito import privileges as _privileges_mod
+
+    if _privileges_mod.running_privileges is None:
+        # No privilege restrictions configured - nothing is overridden.
+        return
+    from janito.tooling.tools_registry import get_session_tool_names
+
+    offered = {
+        schema.get("function", {}).get("name")
+        for schema in schemas
+        if schema.get("function", {}).get("name")
+    }
+    extra = offered - get_session_tool_names()
+    if extra:
+        from rich.console import Console
+
+        Console().print(
+            "[bold yellow]Note:[/bold yellow] this turn overrides the "
+            "session privileges (-r/-w/-x)"
+        )
 
 
 def get_tool_schemas_by_permission(permission: str) -> list[dict[str, Any]]:

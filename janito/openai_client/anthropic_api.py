@@ -43,7 +43,7 @@ from typing import Any
 from janito.tooling.executor import ToolExecutor
 
 # Import tools
-from janito.tooling.tools_registry import get_all_tool_schemas
+from janito.tooling.tools_registry import get_session_tool_schemas
 
 from .anthropic_stream import _convert_tools_to_anthropic_format, _stream_response
 
@@ -289,7 +289,7 @@ def _resolve_tools(
     """Resolve the tool schemas and convert them to Anthropic format."""
     if tools is None:
         # Merge built-in tools with MCP tools
-        built_in_tools = get_all_tool_schemas()
+        built_in_tools = get_session_tool_schemas()
         tools_schemas = built_in_tools + mcp_tools
         logger.debug(
             f"Using {len(built_in_tools)} built-in tools + {len(mcp_tools)} MCP tools"

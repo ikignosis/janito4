@@ -304,7 +304,7 @@ def _mock_run_turn(monkeypatch, create_side_effect):
     client_inst.responses.create.side_effect = create_side_effect
     monkeypatch.setattr(api, "OpenAI", mock.Mock(return_value=client_inst))
     monkeypatch.setattr(
-        "janito.openai_client.responses_helpers.get_all_tool_schemas",
+        "janito.openai_client.responses_helpers.get_session_tool_schemas",
         lambda: [{"type": "function", "function": {"name": "list_files"}}],
     )
     executor_inst = mock.Mock()
@@ -325,7 +325,7 @@ def _mock_run_turn_for_model(monkeypatch, model, builtin_tools, create_side_effe
     client_inst.responses.create.side_effect = create_side_effect
     monkeypatch.setattr(api, "OpenAI", mock.Mock(return_value=client_inst))
     monkeypatch.setattr(
-        "janito.openai_client.responses_helpers.get_all_tool_schemas",
+        "janito.openai_client.responses_helpers.get_session_tool_schemas",
         lambda: [{"type": "function", "function": {"name": "list_files"}}],
     )
     monkeypatch.setattr(

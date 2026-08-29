@@ -24,15 +24,21 @@ logger = logging.getLogger(__name__)
 async def _send_session_greeting(websocket: WebSocket) -> None:
     """Greet the client with a tools summary (web counterpart of the CLI's
     startup "N tools active, M skipped" line \u2014 #10)."""
-    from janito.tooling.tools_registry import get_all_tools
+    from janito import privileges as _privileges_mod
+    from janito.tooling.tools_registry import get_all_tools, get_session_tool_schemas
     from janito.tools import get_skipped_tools
 
-    active_tools = get_all_tools()
+    all_tools = get_all_tools()
+    active_tools = get_session_tool_schemas()
     skipped_tools = get_skipped_tools()
+    restricted_tools = 0
+    if _privileges_mod.running_privileges is not None:
+        restricted_tools = len(all_tools) - len(active_tools)
     await websocket.send_json(
         {
             "type": "session_start",
             "active_tools": len(active_tools),
+            "restricted_tools": restricted_tools,
             "skipped_tools": len(skipped_tools),
             "skipped": skipped_tools,
         }

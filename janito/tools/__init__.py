@@ -66,60 +66,95 @@ _PERMISSION_TO_PRIVILEGE = {
 }
 
 
-def _check_tool_privileges(cls: type) -> bool:
-    """
-    Check whether the current ``running_privileges`` satisfy the tool's
-    required permissions.
+def missing_privileges(tool_permissions: str) -> list[str]:
+    """Return the privilege characters ``tool_permissions`` needs that the
+    current ``running_privileges`` do not grant.
 
-    If ``running_privileges`` is ``None`` (no ``-r``/``-w``/``-x`` flags
-    were passed), all tools are allowed — this preserves backward
-    compatibility with the default "everything is permitted" behaviour.
-
-    When ``running_privileges`` *is* set, every character in the tool's
-    ``_tool_permissions`` string must be satisfied:
-
-    * ``'r'`` → ``Privileges.READ``
-    * ``'w'`` → ``Privileges.WRITE``
-    * ``'x'`` → ``Privileges.EXEC``
-
-    Tools whose requirements are not met are recorded in
-    ``_skipped_tools`` with a human-readable reason and excluded from
-    discovery.
+    ``running_privileges`` is ``None`` when no ``-r``/``-w``/``-x`` flags
+    were passed, in which case nothing is missing (the default "everything
+    is permitted" behaviour).  Tools declaring no permissions (``""``)
+    always return an empty list.
 
     Args:
-        cls: The tool class to validate
+        tool_permissions: The tool's ``_tool_permissions`` string (e.g.
+            ``"rw"``).
 
     Returns:
-        bool: ``True`` if the tool should be loaded, ``False`` to skip it
+        The missing privilege characters (e.g. ``["w"]``), or ``[]`` when
+        the tool is allowed.
     """
     from .. import privileges as _privileges_mod
 
     running = _privileges_mod.running_privileges
     if running is None:
-        # No privilege restrictions configured — allow everything.
-        return True
-
-    tool_permissions: str = getattr(cls, "_tool_permissions", "") or ""
-    if not tool_permissions:
-        # Tools that declare no permissions don't require any privilege.
-        return True
+        return []
 
     missing: list[str] = []
     for char in tool_permissions:
         attr = _PERMISSION_TO_PRIVILEGE.get(char)
         if attr is not None and not getattr(running, attr, False):
             missing.append(char)
+    return missing
 
-    if missing:
-        missing_descriptions = [
-            f"'{c}' ({_PERMISSION_TO_PRIVILEGE[c]})" for c in missing
-        ]
-        _skipped_tools[
-            cls.__name__
-        ] = f"insufficient privileges: requires {', '.join(missing_descriptions)}"
-        return False
 
-    return True
+def tool_is_allowed_by_privileges(tool_permissions: str) -> bool:
+    """Whether the current ``running_privileges`` satisfy every privilege
+    character declared by ``tool_permissions``.
+
+    Used by the session tool selector (:func:`janito.tooling.tools_registry
+    .get_session_tool_schemas`) to decide which tools a normal prompt may
+    offer.  The per-command tool modes (``/read`` ``/write`` ``/rx`` ``/rw``
+    ``/rwx``) pass their own explicit tool list instead and are therefore
+    able to override the session privileges for a single exchange (issue
+    #87).
+
+    Args:
+        tool_permissions: The tool's ``_tool_permissions`` string.
+
+    Returns:
+        ``True`` when the tool is allowed by the current privileges.
+    """
+    return not missing_privileges(tool_permissions)
+
+
+def privilege_restriction_reason(tool_permissions: str) -> str | None:
+    """Human-readable reason a tool is restricted by the current privileges.
+
+    Returns ``None`` when the tool is allowed (or no ``-r``/``-w``/``-x``
+    flags were passed); otherwise a message such as
+    ``"insufficient privileges: requires 'w' (WRITE)"`` for display in the
+    ``/tools`` command and the web tools panel.
+
+    Args:
+        tool_permissions: The tool's ``_tool_permissions`` string.
+
+    Returns:
+        The restriction reason, or ``None`` when the tool is allowed.
+    """
+    missing = missing_privileges(tool_permissions)
+    if not missing:
+        return None
+    missing_descriptions = [f"'{c}' ({_PERMISSION_TO_PRIVILEGE[c]})" for c in missing]
+    return "insufficient privileges: requires " + ", ".join(missing_descriptions)
+
+
+def _check_tool_privileges(cls: type) -> bool:
+    """Check whether the current ``running_privileges`` satisfy the tool's
+    required permissions.
+
+    Discovery no longer skips tools on privileges: everything is loaded so
+    the per-command tool modes (``/read`` ``/write`` ``/rx`` ``/rw``
+    ``/rwx``) can expand beyond the session privileges (issue #87).  This
+    predicate remains for the session tool selector
+    (:func:`tool_is_allowed_by_privileges`) and for introspection.
+
+    Args:
+        cls: The tool class to validate.
+
+    Returns:
+        ``True`` when the tool is allowed by the current privileges.
+    """
+    return tool_is_allowed_by_privileges(getattr(cls, "_tool_permissions", "") or "")
 
 
 def _make_class_tool(cls: type) -> Callable:
@@ -171,13 +206,12 @@ def _collect_module_tools(module, full_module_name: str, tools: dict) -> None:
             # Check if the class is explicitly marked as a tool
             if is_tool(attr):
                 # Let tools opt out of loading (missing binaries,
-                # unsupported platform, missing credentials, ...)
+                # unsupported platform, missing credentials, ...).
+                # Privilege restrictions no longer skip tools here: everything
+                # is loaded so the per-command tool modes (/read /write /rx
+                # /rw /rwx) can override the session privileges (issue #87);
+                # the session tool selector applies them instead.
                 if not _check_should_load(attr):
-                    continue
-
-                # Skip tools whose permission requirements
-                # are not satisfied by running_privileges.
-                if not _check_tool_privileges(attr):
                     continue
 
                 tools[attr_name] = _make_class_tool(attr)
@@ -187,10 +221,14 @@ def wrap_tool_class(cls: type) -> Callable | None:
     """
     Validate and wrap a single tool class into a callable.
 
-    Runs the same ``should_load()`` and privilege checks as toolset
-    discovery; returns ``None`` (and records the skip reason) when the tool
-    must not be loaded.  Used by the plugin manager to register tool classes
-    contributed by a plugin's ``TOOLS`` list.
+    Runs the same ``should_load()`` gate as toolset discovery and returns
+    ``None`` (and records the skip reason) when the tool must not be loaded.
+    Privilege restrictions are **not** applied here: everything is loaded so
+    the per-command tool modes (``/read`` ``/write`` ``/rx`` ``/rw``
+    ``/rwx``) can override the session privileges for a single exchange
+    (issue #87); the session tool selector applies them instead.  Used by
+    the plugin manager to register tool classes contributed by a plugin's
+    ``TOOLS`` list.
 
     Args:
         cls: A ``BaseTool`` subclass decorated with ``@tool``.
@@ -203,8 +241,6 @@ def wrap_tool_class(cls: type) -> Callable | None:
         logger.warning("Skipping %s: not a @tool class", getattr(cls, "__name__", cls))
         return None
     if not _check_should_load(cls):
-        return None
-    if not _check_tool_privileges(cls):
         return None
     return _make_class_tool(cls)
 

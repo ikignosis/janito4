@@ -11,7 +11,10 @@ declares only ``"r"``, ``"w"`` and/or ``"x"``, so the model gets the full
 toolset (read, write and execute) in a single exchange.
 """
 
-from ._tool_filters import get_tool_schemas_by_permission_letters
+from ._tool_filters import (
+    get_tool_schemas_by_permission_letters,
+    warn_if_privilege_override,
+)
 from .base import CmdHandler
 from .registry import register_command
 
@@ -79,6 +82,7 @@ class RwxCmdHandler(CmdHandler):
             return
 
         read_write_exec_schemas = get_read_write_exec_tool_schemas()
+        warn_if_privilege_override(read_write_exec_schemas)
         print()  # blank line before the streamed response, like /ask
         # Reuse the shell's main-prompt path: same history, turns,
         # Responses state sync and cancel/rollback handling -- only the tool

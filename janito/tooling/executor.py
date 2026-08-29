@@ -46,6 +46,34 @@ def is_mcp_tool(tool_name: str) -> bool:
     return False
 
 
+def extract_tool_names(schemas: list[dict[str, Any]] | None) -> set[str]:
+    """Extract the tool names from resolved function-calling schemas.
+
+    Handles both the shared Chat Completions shape (name nested under
+    ``"function"``) and the Responses / Anthropic top-level shape (name at
+    the top level), so it works on the schemas returned by any client's
+    ``_resolve_tools``.  The result feeds the execution-time gate
+    (``allowed_tools``): the model may only call tools that were actually
+    offered in the current turn (issue #87).
+
+    Args:
+        schemas: The resolved tool schemas (any supported format).
+
+    Returns:
+        Set of tool names offered by the schemas (empty when ``None``).
+    """
+    names: set[str] = set()
+    for schema in schemas or []:
+        if not isinstance(schema, dict):
+            continue
+        function = schema.get("function")
+        if isinstance(function, dict) and function.get("name"):
+            names.add(function["name"])
+        elif schema.get("name"):
+            names.add(schema["name"])
+    return names
+
+
 def run_tool(
     tool_name: str,
     tool_args: dict[str, Any],
@@ -53,6 +81,7 @@ def run_tool(
     *,
     mcp_manager: MCPManager | None = None,
     progress: Any = None,
+    allowed_tools: set[str] | None = None,
 ) -> tuple[Any, str | None, int]:
     """Execute a single tool call and return ``(result, error, exec_time_ms)``.
 
@@ -81,6 +110,11 @@ def run_tool(
             ``None``, the global manager (see :func:`get_mcp_manager`) is
             used lazily.
         progress: Optional ``(level, message, end)`` report callback.
+        allowed_tools: Optional set of tool names the current turn may call
+            (the execution-time privilege gate, issue #87).  When given, a
+            call to any other tool is rejected with a structured error
+            before anything executes -- the model may only call the tools
+            that were offered in this turn.  ``None`` disables the gate.
 
     Returns:
         A tuple ``(result, error, exec_time_ms)``: ``result`` is the raw
@@ -88,6 +122,21 @@ def run_tool(
         failure), ``error`` is ``None`` on success, and ``exec_time_ms`` is
         the wall-clock execution time.
     """
+    if allowed_tools is not None and tool_name not in allowed_tools:
+        # Execution-time privilege gate: the registry is complete (every
+        # tool loads regardless of -r/-w/-x), so the session restriction is
+        # enforced here against the tools actually offered in this turn.
+        error_msg = (
+            f"Tool '{tool_name}' is not offered in this turn. "
+            "Only the tools passed to the current turn may be called "
+            "(the session privileges -r/-w/-x may have excluded it)."
+        )
+        logger.error(error_msg)
+        return (
+            {"success": False, "error": f"Tool execution failed: {error_msg}"},
+            error_msg,
+            0,
+        )
     record_tool_use(tool_name)
     if progress is not None:
         set_report_handler(progress)
@@ -141,15 +190,26 @@ class ToolExecutor:
     see why the tool failed and react accordingly.
     """
 
-    def __init__(self, mcp_manager: MCPManager | None = None) -> None:
+    def __init__(
+        self,
+        mcp_manager: MCPManager | None = None,
+        *,
+        allowed_tools: set[str] | None = None,
+    ) -> None:
         """Create an executor, optionally bound to a specific MCP manager.
 
         Args:
             mcp_manager: The MCP manager used to route MCP tool calls. When
                 ``None`` (the default), the global manager (see
                 :func:`janito.mcp_manager.get_mcp_manager`) is used lazily.
+            allowed_tools: Optional set of tool names the current turn may
+                call (the execution-time privilege gate, issue #87). ``None``
+                disables the gate; the clients set it to the names of the
+                tools offered in the turn so a call to any other tool is
+                rejected with a structured error instead of executing.
         """
         self._mcp_manager = mcp_manager
+        self.allowed_tools = allowed_tools
 
     @property
     def mcp_manager(self) -> MCPManager:
@@ -263,12 +323,15 @@ class ToolExecutor:
         logger.info(f"Tool call: {tool_name}({tool_args})")
 
         # The shared core does the routing, usage/used-files/changes tracking
-        # and failure shaping (see run_tool).
+        # and failure shaping (see run_tool); allowed_tools is the
+        # execution-time privilege gate (issue #87): a call to a tool that
+        # was not offered in the current turn is rejected without executing.
         tool_result, error, _ = run_tool(
             tool_name,
             tool_args,
             use_mcp=True,
             mcp_manager=self.mcp_manager,
+            allowed_tools=self.allowed_tools,
         )
         if error:
             print(f"\u274c Tool error: {tool_name} - {error}", file=sys.stderr)
@@ -283,6 +346,7 @@ class ToolExecutor:
 
 __all__ = [
     "ToolExecutor",
+    "extract_tool_names",
     "is_mcp_tool",
     "run_tool",
 ]

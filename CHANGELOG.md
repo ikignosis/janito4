@@ -92,6 +92,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   upcoming conversation turn (`Turn N`) right above the prompt (issue #69),
   so the turn number is visible *before* each submission instead of in the
   trailing token-usage summary.
+- `/read`, `/write`, `/rx`, `/rw` and `/rwx` now override the runtime
+  `-r`/`-w`/`-x` privilege restrictions for a single turn (issue #87): the
+  tool registry loads **every** tool whose `should_load()` gate passes, and
+  the session privileges are applied by a new *session tool selector*
+  (`get_session_tool_schemas` / `get_session_tool_names`) instead of at
+  discovery time, so under `janito -r`, `/write <msg>` still offers the
+  write-only tools and `/rwx` the full toolset. The shell prints a one-line
+  `Note:` when a turn overrides the session privileges; `/tools` and the web
+  tools panel list the loaded-but-restricted tools separately. A new
+  execution-time gate (`allowed_tools` on `run_tool` / `ToolExecutor`, fed
+  from the schemas actually offered in the turn) rejects calls to any tool
+  that was not offered, with a structured error, so the model can only call
+  what the current turn advertised.
 
 ### Changed
 

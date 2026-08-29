@@ -11,7 +11,7 @@ declares read access and nothing else, so the model can inspect, search and
 fetch but cannot write or execute.
 """
 
-from ._tool_filters import get_tool_schemas_by_permission
+from ._tool_filters import get_tool_schemas_by_permission, warn_if_privilege_override
 from .base import CmdHandler
 from .registry import register_command
 
@@ -77,6 +77,7 @@ class ReadCmdHandler(CmdHandler):
             return
 
         read_only_schemas = get_read_only_tool_schemas()
+        warn_if_privilege_override(read_only_schemas)
         print()  # blank line before the streamed response, like /ask
         # Reuse the shell's main-prompt path: same history, turns,
         # Responses state sync and cancel/rollback handling -- only the tool
