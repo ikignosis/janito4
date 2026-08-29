@@ -143,6 +143,7 @@ class GetUrl(BaseTool):
         max_lines: int | None = 200,
         timeout: int | None = 10,
         follow_redirects: bool = True,
+        skip_llms_txt: bool = False,
         threshold: int | None = BIG_CONTENT_THRESHOLD,
     ) -> dict[str, Any]:
         """
@@ -154,8 +155,8 @@ class GetUrl(BaseTool):
         HEAD requests. If one answers 200 OK, the file is fetched with a GET
         request and its content is returned as-is (no Markdown parsing, never
         truncated by max_length/max_lines). The discovery probes are silent;
-        only a successful retrieval is reported. If no llms.txt exists, the
-        tool falls back to fetching the requested URL normally.
+        only a successful retrieval is reported. If no llms.txt exists, or
+        ``skip_llms_txt`` is True, the tool fetches the requested URL as-is.
 
         Args:
             url (str): The URL to fetch content from (must be http:// or https://)
@@ -163,6 +164,8 @@ class GetUrl(BaseTool):
             max_lines (Optional[int]): Maximum number of lines to return (default: 200)
             timeout (Optional[int]): Request timeout in seconds (default: 10)
             follow_redirects (bool): Whether to follow HTTP redirects (default: True)
+            skip_llms_txt (bool): When True, fetch the URL as-is without
+                probing for an llms.txt site map (default: False)
             threshold (Optional[int]): Content size (in characters) above which the
                 full content is written to a temporary file instead of being returned
                 inline. Pass None to disable. llms.txt content is never stored to a
@@ -194,10 +197,13 @@ class GetUrl(BaseTool):
                 }
 
             # Try llms.txt discovery first. The probes are silent; only a
-            # successful retrieval is reported.
-            llms_url = _discover_llms_txt(
-                url, timeout=timeout, follow_redirects=follow_redirects
-            )
+            # successful retrieval is reported. Skipped entirely when the
+            # caller asks for a direct fetch (skip_llms_txt=True).
+            llms_url = None
+            if not skip_llms_txt:
+                llms_url = _discover_llms_txt(
+                    url, timeout=timeout, follow_redirects=follow_redirects
+                )
             if llms_url:
                 self.report_result(f"Retrieved llms.txt from {llms_url}")
                 return self._fetch_content(
@@ -400,6 +406,11 @@ Examples:
         "--no-follow-redirects", action="store_true", help="Don't follow HTTP redirects"
     )
     parser.add_argument(
+        "--skip-llms-txt",
+        action="store_true",
+        help="Fetch the URL as-is without probing for an llms.txt site map",
+    )
+    parser.add_argument(
         "--json", "-j", action="store_true", help="Output in JSON format"
     )
     parser.add_argument(
@@ -416,6 +427,7 @@ Examples:
         max_lines=args.max_lines,
         timeout=args.timeout,
         follow_redirects=not args.no_follow_redirects,
+        skip_llms_txt=args.skip_llms_txt,
         threshold=None
         if args.threshold is not None and args.threshold < 0
         else args.threshold,

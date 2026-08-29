@@ -372,5 +372,55 @@ def test_found_reports_retrieved(server):
     assert "Retrieved llms.txt from" in llms_msgs[0]
 
 
+# ---------------------------------------------------------------------------
+# skip_llms_txt parameter
+# ---------------------------------------------------------------------------
+
+
+def test_skip_llms_txt_fetches_url_directly(server):
+    """With skip_llms_txt=True the URL is fetched as-is even when llms.txt exists."""
+    _set_routes({"/llms.txt": (200, LLMS_PAYLOAD)})
+
+    tool = GetUrl()
+    result = tool.run(url=f"{server}/guide", skip_llms_txt=True)
+
+    assert result["success"] is True
+    assert result.get("llms_txt") is None  # fetched as a plain URL
+    assert result["content"] == SMALL_PAYLOAD
+    assert result["url"] == f"{server}/guide"
+
+    # No HEAD probes and no GET of llms.txt - only the requested page.
+    assert _Handler.requests == [("GET", "/guide")]
+
+
+def test_skip_llms_txt_default_false(server):
+    """Without the flag, discovery still runs and llms.txt is returned as before."""
+    _set_routes({"/llms.txt": (200, LLMS_PAYLOAD)})
+
+    tool = GetUrl()
+    result = tool.run(url=f"{server}/guide")
+
+    assert result["success"] is True
+    assert result.get("llms_txt") is True
+    assert result["content"] == LLMS_PAYLOAD
+    assert ("HEAD", "/llms.txt") in _Handler.requests
+    assert ("GET", "/llms.txt") in _Handler.requests
+
+
+def test_skip_llms_txt_no_llms_txt(server):
+    """With no llms.txt present, the page is fetched directly with no HEAD probes."""
+    _set_routes({})
+
+    tool = GetUrl()
+    result = tool.run(url=f"{server}/guide", skip_llms_txt=True)
+
+    assert result["success"] is True
+    assert result.get("llms_txt") is None
+    assert result["content"] == SMALL_PAYLOAD
+    assert result["url"] == f"{server}/guide"
+    # No discovery probes at all - just the direct GET.
+    assert _Handler.requests == [("GET", "/guide")]
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

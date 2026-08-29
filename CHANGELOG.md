@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Changes since `v4.33.0` (2026-08-29).
 
+### Added
+
+- `GetUrl` now accepts a `skip_llms_txt` parameter (default `False`). When set
+  to `True`, the tool fetches the requested URL as-is without probing for an
+  `llms.txt` site map. Also exposed as the `--skip-llms-txt` CLI flag.
+
 ### Fixed
 
 - `--version` and the startup banner now show the version derived from the

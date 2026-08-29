@@ -53,7 +53,8 @@ returns its content **as-is** (no Markdown parsing) as a map for further
 exploration. The discovery probes are silent — only a successful retrieval is
 reported. When no `llms.txt` exists, the tool falls back to fetching the
 requested URL normally. Fetching an `llms.txt` URL directly never triggers a
-discovery loop.
+discovery loop. The probe can be disabled by passing `skip_llms_txt=True`,
+which fetches the URL as-is without checking for an `llms.txt` site map.
 
 ### HeadlessBrowse
 
@@ -99,6 +100,7 @@ janito "Browse https://example.com with headless Chrome and summarize what it sh
 | `max_lines` | int | `200` | Maximum number of lines to return |
 | `timeout` | int | `10` | Request timeout in seconds |
 | `follow_redirects` | bool | `True` | Whether to follow HTTP redirects |
+| `skip_llms_txt` | bool | `False` | When `True`, fetch the URL as-is without probing for an `llms.txt` site map |
 | `threshold` | int | `10000` | Content size (chars) above which the full content is written to a temporary file instead of being returned inline (never applies to `llms.txt`) |
 
 When fetched content exceeds `threshold`, it is stored in a temporary file (removed on
