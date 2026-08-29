@@ -30,9 +30,9 @@ def normalize_usage(usage: Any) -> dict[str, Any] | None:
     if isinstance(usage, TokenStats):
         return {
             "total": usage.total,
-            "input": usage.input,
-            "output": usage.output,
-            "cached": usage.cached,
+            "input": usage.last_input,
+            "output": usage.last_output,
+            "cached": usage.last_cached,
         }
     details = getattr(usage, "prompt_tokens_details", None) or getattr(
         usage, "input_tokens_details", None
@@ -94,9 +94,9 @@ def usage_event_from_usage(usage: Any, max_tokens: int | None = None):
     stats = normalize_usage(usage)
     return UsageEvent(
         total=stats["total"] or 0,
-        input=stats["input"] or 0,
-        output=stats["output"] or 0,
-        cached=stats["cached"] or 0,
+        last_input=stats["input"] or 0,
+        last_output=stats["output"] or 0,
+        last_cached=stats["cached"] or 0,
         max_tokens=max_tokens,
     )
 
@@ -112,9 +112,9 @@ def _add(a: int | None, b: int | None) -> int | None:
 class TokenStats:
     """Normalized token usage for one turn: final round + cumulative totals.
 
-    ``total`` / ``input`` / ``output`` / ``cached`` mirror the **last**
-    request of the turn (the one that produced the final answer), preserving
-    the historical per-request usage summary.  ``turn_input`` /
+    ``total`` / ``last_input`` / ``last_output`` / ``last_cached`` mirror the
+    **last** request of the turn (the one that produced the final answer),
+    preserving the historical per-request usage summary.  ``turn_input`` /
     ``turn_cached`` / ``turn_output`` accumulate those counters across every
     request of the turn (tool-call rounds included), so a multi-round turn
     carries both the final round and the whole-turn picture.
@@ -130,9 +130,9 @@ class TokenStats:
     """
 
     total: int | None = None
-    input: int | None = None
-    output: int | None = None
-    cached: int | None = None
+    last_input: int | None = None
+    last_output: int | None = None
+    last_cached: int | None = None
     turn_input: int | None = None
     turn_cached: int | None = None
     turn_output: int | None = None
@@ -149,9 +149,9 @@ class TokenStats:
             return None
         return cls(
             total=stats["total"],
-            input=stats["input"],
-            output=stats["output"],
-            cached=stats["cached"],
+            last_input=stats["input"],
+            last_output=stats["output"],
+            last_cached=stats["cached"],
             turn_input=stats["input"],
             turn_cached=stats["cached"],
             turn_output=stats["output"],
@@ -163,9 +163,9 @@ class TokenStats:
         if stats is None:
             return
         self.total = stats["total"]
-        self.input = stats["input"]
-        self.output = stats["output"]
-        self.cached = stats["cached"]
+        self.last_input = stats["input"]
+        self.last_output = stats["output"]
+        self.last_cached = stats["cached"]
         self.turn_input = _add(self.turn_input, stats["input"])
         self.turn_cached = _add(self.turn_cached, stats["cached"])
         self.turn_output = _add(self.turn_output, stats["output"])

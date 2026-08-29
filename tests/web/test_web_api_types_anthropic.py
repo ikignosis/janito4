@@ -182,6 +182,6 @@ def test_anthropic_accumulator_folds_stream_events():
         }
     ]
     usage = acc.usage_event()
-    assert (usage.input, usage.output, usage.total) == (5, 3, 8)
+    assert (usage.last_input, usage.last_output, usage.total) == (5, 3, 8)
     assert deltas[2] == (None, "Hi ")
     assert deltas[3] == (None, "there")

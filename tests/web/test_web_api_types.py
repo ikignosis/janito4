@@ -134,7 +134,7 @@ def test_usage_event_from_usage_handles_both_usage_shapes():
     )
     ev = usage_event_from_usage(completions_usage, max_tokens=128)
     assert isinstance(ev, UsageEvent)
-    assert (ev.total, ev.input, ev.output, ev.cached, ev.max_tokens) == (
+    assert (ev.total, ev.last_input, ev.last_output, ev.last_cached, ev.max_tokens) == (
         10,
         6,
         4,
@@ -150,7 +150,7 @@ def test_usage_event_from_usage_handles_both_usage_shapes():
         input_tokens_details=SimpleNamespace(cached_tokens=3),
     )
     ev = usage_event_from_usage(responses_usage, max_tokens=64)
-    assert (ev.total, ev.input, ev.output, ev.cached, ev.max_tokens) == (
+    assert (ev.total, ev.last_input, ev.last_output, ev.last_cached, ev.max_tokens) == (
         10,
         6,
         4,

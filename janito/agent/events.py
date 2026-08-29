@@ -136,16 +136,17 @@ class WaitingEvent:
 class UsageEvent:
     """Token usage (final chunk) plus cumulative turn totals.
 
-    ``total`` / ``input`` / ``output`` / ``cached`` are the **final** API
-    round's counters (the historical web display); ``turn_input`` /
-    ``turn_cached`` / ``turn_output`` sum every round of the turn (tool-call
-    rounds included) and are only set when the backend reports them.
+    ``total`` / ``last_input`` / ``last_output`` / ``last_cached`` are the
+    **final** API round's counters (the historical web display);
+    ``turn_input`` / ``turn_cached`` / ``turn_output`` sum every round of the
+    turn (tool-call rounds included) and are only set when the backend reports
+    them.
     """
 
     total: int = 0
-    input: int = 0
-    output: int = 0
-    cached: int = 0
+    last_input: int = 0
+    last_output: int = 0
+    last_cached: int = 0
     max_tokens: int | None = None
     turn_input: int | None = None
     turn_cached: int | None = None
@@ -157,9 +158,9 @@ class UsageEvent:
         d = {
             "type": self.type,
             "total": self.total,
-            "input": self.input,
-            "output": self.output,
-            "cached": self.cached,
+            "last_input": self.last_input,
+            "last_output": self.last_output,
+            "last_cached": self.last_cached,
         }
         if self.max_tokens is not None:
             d["max_tokens"] = self.max_tokens

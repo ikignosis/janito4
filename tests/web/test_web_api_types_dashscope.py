@@ -191,7 +191,7 @@ def test_dashscope_accumulator_folds_chunks():
         }
     ]
     usage = acc.usage_event()
-    assert (usage.input, usage.output, usage.total) == (3, 7, 10)
+    assert (usage.last_input, usage.last_output, usage.total) == (3, 7, 10)
     assert deltas[0] == ("think", None)
     assert deltas[1] == (None, "Hi")
 

@@ -795,9 +795,15 @@ def _record_accounting(usage_out: TurnUsage | None) -> None:
     if usage_out is None or usage_out.stats is None:
         return
     stats = usage_out.stats
-    input_tokens = stats.turn_input if stats.turn_input is not None else stats.input
-    cached_tokens = stats.turn_cached if stats.turn_cached is not None else stats.cached
-    output_tokens = stats.turn_output if stats.turn_output is not None else stats.output
+    input_tokens = (
+        stats.turn_input if stats.turn_input is not None else stats.last_input
+    )
+    cached_tokens = (
+        stats.turn_cached if stats.turn_cached is not None else stats.last_cached
+    )
+    output_tokens = (
+        stats.turn_output if stats.turn_output is not None else stats.last_output
+    )
     cost = None
     if usage_out.provider and usage_out.model:
         cost = get_provider_cost_value(

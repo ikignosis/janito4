@@ -64,8 +64,8 @@ def _fold_turn_usage(
 
     Tool-call rounds would otherwise be lost when the round state is
     discarded; ``TokenStats`` keeps the final round's counters and sums
-    input/cached/output across every round of the turn (mirrors the web
-    agent loop's ``_fold_turn_usage``).
+    last_input/last_cached/last_output across every round of the turn
+    (mirrors the web agent loop's ``_fold_turn_usage``).
     """
     if usage_info is None:
         return turn_stats

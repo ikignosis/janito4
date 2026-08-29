@@ -234,9 +234,9 @@ if pytest is not None:
         # 2M in (500k cached) / 2M out across tool-call rounds.
         stats = TokenStats(
             total=1_000_000,
-            input=1_000_000,
-            output=1_000_000,
-            cached=0,
+            last_input=1_000_000,
+            last_output=1_000_000,
+            last_cached=0,
             turn_input=2_000_000,
             turn_cached=500_000,
             turn_output=2_000_000,
@@ -302,21 +302,23 @@ if pytest is not None:
     def test_usage_event_to_dict_without_max():
         from janito.web.backend.events import UsageEvent
 
-        ev = UsageEvent(total=100, input=80, output=20, cached=10)
+        ev = UsageEvent(total=100, last_input=80, last_output=20, last_cached=10)
         d = ev.to_dict()
         assert d == {
             "type": "usage",
             "total": 100,
-            "input": 80,
-            "output": 20,
-            "cached": 10,
+            "last_input": 80,
+            "last_output": 20,
+            "last_cached": 10,
         }
         assert "max_tokens" not in d
 
     def test_usage_event_to_dict_with_max():
         from janito.web.backend.events import UsageEvent
 
-        ev = UsageEvent(total=100, input=80, output=20, cached=0, max_tokens=65536)
+        ev = UsageEvent(
+            total=100, last_input=80, last_output=20, last_cached=0, max_tokens=65536
+        )
         d = ev.to_dict()
         assert d["max_tokens"] == 65536
 

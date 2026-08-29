@@ -215,8 +215,8 @@ def _fold_turn_usage(turn_stats: TokenStats | None, acc) -> TokenStats | None:
 
     Each round's accumulator is discarded when the loop continues, so the
     usage of tool-call rounds would otherwise be lost; ``TokenStats`` keeps
-    the final round's counters and sums input/cached/output across every
-    round of the turn.
+    the final round's counters and sums last_input/last_cached/last_output
+    across every round of the turn.
     """
     round_usage = acc.usage_object()
     if turn_stats is None:
@@ -247,17 +247,19 @@ def _record_web_turn(
     if turn_stats is None:
         return
     input_tokens = (
-        turn_stats.turn_input if turn_stats.turn_input is not None else turn_stats.input
+        turn_stats.turn_input
+        if turn_stats.turn_input is not None
+        else turn_stats.last_input
     )
     cached_tokens = (
         turn_stats.turn_cached
         if turn_stats.turn_cached is not None
-        else turn_stats.cached
+        else turn_stats.last_cached
     )
     output_tokens = (
         turn_stats.turn_output
         if turn_stats.turn_output is not None
-        else turn_stats.output
+        else turn_stats.last_output
     )
     cost = None
     if provider and model:

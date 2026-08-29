@@ -249,7 +249,7 @@ def test_stream_prompt_responses_round_trip(monkeypatch):
     assert isinstance(events[2], WaitingEvent)
     assert isinstance(events[3], TokenEvent) and events[3].content == "Done!"
     usage = next(e for e in events if getattr(e, "type", "") == "usage")
-    assert (usage.input, usage.output, usage.total) == (5, 3, 8)
+    assert (usage.last_input, usage.last_output, usage.total) == (5, 3, 8)
     done = next(e for e in events if isinstance(e, DoneEvent))
     assert done.full_content == "Done!"
     assert done.message_count == len(messages)

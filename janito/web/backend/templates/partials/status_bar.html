@@ -39,8 +39,8 @@
                 <div class="status-item push-end">
                     <strong>Tokens:</strong>
                     <span x-text="formatTokens(lastUsage.total)"></span>
-                    (in <span x-text="formatTokens(lastUsage.input)"></span> /
-                    out <span x-text="formatTokens(lastUsage.output) + (lastUsage.max_tokens ? '/' + formatTokens(lastUsage.max_tokens) : '')"></span>)
+                    (in <span x-text="formatTokens(lastUsage.last_input)"></span> /
+                    out <span x-text="formatTokens(lastUsage.last_output) + (lastUsage.max_tokens ? '/' + formatTokens(lastUsage.max_tokens) : '')"></span>)
                 </div>
             </template>
         </div>

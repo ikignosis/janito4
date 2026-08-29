@@ -343,7 +343,12 @@ def test_responses_accumulator_folds_stream_events():
         }
     ]
     usage = acc.usage_event(max_tokens=100)
-    assert (usage.input, usage.output, usage.total, usage.max_tokens) == (5, 4, 9, 100)
+    assert (usage.last_input, usage.last_output, usage.total, usage.max_tokens) == (
+        5,
+        4,
+        9,
+        100,
+    )
     # Reasoning/text deltas are surfaced live for the browser.
     assert deltas[1] == ("think", None)
     assert deltas[2] == (None, "Hello")

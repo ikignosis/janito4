@@ -53,6 +53,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Renamed the final-round token counters on `TokenStats`
+  (`janito.agent.usage`) and the web `UsageEvent` from `input`/`output`/
+  `cached` to `last_input`/`last_output`/`last_cached` to make explicit that
+  they mirror the **last** request of the turn (the one that produced the
+  final answer), as opposed to the `turn_*` cumulative counters. This is a
+  breaking change to the WebSocket `usage` event wire format: `to_dict()`
+  now emits `last_input`/`last_output`/`last_cached` instead of
+  `input`/`output`/`cached` (the in-repo frontend `chatEvents.js` and the
+  `chat_messages`/`status_bar` templates were updated in lockstep; usage is
+  never persisted, so no migration is needed). The `normalize_usage()` dict
+  keys and the `total`/`max_tokens`/`turn_*` fields are unchanged.
 - Restructure the API layer around an immutable per-session `APIConfig`
   (issue #70): a new `janito/openai_client/api_config.py` defines the frozen
   `APIConfig` dataclass (provider, api type, model, endpoint, api key,

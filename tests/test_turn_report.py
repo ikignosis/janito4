@@ -51,9 +51,9 @@ def _register(monkeypatch, name, permissions):
 def _token_stats(**kw):
     defaults = dict(
         total=100,
-        input=60,
-        output=40,
-        cached=5,
+        last_input=60,
+        last_output=40,
+        last_cached=5,
         turn_input=180,
         turn_cached=10,
         turn_output=120,

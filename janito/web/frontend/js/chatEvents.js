@@ -106,9 +106,9 @@ const CHAT_EVENT_HANDLERS = {
     usage(c) {
         c.msg.usage = {
             total: c.event.total,
-            input: c.event.input,
-            output: c.event.output,
-            cached: c.event.cached,
+            last_input: c.event.last_input,
+            last_output: c.event.last_output,
+            last_cached: c.event.last_cached,
             max_tokens: c.event.max_tokens || null,
             turn_input: c.event.turn_input || null,
             turn_cached: c.event.turn_cached || null,
