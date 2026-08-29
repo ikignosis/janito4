@@ -53,7 +53,7 @@ if pytest is not None:
         cached_tokens=None,
         max_input_tokens=None,
     ):
-        """Replicate the parts-building logic from send_prompt."""
+        """Replicate the parts-building logic from run_turn."""
         parts = []
         if total_tokens is not None:
             parts.append(f"Total: {format_tokens(total_tokens)}")

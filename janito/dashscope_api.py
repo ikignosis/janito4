@@ -21,7 +21,7 @@ history **client-side**: the DashScope generation API is stateless, so every
 turn re-sends the full ``messages`` list.  Tool calls are executed with the
 shared :class:`~janito.tooling.executor.ToolExecutor` and their ``tool``-role
 messages are appended to the history before the next round, repeating until
-the model emits a final text answer.  ``send_prompt`` returns the assistant
+the model emits a final text answer.  ``run_turn`` returns the assistant
 text and mutates ``previous_messages`` in place (Completions-style), so the
 interactive shell treats this mode exactly like Completions.
 
@@ -45,7 +45,7 @@ import logging
 from types import SimpleNamespace
 from typing import Any
 
-# Shared agent-loop pipeline (see Client.send) implemented by DashScopeClient.
+# Shared agent-loop pipeline (see Client.run_turn) implemented by DashScopeClient.
 from janito.openai_client.api_config import APIConfig
 from janito.openai_client.base_client import Client
 
@@ -127,7 +127,7 @@ def _create_client(base_url: str | None, api_key: str) -> SimpleNamespace:
     return SimpleNamespace(base_url=base_url, api_key=api_key)
 
 
-def send_prompt(
+def run_turn(
     config: APIConfig,
     prompt: str,
     *,
@@ -182,7 +182,7 @@ def send_prompt(
         sent as ``enable_thinking=True``).
     """
     logger.info("Sending prompt to DashScope API (native SDK)")
-    return DashScopeClient(config).send(
+    return DashScopeClient(config).run_turn(
         prompt,
         previous_messages=previous_messages,
         instructions=instructions,
@@ -318,5 +318,5 @@ class DashScopeClient(Client):
 
 
 __all__ = [
-    "send_prompt",
+    "run_turn",
 ]

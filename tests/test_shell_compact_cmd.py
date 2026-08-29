@@ -59,15 +59,15 @@ def _shell():
 
 
 def _stub_send(result, calls=None):
-    """Return a send_prompt_func stub returning ``result`` and recording calls."""
+    """Return a turn_func stub returning ``result`` and recording calls."""
     if calls is None:
         calls = {"n": 0}
 
-    def send_prompt_func(prompt, **kwargs):
+    def turn_func(prompt, **kwargs):
         calls["n"] += 1
         return result
 
-    return send_prompt_func, calls
+    return turn_func, calls
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +106,7 @@ def test_compact_too_short_few_turns(capsys):
     ]
     shell.history_turns = [1]
     calls = {}
-    shell.send_prompt_func, calls = _stub_send(COMPACTION_JSON)
+    shell.turn_func, calls = _stub_send(COMPACTION_JSON)
 
     _compact_handler()._do_compact(shell)
 
@@ -133,7 +133,7 @@ def test_compact_too_short_token_count(capsys):
     ]
     shell.history_turns = [1, 3, 5, 7]
     calls = {}
-    shell.send_prompt_func, calls = _stub_send(COMPACTION_JSON)
+    shell.turn_func, calls = _stub_send(COMPACTION_JSON)
 
     _compact_handler()._do_compact(shell)
 
@@ -165,7 +165,7 @@ def test_compact_completions_mode(capsys):
     shell.messages_history = [dict(m) for m in original]
     shell.history_turns = [1, 3, 5, 7]
     calls = {}
-    shell.send_prompt_func, calls = _stub_send(COMPACTION_JSON)
+    shell.turn_func, calls = _stub_send(COMPACTION_JSON)
 
     _compact_handler()._do_compact(shell)
 
@@ -210,7 +210,7 @@ def test_compact_completions_sends_compaction_prompt():
     shell.history_turns = [1, 3, 5, 7]
     seen = {}
 
-    def send_prompt_func(prompt, **kwargs):
+    def turn_func(prompt, **kwargs):
         seen["prompt"] = prompt
         seen["messages"] = kwargs.get("previous_messages")
         seen["instructions"] = kwargs.get("instructions")
@@ -218,7 +218,7 @@ def test_compact_completions_sends_compaction_prompt():
         seen["items"] = kwargs.get("previous_items")
         return COMPACTION_JSON
 
-    shell.send_prompt_func = send_prompt_func
+    shell.turn_func = turn_func
     _compact_handler()._do_compact(shell)
 
     msgs = seen["messages"]
@@ -266,11 +266,11 @@ def test_compact_completions_preserves_tool_rounds():
     shell.history_turns = [1, 5, 7, 9]
     seen = {}
 
-    def send_prompt_func(prompt, **kwargs):
+    def turn_func(prompt, **kwargs):
         seen["messages"] = kwargs.get("previous_messages")
         return COMPACTION_JSON
 
-    shell.send_prompt_func = send_prompt_func
+    shell.turn_func = turn_func
     _compact_handler()._do_compact(shell)
 
     msgs = seen["messages"]
@@ -358,7 +358,7 @@ def test_compact_stateless_responses(capsys):
     keep zone items."""
     shell, original = _stateless_shell()
     calls = {}
-    shell.send_prompt_func, calls = _stub_send(COMPACTION_JSON)
+    shell.turn_func, calls = _stub_send(COMPACTION_JSON)
 
     _compact_handler()._do_compact(shell)
 
@@ -453,11 +453,11 @@ def test_compact_stateless_preserves_tool_call_items():
     shell.history_turns = [1, 5, 7, 9]
     seen = {}
 
-    def send_prompt_func(prompt, **kwargs):
+    def turn_func(prompt, **kwargs):
         seen["items"] = kwargs.get("previous_items")
         return COMPACTION_JSON
 
-    shell.send_prompt_func = send_prompt_func
+    shell.turn_func = turn_func
     _compact_handler()._do_compact(shell)
 
     items = seen["items"]
@@ -552,7 +552,7 @@ def test_compact_server_side_responses(capsys):
     keep zone as input items and drops the server conversation handle."""
     shell, mirror = _server_side_shell()
     calls = {}
-    shell.send_prompt_func, calls = _stub_send(COMPACTION_JSON)
+    shell.turn_func, calls = _stub_send(COMPACTION_JSON)
 
     _compact_handler()._do_compact(shell)
 
@@ -600,10 +600,10 @@ def test_compact_cancelled_keeps_history(capsys):
     shell.messages_history = [dict(m) for m in original]
     shell.history_turns = [1, 3, 5, 7]
 
-    def send_prompt_func(prompt, **kwargs):
+    def turn_func(prompt, **kwargs):
         raise RequestCancelled()
 
-    shell.send_prompt_func = send_prompt_func
+    shell.turn_func = turn_func
     _compact_handler()._do_compact(shell)
 
     assert shell.messages_history == original
@@ -630,10 +630,10 @@ def test_compact_error_keeps_history(capsys):
     shell.messages_history = [dict(m) for m in original]
     shell.history_turns = [1, 3, 5, 7]
 
-    def send_prompt_func(prompt, **kwargs):
+    def turn_func(prompt, **kwargs):
         raise RuntimeError("boom")
 
-    shell.send_prompt_func = send_prompt_func
+    shell.turn_func = turn_func
     _compact_handler()._do_compact(shell)
 
     assert shell.messages_history == original
@@ -658,10 +658,10 @@ def test_compact_non_json_falls_back_to_raw_text():
     ]
     shell.history_turns = [1, 3, 5, 7]
 
-    def send_prompt_func(prompt, **kwargs):
+    def turn_func(prompt, **kwargs):
         return "plain text recap"
 
-    shell.send_prompt_func = send_prompt_func
+    shell.turn_func = turn_func
     _compact_handler()._do_compact(shell)
 
     recap = shell.messages_history[1]
@@ -669,7 +669,7 @@ def test_compact_non_json_falls_back_to_raw_text():
     assert recap["content"] == "[RECAP OF PRIOR WORK] plain text recap"
 
 
-def test_compact_no_send_prompt_func(capsys):
+def test_compact_no_turn_func(capsys):
     """Without a session send function /compact reports an error."""
     shell = _shell()
     shell.initialize_history(system_prompt="sys")
@@ -685,7 +685,7 @@ def test_compact_no_send_prompt_func(capsys):
         {"role": "assistant", "content": "a4"},
     ]
     shell.history_turns = [1, 3, 5, 7]
-    # No send_prompt_func attribute.
+    # No turn_func attribute.
     _compact_handler()._do_compact(shell)
     out = capsys.readouterr().out
     assert "No prompt function available" in out

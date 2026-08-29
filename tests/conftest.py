@@ -28,7 +28,7 @@ def make_config(
     """Build a minimal :class:`APIConfig` for tests that construct clients
     directly (issue #70).
 
-    ``send_prompt`` / ``Client`` now take a resolved, immutable
+    ``run_turn`` / ``Client`` now take a resolved, immutable
     :class:`~janito.openai_client.api_config.APIConfig` instead of resolving
     the config/auth stores at call time, so tests that previously passed
     ``cli_model``/``cli_provider``/``use_mcp``/``stream_runner``/``observer``

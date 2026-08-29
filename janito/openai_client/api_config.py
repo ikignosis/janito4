@@ -3,7 +3,7 @@
 Everything a turn needs that can be resolved *before* the call starts.
 Built once per session (or per provider/model switch) by
 ``build_api_config``; never mutated afterwards.  The turn pipeline and the
-five ``send_prompt`` entry points consume it instead of re-reading the
+five ``run_turn`` entry points consume it instead of re-reading the
 config store / auth store / provider registry at call time.
 """
 
@@ -49,7 +49,7 @@ class APIConfig:
             ``None``).
         use_mcp: Whether to load and use MCP tools.
         verbose: Session default for verbose output (per-call ``verbose`` on
-            :meth:`Client.send` may still override it).
+            :meth:`Client.run_turn` may still override it).
         stream_runner: The per-round stream runner (a UI-side concern, e.g.
             the TUI ``_run_with_progress_bar``); ``None`` = headless (each
             streaming round runs directly in the calling thread).
@@ -99,8 +99,9 @@ def build_api_config(
     ``--thinking`` / ``/thinking`` flag wins, otherwise the provider's
     static built-in default applies (a ``True`` flag or a pass-through dict
     such as MiniMax-M3's ``{'type': 'adaptive'}``).  The shell's ``/thinking``
-    toggle flips it mid-session by rebuilding the config through the send
-    factory -- the same cheap rebuild that a provider/model switch performs.
+    toggle flips it mid-session by rebuilding the config through the
+    ``turn_factory`` -- the same cheap rebuild that a provider/model
+    switch performs.
 
     Args:
         api_type: The canonical API type (``"Completions"``, ``"Responses"``,
@@ -117,7 +118,7 @@ def build_api_config(
             ``None``) leaves it to the provider's built-in default.
         use_mcp: Whether to load and use MCP tools (default ``True``).
         verbose: Session default for verbose output (may be overridden
-            per call on :meth:`Client.send`).
+            per call on :meth:`Client.run_turn`).
         stream_runner: The per-round stream runner injected into the client
             (``None`` = headless).
         observer: The turn observer injected into the client (``None`` =

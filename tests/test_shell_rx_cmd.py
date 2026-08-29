@@ -72,14 +72,14 @@ def test_handler_name():
 def test_handle_dispatches_only_rx_command(monkeypatch):
     handler = RxCmdHandler()
     shell = _shell()
-    shell.send_prompt_func = lambda **kw: None
+    shell.turn_func = lambda **kw: None
     sent = {}
 
-    def fake_send_prompt(prompt, tools=None):
+    def fake_run_turn(prompt, tools=None):
         sent["prompt"] = prompt
         sent["tools"] = tools
 
-    monkeypatch.setattr(shell, "_send_prompt", fake_send_prompt)
+    monkeypatch.setattr(shell, "_run_turn", fake_run_turn)
     monkeypatch.setattr(
         "janito.shell.cmds.rx.get_read_exec_tool_schemas",
         lambda: [READ_SCHEMA, EXEC_SCHEMA],
@@ -108,10 +108,10 @@ def test_rx_without_question_shows_usage(monkeypatch, capfd):
     shell = _shell()
     called = {"n": 0}
 
-    def fake_send_prompt(prompt, tools=None):
+    def fake_run_turn(prompt, tools=None):
         called["n"] += 1
 
-    monkeypatch.setattr(shell, "_send_prompt", fake_send_prompt)
+    monkeypatch.setattr(shell, "_run_turn", fake_run_turn)
 
     assert handler.handle(shell, "/rx") is True
     out = capfd.readouterr().out
@@ -120,11 +120,11 @@ def test_rx_without_question_shows_usage(monkeypatch, capfd):
     assert called["n"] == 0
 
 
-def test_rx_requires_send_prompt_func(monkeypatch, capfd):
-    """Without send_prompt_func an error is printed instead of crashing."""
+def test_rx_requires_turn_func(monkeypatch, capfd):
+    """Without turn_func an error is printed instead of crashing."""
     handler = RxCmdHandler()
     shell = _shell()
-    # The shell has no send_prompt_func until run() sets it.
+    # The shell has no turn_func until run() sets it.
     assert handler.handle(shell, "/rx hello") is True
     out = capfd.readouterr().out
     assert "No prompt function available" in out
@@ -193,7 +193,7 @@ def test_get_read_exec_tool_schemas_empty_without_r_or_x_tools(monkeypatch):
 
 
 def test_rx_routes_through_main_history_with_read_exec_tools(monkeypatch):
-    """/rx goes through _send_prompt, which uses the main history and the
+    """/rx goes through _run_turn, which uses the main history and the
     filtered tools."""
     handler = RxCmdHandler()
     shell = _shell()
@@ -214,7 +214,7 @@ def test_rx_routes_through_main_history_with_read_exec_tools(monkeypatch):
         kwargs.update(kw)
         return "assistant"
 
-    shell.send_prompt_func = capture
+    shell.turn_func = capture
 
     handler.handle(shell, "/rx summarize the project")
 

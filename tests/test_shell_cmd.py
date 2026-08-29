@@ -110,7 +110,7 @@ def test_shell_cmd_dispatched_from_run_loop(monkeypatch, capfd):
         raise EOFError
 
     monkeypatch.setattr(shell.session, "prompt", fake_prompt)
-    shell.run(send_prompt_func=lambda *a, **k: None, no_tools=True)
+    shell.run(turn_func=lambda *a, **k: None, no_tools=True)
     out = capfd.readouterr().out
     assert "dispatched-ok" in out
     assert "[Shell] Exit code: 0" in out

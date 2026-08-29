@@ -2,7 +2,7 @@
 Shared module-level helpers for the native Gemini client.
 
 Extracted from :mod:`janito.gemini_api` so the client module stays focused
-on the ``send_prompt`` entry point and the :class:`GeminiClient` class.  The
+on the ``run_turn`` entry point and the :class:`GeminiClient` class.  The
 wire-format conversions (OpenAI-format chat ``messages`` -> Gemini
 ``contents``, tool schemas -> ``function_declarations``, usage metadata ->
 the shared token-usage shape) live here so the web agent's shared adapter
@@ -339,7 +339,7 @@ def _finalize_response(
     """Record the final assistant message and return it.
 
     ``usage_out`` (when given) receives the display metadata the caller needs
-    to render the end-of-turn reports after ``send_prompt`` returns (see
+    to render the end-of-turn reports after ``run_turn`` returns (see
     :func:`janito.openai_client.client_support.display_turn_usage`).
     """
     # No more tool calls, return the final response. Record the final

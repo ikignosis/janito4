@@ -7,8 +7,8 @@ Usage:
     /model <name>     - Switch the session's model
 
 The switch is **runtime-only**: it updates the shell's displayed model
-(prompt and bottom toolbar) and rebinds the send function so subsequent turns
-use the new model, but it does **not** change the configured default
+(prompt and bottom toolbar) and rebinds the turn function so subsequent
+turns use the new model, but it does **not** change the configured default
 ``model`` in config.json -- use ``janito --set model=<name>`` to persist a
 new default.  The switch takes effect immediately for the running session,
 whether or not the session was started with ``--model``.
@@ -147,7 +147,7 @@ class ModelCmdHandler(CmdHandler):
             "(config default unchanged)."
         )
 
-        # The switch takes effect in real time: rebuild the send function
+        # The switch takes effect in real time: rebuild the turn function
         # with the new model so subsequent turns use it (the factory's
         # model_override wins over --model and the provider's resolved
         # model).  The conversation belongs to the model serving it: when
@@ -155,12 +155,12 @@ class ModelCmdHandler(CmdHandler):
         # leak into the new one, so start a fresh conversation (system
         # prompt preserved).
         if (previous or "").lower() != canonical.lower():
-            factory = getattr(shell, "send_factory", None)
-            if factory is not None and hasattr(shell, "send_prompt_func"):
+            factory = getattr(shell, "turn_factory", None)
+            if factory is not None and hasattr(shell, "turn_func"):
                 # thinking_override keeps the session's runtime /thinking
                 # toggle across the model switch (the config is rebuilt with
                 # the shell's current flag).
-                shell.send_prompt_func = factory(
+                shell.turn_func = factory(
                     provider,
                     model_override=canonical,
                     thinking_override=getattr(shell, "thinking", None),

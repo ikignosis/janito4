@@ -105,17 +105,17 @@ def _is_gemini_flavor(provider: str | None) -> bool:
 
 
 def _rebind_send_function(shell) -> None:
-    """Rebuild ``shell.send_prompt_func`` so the new thinking flag takes effect.
+    """Rebuild ``shell.turn_func`` so the new thinking flag takes effect.
 
     The send function is bound to a resolved APIConfig (thinking baked in at
     build time), so a runtime /thinking flip re-invokes the session's send
     factory with the shell's current flag.  No-op when the factory or the
     current send function is absent (e.g. bare test shells).
     """
-    factory = getattr(shell, "send_factory", None)
-    if factory is None or not hasattr(shell, "send_prompt_func"):
+    factory = getattr(shell, "turn_factory", None)
+    if factory is None or not hasattr(shell, "turn_func"):
         return
-    shell.send_prompt_func = factory(
+    shell.turn_func = factory(
         getattr(shell, "provider", None),
         model_override=getattr(shell, "model_override", None),
         thinking_override=getattr(shell, "thinking", False),

@@ -1,7 +1,7 @@
 """
 Tests for the shared Client base class and its four concrete subclasses.
 
-The module-level ``send_prompt`` functions of ``completions_api``,
+The module-level ``run_turn`` functions of ``completions_api``,
 ``conversations_api``, ``anthropic_api`` and ``dashscope_api`` now delegate to
 ``*Client`` subclasses of ``janito.openai_client.base_client.Client``.  These
 tests pin the new class contract:
@@ -12,7 +12,7 @@ tests pin the new class contract:
   None" empty-list semantics of ``previous_messages``, the Responses state
   dict, and the 4-tuple model-settings shape for the native-SDK clients).
 
-The behavioural equivalence of the four ``send_prompt`` functions is covered
+The behavioural equivalence of the four ``run_turn`` functions is covered
 by the existing client tests (``test_conversations_api``,
 ``test_anthropic_api``, ``test_dashscope_api``, ``test_reasoning_level``),
 which monkeypatch the module globals that the subclasses forward to.
@@ -393,11 +393,11 @@ if pytest is not None:
             )
         )
 
-        client.send("hello", verbose=True, tools=[])
+        client.run_turn("hello", verbose=True, tools=[])
         assert observer.events == ["info", "call", "response"]
 
         observer.events.clear()
-        client.send("hello", verbose=False, tools=[])
+        client.run_turn("hello", verbose=False, tools=[])
         assert observer.events == []
 
     def test_verbose_responses_response_id_from_state(monkeypatch):
@@ -461,9 +461,9 @@ if pytest is not None:
             )
         )
 
-        result = client.send("hello", verbose=True, tools=[])
+        result = client.run_turn("hello", verbose=True, tools=[])
         assert result.response_id == "resp_99"
-        # send() extracts the server-side response id from the Responses
+        # run_turn() extracts the server-side response id from the Responses
         # state dict and hands it to the observer's on_verbose_response.
         assert captured["response_id"] == "resp_99"
 

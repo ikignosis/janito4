@@ -2,7 +2,7 @@
 Tests for the shell /model command handler.
 
 ``/model`` switches the active model for the shell session: it updates the
-shell's displayed model and rebinds the send function (via ``send_factory``
+shell's displayed model and rebinds the send function (via ``turn_factory``
 with a ``model_override``) so the new model takes effect in real time
 **without** changing the configured default ``model`` in config.json (that
 requires ``janito --set model=<name>``).  ``/model`` with no argument lists
@@ -204,7 +204,7 @@ def test_switch_to_same_model_keeps_history(monkeypatch, tmp_path, capsys):
 
 
 def test_switch_model_rebinds_send_function(monkeypatch, tmp_path, capsys):
-    """The send function is rebuilt with the new model via send_factory."""
+    """The send function is rebuilt with the new model via turn_factory."""
     _use_temp_config(monkeypatch, tmp_path)
     shell = _shell_with_history(provider="deepseek")
     calls = []
@@ -213,13 +213,13 @@ def test_switch_model_rebinds_send_function(monkeypatch, tmp_path, capsys):
         calls.append((provider, model_override))
         return f"send:{provider}:{model_override}"
 
-    shell.send_factory = factory
-    shell.send_prompt_func = "send:deepseek:None"
+    shell.turn_factory = factory
+    shell.turn_func = "send:deepseek:None"
 
     assert _model_handler().handle(shell, "/model deepseek-v4-pro") is True
 
     assert calls == [("deepseek", "deepseek-v4-pro")]
-    assert shell.send_prompt_func == "send:deepseek:deepseek-v4-pro"
+    assert shell.turn_func == "send:deepseek:deepseek-v4-pro"
     assert "Conversation history cleared (model changed)." in capsys.readouterr().out
     assert shell.messages_history == [{"role": "system", "content": "sys"}]
 
@@ -228,10 +228,10 @@ def test_provider_switch_clears_model_override(monkeypatch, tmp_path, capsys):
     """A /model override is scoped to its provider: /provider clears it."""
     _use_temp_config(monkeypatch, tmp_path)
     shell = _shell_with_history(provider="openai")
-    shell.send_factory = (
+    shell.turn_factory = (
         lambda provider, model_override=None, thinking_override=None: f"send:{provider}"
     )
-    shell.send_prompt_func = "send:openai"
+    shell.turn_func = "send:openai"
 
     # /model sets a session override on the current provider.
     assert _model_handler().handle(shell, "/model gpt-5.6-luna") is True

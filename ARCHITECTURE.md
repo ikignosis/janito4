@@ -87,7 +87,7 @@ the `janito` console script). Flow:
      otherwise `run_interactive_chat` (both in `janito/cli/chat.py`).
 
 `janito/cli/chat.py` builds the per-session `APIConfig` via
-`build_api_config` and returns a `send_prompt_func` bound to the resolved API
+`build_api_config` and returns a `turn_func` bound to the resolved API
 type (Responses / Completions / Anthropic / DashScope / Gemini); it drives
 either the interactive shell or a single prompt.
 `janito/cli/session_setup.py` decides the effective system prompt and which
@@ -117,7 +117,7 @@ browser chat interface served as static HTML/JS/CSS (no build step).
 ## Agent loop & API clients
 
 The heart of the engine is a **template-method turn pipeline** defined in
-`janito/openai_client/base_client.py` (`Client.send`), shared by five clients:
+`janito/openai_client/base_client.py` (`Client.run_turn`), shared by five clients:
 
 | Client | API type | File |
 |--------|----------|------|
@@ -135,10 +135,10 @@ thinking mode, `preserve_thinking`, `use_mcp`, and the UI-side
 `stream_runner` / `observer`.
 `build_api_config` is the **single resolution point**: the only place that
 touches the config store / auth store / provider registry. It is called at
-the composition point (`cli/chat.py`'s `_make_send_factory`, which rebuilds
+the composition point (`cli/chat.py`'s `_make_turn_factory`, which rebuilds
 it on every `/provider` / `/model` / `/thinking` switch) and handed to the
-client constructor. The five module-level `send_prompt(config, prompt, *, ...)`
-functions and `Client.send` therefore make **no** config-store or auth-store
+client constructor. The five module-level `run_turn(config, prompt, *, ...)`
+functions and `Client.run_turn` therefore make **no** config-store or auth-store
 reads — the turn pipeline is a pure function of `(config, request)`.
 Thinking mode is resolved into `config.thinking` at build time too (the
 `--thinking` flag, or the provider's *static* built-in default — a `True`
@@ -161,10 +161,10 @@ The pipeline per turn:
    requested, execute them (see [Tool execution](#tool-execution)) and loop
    again; otherwise finalize (record the assistant message, return value).
    Each round's usage is folded into a `TokenStats` (`janito/agent/usage.py`)
-   carried out of `Client.send` on a `TurnUsage` out-param
+   carried out of `Client.run_turn` on a `TurnUsage` out-param
    (`openai_client/client_support.py`); the CLI's
-   `send_prompt` wrapper (`cli/chat.py` →
-   `wrap_send_prompt_with_turn_report`) delivers the end-of-turn reports
+   `wrap_turn_with_report` wrapper (built by `_make_turn_func` in
+   `cli/chat.py`) delivers the end-of-turn reports
    (used files + token-usage summary) to the observer after the API call
    returns, so the `_finalize` hooks stay display-free and every CLI entry
    point (interactive shell, `/ask`, `/compact`, one-shot prompt) gets the
@@ -176,12 +176,12 @@ and Enter-to-cancel detection — lives in a **per-round stream runner**
 `openai_client/client_support.py`). It is a UI-side concern **injected** by
 the caller through the `APIConfig` (`stream_runner`): `None` runs each
 stream worker directly in the calling thread — no thread, no spinner, no
-Enter-to-cancel — keeping `send_prompt`/`Client.send` purely API-side.
-`_make_send_factory` in `cli/chat.py` (the same composition point as
-`wrap_send_prompt_with_turn_report`) wires in the TUI runner when it builds
+Enter-to-cancel — keeping `run_turn`/`Client.run_turn` purely API-side.
+`_make_turn_factory` in `cli/chat.py` (the same composition point as
+`wrap_turn_with_report`) wires in the TUI runner when it builds
 the config, so every CLI entry point (interactive shell, `/ask`, `/compact`,
 one-shot prompt) keeps the spinner. Because the runner is invoked **per
-round** from inside the `Client.send` loop, the spinner is only visible while
+round** from inside the `Client.run_turn` loop, the spinner is only visible while
 the API stream is in flight — never during tool execution.
 
 All other user-visible output of the turn is routed through a **turn
@@ -194,14 +194,14 @@ explicit `error_kind` -- `"not_found"` / `"auth"` -- passed by the OpenAI
 SDK clients' typed `except` blocks or derived for the native-SDK clients by
 `_classify_error` in `client_support.py`; the exception is always re-raised)
 and the end-of-turn report (`on_turn_complete`, delivered by the
-`wrap_send_prompt_with_turn_report` wrapper after `send_prompt` returns). The
+`wrap_turn_with_report` wrapper after `run_turn` returns). The
 default is the headless `NullObserver`, so
-`send_prompt`/`Client.send` produce no terminal output (the web loop emits
+`run_turn`/`Client.run_turn` produce no terminal output (the web loop emits
 its own structured events instead); the CLI injects the
 `RichTurnObserver` (`openai_client/client_support.py`) when it builds the
-config through `_make_send_factory`, keeping today's rendered output
+config through `_make_turn_factory`, keeping today's rendered output
 byte-for-byte. `verbose` is likewise a session default on the config, with an
-optional per-call override on `Client.send(verbose=...)` (used by `/ask` and
+optional per-call override on `Client.run_turn(verbose=...)` (used by `/ask` and
 `/compact`).
 
 The web loop (`janito/web/backend/agent/loop.py`) drives the **same turn
@@ -428,7 +428,7 @@ a trailing newline. The shell `/prompt` command and
 1. User runs `janito "fix the test"` (or chats in the shell / web UI).
 2. `__main__` resolves config, validates runtime, dispatches to
    `run_single_prompt` / `run_interactive_chat`.
-3. The chosen API client (`Client.send` pipeline) streams the model response.
+3. The chosen API client (`Client.run_turn` pipeline) streams the model response.
 4. If the model emits tool calls, `ToolExecutor` → `run_tool()` executes them
    (built-in registry or MCP), tracking usage/used-files/changes, and the
    results are appended to the conversation.

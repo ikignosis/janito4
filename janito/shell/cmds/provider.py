@@ -151,12 +151,12 @@ class ProviderCmdHandler(CmdHandler):
         # model's context must not leak into the new one, so start a fresh
         # conversation (system prompt preserved).
         if (previous or "").lower() != canonical.lower():
-            factory = getattr(shell, "send_factory", None)
-            if factory is not None and hasattr(shell, "send_prompt_func"):
+            factory = getattr(shell, "turn_factory", None)
+            if factory is not None and hasattr(shell, "turn_func"):
                 # thinking_override keeps the session's runtime /thinking
                 # toggle across the provider switch (the config is rebuilt
                 # with the shell's current flag).
-                shell.send_prompt_func = factory(
+                shell.turn_func = factory(
                     canonical,
                     thinking_override=getattr(shell, "thinking", None),
                 )

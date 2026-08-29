@@ -13,8 +13,8 @@ Completions implementation stores and updates a ``messages`` list on the
 client side. This module delegates to the server: the Responses API keeps the
 conversation server-side and turns are chained with ``previous_response_id``::
 
-    result = send_prompt("First question")
-    result = send_prompt("Follow-up", previous_response_id=result.response_id)
+    result = run_turn("First question")
+    result = run_turn("Follow-up", previous_response_id=result.response_id)
 
 Tool calls work the same way: the model's ``function_call`` output items are
 executed and the results are sent back as ``function_call_output`` input items
@@ -53,7 +53,7 @@ from janito.tooling.executor import ToolExecutor
 # pipeline consumes it instead of re-reading the config/auth stores.
 from .api_config import APIConfig
 
-# Shared agent-loop pipeline (see Client.send) implemented by ResponsesClient.
+# Shared agent-loop pipeline (see Client.run_turn) implemented by ResponsesClient.
 from .base_client import Client
 
 # Shared client helpers (MCP loading, Rich console output, auth-error
@@ -107,21 +107,21 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ConversationResult:
-    """Outcome of one ``send_prompt`` turn against the Responses API.
+    """Outcome of one ``run_turn`` turn against the Responses API.
 
     Attributes:
         content: The assistant's final text (after any tool-call rounds).
         response_id: The server-side id of the final response. For providers
             that keep the conversation server-side (``responses_in_server``
             True), pass it as ``previous_response_id`` to the next
-            ``send_prompt`` call to continue the conversation. For stateless
+            ``run_turn`` call to continue the conversation. For stateless
             providers (``responses_in_server`` False) this is always ``None``
             and the history is carried client-side in ``input_items`` instead.
         message_count: Number of responses chained during this turn (1 +
             number of tool-call rounds).
         input_items: The full conversation as Responses input items, only for
             stateless providers (``responses_in_server`` False). Pass it back
-            as ``previous_items`` to the next ``send_prompt`` call so the
+            as ``previous_items`` to the next ``run_turn`` call so the
             entire history is re-sent (the server keeps no state). ``None``
             for server-side providers, which chain with ``response_id``
             (``previous_items`` is then only used to carry the pending user
@@ -152,7 +152,7 @@ def get_env_config() -> tuple[str | None, str, str]:
     return resolve_runtime_config()
 
 
-def send_prompt(
+def run_turn(
     config: APIConfig,
     prompt: str,
     *,
@@ -221,7 +221,7 @@ def send_prompt(
         ``extra_body={'enable_thinking': True}``).
     """
     logger.info("Sending prompt to Responses API")
-    return ResponsesClient(config).send(
+    return ResponsesClient(config).run_turn(
         prompt,
         previous_response_id=previous_response_id,
         previous_items=previous_items,
@@ -466,5 +466,5 @@ __all__ = [
     "ConversationResult",
     "get_env_config",
     "resolve_runtime_config",
-    "send_prompt",
+    "run_turn",
 ]

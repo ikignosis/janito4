@@ -49,9 +49,9 @@ class AskCmdHandler(CmdHandler):
         # Create a fresh chat history for this question, cleared on every command
         ask_history = [{"role": "system", "content": "You are an helpful assistant"}]
 
-        # Ensure send_prompt_func is available on the shell
-        send_prompt_func = getattr(shell, "send_prompt_func", None)
-        if send_prompt_func is None:
+        # Ensure turn_func is available on the shell
+        turn_func = getattr(shell, "turn_func", None)
+        if turn_func is None:
             print(
                 "\nError: No prompt function available. Are you in an active session?\n"
             )
@@ -61,7 +61,7 @@ class AskCmdHandler(CmdHandler):
 
         print()
         try:
-            send_prompt_func(
+            turn_func(
                 question,
                 verbose=verbose,
                 previous_messages=ask_history,

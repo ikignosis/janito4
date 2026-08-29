@@ -1,6 +1,6 @@
 """Shared per-API adapter layer for the CLI and web agent loops.
 
-Both agent loops (the CLI's ``janito.openai_client.base_client.Client.send``
+Both agent loops (the CLI's ``janito.openai_client.base_client.Client.run_turn``
 and the web's ``janito.web.backend.agent.loop.stream_prompt``) drive the
 same turn pipeline — resolve config, stream a response, run tool calls and
 repeat — but they differ where it matters: the CLI is synchronous and prints

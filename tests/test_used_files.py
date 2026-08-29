@@ -213,8 +213,8 @@ if pytest is not None:
         assert "1 write : /a.py" in text
         assert "read :" not in text
 
-    def test_cli_send_prompt_clears_used_files_at_start(monkeypatch):
-        """``send_prompt`` must reset the tracker before processing a prompt.
+    def test_cli_run_turn_clears_used_files_at_start(monkeypatch):
+        """``run_turn`` must reset the tracker before processing a prompt.
 
         ``OpenAI`` is patched to fail immediately so the test never reaches
         the network; the reset happens before the SDK client is created, so
@@ -233,7 +233,7 @@ if pytest is not None:
 
         monkeypatch.setattr(client_mod, "OpenAI", boom)
         try:
-            client_mod.send_prompt(make_config(), "hello")
+            client_mod.run_turn(make_config(), "hello")
         except RuntimeError:
             pass
         assert used_files.get_used_files() == {"READ": [], "WRITE": []}

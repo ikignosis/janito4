@@ -104,7 +104,7 @@ def test_run_with_progress_bar_propagates_worker_exception():
 # ---------------------------------------------------------------------------
 
 
-def _run_shell_turn(monkeypatch, send_prompt_func, shell=None):
+def _run_shell_turn(monkeypatch, turn_func, shell=None):
     """Run one shell turn with a fake prompt (second prompt raises EOFError).
 
     Args:
@@ -124,25 +124,25 @@ def _run_shell_turn(monkeypatch, send_prompt_func, shell=None):
         raise EOFError  # end the session on the next prompt
 
     monkeypatch.setattr(shell.session, "prompt", fake_prompt)
-    shell.run(send_prompt_func, no_tools=True)
+    shell.run(turn_func, no_tools=True)
     return shell
 
 
-def _appending_send_prompt_factory(raised_exc):
-    """Mirror real send_prompt: append the user message, then raise."""
+def _appending_run_turn_factory(raised_exc):
+    """Mirror real run_turn: append the user message, then raise."""
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         kwargs["previous_messages"].append({"role": "user", "content": user_input})
         raise raised_exc
 
-    return send_prompt_func
+    return turn_func
 
 
 def test_shell_enter_cancel_preserves_history(monkeypatch, capsys):
     """Enter-cancel keeps the user's message in the conversation history."""
     shell = _run_shell_turn(
         monkeypatch,
-        _appending_send_prompt_factory(RequestCancelled("cancelled by Enter")),
+        _appending_run_turn_factory(RequestCancelled("cancelled by Enter")),
     )
 
     assert any(
@@ -156,7 +156,7 @@ def test_shell_enter_cancel_preserves_history(monkeypatch, capsys):
 def test_shell_ctrl_c_still_rolls_back(monkeypatch, capsys):
     """Ctrl+C keeps rolling the conversation history back (regression)."""
     shell = _run_shell_turn(
-        monkeypatch, _appending_send_prompt_factory(KeyboardInterrupt())
+        monkeypatch, _appending_run_turn_factory(KeyboardInterrupt())
     )
 
     assert not any(m.get("role") == "user" for m in shell.messages_history)
@@ -181,7 +181,7 @@ def test_shell_enter_cancel_next_turn_keeps_context(monkeypatch):
             return "continue"
         raise EOFError  # end the session on the third prompt
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         messages = kwargs["previous_messages"]
         # Snapshot what the LLM would see for this turn (before appending).
         sent_context.append([m.get("content") for m in messages])
@@ -194,7 +194,7 @@ def test_shell_enter_cancel_next_turn_keeps_context(monkeypatch):
         return "ok"
 
     monkeypatch.setattr(shell.session, "prompt", fake_prompt)
-    shell.run(send_prompt_func, no_tools=True)
+    shell.run(turn_func, no_tools=True)
 
     # The second (successful) turn saw the cancelled "hello" message too.
     assert len(sent_context) == 2
@@ -214,7 +214,7 @@ def test_shell_enter_cancel_server_side_keeps_completed_id_and_pending_items(
     shell.initialize_history(system_prompt="sys")
     shell.previous_response_id = "r1"
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         # Mirrors conversations_api._run_stream_round: the client hands back
         # the pending user messages (never the aborted response id).
         exc = RequestCancelled("cancelled by Enter")
@@ -227,7 +227,7 @@ def test_shell_enter_cancel_server_side_keeps_completed_id_and_pending_items(
         ]
         raise exc
 
-    _run_shell_turn(monkeypatch, send_prompt_func, shell=shell)
+    _run_shell_turn(monkeypatch, turn_func, shell=shell)
 
     # The next turn keeps chaining from the last completed response...
     assert shell.previous_response_id == "r1"
@@ -250,12 +250,12 @@ def test_shell_enter_cancel_server_side_tool_round_keeps_completed_id(monkeypatc
     shell.initialize_history(system_prompt="sys")
     shell.previous_response_id = "r1"
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         exc = RequestCancelled("cancelled by Enter")
         exc.conversation_items = None  # tool round: nothing to re-send
         raise exc
 
-    _run_shell_turn(monkeypatch, send_prompt_func, shell=shell)
+    _run_shell_turn(monkeypatch, turn_func, shell=shell)
 
     assert shell.previous_response_id == "r1"
     assert shell.conversation_items is None
@@ -283,7 +283,7 @@ def test_shell_enter_cancel_server_side_next_turn_resends_cancelled_message(
             return "thanks"
         raise EOFError  # end the session on the third prompt
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         sent.append(
             {
                 "previous_response_id": kwargs["previous_response_id"],
@@ -305,7 +305,7 @@ def test_shell_enter_cancel_server_side_next_turn_resends_cancelled_message(
         return "ok"
 
     monkeypatch.setattr(shell.session, "prompt", fake_prompt)
-    shell.run(send_prompt_func, no_tools=True)
+    shell.run(turn_func, no_tools=True)
 
     # The cancelled turn chained from the last completed response.
     assert sent[0]["previous_response_id"] == "r1"
@@ -338,10 +338,10 @@ def test_shell_enter_cancel_stateless_keeps_cancelled_message(monkeypatch):
         },
     ]
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         raise RequestCancelled("cancelled by Enter")
 
-    _run_shell_turn(monkeypatch, send_prompt_func, shell=shell)
+    _run_shell_turn(monkeypatch, turn_func, shell=shell)
 
     user_texts = [
         item["content"][0]["text"]
@@ -362,7 +362,7 @@ def test_shell_enter_cancel_stateless_fresh_conversation_keeps_context(monkeypat
     shell.initialize_history(system_prompt="sys")
     assert shell.conversation_items is None  # fresh conversation
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         # Mirrors conversations_api._run_stream_round for stateless mode: the
         # exception carries the full items including the cancelled message.
         exc = RequestCancelled("cancelled by Enter")
@@ -380,7 +380,7 @@ def test_shell_enter_cancel_stateless_fresh_conversation_keeps_context(monkeypat
         ]
         raise exc
 
-    _run_shell_turn(monkeypatch, send_prompt_func, shell=shell)
+    _run_shell_turn(monkeypatch, turn_func, shell=shell)
 
     user_texts = [
         item["content"][0]["text"]
@@ -411,7 +411,7 @@ def test_shell_enter_cancel_stateless_next_turn_sends_full_items(monkeypatch):
             return "which files did you read?"
         raise EOFError  # end the session on the third prompt
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         if calls["n"] == 1:
             # First turn is interrupted by Enter; the stateless client hands
             # back the full items (system + the cancelled message).
@@ -434,7 +434,7 @@ def test_shell_enter_cancel_stateless_next_turn_sends_full_items(monkeypatch):
         return "ok"
 
     monkeypatch.setattr(shell.session, "prompt", fake_prompt)
-    shell.run(send_prompt_func, no_tools=True)
+    shell.run(turn_func, no_tools=True)
 
     assert len(sent_items) == 1
     user_texts = [

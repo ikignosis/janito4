@@ -3,7 +3,7 @@ Tests for the native DashScope SDK client (``janito.dashscope_api``).
 
 The ``dashscope`` package is **not** installed in the test environment, so the
 stream-assembly logic is tested with fake SDK chunk objects (``SimpleNamespace``)
-and the package guard is pinned down: ``send_prompt`` / ``_create_client`` must
+and the package guard is pinned down: ``run_turn`` / ``_create_client`` must
 refuse to run with an actionable install message when the package is missing.
 """
 
@@ -184,8 +184,8 @@ if pytest is not None:
             )
         assert "pip install dashscope" in str(exc.value)
 
-    def test_send_prompt_aborts_without_dashscope_package(monkeypatch):
-        """send_prompt refuses to run when the `dashscope` package is missing,
+    def test_run_turn_aborts_without_dashscope_package(monkeypatch):
+        """run_turn refuses to run when the `dashscope` package is missing,
         even when the rest of the runtime config resolves (issue #70: the
         config carries the resolved endpoint/key/model)."""
         import importlib.util
@@ -200,7 +200,7 @@ if pytest is not None:
             base_url="https://dashscope-intl.aliyuncs.com/api/v1",
         )
         with pytest.raises(RuntimeError) as exc:
-            dashscope_api.send_prompt(config, "hello")
+            dashscope_api.run_turn(config, "hello")
         assert "pip install dashscope" in str(exc.value)
 
     def test_consume_stream_joins_multimodal_content():

@@ -2,12 +2,12 @@
 Tests for the post-call turn report.
 
 The CLI no longer prints the token-usage summary inside the per-client
-``_finalize`` helpers.  Instead ``Client.send`` folds every round's usage
+``_finalize`` helpers.  Instead ``Client.run_turn`` folds every round's usage
 into a :class:`~janito.agent.usage.TokenStats` carried out on a
 :class:`~janito.openai_client.client_support.TurnUsage` out-param, and the
-CLI renders it once ``send_prompt`` returns via
+CLI renders it once ``run_turn`` returns via
 :func:`~janito.openai_client.client_support.display_turn_usage` -- wired up
-by :func:`~janito.openai_client.client_support.wrap_send_prompt_with_turn_report`
+by :func:`~janito.openai_client.client_support.wrap_turn_with_report`
 in ``janito/cli/chat.py``.  These tests pin that contract.
 """
 
@@ -30,7 +30,7 @@ from janito.agent.usage import TokenStats, normalize_usage  # noqa: E402
 from janito.openai_client.client_support import (  # noqa: E402
     TurnUsage,
     display_turn_usage,
-    wrap_send_prompt_with_turn_report,
+    wrap_turn_with_report,
 )
 
 
@@ -147,9 +147,9 @@ class TestDisplayTurnUsage:
         assert self._render(TurnUsage()) == ""
 
 
-class TestWrapSendPromptWithTurnReport:
-    def _make_send(self, holder):
-        def fake_send(
+class TestWrapLlmTurnWithReport:
+    def _make_turn(self, holder):
+        def fake_turn(
             prompt,
             verbose=False,
             previous_messages=None,
@@ -176,7 +176,7 @@ class TestWrapSendPromptWithTurnReport:
             )
             return "final answer"
 
-        return fake_send
+        return fake_turn
 
     def _make_observer(self, recorded):
         class FakeObserver:
@@ -188,8 +188,8 @@ class TestWrapSendPromptWithTurnReport:
     def test_wrapper_calls_api_then_displays_report(self):
         holder = {}
         recorded = []
-        wrapped = wrap_send_prompt_with_turn_report(
-            self._make_send(holder), observer=self._make_observer(recorded)
+        wrapped = wrap_turn_with_report(
+            self._make_turn(holder), observer=self._make_observer(recorded)
         )
         result = wrapped("hi")
         assert result == "final answer"
@@ -198,8 +198,8 @@ class TestWrapSendPromptWithTurnReport:
     def test_wrapper_can_suppress_report(self):
         holder = {}
         recorded = []
-        wrapped = wrap_send_prompt_with_turn_report(
-            self._make_send(holder), observer=self._make_observer(recorded)
+        wrapped = wrap_turn_with_report(
+            self._make_turn(holder), observer=self._make_observer(recorded)
         )
         result = wrapped("hi", display_turn_report=False)
         assert result == "final answer"
@@ -207,15 +207,15 @@ class TestWrapSendPromptWithTurnReport:
 
     def test_wrapper_without_observer_renders_nothing(self):
         holder = {}
-        wrapped = wrap_send_prompt_with_turn_report(self._make_send(holder))
+        wrapped = wrap_turn_with_report(self._make_turn(holder))
         result = wrapped("hi")
         assert result == "final answer"
 
     def test_wrapper_forwards_api_kwargs(self):
         holder = {}
         recorded = []
-        wrapped = wrap_send_prompt_with_turn_report(
-            self._make_send(holder), observer=self._make_observer(recorded)
+        wrapped = wrap_turn_with_report(
+            self._make_turn(holder), observer=self._make_observer(recorded)
         )
         wrapped(
             "hello",

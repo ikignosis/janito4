@@ -70,8 +70,8 @@ class RxCmdHandler(CmdHandler):
 
     def _rx(self, shell, question: str) -> None:
         """Send the prompt with the main history, using only read/execute tools."""
-        send_prompt_func = getattr(shell, "send_prompt_func", None)
-        if send_prompt_func is None:
+        turn_func = getattr(shell, "turn_func", None)
+        if turn_func is None:
             print(
                 "\nError: No prompt function available. Are you in an active session?\n"
             )
@@ -82,7 +82,7 @@ class RxCmdHandler(CmdHandler):
         # Reuse the shell's main-prompt path: same history, turns,
         # Responses state sync and cancel/rollback handling -- only the tool
         # set is restricted to the read and execute tools.
-        shell._send_prompt(question, tools=read_exec_schemas)
+        shell._run_turn(question, tools=read_exec_schemas)
 
 
 # Register this handler

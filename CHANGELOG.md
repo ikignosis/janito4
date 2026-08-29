@@ -164,6 +164,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `display_turn_usage` and `_display_usage`, and from the `turn=1` /
   `turn=self.turn_count` call sites in `run_single_prompt`, the interactive
   shell and `/ask`.
+- Renamed the LLM-turn entry points from `send_prompt` to `run_turn`
+  (dropping the `llm_` prefix) throughout the codebase to match the
+  established "turn" vocabulary (the web loop's `_run_turn` /
+  `_run_prompt_turn`, the observer's `on_turn_complete`, the shell's
+  `conversation_turn` bookkeeping): the five module-level
+  `send_prompt(config, prompt, *, ...)` functions became
+  `run_turn(config, prompt, *, ...)`, `Client.send` became
+  `Client.run_turn`, `wrap_send_prompt_with_turn_report` became
+  `wrap_turn_with_report`, `_make_send_prompt_func` became
+  `_make_turn_func`, `_make_send_factory` / `shell.send_factory` became
+  `_make_turn_factory` / `shell.turn_factory`, the shell's
+  `send_prompt_func` attribute became `turn_func` and its `_send_prompt`
+  became `_run_turn`. The `janito.openai_client.send_prompt_responses`
+  alias was dropped (project convention: no backward compatibility).
+  `web/backend/prompts.py`'s `_send_prompt` (a WebSocket frame sender, a
+  different concept) is intentionally unchanged.
 
 ### Fixed
 

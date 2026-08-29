@@ -9,14 +9,14 @@ build the :class:`~janito.tooling.executor.ToolExecutor`, resolve the model
 settings, then loop *stream -> display -> tool calls -> finalize*.
 
 This module extracts that pipeline into a :class:`Client` base class as a
-template method (:meth:`send`).  Subclasses implement the API-specific hooks;
-the module-level ``send_prompt`` functions remain as thin wrappers that
+template method (:meth:`run_turn`).  Subclasses implement the API-specific hooks;
+the module-level ``run_turn`` functions remain as thin wrappers that
 construct the subclass with a resolved
-:class:`~janito.openai_client.api_config.APIConfig` and call :meth:`send`.
+:class:`~janito.openai_client.api_config.APIConfig` and call :meth:`run_turn`.
 
 Config is resolved **once** at the composition point by
 :func:`~janito.openai_client.api_config.build_api_config` and handed to the
-client as an immutable :class:`APIConfig` (issue #70): ``Client.send`` is a
+client as an immutable :class:`APIConfig` (issue #70): ``Client.run_turn`` is a
 pure function of ``(config, request)`` and never reads the config store /
 auth store / provider registry itself.  The thinking mode (``--thinking`` /
 ``/thinking`` flag against the provider's *static* built-in default) is
@@ -37,7 +37,7 @@ those names directly (e.g. ``CompletionsClient._resolve_tools`` calls the
 The per-round stream runner is the one hook that is **not** resolved through
 module globals: it is a UI-side concern (the TUI progress bar +
 Enter-to-cancel detection) injected through the ``APIConfig``
-(``stream_runner``), so ``send_prompt``/``Client.send`` stay purely
+(``stream_runner``), so ``run_turn``/``Client.run_turn`` stay purely
 API-side and tests inject a fake runner via the config instead of
 monkeypatching a module global.
 """
@@ -78,10 +78,10 @@ def _fold_turn_usage(
 class Client:
     """Shared agent-loop pipeline for a single API backend.
 
-    Subclasses implement the API-specific hooks; :meth:`send` runs the common
+    Subclasses implement the API-specific hooks; :meth:`run_turn` runs the common
     turn pipeline (template method).  The class is stateless across turns: the
     per-call values (SDK client, conversation state) are locals of
-    :meth:`send` and are threaded into the hooks explicitly, so a single
+    :meth:`run_turn` and are threaded into the hooks explicitly, so a single
     client instance can be reused for many prompts.
 
     Attributes:
@@ -116,7 +116,7 @@ class Client:
     # Template method: the shared turn pipeline
     # ------------------------------------------------------------------
 
-    def send(
+    def run_turn(
         self,
         prompt: str,
         *,
@@ -127,13 +127,13 @@ class Client:
         """Run one full turn: setup, stream loop, tool calls, finalize.
 
         ``kwargs`` carries the conversation-context parameters of the concrete
-        ``send_prompt`` signature (e.g. ``previous_messages``,
+        ``run_turn`` signature (e.g. ``previous_messages``,
         ``previous_response_id``, ``previous_items``, ``instructions``); each
         subclass's :meth:`_init_conversation_state` picks the ones it needs.
         The optional ``usage_out`` kwarg (a
         :class:`~janito.openai_client.client_support.TurnUsage`) is populated
         with the turn's usage and display metadata so the caller can render
-        the end-of-turn reports after ``send`` returns.  The conversation
+        the end-of-turn reports after ``run_turn`` returns.  The conversation
         turn number is never passed here: it is display-only caller
         knowledge, supplied directly to the renderer by the caller.
 
@@ -158,7 +158,7 @@ class Client:
 
         # Out-param for the post-call turn report (see TurnUsage): populated
         # as the rounds stream so the caller can render the usage summary
-        # after send() returns instead of inside the _finalize hooks.
+        # after run_turn() returns instead of inside the _finalize hooks.
         usage_out = kwargs.pop("usage_out", None)
 
         base_url, api_key, model = (
@@ -204,7 +204,7 @@ class Client:
 
         # Per-turn usage accumulator: folds every round (tool-call rounds
         # included) into a TokenStats so the caller can render the summary
-        # after send() returns (see TurnUsage).  Metadata that can only be
+        # after run_turn() returns (see TurnUsage).  Metadata that can only be
         # resolved here is recorded on the out-param up front.
         turn_stats: TokenStats | None = None
         if usage_out is not None:
@@ -395,9 +395,9 @@ class Client:
         ``usage_out`` (a
         :class:`~janito.openai_client.client_support.TurnUsage`, or ``None``)
         receives the display metadata the caller needs to render the
-        end-of-turn reports after ``send`` returns (message count / label /
+        end-of-turn reports after ``run_turn`` returns (message count / label /
         cached reporting); the token counters were already folded onto
-        ``usage_out.stats`` by :meth:`send`.
+        ``usage_out.stats`` by :meth:`run_turn`.
         """
         raise NotImplementedError
 

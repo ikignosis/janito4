@@ -69,8 +69,8 @@ class WriteCmdHandler(CmdHandler):
 
     def _write(self, shell, question: str) -> None:
         """Send the prompt with the main history, using only write-only tools."""
-        send_prompt_func = getattr(shell, "send_prompt_func", None)
-        if send_prompt_func is None:
+        turn_func = getattr(shell, "turn_func", None)
+        if turn_func is None:
             print(
                 "\nError: No prompt function available. Are you in an active session?\n"
             )
@@ -81,7 +81,7 @@ class WriteCmdHandler(CmdHandler):
         # Reuse the shell's main-prompt path: same history, turns,
         # Responses state sync and cancel/rollback handling -- only the tool
         # set is restricted to the write-only tools.
-        shell._send_prompt(question, tools=write_only_schemas)
+        shell._run_turn(question, tools=write_only_schemas)
 
 
 # Register this handler

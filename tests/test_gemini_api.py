@@ -4,7 +4,7 @@ Tests for the native Gemini SDK client (``janito.gemini_api``).
 The stream-assembly logic is tested with fake SDK chunk objects
 (``SimpleNamespace`` mirroring ``GenerateContentResponse`` /
 ``Candidate`` / ``Part``) and the package guard is pinned down:
-``send_prompt`` / ``_create_client`` must refuse to run with an actionable
+``run_turn`` / ``_create_client`` must refuse to run with an actionable
 install message when the ``google-genai`` package is missing.
 """
 
@@ -223,8 +223,8 @@ if pytest is not None:
             )
         assert "pip install google-genai" in str(exc.value)
 
-    def test_send_prompt_aborts_without_google_genai_package(monkeypatch):
-        """send_prompt refuses to run when the `google-genai` package is
+    def test_run_turn_aborts_without_google_genai_package(monkeypatch):
+        """run_turn refuses to run when the `google-genai` package is
         missing, even when the rest of the runtime config resolves (issue #70:
         the config carries the resolved endpoint/key/model)."""
         import importlib.util
@@ -239,7 +239,7 @@ if pytest is not None:
             base_url="https://generativelanguage.googleapis.com",
         )
         with pytest.raises(RuntimeError) as exc:
-            gemini_api.send_prompt(config, "hello")
+            gemini_api.run_turn(config, "hello")
         assert "pip install google-genai" in str(exc.value)
 
     @requires_genai

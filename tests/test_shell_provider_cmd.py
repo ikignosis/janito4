@@ -12,7 +12,7 @@ must not match non-``/provider`` input (e.g. ``/providers``) and must report
 unknown providers without touching the config.
 
 The switch takes effect in real time: the shell's send function is rebound to
-the new provider (via ``send_factory``) and the LLM conversation history is
+the new provider (via ``turn_factory``) and the LLM conversation history is
 cleared (system prompt preserved), whether or not the session was started
 with ``--provider``.  Switching to the same provider keeps both the history
 and the send function.
@@ -269,13 +269,13 @@ def test_cli_bound_session_switch_to_other_provider_clears_history(
         calls.append(provider)
         return f"send:{provider}"
 
-    shell.send_factory = factory
-    shell.send_prompt_func = "send:openai"
+    shell.turn_factory = factory
+    shell.turn_func = "send:openai"
 
     assert _provider_handler().handle(shell, "/provider deepseek") is True
 
     assert calls == ["deepseek"]
-    assert shell.send_prompt_func == "send:deepseek"
+    assert shell.turn_func == "send:deepseek"
     assert "Conversation history cleared (provider changed)." in capsys.readouterr().out
     # History is reset to just the preserved system prompt.
     assert shell.messages_history == [{"role": "system", "content": "sys"}]
@@ -287,12 +287,12 @@ def test_switch_to_same_provider_keeps_send_function(monkeypatch, tmp_path, caps
     """Switching to the provider already in effect keeps history and send function."""
     _use_temp_config(monkeypatch, tmp_path)
     shell = _shell_with_history(provider="openai")
-    shell.send_factory = lambda provider, thinking_override=None: f"send:{provider}"
-    shell.send_prompt_func = "send:openai"
+    shell.turn_factory = lambda provider, thinking_override=None: f"send:{provider}"
+    shell.turn_func = "send:openai"
 
     assert _provider_handler().handle(shell, "/provider openai") is True
 
-    assert shell.send_prompt_func == "send:openai"
+    assert shell.turn_func == "send:openai"
     assert "Conversation history cleared" not in capsys.readouterr().out
     assert len(shell.messages_history) == 3
 

@@ -30,7 +30,7 @@ from ..tooling.executor import ToolExecutor
 # pipeline consumes it instead of re-reading the config/auth stores.
 from .api_config import APIConfig
 
-# Shared agent-loop pipeline (see Client.send) implemented by CompletionsClient.
+# Shared agent-loop pipeline (see Client.run_turn) implemented by CompletionsClient.
 from .base_client import Client
 
 # Shared helpers reused by every client module (token formatting, MCP
@@ -182,7 +182,7 @@ def get_env_config() -> tuple[str | None, str, str]:
     return resolve_runtime_config()
 
 
-def send_prompt(
+def run_turn(
     config: APIConfig,
     prompt: str,
     *,
@@ -223,7 +223,7 @@ def send_prompt(
         sent as ``extra_body={'thinking': {...}}``).
     """
     logger.info("Sending prompt to API")
-    return CompletionsClient(config).send(
+    return CompletionsClient(config).run_turn(
         prompt,
         previous_messages=previous_messages,
         tools=tools,

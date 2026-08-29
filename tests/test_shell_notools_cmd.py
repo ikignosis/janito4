@@ -55,14 +55,14 @@ def test_handler_name():
 def test_handle_dispatches_only_notools_command(monkeypatch):
     handler = NoToolsCmdHandler()
     shell = _shell()
-    shell.send_prompt_func = lambda **kw: None
+    shell.turn_func = lambda **kw: None
     sent = {}
 
-    def fake_send_prompt(prompt, tools=None):
+    def fake_run_turn(prompt, tools=None):
         sent["prompt"] = prompt
         sent["tools"] = tools
 
-    monkeypatch.setattr(shell, "_send_prompt", fake_send_prompt)
+    monkeypatch.setattr(shell, "_run_turn", fake_run_turn)
 
     assert handler.handle(shell, "/notools what is this?") is True
     assert sent["prompt"] == "what is this?"
@@ -86,10 +86,10 @@ def test_notools_without_message_shows_usage(monkeypatch, capfd):
     shell = _shell()
     called = {"n": 0}
 
-    def fake_send_prompt(prompt, tools=None):
+    def fake_run_turn(prompt, tools=None):
         called["n"] += 1
 
-    monkeypatch.setattr(shell, "_send_prompt", fake_send_prompt)
+    monkeypatch.setattr(shell, "_run_turn", fake_run_turn)
 
     assert handler.handle(shell, "/notools") is True
     out = capfd.readouterr().out
@@ -98,11 +98,11 @@ def test_notools_without_message_shows_usage(monkeypatch, capfd):
     assert called["n"] == 0
 
 
-def test_notools_requires_send_prompt_func(monkeypatch, capfd):
-    """Without send_prompt_func an error is printed instead of crashing."""
+def test_notools_requires_turn_func(monkeypatch, capfd):
+    """Without turn_func an error is printed instead of crashing."""
     handler = NoToolsCmdHandler()
     shell = _shell()
-    # The shell has no send_prompt_func until run() sets it.
+    # The shell has no turn_func until run() sets it.
     assert handler.handle(shell, "/notools hello") is True
     out = capfd.readouterr().out
     assert "No prompt function available" in out
@@ -114,7 +114,7 @@ def test_notools_requires_send_prompt_func(monkeypatch, capfd):
 
 
 def test_notools_routes_through_main_history_without_tools(monkeypatch):
-    """/notools goes through _send_prompt, which uses the main history and
+    """/notools goes through _run_turn, which uses the main history and
     offers no tools for this turn only."""
     handler = NoToolsCmdHandler()
     shell = _shell()
@@ -130,7 +130,7 @@ def test_notools_routes_through_main_history_without_tools(monkeypatch):
         kwargs.update(kw)
         return "assistant"
 
-    shell.send_prompt_func = capture
+    shell.turn_func = capture
 
     handler.handle(shell, "/notools summarize the project")
 
@@ -158,12 +158,12 @@ def test_notools_overrides_session_tools_for_one_message(monkeypatch):
         sent.append(tools)
         return "assistant"
 
-    shell.send_prompt_func = capture
+    shell.turn_func = capture
 
     handler.handle(shell, "/notools do this without tools")
     # A regular prompt afterwards uses the session default (tools=None),
     # even though the shell itself has tools enabled.
-    shell._send_prompt("now do it normally")
+    shell._run_turn("now do it normally")
 
     assert sent[0] == []
     assert sent[1] is None

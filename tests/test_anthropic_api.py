@@ -2,7 +2,7 @@
 Tests for the native Anthropic SDK client (``janito.openai_client.anthropic_api``).
 
 The stream-assembly logic is tested with fake SDK event objects
-(``SimpleNamespace``) and the package guard is pinned down: ``send_prompt`` /
+(``SimpleNamespace``) and the package guard is pinned down: ``run_turn`` /
 ``_create_client`` must refuse to run with an actionable install message when
 the ``anthropic`` package is missing. The guard tests are skipped when the
 optional ``anthropic`` package *is* installed (the guard can't be exercised),
@@ -196,8 +196,8 @@ if pytest is not None:
         assert "pip install anthropic" in str(exc.value)
 
     @requires_no_anthropic
-    def test_send_prompt_aborts_without_anthropic_package():
-        """send_prompt refuses to run when the `anthropic` package is missing,
+    def test_run_turn_aborts_without_anthropic_package():
+        """run_turn refuses to run when the `anthropic` package is missing,
         even when the rest of the runtime config resolves (issue #70: the
         config carries the resolved endpoint/key/model)."""
         from conftest import make_config
@@ -209,7 +209,7 @@ if pytest is not None:
             base_url="https://api.anthropic.com",
         )
         with pytest.raises(RuntimeError) as exc:
-            anthropic_api.send_prompt(config, "hello")
+            anthropic_api.run_turn(config, "hello")
         assert "pip install anthropic" in str(exc.value)
 
 else:  # pragma: no cover - fallback runner without pytest

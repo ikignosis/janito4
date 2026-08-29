@@ -2,11 +2,11 @@
 Tests for the pluggable TurnObserver protocol.
 
 The API clients route every user-visible event through a
-:class:`~janito.agent.observer.TurnObserver` so ``Client.send`` itself stays
+:class:`~janito.agent.observer.TurnObserver` so ``Client.run_turn`` itself stays
 UI-free: the default resolves to the headless
 :class:`~janito.agent.observer.NullObserver`, and the CLI injects the Rich
 observer (:class:`~janito.openai_client.client_support.RichTurnObserver`)
-through ``_make_send_prompt_func``.  These tests pin the protocol surface,
+through ``_make_turn_func``.  These tests pin the protocol surface,
 the headless default, the Rich observer's rendering and its error dispatch.
 """
 

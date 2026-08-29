@@ -59,7 +59,8 @@ class InteractiveShell(_SessionMixin):
         self.thinking = thinking
         self.api_type = api_type
         # Set by /model for the current session: the explicit model override
-        # that the send factory (re)built by /provider and /model consults so
+        # that the turn_factory (re)built by /provider and /model consults
+        # so
         # the runtime model matches the displayed one.  Cleared when /provider
         # switches to another provider (the new provider resolves its own
         # model).
@@ -159,7 +160,7 @@ class InteractiveShell(_SessionMixin):
         else:
             self.messages_history = []
         # A fresh conversation has no recorded turns yet: they are
-        # each time a user prompt is about to be sent (see _send_prompt).
+        # each time a user prompt is about to be sent (see _run_turn).
         self.history_turns = []
         # A fresh conversation also starts a fresh server-side conversation:
         # the next turn must not chain to the previous response id, and any
@@ -336,7 +337,7 @@ class InteractiveShell(_SessionMixin):
 
         return False
 
-    def _send_prompt(
+    def _run_turn(
         self, user_input: str, tools: list[dict[str, Any]] | None = None
     ) -> None:
         """Send a prompt to the AI and update the conversation state.
@@ -368,7 +369,7 @@ class InteractiveShell(_SessionMixin):
         # submitted in the conversation); the pre-prompt rule shows it.
         self.turn_count += 1
         try:
-            result = self.send_prompt_func(
+            result = self.turn_func(
                 user_input,
                 # verbose is a session default carried by the APIConfig
                 # (issue #70); thinking is resolved into the config at build
@@ -388,7 +389,7 @@ class InteractiveShell(_SessionMixin):
                 self._record_responses_result(result)
             # On success, keep the recorded start where it is (before this
             # turn) so /rewind can undo the last exchange. The next turn
-            # will update it before its own send_prompt call.
+            # will update it before its own run_turn call.
         except RequestCancelled as e:
             # Enter was pressed while waiting for the API: interrupt the
             # request but keep the conversation intact so the next turn still
@@ -434,7 +435,7 @@ class InteractiveShell(_SessionMixin):
             # Rollback on any other unexpected error as well
             self._rollback_history()
             print(f"Error: {e}")
-        # Note: send_prompt_func already appends user and assistant messages
+        # Note: turn_func already appends user and assistant messages
         # to previous_messages (which is self.messages_history), so we don't
         # need to append them here.
 
@@ -507,7 +508,7 @@ class InteractiveShell(_SessionMixin):
 
     def run(
         self,
-        send_prompt_func: Callable,
+        turn_func: Callable,
         verbose: bool = False,
         no_tools: bool = False,
         thinking: bool = False,
@@ -516,13 +517,13 @@ class InteractiveShell(_SessionMixin):
         Run the interactive chat loop.
 
         Args:
-            send_prompt_func: Function to call to send prompts to the AI
+            turn_func: Function to call to run one LLM turn with the AI
             verbose: Enable verbose output
             no_tools: If True, don't pass any tools to the AI
             thinking: If True, enable thinking mode
         """
         # Store references so command handlers (e.g. /ask) can use them
-        self.send_prompt_func = send_prompt_func
+        self.turn_func = turn_func
         self.verbose = verbose
         self.no_tools = no_tools
         self.thinking = thinking
@@ -535,7 +536,7 @@ class InteractiveShell(_SessionMixin):
             # Show the upcoming conversation turn above the prompt (issue
             # #69): a rich horizontal rule labeled with the next turn number.
             # Display-only; the counter is bumped when the prompt is actually
-            # submitted (see _send_prompt), so a fresh conversation starts at
+            # submitted (see _run_turn), so a fresh conversation starts at
             # Turn 1.
             _rich_console.print(Rule(f"Turn {self.turn_count + 1}"))
             user_input = self._get_user_input()
@@ -565,6 +566,6 @@ class InteractiveShell(_SessionMixin):
                 continue
 
             if user_input.strip():
-                self._send_prompt(user_input)
+                self._run_turn(user_input)
 
         print("\nChat session ended.")

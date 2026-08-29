@@ -23,7 +23,7 @@ turn re-sends the full ``contents`` list (plus the top-level
 ``system_instruction``).  Tool calls are executed with the shared
 :class:`~janito.tooling.executor.ToolExecutor` and their ``function_response``
 parts are appended to the history before the next round, repeating until the
-model emits a final text answer.  ``send_prompt`` returns the assistant text
+model emits a final text answer.  ``run_turn`` returns the assistant text
 and mutates ``previous_messages`` in place (Completions-style), so the
 interactive shell treats this mode exactly like Completions.
 
@@ -58,7 +58,7 @@ from janito.gemini_helpers import (  # noqa: F401 (re-exported for backward comp
 # pipeline consumes it instead of re-reading the config/auth stores.
 from janito.openai_client.api_config import APIConfig
 
-# Shared agent-loop pipeline (see Client.send) implemented by GeminiClient.
+# Shared agent-loop pipeline (see Client.run_turn) implemented by GeminiClient.
 from janito.openai_client.base_client import Client
 
 # Shared client helpers: the usage summary out-param used by the module's
@@ -114,7 +114,7 @@ def _create_client(base_url: str | None, api_key: str) -> Any:
     return genai.Client(api_key=api_key, http_options=http_options)
 
 
-def send_prompt(
+def run_turn(
     config: APIConfig,
     prompt: str,
     *,
@@ -171,7 +171,7 @@ def send_prompt(
         instead of a thinking flag.
     """
     logger.info("Sending prompt to Gemini API (native SDK)")
-    return GeminiClient(config).send(
+    return GeminiClient(config).run_turn(
         prompt,
         previous_messages=previous_messages,
         instructions=instructions,
@@ -333,5 +333,5 @@ class GeminiClient(Client):
 
 
 __all__ = [
-    "send_prompt",
+    "run_turn",
 ]

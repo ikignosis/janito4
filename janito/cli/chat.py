@@ -16,7 +16,7 @@ from ..openai_client import (
 from ..openai_client.client_support import (
     RichTurnObserver,
     _run_with_progress_bar,
-    wrap_send_prompt_with_turn_report,
+    wrap_turn_with_report,
 )
 from ..provider_accessors import get_responses_in_server_from_provider
 from ..shell import InteractiveShell
@@ -28,8 +28,8 @@ from ..tooling.path_utils import display_path
 _banner_printed = False
 
 
-def _make_send_prompt_func(config: APIConfig):
-    """Return a send-prompt callable bound to a resolved APIConfig.
+def _make_turn_func(config: APIConfig):
+    """Return a run-turn callable bound to a resolved APIConfig.
 
     One closure replaces the previous five per-API-type closures (issue #70):
     the client class is picked from ``config.api_type`` and the union
@@ -47,7 +47,7 @@ def _make_send_prompt_func(config: APIConfig):
     Each backend's ``_init_conversation_state`` already picks what it needs
     from the union kwargs, so there is a single body.
 
-    The returned callable is wrapped with ``wrap_send_prompt_with_turn_report``,
+    The returned callable is wrapped with ``wrap_turn_with_report``,
     so it calls the API *and* prints the end-of-turn reports (used files +
     token-usage summary) from the ``usage_out`` out-param the client
     populates; pass ``display_turn_report=False`` to suppress them (e.g.
@@ -59,7 +59,7 @@ def _make_send_prompt_func(config: APIConfig):
             session (provider, model, endpoint, api_key, token limits,
             reasoning level, ``use_mcp`` and the UI-side ``stream_runner`` /
             ``observer``).  Built once per session / provider switch by
-            ``build_api_config``; the returned send callable performs no
+            ``build_api_config``; the returned callable performs no
             config-store / auth-store reads.
     """
     from .. import dashscope_api, gemini_api
@@ -77,7 +77,7 @@ def _make_send_prompt_func(config: APIConfig):
     except KeyError:
         raise ValueError(f"Unsupported API type: {config.api_type}")
 
-    def send(
+    def run_turn(
         prompt,
         *,
         verbose=None,
@@ -93,7 +93,7 @@ def _make_send_prompt_func(config: APIConfig):
         # the session flag and /compact passes False to suppress the dumps.
         # Thinking mode is resolved into ``config.thinking`` at build time
         # (the shell's /thinking toggle rebuilds the config via the factory).
-        return client.send(
+        return client.run_turn(
             prompt,
             verbose=verbose,
             previous_messages=previous_messages,
@@ -104,10 +104,10 @@ def _make_send_prompt_func(config: APIConfig):
             usage_out=usage_out,
         )
 
-    return wrap_send_prompt_with_turn_report(send, observer=config.observer)
+    return wrap_turn_with_report(run_turn, observer=config.observer)
 
 
-def _make_send_factory(
+def _make_turn_factory(
     cli_api_type: str | None,
     cli_model: str | None,
     cli_provider: str | None,
@@ -115,9 +115,9 @@ def _make_send_factory(
     verbose: bool = False,
     cli_thinking: bool | None = None,
 ) -> Callable[[str | None, str | None], Callable]:
-    """Return a factory that builds the send function for a provider.
+    """Return a factory that builds the run-turn function for a provider.
 
-    The interactive shell stores the returned factory as ``send_factory`` and
+    The interactive shell stores the returned factory as ``turn_factory`` and
     ``/provider`` calls it with the new provider, so a provider switch takes
     effect in real time.  For the target provider the factory re-resolves:
 
@@ -146,7 +146,7 @@ def _make_send_factory(
         cli_reasoning_level: Reasoning depth passed via ``--reasoning-level``
             (may be None).
         verbose: Session default for verbose output (stored on the config;
-            per-call overrides still possible via ``Client.send(verbose=...)``).
+            per-call overrides still possible via ``Client.run_turn(verbose=...)``).
         cli_thinking: The ``--thinking`` CLI flag for the session (may be
             None).  ``True`` forces thinking on; ``False``/``None`` leaves it
             to the provider's built-in default.  A ``thinking_override``
@@ -155,10 +155,10 @@ def _make_send_factory(
 
     Returns:
         A callable ``factory(provider, model_override=None, thinking_override=None)
-        -> send_prompt_func``.
+        -> turn_func``.
     """
 
-    def send_factory(
+    def turn_factory(
         provider: str | None,
         model_override: str | None = None,
         thinking_override: bool | None = None,
@@ -184,7 +184,7 @@ def _make_send_factory(
         # rebuilding the config; otherwise the session's --thinking flag
         # applies.
         thinking = thinking_override if thinking_override is not None else cli_thinking
-        return _make_send_prompt_func(
+        return _make_turn_func(
             build_api_config(
                 api_type=resolve_api_type(cli_api_type, provider, model),
                 cli_model=model,
@@ -197,7 +197,7 @@ def _make_send_factory(
             )
         )
 
-    return send_factory
+    return turn_factory
 
 
 def print_version_banner(console=None):
@@ -321,12 +321,13 @@ def run_interactive_chat(args):
         provider=cli_provider,
         api_type=cli_api_type,
     )
-    # Factory to (re)build the send function per provider: ``/provider`` calls
+    # Factory to (re)build the run-turn function per provider: ``/provider``
+    # calls
     # it with the new provider so the switch takes effect in real time
-    # (provider, model and API type are re-resolved, see _make_send_factory).
+    # (provider, model and API type are re-resolved, see _make_turn_factory).
     # The session's verbose flag is baked into the config at build time
     # (issue #70); the shell keeps its own copy for /status display.
-    shell.send_factory = _make_send_factory(
+    shell.turn_factory = _make_turn_factory(
         cli_api_type,
         cli_model,
         cli_provider,
@@ -336,7 +337,7 @@ def run_interactive_chat(args):
     )
     shell.initialize_history(system_prompt=effective_system_prompt)
     shell.run(
-        send_prompt_func=shell.send_factory(cli_provider),
+        turn_func=shell.turn_factory(cli_provider),
         verbose=args.verbose,
         no_tools=no_tools,
         thinking=args.thinking,
@@ -380,7 +381,7 @@ def run_single_prompt(args):
         # build the resolved per-session APIConfig once (issue #70).  The
         # CLI's TUI stream runner and Rich turn observer are injected at this
         # composition point.
-        send_prompt_func = _make_send_prompt_func(
+        turn_func = _make_turn_func(
             build_api_config(
                 api_type=resolve_api_type(
                     getattr(args, "api_type", None),
@@ -401,7 +402,7 @@ def run_single_prompt(args):
         instructions = None
         if messages_history and messages_history[0].get("role") == "system":
             instructions = messages_history[0].get("content")
-        send_prompt_func(
+        turn_func(
             prompt,
             previous_messages=messages_history,
             instructions=instructions,

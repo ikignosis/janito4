@@ -1,17 +1,17 @@
-"""Pluggable UI observer for one ``send_prompt`` turn.
+"""Pluggable UI observer for one LLM turn.
 
-The API clients (``Client.send`` in ``janito.openai_client.base_client``)
+The API clients (``Client.run_turn`` in ``janito.openai_client.base_client``)
 drive the LLM turn loop; every user-visible output they produce -- reasoning
 fragments, message fragments, the verbose call/response dumps, the error
 explainers and the end-of-turn report -- is routed through a
 :class:`TurnObserver` so the API layer itself stays UI-free.
 
 The **default observer is ``None``**, which the clients resolve to the
-headless :class:`NullObserver`: ``send_prompt``/``Client.send`` produce no
+headless :class:`NullObserver`: ``run_turn``/``Client.run_turn`` produce no
 terminal output at all (the web loop already emits structured events instead
 of printing).  The CLI injects the Rich observer
 (:class:`janito.openai_client.client_support.RichTurnObserver`) through
-``_make_send_prompt_func`` in ``cli/chat.py`` -- the same composition point
+``_make_turn_func`` in ``cli/chat.py`` -- the same composition point
 that injects the per-round ``stream_runner`` -- so every CLI entry point
 (interactive shell, ``/ask``, ``/compact``, one-shot prompt) keeps today's
 output.  Non-TUI consumers can implement the protocol to capture or forward
@@ -24,8 +24,8 @@ fragment the client loop has (after a full stream round), not per-token
 deltas.
 
 The end-of-turn report (``on_turn_complete``) is delivered by the *caller*
-(the CLI's ``wrap_send_prompt_with_turn_report`` wrapper), keeping the API
-client free of UI concerns; the wrapper renders it once ``send_prompt``
+(the CLI's ``wrap_turn_with_report`` wrapper), keeping the API
+client free of UI concerns; the wrapper renders it once ``run_turn``
 returns.
 """
 
@@ -35,7 +35,7 @@ from typing import Any, Protocol
 
 
 class TurnObserver(Protocol):
-    """Receives every UI event produced during one ``send_prompt`` turn.
+    """Receives every UI event produced during one ``run_turn`` turn.
 
     A single observer object replaces a growing list of loose callbacks:
     adding a new UI event is one new method with a no-op default, instead of
@@ -110,8 +110,8 @@ class TurnObserver(Protocol):
     def on_turn_complete(self, usage_out: Any) -> None:
         """End-of-turn report (used files + token-usage summary).
 
-        Delivered by the caller after ``send_prompt`` returns (the CLI's
-        ``wrap_send_prompt_with_turn_report`` wrapper).
+        Delivered by the caller after ``run_turn`` returns (the CLI's
+        ``wrap_turn_with_report`` wrapper).
         """
         ...
 

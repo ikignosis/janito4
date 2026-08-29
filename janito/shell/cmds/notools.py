@@ -3,7 +3,7 @@
 conversation history but without offering any tools.
 
 Unlike ``--no-tools`` (which applies to the whole session), ``/notools``
-affects the send_prompt of the current message only: the exchange is sent
+affects only the current message's turn: the exchange is sent
 through the main conversation (the model sees the ongoing history and the
 exchange is appended to it, rollback/cancel behaviour matches a normal
 prompt), but ``tools=`` is set to ``[]`` so the model cannot call any tool
@@ -57,8 +57,8 @@ class NoToolsCmdHandler(CmdHandler):
 
     def _send_without_tools(self, shell, message: str) -> None:
         """Send the prompt with the main history and no tools for this turn."""
-        send_prompt_func = getattr(shell, "send_prompt_func", None)
-        if send_prompt_func is None:
+        turn_func = getattr(shell, "turn_func", None)
+        if turn_func is None:
             print(
                 "\nError: No prompt function available. Are you in an active session?\n"
             )
@@ -69,7 +69,7 @@ class NoToolsCmdHandler(CmdHandler):
         # Responses state sync and cancel/rollback handling. ``tools=[]``
         # suppresses every tool for this turn (the same thing ``--no-tools``
         # does for the whole session).
-        shell._send_prompt(message, tools=[])
+        shell._run_turn(message, tools=[])
 
 
 # Register this handler

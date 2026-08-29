@@ -22,7 +22,7 @@ turn re-sends the full ``messages`` list (plus the top-level ``system``
 parameter).  Tool calls are executed with the shared
 :class:`~janito.tooling.executor.ToolExecutor` and their ``tool_result``
 blocks are appended to the history before the next round, repeating until the
-model emits a final text answer.  ``send_prompt`` returns the assistant text
+model emits a final text answer.  ``run_turn`` returns the assistant text
 and mutates ``previous_messages`` in place (Completions-style), so the
 interactive shell treats this mode exactly like Completions.
 
@@ -64,7 +64,7 @@ from .anthropic_stream import (  # noqa: F401 (re-exported for backward compat)
 # pipeline consumes it instead of re-reading the config/auth stores.
 from .api_config import APIConfig
 
-# Shared agent-loop pipeline (see Client.send) implemented by AnthropicClient.
+# Shared agent-loop pipeline (see Client.run_turn) implemented by AnthropicClient.
 from .base_client import Client
 
 # Shared client helpers: the usage summary out-param used by the module's
@@ -107,7 +107,7 @@ def _create_client(base_url: str | None, api_key: str) -> Any:
     return Anthropic(api_key=api_key, base_url=base_url)
 
 
-def send_prompt(
+def run_turn(
     config: APIConfig,
     prompt: str,
     *,
@@ -160,7 +160,7 @@ def send_prompt(
         text is still displayed when the model streams it.
     """
     logger.info("Sending prompt to Anthropic API (native SDK)")
-    return AnthropicClient(config).send(
+    return AnthropicClient(config).run_turn(
         prompt,
         previous_messages=previous_messages,
         instructions=instructions,
@@ -403,7 +403,7 @@ def _finalize_response(
     """Record the final assistant message and return it.
 
     ``usage_out`` (when given) receives the display metadata the caller needs
-    to render the end-of-turn reports after ``send_prompt`` returns (see
+    to render the end-of-turn reports after ``run_turn`` returns (see
     :func:`janito.openai_client.client_support.display_turn_usage`).
     """
     # No more tool calls, return the final response. Record the final
@@ -418,5 +418,5 @@ def _finalize_response(
 
 
 __all__ = [
-    "send_prompt",
+    "run_turn",
 ]

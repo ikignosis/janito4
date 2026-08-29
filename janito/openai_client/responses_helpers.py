@@ -2,7 +2,7 @@
 Shared module-level helpers for the Responses API client.
 
 Extracted from :mod:`janito.openai_client.conversations_api` so the client
-module stays focused on the ``send_prompt`` entry point and the
+module stays focused on the ``run_turn`` entry point and the
 :class:`ResponsesClient` class.
 """
 
@@ -181,7 +181,7 @@ def _finalize_conversation(
     """Assemble the final ConversationResult.
 
     ``usage_out`` (when given) receives the display metadata the caller needs
-    to render the end-of-turn reports after ``send_prompt`` returns (see
+    to render the end-of-turn reports after ``run_turn`` returns (see
     :func:`janito.openai_client.client_support.display_turn_usage`).
     """
     from .conversations_api import ConversationResult

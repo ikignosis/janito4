@@ -297,7 +297,7 @@ async def stream_prompt(
     """
     # Clear the in-process used-files tracker so per-prompt tracking only
     # reflects the files touched while handling the *current* prompt (best
-    # effort, never raises), mirroring the CLI's ``send_prompt`` behaviour.
+    # effort, never raises), mirroring the CLI's ``run_turn`` behaviour.
     reset_used_files()
     # Effective provider for this turn: a session-only override picked from
     # the chat-page combo wins over the CLI --provider, which wins over the

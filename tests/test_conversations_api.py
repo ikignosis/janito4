@@ -1,7 +1,7 @@
 """
 Tests for the Responses API client (:mod:`janito.openai_client.conversations_api`).
 
-``conversations_api.send_prompt`` mirrors ``completions_api.send_prompt`` but
+``conversations_api.run_turn`` mirrors ``completions_api.run_turn`` but
 targets the Responses API (``client.responses.create``) with server-side
 conversation state: the client never stores or updates a ``messages`` list,
 and turns are chained with ``previous_response_id``.
@@ -9,7 +9,7 @@ and turns are chained with ``previous_response_id``.
 These tests verify:
   - ``_consume_response_stream`` text / reasoning / tool-call assembly.
   - ``response.failed`` is turned into a raised error.
-  - ``send_prompt`` chains tool-call rounds via ``previous_response_id`` and
+  - ``run_turn`` chains tool-call rounds via ``previous_response_id`` and
     returns a ``ConversationResult`` carrying the final server-side response
     id (no client-side history is kept or mutated).
   - ``instructions`` are only sent on the first turn of a conversation.
@@ -47,7 +47,7 @@ def _responses_config(model="gpt-4o", provider="openai"):
 def _isolate(tmp_path, monkeypatch):
     """Run each test in a temp CWD with a temp config dir and clean state.
 
-    ``send_prompt`` resets the in-process used-files tracker and clears the
+    ``run_turn`` resets the in-process used-files tracker and clears the
     ``./.janito/changes.jsonl`` log (relative to the CWD), so each test gets
     its own temp dirs and the in-memory tracker is reset before and after.
     """
@@ -291,10 +291,10 @@ def test_convert_tools_to_responses_format_handles_already_converted_and_empty()
     assert api._convert_tools_to_responses_format([]) == []
 
 
-# ---- send_prompt (mocked network) ----------------------------------------
+# ---- run_turn (mocked network) ----------------------------------------
 
 
-def _mock_send_prompt(monkeypatch, create_side_effect):
+def _mock_run_turn(monkeypatch, create_side_effect):
     """Patch config resolution, tool schemas, the executor and the client."""
     client_inst = mock.Mock()
     client_inst.responses.create.side_effect = create_side_effect
@@ -314,8 +314,8 @@ def _mock_send_prompt(monkeypatch, create_side_effect):
     return client_inst
 
 
-def _mock_send_prompt_for_model(monkeypatch, model, builtin_tools, create_side_effect):
-    """Like ``_mock_send_prompt`` but for a specific model, with the model's
+def _mock_run_turn_for_model(monkeypatch, model, builtin_tools, create_side_effect):
+    """Like ``_mock_run_turn`` but for a specific model, with the model's
     built-in (native) tools resolved via the provider accessor."""
     client_inst = mock.Mock()
     client_inst.responses.create.side_effect = create_side_effect
@@ -339,7 +339,7 @@ def _mock_send_prompt_for_model(monkeypatch, model, builtin_tools, create_side_e
     return client_inst
 
 
-def test_send_prompt_stateless_replays_full_history(monkeypatch):
+def test_run_turn_stateless_replays_full_history(monkeypatch):
     """Stateless providers (responses_in_server False, e.g. DeepSeek) cannot
     resolve a previous_response_id: the client re-sends the full conversation
     as input items on every request and never chains with an id."""
@@ -350,7 +350,7 @@ def test_send_prompt_stateless_replays_full_history(monkeypatch):
     seen = []
 
     def create(**kwargs):
-        # Snapshot the input list: send_prompt appends to the same list in
+        # Snapshot the input list: run_turn appends to the same list in
         # place after the request, so re-checking kwargs later would see the
         # mutated history.
         seen.append(dict(kwargs, input=list(kwargs["input"])))
@@ -422,9 +422,9 @@ def test_send_prompt_stateless_replays_full_history(monkeypatch):
             )
         raise AssertionError(f"unexpected round {round_no}")
 
-    _mock_send_prompt(monkeypatch, create)
+    _mock_run_turn(monkeypatch, create)
 
-    result = api.send_prompt(
+    result = api.run_turn(
         _responses_config(), "List files", instructions="Be helpful", tools=None
     )
 
@@ -442,7 +442,7 @@ def test_send_prompt_stateless_replays_full_history(monkeypatch):
     }
 
 
-def test_send_prompt_stateless_continues_with_previous_items(monkeypatch):
+def test_run_turn_stateless_continues_with_previous_items(monkeypatch):
     """The next turn re-sends the previous turn's items plus the new prompt."""
     monkeypatch.setattr(
         "janito.openai_client.responses_state.get_responses_in_server_from_provider",
@@ -451,7 +451,7 @@ def test_send_prompt_stateless_continues_with_previous_items(monkeypatch):
     seen = []
 
     def create(**kwargs):
-        # Snapshot the input list (send_prompt mutates it in place later).
+        # Snapshot the input list (run_turn mutates it in place later).
         seen.append(dict(kwargs, input=list(kwargs["input"])))
         assert "previous_response_id" not in kwargs
         return _stream(
@@ -462,10 +462,10 @@ def test_send_prompt_stateless_continues_with_previous_items(monkeypatch):
             ]
         )
 
-    _mock_send_prompt(monkeypatch, create)
+    _mock_run_turn(monkeypatch, create)
 
     # First turn (fresh conversation).
-    first = api.send_prompt(_responses_config(), "Hello", instructions="Sys", tools=[])
+    first = api.run_turn(_responses_config(), "Hello", instructions="Sys", tools=[])
     assert seen[-1]["input"] == [
         {
             "type": "message",
@@ -481,7 +481,7 @@ def test_send_prompt_stateless_continues_with_previous_items(monkeypatch):
 
     # Second turn: the full history is re-sent with the new user prompt
     # appended; instructions are NOT folded again (already in the history).
-    second = api.send_prompt(
+    second = api.run_turn(
         _responses_config(),
         "Follow up",
         previous_items=first.input_items,
@@ -504,7 +504,7 @@ def test_send_prompt_stateless_continues_with_previous_items(monkeypatch):
     ]
 
 
-def test_send_prompt_plain_response(monkeypatch):
+def test_run_turn_plain_response(monkeypatch):
     seen = []
 
     def create(**kwargs):
@@ -525,8 +525,8 @@ def test_send_prompt_plain_response(monkeypatch):
             ]
         )
 
-    _mock_send_prompt(monkeypatch, create)
-    result = api.send_prompt(_responses_config(), "Hello", tools=None)
+    _mock_run_turn(monkeypatch, create)
+    result = api.run_turn(_responses_config(), "Hello", tools=None)
 
     assert result.content == "Hi there"
     assert result.response_id == "resp_1"
@@ -536,7 +536,7 @@ def test_send_prompt_plain_response(monkeypatch):
     assert len(seen) == 1
 
 
-def test_send_prompt_raises_on_untyped_error_event(monkeypatch):
+def test_run_turn_raises_on_untyped_error_event(monkeypatch):
     """A server-side provider that streams an untyped error event (e.g.
     DashScope rejecting qwen3.8-max on /responses) must raise a clear error
     instead of returning an empty ConversationResult."""
@@ -552,24 +552,24 @@ def test_send_prompt_raises_on_untyped_error_event(monkeypatch):
             ]
         )
 
-    _mock_send_prompt(monkeypatch, create)
+    _mock_run_turn(monkeypatch, create)
     with pytest.raises(RuntimeError, match="Unsupported model: 'qwen3.8-max'"):
-        api.send_prompt(_responses_config(), "Hello", tools=None)
+        api.run_turn(_responses_config(), "Hello", tools=None)
 
 
-def test_send_prompt_raises_on_empty_stream(monkeypatch):
+def test_run_turn_raises_on_empty_stream(monkeypatch):
     """A stream with no events at all raises instead of returning an empty
     result."""
 
     def create(**kwargs):
         return _stream([])
 
-    _mock_send_prompt(monkeypatch, create)
+    _mock_run_turn(monkeypatch, create)
     with pytest.raises(RuntimeError, match="empty response"):
-        api.send_prompt(_responses_config(), "Hello", tools=None)
+        api.run_turn(_responses_config(), "Hello", tools=None)
 
 
-def test_send_prompt_raises_when_no_response_id_and_no_output(monkeypatch):
+def test_run_turn_raises_when_no_response_id_and_no_output(monkeypatch):
     """A server-side provider that reports no response id and produces neither
     content nor tool calls raises an error naming the model (safety net for
     providers whose failure never surfaces as a proper event)."""
@@ -581,12 +581,12 @@ def test_send_prompt_raises_when_no_response_id_and_no_output(monkeypatch):
             ]
         )
 
-    _mock_send_prompt(monkeypatch, create)
+    _mock_run_turn(monkeypatch, create)
     with pytest.raises(RuntimeError, match="gpt-4o"):
-        api.send_prompt(_responses_config(), "Hello", tools=None)
+        api.run_turn(_responses_config(), "Hello", tools=None)
 
 
-def test_send_prompt_sends_instructions_only_on_first_turn(monkeypatch):
+def test_run_turn_sends_instructions_only_on_first_turn(monkeypatch):
     seen = []
 
     def create(**kwargs):
@@ -599,15 +599,15 @@ def test_send_prompt_sends_instructions_only_on_first_turn(monkeypatch):
             ]
         )
 
-    _mock_send_prompt(monkeypatch, create)
+    _mock_run_turn(monkeypatch, create)
 
     # Fresh conversation: instructions are sent.
-    api.send_prompt(_responses_config(), "First", instructions="Be helpful", tools=[])
+    api.run_turn(_responses_config(), "First", instructions="Be helpful", tools=[])
     assert seen[-1]["instructions"] == "Be helpful"
 
     # Continuing a conversation: instructions are NOT re-sent; the turn is
     # chained via previous_response_id instead.
-    api.send_prompt(
+    api.run_turn(
         _responses_config(),
         "Follow up",
         previous_response_id="resp_prev",
@@ -618,7 +618,7 @@ def test_send_prompt_sends_instructions_only_on_first_turn(monkeypatch):
     assert seen[-1]["previous_response_id"] == "resp_prev"
 
 
-def test_send_prompt_server_side_resends_pending_items_with_completed_id(
+def test_run_turn_server_side_resends_pending_items_with_completed_id(
     monkeypatch,
 ):
     """Server-side Responses: after an Enter-cancel the next turn re-sends the
@@ -650,9 +650,9 @@ def test_send_prompt_server_side_resends_pending_items_with_completed_id(
             ]
         )
 
-    _mock_send_prompt(monkeypatch, create)
+    _mock_run_turn(monkeypatch, create)
 
-    result = api.send_prompt(
+    result = api.run_turn(
         _responses_config(),
         "follow up",
         previous_response_id="resp_prev",
@@ -672,7 +672,7 @@ def test_send_prompt_server_side_resends_pending_items_with_completed_id(
     assert result.input_items is None
 
 
-def test_send_prompt_chains_tool_calls_without_client_history(monkeypatch):
+def test_run_turn_chains_tool_calls_without_client_history(monkeypatch):
     """The agent loop must chain tool rounds via previous_response_id and keep
     no client-side messages list (the caller-owned list is not touched)."""
     seen = []
@@ -734,10 +734,10 @@ def test_send_prompt_chains_tool_calls_without_client_history(monkeypatch):
             )
         raise AssertionError(f"unexpected round {round_no}")
 
-    _mock_send_prompt(monkeypatch, create)
+    _mock_run_turn(monkeypatch, create)
 
     caller_history = [{"role": "system", "content": "seed"}]
-    result = api.send_prompt(_responses_config(), "List files", tools=None)
+    result = api.run_turn(_responses_config(), "List files", tools=None)
 
     assert result.content == "Here are the files"
     assert result.response_id == "resp_b"
@@ -751,7 +751,7 @@ def test_send_prompt_chains_tool_calls_without_client_history(monkeypatch):
     assert caller_history == [{"role": "system", "content": "seed"}]
 
 
-def test_send_prompt_server_side_turn_items_mirror_tool_round(monkeypatch):
+def test_run_turn_server_side_turn_items_mirror_tool_round(monkeypatch):
     """Server-side Responses: the completed turn's display-only mirror
     (``turn_items``) records the user prompt, the tool-call round
     (function_call + function_call_output) and the final assistant text, so
@@ -786,8 +786,8 @@ def test_send_prompt_server_side_turn_items_mirror_tool_round(monkeypatch):
             )
         raise AssertionError(f"unexpected round {round_no}")
 
-    _mock_send_prompt(monkeypatch, create)
-    result = api.send_prompt(_responses_config(), "List files", tools=None)
+    _mock_run_turn(monkeypatch, create)
+    result = api.run_turn(_responses_config(), "List files", tools=None)
 
     assert result.content == "Here are the files"
     assert result.response_id == "resp_b"
@@ -820,7 +820,7 @@ def test_send_prompt_server_side_turn_items_mirror_tool_round(monkeypatch):
     ]
 
 
-def test_send_prompt_server_side_turn_items_plain_response(monkeypatch):
+def test_run_turn_server_side_turn_items_plain_response(monkeypatch):
     """Server-side Responses: a plain (no-tool) turn's display-only mirror
     holds just the user prompt and the assistant text."""
     seen = []
@@ -837,8 +837,8 @@ def test_send_prompt_server_side_turn_items_plain_response(monkeypatch):
             ]
         )
 
-    _mock_send_prompt(monkeypatch, create)
-    result = api.send_prompt(_responses_config(), "Hello", tools=None)
+    _mock_run_turn(monkeypatch, create)
+    result = api.run_turn(_responses_config(), "Hello", tools=None)
 
     assert result.input_items is None
     assert result.turn_items == [
@@ -855,7 +855,7 @@ def test_send_prompt_server_side_turn_items_plain_response(monkeypatch):
     ]
 
 
-def test_send_prompt_appends_builtin_tools_without_function_tools(monkeypatch):
+def test_run_turn_appends_builtin_tools_without_function_tools(monkeypatch):
     """An empty function-tools list (the ``--no-tools`` case): the effective
     model's built-in (native) tools are still enabled on the CLI Responses
     path.  They are model capabilities, not function tools -- mirroring the
@@ -872,7 +872,7 @@ def test_send_prompt_appends_builtin_tools_without_function_tools(monkeypatch):
             ]
         )
 
-    _mock_send_prompt_for_model(
+    _mock_run_turn_for_model(
         monkeypatch,
         "qwen3.8-max",
         [
@@ -882,7 +882,7 @@ def test_send_prompt_appends_builtin_tools_without_function_tools(monkeypatch):
         ],
         create,
     )
-    api.send_prompt(
+    api.run_turn(
         _responses_config(model="qwen3.8-max", provider="alibaba"), "Hello", tools=[]
     )
     assert seen[-1]["tools"] == [
@@ -893,7 +893,7 @@ def test_send_prompt_appends_builtin_tools_without_function_tools(monkeypatch):
     assert seen[-1]["tool_choice"] == "auto"
 
 
-def test_send_prompt_merges_builtin_tools_with_function_tools(monkeypatch):
+def test_run_turn_merges_builtin_tools_with_function_tools(monkeypatch):
     """Function-tool schemas (converted to the Responses shape) come first,
     followed by the model's built-in (native) tools."""
     seen = []
@@ -908,7 +908,7 @@ def test_send_prompt_merges_builtin_tools_with_function_tools(monkeypatch):
             ]
         )
 
-    _mock_send_prompt_for_model(
+    _mock_run_turn_for_model(
         monkeypatch,
         "qwen3.8-max",
         [
@@ -918,7 +918,7 @@ def test_send_prompt_merges_builtin_tools_with_function_tools(monkeypatch):
         ],
         create,
     )
-    api.send_prompt(
+    api.run_turn(
         _responses_config(model="qwen3.8-max", provider="alibaba"), "Hello", tools=None
     )
     assert seen[-1]["tools"] == [
@@ -935,7 +935,7 @@ def test_send_prompt_merges_builtin_tools_with_function_tools(monkeypatch):
     assert seen[-1]["tool_choice"] == "auto"
 
 
-def test_send_prompt_no_builtin_tools_for_openai_responses(monkeypatch):
+def test_run_turn_no_builtin_tools_for_openai_responses(monkeypatch):
     """Models without built-in tools get no native entries appended."""
     seen = []
 
@@ -949,8 +949,8 @@ def test_send_prompt_no_builtin_tools_for_openai_responses(monkeypatch):
             ]
         )
 
-    _mock_send_prompt_for_model(monkeypatch, "gpt-4o", None, create)
-    api.send_prompt(
+    _mock_run_turn_for_model(monkeypatch, "gpt-4o", None, create)
+    api.run_turn(
         _responses_config(model="gpt-4o", provider="openai"), "Hello", tools=None
     )
     # Only the converted function tools; no code_interpreter / web_search.
@@ -980,9 +980,9 @@ def test_module_reexports_completions_api_helpers():
 # ---- API-type selection (chat.py wrapper + shell state) -------------------
 
 
-def test_make_send_prompt_func_responses_dispatch(monkeypatch):
+def test_make_turn_func_responses_dispatch(monkeypatch):
     """The single closure dispatches by ``config.api_type`` to the Responses
-    client and forwards the union kwargs via ``client.send`` (each backend's
+    client and forwards the union kwargs via ``client.run_turn`` (each backend's
     ``_init_conversation_state`` picks what it needs)."""
     import janito.cli.chat as chat_mod
     import janito.openai_client.conversations_api as conv_api
@@ -993,14 +993,14 @@ def test_make_send_prompt_func_responses_dispatch(monkeypatch):
         def __init__(self, config):
             captured["config"] = config
 
-        def send(self, prompt, **kwargs):
+        def run_turn(self, prompt, **kwargs):
             captured["prompt"] = prompt
             captured.update(kwargs)
             return api.ConversationResult(content="hi", response_id="resp_z")
 
     monkeypatch.setattr(conv_api, "ResponsesClient", FakeClient)
 
-    func = chat_mod._make_send_prompt_func(
+    func = chat_mod._make_turn_func(
         make_config(api_type="Responses", model="gpt-4", provider="openai")
     )
     result = func(
@@ -1029,7 +1029,7 @@ def test_make_send_prompt_func_responses_dispatch(monkeypatch):
     assert captured["usage_out"] is not None
 
 
-def test_make_send_prompt_func_completions_dispatch(monkeypatch):
+def test_make_turn_func_completions_dispatch(monkeypatch):
     """In Completions mode the same closure forwards previous_messages (the
     history list is mutated in place by the Completions client) and returns
     the assistant text."""
@@ -1042,14 +1042,14 @@ def test_make_send_prompt_func_completions_dispatch(monkeypatch):
         def __init__(self, config):
             captured["config"] = config
 
-        def send(self, prompt, **kwargs):
+        def run_turn(self, prompt, **kwargs):
             captured["prompt"] = prompt
             captured.update(kwargs)
             return "completions answer"
 
     monkeypatch.setattr(comp_api, "CompletionsClient", FakeClient)
 
-    func = chat_mod._make_send_prompt_func(
+    func = chat_mod._make_turn_func(
         make_config(api_type="Completions", model="gpt-4", provider="openai")
     )
     result = func(
@@ -1067,10 +1067,10 @@ def test_make_send_prompt_func_completions_dispatch(monkeypatch):
     assert captured["usage_out"] is not None
 
 
-# ---- send_factory (real-time /provider switch) -----------------------------
+# ---- turn_factory (real-time /provider switch) -----------------------------
 
 
-def test_send_factory_honors_cli_model_for_startup_provider(monkeypatch):
+def test_turn_factory_honors_cli_model_for_startup_provider(monkeypatch):
     """The factory keeps ``--model`` for the provider it was given for and
     builds the config via build_api_config (the single resolution point),
     injecting the CLI's TUI runner and Rich observer at build time."""
@@ -1088,9 +1088,9 @@ def test_send_factory_honors_cli_model_for_startup_provider(monkeypatch):
         return lambda prompt, **kw: "ok"
 
     monkeypatch.setattr(chat_mod, "build_api_config", fake_build)
-    monkeypatch.setattr(chat_mod, "_make_send_prompt_func", fake_make)
+    monkeypatch.setattr(chat_mod, "_make_turn_func", fake_make)
 
-    factory = chat_mod._make_send_factory(
+    factory = chat_mod._make_turn_factory(
         cli_api_type=None,
         cli_model="gpt-5.6-luna",
         cli_provider="openai",
@@ -1107,7 +1107,7 @@ def test_send_factory_honors_cli_model_for_startup_provider(monkeypatch):
     assert isinstance(captured["observer"], chat_mod.RichTurnObserver)
 
 
-def test_send_factory_resolves_new_provider_model_and_api_type(monkeypatch):
+def test_turn_factory_resolves_new_provider_model_and_api_type(monkeypatch):
     """After a /provider switch the new provider's own model and API type are
     resolved (the startup ``--model`` does not leak into it)."""
     import janito.cli.chat as chat_mod
@@ -1122,9 +1122,9 @@ def test_send_factory_resolves_new_provider_model_and_api_type(monkeypatch):
         return lambda prompt, **kw: "ok"
 
     monkeypatch.setattr(chat_mod, "build_api_config", fake_build)
-    monkeypatch.setattr(chat_mod, "_make_send_prompt_func", fake_make)
+    monkeypatch.setattr(chat_mod, "_make_turn_func", fake_make)
 
-    factory = chat_mod._make_send_factory(
+    factory = chat_mod._make_turn_factory(
         cli_api_type=None,
         cli_model="gpt-5.6-luna",  # startup --model, belongs to openai
         cli_provider="openai",
@@ -1138,7 +1138,7 @@ def test_send_factory_resolves_new_provider_model_and_api_type(monkeypatch):
     assert captured["api_type"] == "Completions"
 
 
-def test_send_factory_resolves_configured_model_for_new_provider(monkeypatch, tmp_path):
+def test_turn_factory_resolves_configured_model_for_new_provider(monkeypatch, tmp_path):
     """A configured model for the switched-to provider is picked up."""
     import janito.cli.chat as chat_mod
     import janito.config_dir as config_dir_mod
@@ -1159,9 +1159,9 @@ def test_send_factory_resolves_configured_model_for_new_provider(monkeypatch, tm
         return lambda prompt, **kw: "ok"
 
     monkeypatch.setattr(chat_mod, "build_api_config", fake_build)
-    monkeypatch.setattr(chat_mod, "_make_send_prompt_func", fake_make)
+    monkeypatch.setattr(chat_mod, "_make_turn_func", fake_make)
 
-    factory = chat_mod._make_send_factory(
+    factory = chat_mod._make_turn_factory(
         cli_api_type=None,
         cli_model=None,
         cli_provider="openai",
@@ -1173,7 +1173,7 @@ def test_send_factory_resolves_configured_model_for_new_provider(monkeypatch, tm
     assert captured["cli_provider"] == "deepseek"
 
 
-def test_send_factory_resolves_api_type_per_new_provider(monkeypatch):
+def test_turn_factory_resolves_api_type_per_new_provider(monkeypatch):
     """The API type is re-resolved for the switched-to provider: moonshot's
     only supported type is Completions, openai's default is Responses."""
     import janito.cli.chat as chat_mod
@@ -1190,9 +1190,9 @@ def test_send_factory_resolves_api_type_per_new_provider(monkeypatch):
         return lambda prompt, **kw: "ok"
 
     monkeypatch.setattr(chat_mod, "build_api_config", fake_build)
-    monkeypatch.setattr(chat_mod, "_make_send_prompt_func", fake_make)
+    monkeypatch.setattr(chat_mod, "_make_turn_func", fake_make)
 
-    factory = chat_mod._make_send_factory(
+    factory = chat_mod._make_turn_factory(
         cli_api_type=None,
         cli_model=None,
         cli_provider="openai",
@@ -1375,7 +1375,7 @@ def test_shell_rewind_server_side_without_chain_falls_back_to_reset(capsys):
     assert "server-side conversation reset" in capsys.readouterr().out
 
 
-def test_shell_send_prompt_records_server_side_response_chain():
+def test_shell_run_turn_records_server_side_response_chain():
     """Each completed server-side Responses turn appends its final response id
     to the shell's response_chain, so /rewind has a rewind target (and a
     second turn appends the next id, keeping the chain in turn order)."""
@@ -1386,28 +1386,28 @@ def test_shell_send_prompt_records_server_side_response_chain():
     shell.initialize_history(system_prompt="sys")
     calls = {"n": 0}
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         calls["n"] += 1
         return ConversationResult(
             content="hi", response_id=f"r{calls['n']}", input_items=None
         )
 
-    shell.send_prompt_func = send_prompt_func
+    shell.turn_func = turn_func
     shell.verbose = False
     shell.no_tools = True
     shell.thinking = False
 
-    shell._send_prompt("first")
+    shell._run_turn("first")
     assert shell.response_chain == ["r1"]
     assert shell.previous_response_id == "r1"
 
     # The second turn is chained from the first response and appends its own.
-    shell._send_prompt("second")
+    shell._run_turn("second")
     assert shell.response_chain == ["r1", "r2"]
     assert shell.previous_response_id == "r2"
 
 
-def test_shell_send_prompt_mirrors_server_side_turns_for_history():
+def test_shell_run_turn_mirrors_server_side_turns_for_history():
     """Each completed server-side Responses turn appends its display-only
     mirror (user prompt + assistant text, Responses input items) to the
     shell's mirrored_history, so /history can render the conversation even
@@ -1419,7 +1419,7 @@ def test_shell_send_prompt_mirrors_server_side_turns_for_history():
     shell.initialize_history(system_prompt="sys")
     calls = {"n": 0}
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         calls["n"] += 1
         return ConversationResult(
             content=f"reply {calls['n']}",
@@ -1439,24 +1439,24 @@ def test_shell_send_prompt_mirrors_server_side_turns_for_history():
             ],
         )
 
-    shell.send_prompt_func = send_prompt_func
+    shell.turn_func = turn_func
     shell.verbose = False
     shell.no_tools = True
     shell.thinking = False
 
-    shell._send_prompt("first")
+    shell._run_turn("first")
     assert len(shell.mirrored_history) == 2
     assert shell.mirrored_history[0]["content"][0]["text"] == "first"
     assert shell.mirrored_history[1]["content"][0]["text"] == "reply 1"
 
     # A second turn appends its own mirror items, in turn order.
-    shell._send_prompt("second")
+    shell._run_turn("second")
     assert len(shell.mirrored_history) == 4
     assert shell.mirrored_history[2]["content"][0]["text"] == "second"
     assert shell.mirrored_history[3]["content"][0]["text"] == "reply 2"
 
 
-def test_shell_send_prompt_stateless_does_not_mirror():
+def test_shell_run_turn_stateless_does_not_mirror():
     """Stateless Responses (e.g. DeepSeek) mirrors through
     conversation_items, so the /history display mirror stays empty."""
     from janito.openai_client.conversations_api import ConversationResult
@@ -1465,7 +1465,7 @@ def test_shell_send_prompt_stateless_does_not_mirror():
     shell = InteractiveShell(model="test-model", no_history=True)
     shell.initialize_history(system_prompt="sys")
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         return ConversationResult(
             content="ok",
             response_id=None,
@@ -1484,12 +1484,12 @@ def test_shell_send_prompt_stateless_does_not_mirror():
             turn_items=[],
         )
 
-    shell.send_prompt_func = send_prompt_func
+    shell.turn_func = turn_func
     shell.verbose = False
     shell.no_tools = True
     shell.thinking = False
 
-    shell._send_prompt("hello")
+    shell._run_turn("hello")
     assert shell.mirrored_history == []
     assert len(shell.conversation_items) == 2
     assert shell.previous_response_id is None
@@ -1551,7 +1551,7 @@ def test_shell_rewind_server_side_truncates_mirrored_history():
     ]
 
 
-def test_shell_send_prompt_keeps_chain_on_enter_cancel():
+def test_shell_run_turn_keeps_chain_on_enter_cancel():
     """An Enter-cancelled server-side turn (RequestCancelled) appends nothing
     to the response_chain: the shell keeps chaining from the last completed
     response."""
@@ -1564,15 +1564,15 @@ def test_shell_send_prompt_keeps_chain_on_enter_cancel():
     shell.response_turn = 1
     shell.previous_response_id = "r1"
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         raise RequestCancelled("cancelled by Enter")
 
-    shell.send_prompt_func = send_prompt_func
+    shell.turn_func = turn_func
     shell.verbose = False
     shell.no_tools = True
     shell.thinking = False
 
-    shell._send_prompt("hello")
+    shell._run_turn("hello")
 
     # No completed turn: the chain and recorded start are unchanged.
     assert shell.response_chain == ["r1"]
@@ -1706,8 +1706,8 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
     assert excinfo2.value.conversation_items == items
 
 
-def test_shell_send_prompt_records_history_turns():
-    """Every _send_prompt records the turn's start (the history length before
+def test_shell_run_turn_records_history_turns():
+    """Every _run_turn records the turn's start (the history length before
     the turn) in shell.history_turns, so /history can mark where each turn
     started and /rewind can step back one turn at a time."""
     from janito.shell import InteractiveShell
@@ -1718,26 +1718,26 @@ def test_shell_send_prompt_records_history_turns():
 
     seen = []
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         seen.append(len(kwargs["previous_messages"]))
         kwargs["previous_messages"].append({"role": "user", "content": user_input})
         kwargs["previous_messages"].append({"role": "assistant", "content": "ok"})
         return "ok"
 
-    shell.send_prompt_func = send_prompt_func
+    shell.turn_func = turn_func
     shell.verbose = False
     shell.no_tools = True
     shell.thinking = False
 
-    shell._send_prompt("one")
-    shell._send_prompt("two")
+    shell._run_turn("one")
+    shell._run_turn("two")
 
     # History: [sys] -> turn one -> [sys, one, ok] -> turn two -> [sys, one, ok, two, ok]
     assert shell.history_turns == [1, 3]
     assert seen == [1, 3]
 
 
-def test_shell_send_prompt_error_rolls_back_and_pops_turn(capsys):
+def test_shell_run_turn_error_rolls_back_and_pops_turn(capsys):
     """An error during a turn rolls the history back to the last turn
     and drops its recorded start, since the turn it marked is gone."""
     from janito.shell import InteractiveShell
@@ -1745,17 +1745,17 @@ def test_shell_send_prompt_error_rolls_back_and_pops_turn(capsys):
     shell = InteractiveShell(model="test-model", no_history=True)
     shell.initialize_history(system_prompt="sys")
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         kwargs["previous_messages"].append({"role": "user", "content": user_input})
         kwargs["previous_messages"].append({"role": "assistant", "content": "partial"})
         raise RuntimeError("boom")
 
-    shell.send_prompt_func = send_prompt_func
+    shell.turn_func = turn_func
     shell.verbose = False
     shell.no_tools = True
     shell.thinking = False
 
-    shell._send_prompt("hello")
+    shell._run_turn("hello")
 
     # Back to the system prompt only, and the aborted turn's recorded start
     # is gone.
@@ -1795,7 +1795,7 @@ def test_shell_rewind_steps_back_one_turn_at_a_time(capsys):
     assert "Nothing to rewind" in capsys.readouterr().out
 
 
-def test_shell_send_prompt_records_stateless_turn_position():
+def test_shell_run_turn_records_stateless_turn_position():
     """Stateless Responses: the recorded start is the number of rows /history
     would render (the conversation_items length), not len(messages_history)
     -- messages_history only ever holds the system prompt, so using its
@@ -1825,22 +1825,22 @@ def test_shell_send_prompt_records_stateless_turn_position():
         },
     ]
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         return "ok"
 
-    shell.send_prompt_func = send_prompt_func
+    shell.turn_func = turn_func
     shell.verbose = False
     shell.no_tools = True
     shell.thinking = False
 
-    shell._send_prompt("two")
+    shell._run_turn("two")
 
     # The recorded start marks the row the next user message will occupy (3),
     # so /history shows the marker before "two", not after the system row.
     assert shell.history_turns == [3]
 
 
-def test_shell_send_prompt_records_server_side_turn_position():
+def test_shell_run_turn_records_server_side_turn_position():
     """Server-side Responses: the recorded start is the sum of the rows
     /history renders (messages_history + mirrored_history + pending items),
     so each marker lands before its own user message."""
@@ -1865,15 +1865,15 @@ def test_shell_send_prompt_records_server_side_turn_position():
         },
     ]
 
-    def send_prompt_func(user_input, **kwargs):
+    def turn_func(user_input, **kwargs):
         return "ok"
 
-    shell.send_prompt_func = send_prompt_func
+    shell.turn_func = turn_func
     shell.verbose = False
     shell.no_tools = True
     shell.thinking = False
 
-    shell._send_prompt("two")
+    shell._run_turn("two")
 
     # rows = system(1) + mirrored(2) = 3 -> marker before "two".
     assert shell.history_turns == [3]

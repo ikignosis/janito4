@@ -2,7 +2,7 @@
 Shared module-level helpers for the DashScope client.
 
 Extracted from :mod:`janito.dashscope_api` so the client module stays focused
-on the ``send_prompt`` entry point and the :class:`DashScopeClient` class.
+on the ``run_turn`` entry point and the :class:`DashScopeClient` class.
 """
 
 import logging
@@ -154,7 +154,7 @@ def _finalize_response(
     """Record the final assistant message and return it.
 
     ``usage_out`` (when given) receives the display metadata the caller needs
-    to render the end-of-turn reports after ``send_prompt`` returns (see
+    to render the end-of-turn reports after ``run_turn`` returns (see
     :func:`janito.openai_client.client_support.display_turn_usage`).
     """
     # No more tool calls, return the final response. Record the final

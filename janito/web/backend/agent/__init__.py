@@ -1,11 +1,11 @@
 """Headless streaming agentic loop for the web backend.
 
 This package lifts the agentic while-loop from
-``janito/openai_client/completions_api.py -> send_prompt()`` into an async generator
+``janito/openai_client/completions_api.py -> run_turn()`` into an async generator
 that yields structured events instead of printing to a terminal.  It is the
 **web orchestration loop**; the per-API adapters it dispatches to (call-kwargs
 building, stream accumulation, history conversion) live in the shared
-``janito.agent`` layer, also used by the CLI ``Client.send`` loop.  The
+``janito.agent`` layer, also used by the CLI ``Client.run_turn`` loop.  The
 runner modules here are thin shims that re-export the shared adapters and
 keep the web-only async glue (SDK client creation + event-stream drivers).
 

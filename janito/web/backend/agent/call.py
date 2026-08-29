@@ -2,7 +2,7 @@
 
 The call-parameter building and stream accumulation now live in
 :mod:`janito.agent.completions` (the shared per-API adapter layer used by
-both the CLI ``Client.send`` and the web ``stream_prompt`` loops).  This
+both the CLI ``Client.run_turn`` and the web ``stream_prompt`` loops).  This
 module re-exports them under their historical web names so the orchestration
 loop (``loop.py``) and existing tests keep their import paths.
 """

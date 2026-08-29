@@ -2,7 +2,7 @@
 Tests for reasoning-level support in the OpenAI-compatible API calls.
 
 Covers:
-- ``send_prompt`` resolving the reasoning level (CLI arg > per-provider config
+- ``run_turn`` resolving the reasoning level (CLI arg > per-provider config
   > built-in provider-config default) and sending it as ``reasoning_effort``.
 - The web agent's ``build_call_kwargs`` forwarding ``reasoning_effort``.
 - The CLI ``--reasoning-level`` flag parsing.
@@ -27,7 +27,7 @@ from janito.web.backend.agent.call import build_call_kwargs
 def _isolate_config_dir(monkeypatch, tmp_path):
     """Point the config directory at a temp dir for every test.
 
-    ``send_prompt`` resolves the reasoning level / thinking from the
+    ``run_turn`` resolves the reasoning level / thinking from the
     per-provider config (``<provider>.reasoning-level``), which lives in the
     real ``~/.janito`` by default, and ``build_api_config`` reads the auth
     store. Without this fixture tests would read/write the developer's actual
@@ -58,7 +58,7 @@ def _fake_run_returns(content, reasoning=None, tool_calls=None, usage=None):
 
 if pytest is not None:
 
-    def test_send_prompt_passes_builtin_default_reasoning_effort():
+    def test_run_turn_passes_builtin_default_reasoning_effort():
         """The resolved reasoning level (config carries alibaba's built-in
         xhigh default) is sent as reasoning_effort."""
         fake_run = _fake_run_returns("hi")
@@ -69,12 +69,12 @@ if pytest is not None:
             use_mcp=False,
             stream_runner=fake_run,
         )
-        result = client_mod.send_prompt(config, "hello")
+        result = client_mod.run_turn(config, "hello")
 
         assert result == "hi"
         assert fake_run.captured_kwargs["reasoning_effort"] == "xhigh"
 
-    def test_send_prompt_cli_reasoning_level_overrides_default():
+    def test_run_turn_cli_reasoning_level_overrides_default():
         """The config's resolved reasoning level (--reasoning-level low) wins
         over the built-in xhigh default."""
         fake_run = _fake_run_returns("hi")
@@ -85,10 +85,10 @@ if pytest is not None:
             use_mcp=False,
             stream_runner=fake_run,
         )
-        client_mod.send_prompt(config, "hello")
+        client_mod.run_turn(config, "hello")
         assert fake_run.captured_kwargs["reasoning_effort"] == "low"
 
-    def test_send_prompt_config_reasoning_level_used(monkeypatch, tmp_path):
+    def test_run_turn_config_reasoning_level_used(monkeypatch, tmp_path):
         """A per-provider config value resolves through build_api_config when
         no CLI arg is given."""
         from janito.config_cli import set_config_from_cli
@@ -104,11 +104,11 @@ if pytest is not None:
             use_mcp=False,
             stream_runner=fake_run,
         )
-        client_mod.send_prompt(config, "hello")
+        client_mod.run_turn(config, "hello")
 
         assert fake_run.captured_kwargs["reasoning_effort"] == "medium"
 
-    def test_send_prompt_no_reasoning_level_omits_effort():
+    def test_run_turn_no_reasoning_level_omits_effort():
         """No reasoning_effort is sent when nothing resolves (e.g. openai)."""
         fake_run = _fake_run_returns("hi")
         config = make_config(
@@ -118,11 +118,11 @@ if pytest is not None:
             use_mcp=False,
             stream_runner=fake_run,
         )
-        client_mod.send_prompt(config, "hello")
+        client_mod.run_turn(config, "hello")
 
         assert "reasoning_effort" not in fake_run.captured_kwargs
 
-    def test_send_prompt_thinking_defaults_on_for_deepseek():
+    def test_run_turn_thinking_defaults_on_for_deepseek():
         """DeepSeek reasons by default: enable_thinking is sent without -t
         (the provider default is resolved into the config at build time)."""
         from janito.openai_client.api_config import build_api_config
@@ -135,11 +135,11 @@ if pytest is not None:
             use_mcp=False,
             stream_runner=fake_run,
         )
-        client_mod.send_prompt(config, "hello")
+        client_mod.run_turn(config, "hello")
 
         assert fake_run.captured_kwargs["extra_body"]["enable_thinking"] is True
 
-    def test_send_prompt_thinking_defaults_on_for_alibaba():
+    def test_run_turn_thinking_defaults_on_for_alibaba():
         """Alibaba/Qwen reasons by default: enable_thinking is sent without -t
         (the provider default is resolved into the config at build time)."""
         from janito.openai_client.api_config import build_api_config
@@ -153,11 +153,11 @@ if pytest is not None:
             use_mcp=False,
             stream_runner=fake_run,
         )
-        client_mod.send_prompt(config, "hello")
+        client_mod.run_turn(config, "hello")
 
         assert fake_run.captured_kwargs["extra_body"]["enable_thinking"] is True
 
-    def test_send_prompt_omits_builtin_tools_for_alibaba_completions():
+    def test_run_turn_omits_builtin_tools_for_alibaba_completions():
         """Alibaba's qwen3.8-max has its built-in tools disabled on the
         Completions API (the deployment rejects code_interpreter with a 400),
         so no enable_* tool flags are sent on the CLI Completions path."""
@@ -169,13 +169,13 @@ if pytest is not None:
             use_mcp=False,
             stream_runner=fake_run,
         )
-        client_mod.send_prompt(config, "hello")
+        client_mod.run_turn(config, "hello")
 
         extra_body = fake_run.captured_kwargs.get("extra_body", {})
         assert "enable_code_interpreter" not in extra_body
         assert "enable_search" not in extra_body
 
-    def test_send_prompt_no_builtin_tools_for_openai():
+    def test_run_turn_no_builtin_tools_for_openai():
         """Models without built-in tools send no tool enable flags."""
         fake_run = _fake_run_returns("hi")
         config = make_config(
@@ -184,14 +184,14 @@ if pytest is not None:
             use_mcp=False,
             stream_runner=fake_run,
         )
-        client_mod.send_prompt(config, "hello")
+        client_mod.run_turn(config, "hello")
 
         assert "enable_code_interpreter" not in fake_run.captured_kwargs.get(
             "extra_body", {}
         )
         assert "enable_search" not in fake_run.captured_kwargs.get("extra_body", {})
 
-    def test_send_prompt_thinking_defaults_on_for_minimax():
+    def test_run_turn_thinking_defaults_on_for_minimax():
         """MiniMax-M3 reasons by default: the structured thinking dict is
         passed through (extra_body thinking {'type': 'adaptive'}) without -t
         (the provider default is resolved into the config at build time)."""
@@ -205,13 +205,13 @@ if pytest is not None:
             use_mcp=False,
             stream_runner=fake_run,
         )
-        client_mod.send_prompt(config, "hello")
+        client_mod.run_turn(config, "hello")
 
         assert fake_run.captured_kwargs["extra_body"]["thinking"] == {
             "type": "adaptive"
         }
 
-    def test_send_prompt_thinking_off_by_default_for_openai():
+    def test_run_turn_thinking_off_by_default_for_openai():
         """OpenAI has no default thinking: enable_thinking is not sent."""
         fake_run = _fake_run_returns("hi")
         config = make_config(
@@ -220,11 +220,11 @@ if pytest is not None:
             use_mcp=False,
             stream_runner=fake_run,
         )
-        client_mod.send_prompt(config, "hello")
+        client_mod.run_turn(config, "hello")
 
         assert "extra_body" not in fake_run.captured_kwargs
 
-    def test_send_prompt_explicit_thinking_flag_still_wins():
+    def test_run_turn_explicit_thinking_flag_still_wins():
         """-t forces enable_thinking even for providers without a default (the
         flag is resolved into the config at build time)."""
         from janito.openai_client.api_config import build_api_config
@@ -238,10 +238,10 @@ if pytest is not None:
             use_mcp=False,
             stream_runner=fake_run,
         )
-        client_mod.send_prompt(config, "hello")
+        client_mod.run_turn(config, "hello")
         assert fake_run.captured_kwargs["extra_body"]["enable_thinking"] is True
 
-    def test_send_prompt_gemini_flavor_skips_enable_thinking():
+    def test_run_turn_gemini_flavor_skips_enable_thinking():
         """Gemini-flavored providers (google) never send enable_thinking (the
         field does not exist on their OpenAI-compatibility layer); no
         thinking_config payload is sent either."""
@@ -257,7 +257,7 @@ if pytest is not None:
             use_mcp=False,
             stream_runner=fake_run,
         )
-        client_mod.send_prompt(config, "hello")
+        client_mod.run_turn(config, "hello")
         extra_body = fake_run.captured_kwargs.get("extra_body")
         # enable_thinking must NOT be sent for Gemini-flavored providers.
         assert not extra_body or "enable_thinking" not in extra_body
@@ -266,7 +266,7 @@ if pytest is not None:
         # Reasoning effort defaults to medium for gemini-3.7-flash.
         assert fake_run.captured_kwargs["reasoning_effort"] == "medium"
 
-    def test_send_prompt_gemini_flavor_forwards_reasoning_effort():
+    def test_run_turn_gemini_flavor_forwards_reasoning_effort():
         """The resolved reasoning level is sent as reasoning_effort for
         Gemini-flavored providers (e.g. --reasoning-level high)."""
         fake_run = _fake_run_returns("hi")
@@ -277,7 +277,7 @@ if pytest is not None:
             use_mcp=False,
             stream_runner=fake_run,
         )
-        client_mod.send_prompt(config, "hello")
+        client_mod.run_turn(config, "hello")
         assert fake_run.captured_kwargs["reasoning_effort"] == "high"
 
     def test_build_call_kwargs_forwards_reasoning_effort():

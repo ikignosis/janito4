@@ -13,9 +13,9 @@ plus its ``_is_enter_pressed`` stdin poller and the ``RequestCancelled``
 exception it raises).  The runner is a UI-side concern: it owns thread
 creation, the Rich spinner and the Enter-to-cancel detection, so it is
 **injected** into the API clients by the caller (the CLI wires it in via
-``_make_send_prompt_func`` in ``cli/chat.py``).  With no runner injected the
+``_make_turn_func`` in ``cli/chat.py``).  With no runner injected the
 clients call their stream workers directly -- no thread, no UI -- keeping
-``send_prompt``/``Client.send`` purely API-side.
+``run_turn``/``Client.run_turn`` purely API-side.
 """
 
 import json
@@ -488,7 +488,7 @@ class RichTurnObserver(NullObserver):
     delegating to this module's display helpers (``_display_reasoning``,
     ``_display_content``, the verbose printers, the error explainers and
     ``display_turn_usage``), so the rendered output is byte-for-byte today's
-    behaviour while ``Client.send`` itself stays UI-free.  The observer owns
+    behaviour while ``Client.run_turn`` itself stays UI-free.  The observer owns
     its ``Console``; tests can inject ``Console(file=...)`` to capture the
     output.
     """
@@ -719,7 +719,7 @@ def _display_usage(
 class TurnUsage:
     """Out-param carrying a turn's usage + the display metadata for it.
 
-    ``Client.send`` populates an instance handed in by the caller: ``stats``
+    ``Client.run_turn`` populates an instance handed in by the caller: ``stats``
     holds the normalized per-turn totals (:class:`~janito.agent.usage.TokenStats`
     mirrors the final request's counters and accumulates the tool-call
     rounds), and the remaining fields are the values :func:`_display_usage`
@@ -747,7 +747,7 @@ def display_turn_usage(
 ) -> None:
     """Print the end-of-turn reports (used files + token usage summary).
 
-    Called by the CLI after ``send_prompt`` returns, using the ``usage_out``
+    Called by the CLI after ``run_turn`` returns, using the ``usage_out``
     out-param the client populated (see :class:`TurnUsage`).  Replaces the
     reports the per-client ``_finalize`` helpers used to print inline: the
     tracked used files first, then the magenta token-usage summary line.
@@ -817,8 +817,8 @@ def _record_accounting(usage_out: TurnUsage | None) -> None:
     )
 
 
-def wrap_send_prompt_with_turn_report(send_func, observer=None):
-    """Wrap a ``send_prompt``-style callable: call the API, then deliver the
+def wrap_turn_with_report(turn_func, observer=None):
+    """Wrap a ``run_turn``-style callable: call the API, then deliver the
     end-of-turn report to the injected :class:`TurnObserver`.
 
     The end-of-turn reports (used-files report + token-usage summary) are
@@ -844,7 +844,7 @@ def wrap_send_prompt_with_turn_report(send_func, observer=None):
 
     def send_with_turn_report(prompt, *, display_turn_report=True, **kwargs):
         usage_out = TurnUsage()
-        result = send_func(prompt, usage_out=usage_out, **kwargs)
+        result = turn_func(prompt, usage_out=usage_out, **kwargs)
         if observer is not None and display_turn_report:
             observer.on_turn_complete(usage_out)
         # Overall-use accounting (best effort, never raises) -- recorded even

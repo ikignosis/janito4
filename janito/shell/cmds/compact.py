@@ -436,7 +436,7 @@ class CompactCmdHandler(CmdHandler):
     def _compact(self, shell, mode: str, compact_entries: list[dict[str, Any]]) -> Any:
         """Run the compression-engine LLM call; return the parsed JSON.
 
-        The call reuses the session's ``send_prompt_func`` (so the current
+        The call reuses the session's ``turn_func`` (so the current
         provider / model / API type apply) with a **local** conversation built
         from the compaction system prompt plus the raw history entries of the
         compact zone -- the main conversation is never touched by this side
@@ -459,8 +459,8 @@ class CompactCmdHandler(CmdHandler):
 
         Returns ``None`` on cancellation/error (the history is left unchanged).
         """
-        send_prompt_func = getattr(shell, "send_prompt_func", None)
-        if send_prompt_func is None:
+        turn_func = getattr(shell, "turn_func", None)
+        if turn_func is None:
             print(
                 "\nError: No prompt function available. Are you in an active session?\n"
             )
@@ -483,7 +483,7 @@ class CompactCmdHandler(CmdHandler):
             "Output ONLY the JSON. No markdown, no explanations."
         )
         try:
-            result = send_prompt_func(
+            result = turn_func(
                 prompt,
                 verbose=False,
                 previous_messages=compact_messages,
