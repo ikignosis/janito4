@@ -64,7 +64,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--reasoning-effort` with the model-scoped config key `reasoning-effort`
   (breaking rename of the previous `--reasoning-level` / `reasoning-level`
   key). The template, google (`medium`), moonshot (`max`) and alibaba
-  (`xhigh`) configs now declare the consolidated keys.
+  (`low`) configs now declare the consolidated keys.
+- The built-in reasoning-effort default is now the **lowest supported**
+  level for the OpenAI GPT and Alibaba Qwen models (instead of the API's
+  own default): the `gpt-5.6-*` models now declare configurable reasoning
+  (`low`/`medium`/`high`, default `low`), `qwen3.8-max`'s default dropped
+  from `xhigh` to `low`, and `qwen3.8-flash` now also declares reasoning
+  levels (`low`/`medium`/`xhigh`, default `low`).
 - The built-in base system prompt moved from a code constant to the packaged
   resource `janito/system-prompt.txt` (issue #73): it is installed as package
   data (`[tool.setuptools.package-data]`) and read lazily from the resource
@@ -77,9 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   flagship `qwen3.8-max` remains a built-in model (its configurable
   reasoning levels `low`/`medium`/`xhigh`, built-in tools and multimodal
   DashScope endpoint are unchanged) and can still be selected explicitly
-  with `--set model=qwen3.8-max`. Configurable reasoning depth
-  (`reasoning_effort`) is now exclusive to `qwen3.8-max`: `qwen3.8-flash`
-  has no built-in reasoning-effort default.
+  with `--set model=qwen3.8-max`. Both Qwen models keep configurable
+  reasoning depth (`reasoning_effort`, levels `low`/`medium`/`xhigh`).
 - Renamed the final-round token counters on `TokenStats`
   (`janito.agent.usage`) and the web `UsageEvent` from `input`/`output`/
   `cached` to `last_input`/`last_output`/`last_cached` to make explicit that

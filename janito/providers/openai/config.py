@@ -19,6 +19,24 @@ PROVIDER_CONFIG: dict = {
             "responses_in_server": True,  # server-side conversation state (previous_response_id)
             "max_input_tokens": 1050000,
             "max_output_tokens": 128000,
+            # GPT-5.x models support configurable reasoning depth via the
+            # OpenAI-compatible reasoning_effort parameter.  The built-in
+            # default is the lowest supported level (low).
+            "default_reasoning_effort": "low",
+            "supported_reasoning_efforts": [
+                {
+                    "effort": "low",
+                    "description": "Lighter reasoning for fast responses",
+                },
+                {
+                    "effort": "medium",
+                    "description": "Standard reasoning depth",
+                },
+                {
+                    "effort": "high",
+                    "description": "Deep reasoning for complex problems",
+                },
+            ],
         },
         "gpt-5.6-terra": {
             "supported_api_types": [
@@ -29,6 +47,24 @@ PROVIDER_CONFIG: dict = {
             "responses_in_server": True,  # server-side conversation state (previous_response_id)
             "max_input_tokens": 1050000,
             "max_output_tokens": 128000,
+            # GPT-5.x models support configurable reasoning depth via the
+            # OpenAI-compatible reasoning_effort parameter.  The built-in
+            # default is the lowest supported level (low).
+            "default_reasoning_effort": "low",
+            "supported_reasoning_efforts": [
+                {
+                    "effort": "low",
+                    "description": "Lighter reasoning for fast responses",
+                },
+                {
+                    "effort": "medium",
+                    "description": "Standard reasoning depth",
+                },
+                {
+                    "effort": "high",
+                    "description": "Deep reasoning for complex problems",
+                },
+            ],
         },
         "gpt-5.6-luna": {
             "supported_api_types": [
@@ -39,6 +75,24 @@ PROVIDER_CONFIG: dict = {
             "responses_in_server": True,  # server-side conversation state (previous_response_id)
             "max_input_tokens": 1050000,
             "max_output_tokens": 128000,
+            # GPT-5.x models support configurable reasoning depth via the
+            # OpenAI-compatible reasoning_effort parameter.  The built-in
+            # default is the lowest supported level (low).
+            "default_reasoning_effort": "low",
+            "supported_reasoning_efforts": [
+                {
+                    "effort": "low",
+                    "description": "Lighter reasoning for fast responses",
+                },
+                {
+                    "effort": "medium",
+                    "description": "Standard reasoning depth",
+                },
+                {
+                    "effort": "high",
+                    "description": "Deep reasoning for complex problems",
+                },
+            ],
         },
     },
 }

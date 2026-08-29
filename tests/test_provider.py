@@ -29,10 +29,10 @@ if pytest is not None:
         p = Provider("alibaba")
         assert p.name == "alibaba"
         assert p.default_model() == "qwen3.8-flash"
-        # The default model (qwen3.8-flash) has no configurable reasoning
-        # level; the flagship qwen3.8-max declares one (see
-        # test_provider_config).
-        assert p.reasoning_effort() is None
+        # The default model (qwen3.8-flash) declares configurable reasoning
+        # levels (low/medium/xhigh) with the lowest (low) as the built-in
+        # default (see test_provider_config).
+        assert p.reasoning_effort() == "low"
         assert p.default_thinking() is True
         assert p.supported_api_types() == ["Completions", "Responses", "DashScope"]
         assert p.default_api_type() == "Responses"

@@ -311,7 +311,7 @@ def get_default_reasoning_effort_from_provider(
     Get the built-in default reasoning level for a provider's model.
 
     This is the reasoning level/effort used by default when the model
-    supports configurable reasoning depth (e.g. ``xhigh`` for Alibaba's
+    supports configurable reasoning depth (e.g. ``low`` for Alibaba's
     ``qwen3.8-max``).
 
     Args:

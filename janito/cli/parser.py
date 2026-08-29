@@ -198,7 +198,7 @@ Note: --set and --set-api-key must be used in separate commands.
         choices=["none", "minimal", "low", "medium", "high", "xhigh", "max"],
         help="Reasoning depth for the API call (sends reasoning_effort=<LEVEL>). "
         "Overrides the provider's configured value and built-in default "
-        "(e.g. qwen3.8-max defaults to 'xhigh'). "
+        "(e.g. qwen3.8-max defaults to 'low'). "
         "Examples: low, medium, high, xhigh",
     )
 

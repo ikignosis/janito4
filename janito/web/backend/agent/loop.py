@@ -74,7 +74,7 @@ def _resolve_turn_config(config, effective_provider, model):
     preserve_thinking = get_config_value("preserve_thinking")
 
     # Reasoning level (reasoning_effort): model-scoped config value first,
-    # then the model's built-in default (e.g. "xhigh" for qwen3.8-max).
+    # then the model's built-in default (e.g. "low" for qwen3.8-max).
     reasoning_effort = load_reasoning_effort(effective_provider, model)
     if reasoning_effort is None:
         reasoning_effort = get_default_reasoning_effort_from_provider(

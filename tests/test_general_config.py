@@ -372,9 +372,9 @@ if pytest is not None:
     def test_set_reasoning_effort_per_provider(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
         cc.set_config_from_cli("provider=alibaba")
-        # Reasoning levels belong to qwen3.8-max (the flagship): the default
-        # model qwen3.8-flash has no configurable reasoning level, so scope
-        # the value to the model explicitly.
+        # Reasoning-effort is model-scoped, so scope the value to the model
+        # explicitly (both Qwen models declare reasoning levels; the
+        # configured value is stored under qwen3.8-max).
         cc.set_config_from_cli("model=qwen3.8-max", "alibaba")
         cc.set_config_from_cli("reasoning-effort=xhigh", "alibaba")
         cc.set_config_from_cli("reasoning-effort=low", "openai")

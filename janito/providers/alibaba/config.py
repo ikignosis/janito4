@@ -36,7 +36,10 @@ PROVIDER_CONFIG: dict = {
             "default_api_type": "Responses",  # built-in default
             "max_input_tokens": 1000000,  # 1M
             "max_output_tokens": 131072,
-            "default_reasoning_effort": "xhigh",
+            # Per the QwenCloud API reference, reasoning_effort accepts
+            # low/medium/xhigh.  The built-in default is the lowest
+            # supported level (low) instead of the API's xhigh.
+            "default_reasoning_effort": "low",
             "thinking": True,  # Qwen models reason by default
             # Built-in (native) tools, enabled per API type.  These are
             # *not* function tools: on the Responses API they are entries in
@@ -87,6 +90,24 @@ PROVIDER_CONFIG: dict = {
             # rest is reserved for output/reasoning) and 131K max output.
             "max_input_tokens": 991000,  # 991K
             "max_output_tokens": 131072,  # 131K
+            # qwen3.8-flash supports the same configurable reasoning depth
+            # as qwen3.8-max (low/medium/xhigh per the QwenCloud API
+            # reference); the built-in default is the lowest level (low).
+            "default_reasoning_effort": "low",
+            "supported_reasoning_efforts": [
+                {
+                    "effort": "low",
+                    "description": "Fast responses with lighter reasoning",
+                },
+                {
+                    "effort": "medium",
+                    "description": "Greater reasoning depth for complex problems",
+                },
+                {
+                    "effort": "xhigh",
+                    "description": "Extra high reasoning depth for complex problems",
+                },
+            ],
             "thinking": True,  # Qwen models reason by default
             # Built-in (native) tools, enabled per API type.  The official
             # page advertises code_interpreter / i2i_search / t2i_search /

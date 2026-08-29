@@ -75,6 +75,7 @@ Supported Providers (12):
     Endpoint:      default OpenAI (no custom base URL)
     API key:       (not set)
     Thinking:      disabled
+    Reasoning:     low (default)
     Max tokens:    1,050,000 in / 128,000 out
   ...
   alibaba
@@ -111,6 +112,25 @@ janito --config
 > API keys are stored in `~/.janito/auth.json`; the model is stored in
 > `~/.janito/config.json`. janito does not read `OPENAI_*` environment
 > variables. See [Configuration Priority](index.md#configuration-priority).
+
+### Reasoning Level
+
+The GPT-5.x models support configurable reasoning depth via the
+OpenAI-compatible `reasoning_effort` parameter. The supported levels are
+`low`, `medium` and `high`; the built-in default is the lowest supported
+level (`low`).
+
+```bash
+# Override the reasoning depth for a single call
+janito --reasoning-effort high "Your prompt"
+
+# Set a per-provider default in the config
+janito --provider openai --set reasoning-effort=medium
+```
+
+Resolution order: `--reasoning-effort` > per-provider config value
+(`--set reasoning-effort=...`) > the model's own default level (`low` for the
+GPT-5.x models).
 
 ## Google (Gemini)
 
@@ -259,7 +279,7 @@ janito --set-api-key="your-dashscope-api-key" --provider alibaba
 
 | Model | Description |
 |-------|-------------|
-| `qwen3.8-flash` | Default model: fast and cost-effective, with built-in token limits and tools |
+| `qwen3.8-flash` | Default model: fast and cost-effective, with built-in token limits, reasoning levels and tools |
 | `qwen3.8-max` | Flagship model with built-in token limits, reasoning levels and tools |
 
 Model selection is restricted to the built-in models above.
@@ -267,11 +287,10 @@ Model selection is restricted to the built-in models above.
 
 ### Reasoning Level
 
-The flagship `qwen3.8-max` supports configurable reasoning depth via the
-OpenAI-compatible `reasoning_effort` parameter. Its built-in default is
-`xhigh`; the supported levels are `low`, `medium` and `xhigh`. The default
-model `qwen3.8-flash` has no configurable reasoning level (the API's own
-default applies).
+Both Qwen models (`qwen3.8-max` and the default `qwen3.8-flash`) support
+configurable reasoning depth via the OpenAI-compatible `reasoning_effort`
+parameter. The supported levels are `low`, `medium` and `xhigh`; the
+built-in default is the lowest supported level (`low`).
 
 ```bash
 # Override the reasoning depth for a single call (qwen3.8-max)
@@ -283,7 +302,7 @@ janito --provider alibaba --set reasoning-effort=medium
 ```
 
 Resolution order: `--reasoning-effort` > per-provider config value
-(`--set reasoning-effort=...`) > built-in default (`xhigh` for `qwen3.8-max`).
+(`--set reasoning-effort=...`) > built-in default (`low` for the Qwen models).
 
 ### Thinking Mode
 

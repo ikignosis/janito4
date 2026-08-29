@@ -315,22 +315,37 @@ if pytest is not None:
         assert get_default_max_output_tokens_from_provider("bogus") is None
 
     def test_default_and_supported_reasoning_efforts():
-        # Alibaba's default model (qwen3.8-flash) has no configurable
-        # reasoning level; the flagship qwen3.8-max declares them.
-        assert get_default_reasoning_effort_from_provider("alibaba") is None
-        assert get_supported_reasoning_efforts_from_provider("alibaba") is None
+        # Both Alibaba Qwen models (the default qwen3.8-flash and the
+        # flagship qwen3.8-max) declare configurable reasoning levels
+        # (low/medium/xhigh per the QwenCloud API reference); the built-in
+        # default is the lowest supported level (low) for both.
+        assert get_default_reasoning_effort_from_provider("alibaba") == "low"
+        assert get_supported_reasoning_efforts_from_provider("alibaba") is not None
+        assert [
+            entry["effort"]
+            for entry in get_supported_reasoning_efforts_from_provider("alibaba")
+        ] == ["low", "medium", "xhigh"]
         assert (
             get_default_reasoning_effort_from_provider("alibaba", "qwen3.8-max")
-            == "xhigh"
+            == "low"
         )
         # The built-in default lives under the single
         # "default_reasoning_effort" key (the old "reasoning_level" alias is
         # not supported).
         qwen_entry = get_provider_config("alibaba")["models"]["qwen3.8-max"]
-        assert qwen_entry["default_reasoning_effort"] == "xhigh"
+        assert qwen_entry["default_reasoning_effort"] == "low"
         assert "reasoning_level" not in qwen_entry
         supported = get_supported_reasoning_efforts_from_provider(
             "alibaba", "qwen3.8-max"
+        )
+        assert supported is not None
+        assert [entry["effort"] for entry in supported] == ["low", "medium", "xhigh"]
+        for entry in supported:
+            assert "effort" in entry
+            assert "description" in entry
+        # qwen3.8-flash (the default model) declares the same levels.
+        supported = get_supported_reasoning_efforts_from_provider(
+            "alibaba", "qwen3.8-flash"
         )
         assert supported is not None
         assert [entry["effort"] for entry in supported] == ["low", "medium", "xhigh"]
@@ -360,13 +375,22 @@ if pytest is not None:
         # Case-insensitive lookup works.
         assert (
             get_default_reasoning_effort_from_provider("Alibaba", "qwen3.8-max")
-            == "xhigh"
+            == "low"
         )
         assert get_supported_reasoning_efforts_from_provider("DeepSeek") is not None
         assert get_supported_reasoning_efforts_from_provider("Moonshot") is not None
+        # The OpenAI GPT models declare reasoning levels too
+        # (low/medium/high), with the lowest (low) as the built-in default.
+        assert get_default_reasoning_effort_from_provider("openai") == "low"
+        assert get_supported_reasoning_efforts_from_provider("openai") is not None
+        assert [
+            entry["effort"]
+            for entry in get_supported_reasoning_efforts_from_provider("openai")
+        ] == ["low", "medium", "high"]
+        for entry in get_supported_reasoning_efforts_from_provider("openai"):
+            assert "effort" in entry
+            assert "description" in entry
         # Providers without configurable reasoning expose None.
-        assert get_default_reasoning_effort_from_provider("openai") is None
-        assert get_supported_reasoning_efforts_from_provider("openai") is None
         assert get_default_reasoning_effort_from_provider("custom") is None
         # Unknown provider returns None.
         assert get_default_reasoning_effort_from_provider("bogus") is None
