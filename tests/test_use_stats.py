@@ -27,7 +27,6 @@ def _point_at(monkeypatch, tmp_path):
     """Point the global config dir at a temp directory and return it."""
     config_dir = tmp_path / "custom_janito"
     monkeypatch.setattr(config_dir_mod, "_config_dir", config_dir)
-    accounting._store._turn_counter = 0
     return config_dir
 
 

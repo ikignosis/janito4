@@ -25,7 +25,6 @@ Each row has:
 | Column         | Meaning                                                        |
 |----------------|----------------------------------------------------------------|
 | `cwd`          | Working directory the turn ran in                              |
-| `turn_count`   | Turn ordinal within the janito process (1, 2, 3, …)            |
 | `timestamp`    | UTC time the turn completed (ISO-8601)                         |
 | `provider`     | Provider that served the turn (e.g. `deepseek`)                |
 | `model`        | Model used (e.g. `deepseek-v4-flash`)                          |
@@ -102,8 +101,8 @@ python -m janito.tooling.accounting --json     # JSON output
 Example output:
 
 ```
-2026-08-28T17:47:34.778205+00:00  turn    1  /home/me/proj  deepseek/deepseek-v4-flash  in=180 cached=10 out=120  cost=0.0001$
-2026-08-28T17:47:34.778580+00:00  turn    2  /home/me/proj  openai/gpt-5.6-luna          in=50000 cached=5000 out=4000  cost=0.0150$
+2026-08-28T17:47:34.778205+00:00  /home/me/proj  deepseek/deepseek-v4-flash  in=180 cached=10 out=120  cost=0.0001$
+2026-08-28T17:47:34.778580+00:00  /home/me/proj  openai/gpt-5.6-luna          in=50000 cached=5000 out=4000  cost=0.0150$
 ```
 
 ## Querying with SQL

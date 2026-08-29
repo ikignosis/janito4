@@ -4,8 +4,8 @@ Tests for the SQLite-backed overall-use accounting.
 ``janito.tooling.accounting`` appends one row per completed LLM turn to an
 ``accounting.db`` SQLite database inside the Janito config directory (issue
 #72). These tests point the config dir at a temporary directory and verify
-the database is created with the expected schema, values round-trip, the
-turn ordinal auto-increments and the cost accessor returns numeric dollars.
+the database is created with the expected schema, values round-trip and the
+cost accessor returns numeric dollars.
 """
 
 import sqlite3
@@ -26,7 +26,6 @@ from janito.provider_accessors import get_provider_cost_value
 EXPECTED_COLUMNS = {
     "id",
     "cwd",
-    "turn_count",
     "timestamp",
     "provider",
     "model",
@@ -41,9 +40,6 @@ def _point_at(monkeypatch, tmp_path):
     """Point the global config dir at a temp directory and return it."""
     config_dir = tmp_path / "custom_janito"
     monkeypatch.setattr(config_dir_mod, "_config_dir", config_dir)
-    # Reset the module singleton's per-process turn ordinal so each test
-    # starts from 1 again (deterministic assertions).
-    accounting._store._turn_counter = 0
     return config_dir
 
 
@@ -91,7 +87,6 @@ if pytest is not None:
         assert len(records) == 1
         row = records[0]
         assert row["cwd"] == str(Path.cwd())
-        assert row["turn_count"] == 1
         assert row["timestamp"]
         assert row["provider"] == "deepseek"
         assert row["model"] == "deepseek-v4-flash"
@@ -99,33 +94,6 @@ if pytest is not None:
         assert row["cached_tokens"] == 10
         assert row["output_tokens"] == 120
         assert row["cost"] == pytest.approx(0.0088)
-
-    def test_turn_count_auto_increments_per_process(monkeypatch, tmp_path):
-        _point_at(monkeypatch, tmp_path)
-        accounting.record_turn(
-            "openai", "m", input_tokens=1, cached_tokens=0, output_tokens=1
-        )
-        accounting.record_turn(
-            "openai", "m", input_tokens=1, cached_tokens=0, output_tokens=1
-        )
-        accounting.record_turn(
-            "openai", "m", input_tokens=1, cached_tokens=0, output_tokens=1
-        )
-
-        counts = [r["turn_count"] for r in accounting.get_records()]
-        assert counts == [3, 2, 1]
-
-    def test_explicit_turn_count_is_stored(monkeypatch, tmp_path):
-        _point_at(monkeypatch, tmp_path)
-        accounting.record_turn(
-            "openai",
-            "m",
-            input_tokens=1,
-            cached_tokens=0,
-            output_tokens=1,
-            turn_count=42,
-        )
-        assert accounting.get_records()[0]["turn_count"] == 42
 
     def test_none_counters_stored_as_null(monkeypatch, tmp_path):
         _point_at(monkeypatch, tmp_path)

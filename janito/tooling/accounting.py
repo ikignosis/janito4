@@ -4,9 +4,9 @@ Overall-use accounting backed by an SQLite database.
 Every completed LLM turn that reports token usage (from either the CLI agent
 loop or the web backend) is appended as one row to ``accounting.db`` inside
 the Janito config directory (see :mod:`janito.config_dir`).  Each row records
-the working directory, a turn ordinal, the timestamp, the provider/model and
-the turn-wide token counters plus the estimated cost, so usage can be summed
-and queried per directory / provider / model over time (issue #72).
+the working directory, the timestamp, the provider/model and the turn-wide
+token counters plus the estimated cost, so usage can be summed and queried
+per directory / provider / model over time (issue #72).
 
 :class:`AccountingStore` implements the database access (the module functions
 below delegate to a module-level singleton).  Like :mod:`janito.tooling.tools_usage`,
@@ -48,10 +48,6 @@ class AccountingStore:
         # ``check_same_thread = False``, but a lock keeps inserts atomic and
         # cheap.
         self._lock = threading.Lock()
-        # Per-process turn ordinal: every recorded turn gets the next number
-        # (1, 2, 3, ...) so the ``turn_count`` column is a stable, unique
-        # sequence within this janito process regardless of the caller.
-        self._turn_counter = 0
 
     @property
     def db_path(self) -> Path:
@@ -84,7 +80,6 @@ class AccountingStore:
             CREATE TABLE IF NOT EXISTS accounting (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 cwd TEXT NOT NULL,
-                turn_count INTEGER NOT NULL,
                 timestamp TEXT NOT NULL,
                 provider TEXT,
                 model TEXT,
@@ -107,16 +102,14 @@ class AccountingStore:
         output_tokens: int | None,
         *,
         cwd: str | Path | None = None,
-        turn_count: int | None = None,
         timestamp: str | None = None,
         cost: float | None = None,
     ) -> None:
         """Append one accounting row for a completed turn.
 
-        ``cwd`` defaults to the process' current working directory,
-        ``timestamp`` to the current UTC time (ISO-8601) and ``turn_count``
-        to the next per-process ordinal.  This method never raises; any
-        database error is logged and ignored.
+        ``cwd`` defaults to the process' current working directory and
+        ``timestamp`` to the current UTC time (ISO-8601).  This method never
+        raises; any database error is logged and ignored.
 
         Args:
             provider: The provider that served the turn (may be ``None``).
@@ -128,7 +121,6 @@ class AccountingStore:
                 Anthropic / DashScope / Gemini SDKs).
             output_tokens: Turn-wide output token count (may be ``None``).
             cwd: Working directory to record; defaults to ``Path.cwd()``.
-            turn_count: Turn ordinal; defaults to the next per-process value.
             timestamp: ISO-8601 timestamp; defaults to the current UTC time.
             cost: Estimated cost in dollars (REAL); defaults to ``None``.
         """
@@ -141,21 +133,18 @@ class AccountingStore:
 
         try:
             with self._lock:
-                self._turn_counter += 1
-                count = self._turn_counter if turn_count is None else turn_count
                 conn = self._connect()
                 try:
                     conn.execute(
                         """
                         INSERT INTO accounting (
-                            cwd, turn_count, timestamp, provider, model,
+                            cwd, timestamp, provider, model,
                             input_tokens, cached_tokens, output_tokens, cost
                         )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             str(working_dir),
-                            count,
                             stamp,
                             provider,
                             model,
@@ -187,7 +176,7 @@ class AccountingStore:
                 conn = self._connect()
                 try:
                     query = (
-                        "SELECT cwd, turn_count, timestamp, provider, model, "
+                        "SELECT cwd, timestamp, provider, model, "
                         "input_tokens, cached_tokens, output_tokens, cost "
                         "FROM accounting ORDER BY id DESC"
                     )
@@ -198,7 +187,6 @@ class AccountingStore:
                         cursor = conn.execute(query)
                     columns = [
                         "cwd",
-                        "turn_count",
                         "timestamp",
                         "provider",
                         "model",
@@ -416,7 +404,6 @@ def record_turn(
     output_tokens: int | None,
     *,
     cwd: str | Path | None = None,
-    turn_count: int | None = None,
     timestamp: str | None = None,
     cost: float | None = None,
 ) -> None:
@@ -433,7 +420,6 @@ def record_turn(
         cached_tokens,
         output_tokens,
         cwd=cwd,
-        turn_count=turn_count,
         timestamp=timestamp,
         cost=cost,
     )
@@ -540,7 +526,7 @@ def main() -> None:
         cost = record["cost"]
         cost_text = f"{cost:.4f}$" if cost is not None else "N/A"
         print(
-            f"{record['timestamp']}  turn {record['turn_count']:>4}  "
+            f"{record['timestamp']}  "
             f"{record['cwd']}  {record['provider']}/{record['model']}  "
             f"in={record['input_tokens']} cached={record['cached_tokens']} "
             f"out={record['output_tokens']}  cost={cost_text}"

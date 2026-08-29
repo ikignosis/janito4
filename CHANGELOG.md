@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Overall-use accounting (issue #72): every completed LLM turn that reports
   token usage is appended as one row to `<config dir>/accounting.db` (a
   SQLite database, default `~/.janito/accounting.db`) recording the working
-  directory, a per-process turn ordinal, a UTC timestamp, the provider/model
+  directory, a UTC timestamp, the provider/model
   and the turn-wide token counters (`input_tokens`, `cached_tokens`,
   `output_tokens`, tool-call rounds included) plus the estimated cost as a
   numeric dollar value. Both the CLI (interactive shell, `/ask`, `/compact`,
@@ -311,6 +311,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   alias was dropped (project convention: no backward compatibility).
   `web/backend/prompts.py`'s `_send_prompt` (a WebSocket frame sender, a
   different concept) is intentionally unchanged.
+
+### Removed
+
+- Removed the `turn_count` column from the overall-use accounting database
+  (issue #80): `accounting.db` rows no longer carry the per-process turn
+  ordinal (it reset on every process start and was never used by `/use_stats`
+  or the aggregations). The schema, `record_turn` signatures, `get_records`
+  output, the `python -m janito.tooling.accounting` inspector output and the
+  docs no longer reference it. No migration is performed -- the old database
+  files are removed by the user (project convention: no backward
+  compatibility).
 
 ### Fixed
 

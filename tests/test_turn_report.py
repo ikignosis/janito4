@@ -304,7 +304,6 @@ class TestRunTurnDeliversTurnReport:
         import janito.tooling.accounting as accounting
         from janito.openai_client.client_support import RichTurnObserver
 
-        accounting._store._turn_counter = 0
         buf = StringIO()
         observer = RichTurnObserver(
             console=Console(file=buf, width=120, force_terminal=False)
@@ -331,7 +330,6 @@ class TestRunTurnDeliversTurnReport:
         import janito.tooling.accounting as accounting
         from janito.openai_client.client_support import RichTurnObserver
 
-        accounting._store._turn_counter = 0
         buf = StringIO()
         observer = RichTurnObserver(
             console=Console(file=buf, width=120, force_terminal=False)
