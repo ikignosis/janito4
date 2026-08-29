@@ -175,13 +175,14 @@ def _finalize_conversation(
     message_count: int,
     response_id: str | None,
     responses_in_server: bool,
+    *,
     turn_items: list[dict[str, Any]] | None = None,
-    usage_out: TurnUsage | None = None,
+    usage_out: TurnUsage,
 ) -> Any:
     """Assemble the final ConversationResult.
 
-    ``usage_out`` (when given) receives the display metadata the caller needs
-    to render the end-of-turn reports after ``run_turn`` returns (see
+    ``usage_out`` receives the display metadata the client's end-of-turn
+    report needs (see
     :func:`janito.openai_client.client_support.display_turn_usage`).
     """
     from .conversations_api import ConversationResult
@@ -199,10 +200,8 @@ def _finalize_conversation(
         if turn_items is not None:
             turn_items.append(dict(assistant_item))
 
-    if usage_out is not None:
-        usage_out.message_count = message_count
-        usage_out.label = "Responses"
-        usage_out.show_cached = True
+    usage_out.message_count = message_count
+    usage_out.label = "Responses"
     return ConversationResult(
         content=full_content,
         response_id=response_id if responses_in_server else None,

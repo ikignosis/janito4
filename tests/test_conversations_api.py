@@ -1028,9 +1028,9 @@ def test_make_turn_func_responses_dispatch(monkeypatch):
     # previous_messages IS forwarded by the union signature (the Responses
     # backend ignores it -- each _init_conversation_state picks its own).
     assert captured["previous_messages"] == [{"role": "system", "content": "x"}]
-    # The turn report out-param is threaded so the wrapper can render the
-    # usage summary after the API call returns.
-    assert captured["usage_out"] is not None
+    # No out-param is threaded: the client owns the TurnUsage and delivers
+    # the end-of-turn report itself (issue #82).
+    assert "usage_out" not in captured
 
 
 def test_make_turn_func_completions_dispatch(monkeypatch):
@@ -1067,8 +1067,9 @@ def test_make_turn_func_completions_dispatch(monkeypatch):
     assert result == "completions answer"
     assert captured["config"].api_type == "Completions"
     assert captured["previous_messages"] == [{"role": "user", "content": "hello"}]
-    # The turn report out-param is threaded.
-    assert captured["usage_out"] is not None
+    # No out-param is threaded: the client owns the TurnUsage and delivers
+    # the end-of-turn report itself (issue #82).
+    assert "usage_out" not in captured
 
 
 # ---- turn_factory (real-time /provider switch) -----------------------------

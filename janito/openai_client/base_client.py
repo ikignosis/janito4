@@ -52,7 +52,7 @@ from janito.tooling.executor import extract_tool_names
 from janito.tooling.used_files import reset_used_files
 
 from .api_config import APIConfig
-from .client_support import _display_usage, _load_mcp
+from .client_support import TurnUsage, _display_usage, _load_mcp
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -122,23 +122,27 @@ class Client:
         prompt: str,
         *,
         verbose: bool | None = None,
+        previous_messages: list[dict[str, Any]] | None = None,
+        previous_response_id: str | None = None,
+        previous_items: list[dict[str, Any]] | None = None,
+        instructions: str | None = None,
         tools: list[dict[str, Any]] | None = None,
-        **kwargs: Any,
     ) -> Any:
         """Run one full turn: setup, stream loop, tool calls, finalize.
 
-        ``kwargs`` carries the conversation-context parameters of the concrete
-        ``run_turn`` signature (e.g. ``previous_messages``,
-        ``previous_response_id``, ``previous_items``, ``instructions``); each
-        subclass's :meth:`_init_conversation_state` picks the ones it needs.
-        The optional ``usage_out`` kwarg (a
-        :class:`~janito.openai_client.client_support.TurnUsage`) is populated
-        with the turn's usage and display metadata; when it is given, the
-        end-of-turn report is delivered to the injected observer's
-        ``on_turn_complete`` once the turn finishes (see
-        :class:`~janito.agent.observer.TurnObserver`).  The conversation
-        turn number is never passed here: it is display-only caller
-        knowledge, supplied directly to the renderer by the caller.
+        The conversation-context parameters (``previous_messages``,
+        ``previous_response_id``, ``previous_items``, ``instructions``) are
+        the union of the concrete per-API signatures; each subclass's
+        :meth:`_init_conversation_state` picks the ones it needs and ignores
+        the rest:
+
+          - Completions / Anthropic / DashScope / Gemini: the conversation
+            history is owned client-side (``previous_messages`` mutated in
+            place, ``instructions`` folded in); ``previous_response_id`` /
+            ``previous_items`` are ignored.
+          - Responses: ``previous_response_id`` (server-side providers) or
+            ``previous_items`` (stateless providers, e.g. DeepSeek) chain the
+            conversation; ``previous_messages`` is ignored.
 
         ``verbose`` defaults to the session value from ``config.verbose``;
         pass an explicit ``True``/``False`` to override it for one call.
@@ -146,6 +150,17 @@ class Client:
         Thinking mode is resolved into ``config.thinking`` at build time
         (``--thinking`` / ``/thinking`` flag against the provider's built-in
         default); it is not a per-call argument.
+
+        The end-of-turn report (used files + token-usage summary) is
+        delivered by this method itself: it builds a
+        :class:`~janito.openai_client.client_support.TurnUsage`, folds every
+        round's usage into it (tool-call rounds included), lets the concrete
+        :meth:`_finalize` hook fill in the display metadata, and hands it to
+        the injected observer's ``on_turn_complete`` when the turn finishes
+        -- there is no caller-supplied out-param (see
+        :class:`~janito.agent.observer.TurnObserver`).  The conversation
+        turn number is never passed here: it is display-only caller
+        knowledge, supplied directly to the renderer by the caller.
 
         Returns:
             The API-specific turn result: the assistant text (``str``) for the
@@ -159,11 +174,11 @@ class Client:
         clear_changes()
         reset_used_files()
 
-        # Out-param for the post-call turn report (see TurnUsage): populated
-        # as the rounds stream so the end-of-turn report can be delivered to
-        # the observer's on_turn_complete when the turn finishes, instead of
-        # being rendered inside the _finalize hooks.
-        usage_out = kwargs.pop("usage_out", None)
+        # Client-owned turn report (issue #82): folded as the rounds stream
+        # and delivered to the observer's on_turn_complete at the end of the
+        # turn, so the end-of-turn reports stay out of the _finalize hooks
+        # (see TurnUsage).  No caller-supplied out-param.
+        usage_out = TurnUsage()
 
         base_url, api_key, model = (
             self.config.base_url,
@@ -210,18 +225,25 @@ class Client:
 
         # Conversation-state model depends on the client (client-owned
         # messages list vs server-side response id vs client-side items).
-        state = self._init_conversation_state(prompt, provider, model, **kwargs)
+        state = self._init_conversation_state(
+            prompt,
+            provider,
+            model,
+            previous_messages=previous_messages,
+            previous_response_id=previous_response_id,
+            previous_items=previous_items,
+            instructions=instructions,
+        )
 
         # Per-turn usage accumulator: folds every round (tool-call rounds
-        # included) into a TokenStats so the caller can render the summary
-        # after run_turn() returns (see TurnUsage).  Metadata that can only be
-        # resolved here is recorded on the out-param up front.
+        # included) into a TokenStats for the end-of-turn report (see
+        # TurnUsage).  Metadata that can only be resolved here is recorded on
+        # the client-owned instance up front.
         turn_stats: TokenStats | None = None
-        if usage_out is not None:
-            usage_out.provider = provider
-            usage_out.model = model
-            usage_out.max_input_tokens = max_input_tokens
-            usage_out.max_output_tokens = max_output_tokens
+        usage_out.provider = provider
+        usage_out.model = model
+        usage_out.max_input_tokens = max_input_tokens
+        usage_out.max_output_tokens = max_output_tokens
 
         while True:
             # Build the base call parameters for one round.
@@ -282,9 +304,8 @@ class Client:
             # Fold this round's usage into the turn totals (the round state
             # is discarded on tool-call rounds, so the usage would otherwise
             # be lost).
-            if usage_out is not None:
-                turn_stats = _fold_turn_usage(turn_stats, usage_info)
-                usage_out.stats = turn_stats
+            turn_stats = _fold_turn_usage(turn_stats, usage_info)
+            usage_out.stats = turn_stats
 
             # Display the assembled response (markdown in the CLI)
             self.observer.on_message(full_content)
@@ -310,14 +331,12 @@ class Client:
         """Finalize the turn and deliver the end-of-turn report.
 
         Runs the concrete client's :meth:`_finalize` hook and then hands the
-        populated ``usage_out`` out-param to the injected observer's
+        populated client-owned ``usage_out`` to the injected observer's
         ``on_turn_complete`` (which renders the usage summary and records the
-        overall-use accounting row); without the out-param nothing is
-        delivered.
+        overall-use accounting row).  The report is delivered on every turn.
         """
         result = self._finalize(full_content, reasoning_content, state, usage_out)
-        if usage_out is not None:
-            self.observer.on_turn_complete(usage_out)
+        self.observer.on_turn_complete(usage_out)
         return result
 
     # ------------------------------------------------------------------
@@ -368,8 +387,24 @@ class Client:
         """
         raise NotImplementedError
 
-    def _init_conversation_state(self, prompt, provider, model, **kwargs):
-        """Build the per-turn conversation state from ``**kwargs``."""
+    def _init_conversation_state(
+        self,
+        prompt,
+        provider,
+        model,
+        *,
+        previous_messages=None,
+        previous_response_id=None,
+        previous_items=None,
+        instructions=None,
+    ):
+        """Build the per-turn conversation state from the context params.
+
+        The keyword-only parameters are the union of the concrete per-API
+        signatures; each subclass picks the ones it needs (e.g. Completions
+        uses only ``previous_messages``; Responses uses
+        ``previous_response_id`` / ``previous_items`` / ``instructions``).
+        """
         raise NotImplementedError
 
     def _build_call_kwargs(
@@ -416,17 +451,16 @@ class Client:
         full_content,
         reasoning_content,
         state,
-        usage_out=None,
+        usage_out,
     ):
         """Record the final assistant message and return the result.
 
         ``usage_out`` (a
-        :class:`~janito.openai_client.client_support.TurnUsage`, or ``None``)
-        receives the display metadata the end-of-turn report needs (message
-        count / label / cached reporting); the token counters were already
-        folded onto ``usage_out.stats`` by :meth:`run_turn`, and the report
-        is delivered to the observer's ``on_turn_complete`` right after this
-        hook returns.
+        :class:`~janito.openai_client.client_support.TurnUsage`) receives the
+        display metadata the end-of-turn report needs (message count / label /
+        cached reporting); the token counters were already folded onto
+        ``usage_out.stats`` by :meth:`run_turn`, and the report is delivered
+        to the observer's ``on_turn_complete`` right after this hook returns.
         """
         raise NotImplementedError
 

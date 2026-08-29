@@ -21,7 +21,7 @@ class APIConfig:
     """Resolved, immutable per-session API configuration.
 
     Frozen -- the whole point is that the pipeline can't mutate session
-    config; per-call variance is handled by per-call args (``usage_out``,
+    config; per-call variance is handled by per-call args (``verbose`` and
     the conversation-context kwargs) or by rebuilding the config (cheap, and
     exactly what happens on a provider/model or ``/thinking`` switch).
 

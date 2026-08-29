@@ -111,12 +111,13 @@ class TurnObserver(Protocol):
     def on_turn_complete(self, usage_out: Any) -> None:
         """End-of-turn report (used files + token-usage summary + accounting).
 
-        Invoked by ``Client.run_turn`` at the end of the turn, with the
-        populated :class:`~janito.openai_client.client_support.TurnUsage`
-        out-param.  The CLI's ``RichTurnObserver`` renders the report and
-        records the overall-use accounting row from this call; the headless
-        ``NullObserver`` drops it (the web loop emits its own structured
-        events and records its own accounting).
+        Invoked by ``Client.run_turn`` at the end of the turn with the
+        client-built :class:`~janito.openai_client.client_support.TurnUsage`
+        (issue #82: there is no caller-supplied out-param).  The CLI's
+        ``RichTurnObserver`` renders the report and records the overall-use
+        accounting row from this call; the headless ``NullObserver`` drops it
+        (the web loop emits its own structured events and records its own
+        accounting).
         """
         ...
 

@@ -58,10 +58,9 @@ from janito.openai_client.api_config import APIConfig
 # Shared agent-loop pipeline (see Client.run_turn) implemented by GeminiClient.
 from janito.openai_client.base_client import Client
 
-# Shared client helpers: the usage summary out-param used by the module's
-# remaining functions, and the error classifier the native-SDK clients use
-# to pick the observer's explainer explicitly.
-from janito.openai_client.client_support import TurnUsage, _classify_error
+# Shared client helpers: the error classifier the native-SDK clients use to
+# pick the observer's explainer explicitly.
+from janito.openai_client.client_support import _classify_error
 from janito.openai_client.gemini_stream import _stream_response
 from janito.tooling.executor import ToolExecutor
 
@@ -114,7 +113,6 @@ def run_turn(
     previous_messages: list[dict[str, Any]] | None = None,
     instructions: str | None = None,
     tools: list[dict[str, Any]] | None = None,
-    usage_out: TurnUsage | None = None,
 ) -> str:
     """Send a prompt through the native Gemini SDK and return the answer.
 
@@ -144,17 +142,17 @@ def run_turn(
             used.
         tools: Optional list of tool schemas to pass. If None, uses all
             available tools. If an empty list, no tools are passed.
-        usage_out: Optional out-param (a
-            :class:`~janito.openai_client.client_support.TurnUsage`) populated
-            with the turn's usage and display metadata, so the caller can
-            render the end-of-turn reports after the call returns (see
-            :func:`~janito.openai_client.client_support.display_turn_usage`).
 
     Returns:
         The assistant's final text (after any tool-call rounds).
 
     Raises:
         RuntimeError: If the ``google-genai`` package is not installed.
+
+    Note:
+        The end-of-turn report (used files + token-usage summary) is
+        delivered by the client itself to the injected observer's
+        ``on_turn_complete``; there is no ``usage_out`` out-param (issue #82).
 
     Note:
         Thinking mode is resolved into ``config.thinking`` at build time.
@@ -169,7 +167,6 @@ def run_turn(
         previous_messages=previous_messages,
         instructions=instructions,
         tools=tools,
-        usage_out=usage_out,
     )
 
 
@@ -209,15 +206,23 @@ class GeminiClient(Client):
             self.config.reasoning_effort,
         )
 
-    def _init_conversation_state(self, prompt, provider, model, **kwargs):
+    def _init_conversation_state(
+        self,
+        prompt,
+        provider,
+        model,
+        *,
+        previous_messages=None,
+        previous_response_id=None,
+        previous_items=None,
+        instructions=None,
+    ):
         # Build the conversation. The Gemini API takes the system prompt as a
         # top-level `system_instruction` (not a "system"-role content), so
         # system-role messages are extracted from the history and folded into
         # it; the in-place history list keeps them so the shell's
         # messages_history stays intact.
-        return _init_state(
-            kwargs.get("instructions"), kwargs.get("previous_messages"), prompt
-        )
+        return _init_state(instructions, previous_messages, prompt)
 
     def _build_call_kwargs(
         self,
@@ -313,7 +318,7 @@ class GeminiClient(Client):
         full_content,
         reasoning_content,
         state,
-        usage_out=None,
+        usage_out,
     ):
         # No more tool calls, return the final response.
         return _finalize_response(

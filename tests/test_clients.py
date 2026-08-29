@@ -378,6 +378,9 @@ if pytest is not None:
             def on_message(self, content):
                 pass
 
+            def on_turn_complete(self, usage_out):
+                pass
+
         def fake_run(func, client, call_kwargs, tools_schemas):
             return "hi", None, {}, None, {"id": "chatcmpl-1"}
 
@@ -424,6 +427,9 @@ if pytest is not None:
                 pass
 
             def on_message(self, content):
+                pass
+
+            def on_turn_complete(self, usage_out):
                 pass
 
         def fake_run(func, client, call_kwargs, tools_schemas):

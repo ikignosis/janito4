@@ -33,11 +33,9 @@ from .api_config import APIConfig
 # Shared agent-loop pipeline (see Client.run_turn) implemented by CompletionsClient.
 from .base_client import Client
 
-# Shared client helpers: the usage summary out-param used by the module's
-# remaining functions (the per-round stream runner, Rich console output and
+# Shared client helpers (the per-round stream runner, Rich console output and
 # auth-error explainer are injected by the CLI via ``Client``; see
 # ``client_support``).
-from .client_support import TurnUsage
 from .completions_helpers import _build_call_kwargs, _finalize_response, _resolve_tools
 from .completions_stream import _stream_response
 
@@ -175,7 +173,6 @@ def run_turn(
     *,
     previous_messages: list[dict[str, Any]] | None = None,
     tools: list[dict[str, Any]] | None = None,
-    usage_out: TurnUsage | None = None,
 ) -> str:
     """Send prompt to OpenAI endpoint and return response using streaming.
 
@@ -195,11 +192,11 @@ def run_turn(
             context (mutated in place).
         tools: Optional list of tool schemas to pass. If None, uses all
             available tools. If an empty list, no tools are passed.
-        usage_out: Optional out-param (a
-            :class:`~janito.openai_client.client_support.TurnUsage`) populated
-            with the turn's usage and display metadata, so the caller can
-            render the end-of-turn reports after the call returns (see
-            :func:`~janito.openai_client.client_support.display_turn_usage`).
+
+    Note:
+        The end-of-turn report (used files + token-usage summary) is
+        delivered by the client itself to the injected observer's
+        ``on_turn_complete``; there is no ``usage_out`` out-param (issue #82).
 
     Note:
         Thinking mode is resolved into ``config.thinking`` at build time: the
@@ -214,7 +211,6 @@ def run_turn(
         prompt,
         previous_messages=previous_messages,
         tools=tools,
-        usage_out=usage_out,
     )
 
 
@@ -252,14 +248,23 @@ class CompletionsClient(Client):
             self.config.reasoning_effort,
         )
 
-    def _init_conversation_state(self, prompt, provider, model, **kwargs):
+    def _init_conversation_state(
+        self,
+        prompt,
+        provider,
+        model,
+        *,
+        previous_messages=None,
+        previous_response_id=None,
+        previous_items=None,
+        instructions=None,
+    ):
         # Use previous messages if provided, otherwise start with the user
         # prompt.  NOTE: check `is not None` (not truthiness). An empty list
         # is a valid, caller-owned history (e.g. after a restart or with
         # --no-system-prompt); using a truthy check would replace it with a
         # new local list and the appended messages would never propagate back
         # to the caller, silently resetting the history on every turn.
-        previous_messages = kwargs.get("previous_messages")
         messages = previous_messages if previous_messages is not None else []
         messages.append({"role": "user", "content": prompt})
         return messages
@@ -347,6 +352,6 @@ class CompletionsClient(Client):
         full_content,
         reasoning_content,
         state,
-        usage_out=None,
+        usage_out,
     ):
         return _finalize_response(full_content, reasoning_content, state, usage_out)

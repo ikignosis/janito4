@@ -55,10 +55,9 @@ from .api_config import APIConfig
 # Shared agent-loop pipeline (see Client.run_turn) implemented by ResponsesClient.
 from .base_client import Client
 
-# Shared client helpers: the usage summary out-param used by the module's
-# remaining functions, and the RequestCancelled exception raised by the
+# Shared client helpers: the RequestCancelled exception raised by the
 # injected per-round stream runner (see ``client_support``).
-from .client_support import RequestCancelled, TurnUsage
+from .client_support import RequestCancelled
 
 # Runtime config resolution, shared with the Chat Completions implementation
 # so both modules stay in sync.
@@ -142,7 +141,6 @@ def run_turn(
     previous_items: list[dict[str, Any]] | None = None,
     instructions: str | None = None,
     tools: list[dict[str, Any]] | None = None,
-    usage_out: TurnUsage | None = None,
 ) -> ConversationResult:
     """Send a prompt to the Responses API and return the final answer.
 
@@ -184,17 +182,17 @@ def run_turn(
             request carries the full context.
         tools: Optional list of tool schemas to pass. If None, uses all
             available tools. If an empty list, no tools are passed.
-        usage_out: Optional out-param (a
-            :class:`~janito.openai_client.client_support.TurnUsage`) populated
-            with the turn's usage and display metadata, so the caller can
-            render the end-of-turn reports after the call returns (see
-            :func:`~janito.openai_client.client_support.display_turn_usage`).
 
     Returns:
         ConversationResult: the final assistant text plus, depending on the
         provider's conversation model, the server-side response id (to chain
         the next turn with ``previous_response_id``) or the full client-side
         input items (to re-send with ``previous_items``).
+
+    Note:
+        The end-of-turn report (used files + token-usage summary) is
+        delivered by the client itself to the injected observer's
+        ``on_turn_complete``; there is no ``usage_out`` out-param (issue #82).
 
     Note:
         Thinking mode is resolved into ``config.thinking`` at build time: the
@@ -209,7 +207,6 @@ def run_turn(
         previous_items=previous_items,
         instructions=instructions,
         tools=tools,
-        usage_out=usage_out,
     )
 
 
@@ -248,7 +245,17 @@ class ResponsesClient(Client):
             self.config.reasoning_effort,
         )
 
-    def _init_conversation_state(self, prompt, provider, model, **kwargs):
+    def _init_conversation_state(
+        self,
+        prompt,
+        provider,
+        model,
+        *,
+        previous_messages=None,
+        previous_response_id=None,
+        previous_items=None,
+        instructions=None,
+    ):
         # Conversation-state model depends on the provider: some Responses
         # endpoints (e.g. OpenAI) keep the conversation server-side and chain
         # turns with previous_response_id; others (e.g. DeepSeek's /responses,
@@ -264,9 +271,9 @@ class ResponsesClient(Client):
         ) = _init_conversation_state(
             provider,
             model,
-            kwargs.get("previous_response_id"),
-            kwargs.get("previous_items"),
-            kwargs.get("instructions"),
+            previous_response_id,
+            previous_items,
+            instructions,
             prompt,
         )
         return {
@@ -275,7 +282,7 @@ class ResponsesClient(Client):
             "conversation_items": conversation_items,
             "input_items": input_items,
             "pending_items": pending_items,
-            "instructions": kwargs.get("instructions"),
+            "instructions": instructions,
             "message_count": 1,
             # Display-only mirror of this completed turn (Responses input
             # items) for the shell's /history command: starts with the user
@@ -427,7 +434,7 @@ class ResponsesClient(Client):
         full_content,
         reasoning_content,
         state,
-        usage_out=None,
+        usage_out,
     ):
         # Server-side: the assistant message lives on the server and the
         # caller only needs the response id to chain the next turn. Stateless:

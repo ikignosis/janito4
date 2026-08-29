@@ -108,12 +108,12 @@ def _finalize_response(
     full_content: str,
     reasoning_content: str | None,
     messages: list[dict[str, Any]],
-    usage_out: TurnUsage | None = None,
+    usage_out: TurnUsage,
 ) -> str:
     """Record the final assistant message and return it.
 
-    ``usage_out`` (when given) receives the display metadata the caller needs
-    to render the end-of-turn reports after ``run_turn`` returns (see
+    ``usage_out`` receives the display metadata the client's end-of-turn
+    report needs (see
     :func:`janito.openai_client.client_support.display_turn_usage`).
     """
     # Build the assistant message with reasoning_content if available
@@ -124,8 +124,6 @@ def _finalize_response(
     # Add assistant message to conversation history
     messages.append(assistant_message)
 
-    if usage_out is not None:
-        usage_out.message_count = len(messages)
-        usage_out.label = "Messages"
-        usage_out.show_cached = True
+    usage_out.message_count = len(messages)
+    usage_out.label = "Messages"
     return full_content

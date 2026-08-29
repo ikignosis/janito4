@@ -163,11 +163,11 @@ The pipeline per turn:
    requested, execute them (see [Tool execution](#tool-execution)) and loop
    again; otherwise finalize (record the assistant message, return value).
    Each round's usage is folded into a `TokenStats` (`janito/agent/usage.py`)
-   carried out of `Client.run_turn` on a `TurnUsage` out-param
-   (`openai_client/client_support.py`); `Client.run_turn` itself delivers the
-   end-of-turn reports (used files + token-usage summary) to the injected
-   observer's `on_turn_complete` when the turn finishes, so the
-   `_finalize` hooks stay display-free and every CLI entry point
+   accumulated on a client-owned `TurnUsage` (`openai_client/client_support.py`);
+   `Client.run_turn` itself delivers the end-of-turn reports (used files +
+   token-usage summary) to the injected observer's `on_turn_complete` when
+   the turn finishes -- there is no caller-supplied out-param (issue #82) --
+   so the `_finalize` hooks stay display-free and every CLI entry point
    (interactive shell, `/ask`, `/compact`, one-shot prompt) gets the
    same reports.
 

@@ -2,11 +2,11 @@
 Tests for the end-of-turn report.
 
 The CLI no longer prints the token-usage summary inside the per-client
-``_finalize`` helpers.  Instead ``Client.run_turn`` folds every round's usage
-into a :class:`~janito.agent.usage.TokenStats` carried out on a
-:class:`~janito.openai_client.client_support.TurnUsage` out-param, and
-delivers it to the injected observer's ``on_turn_complete`` when the turn
-finishes (the CLI's ``RichTurnObserver`` renders it via
+``_finalize`` helpers.  Instead ``Client.run_turn`` builds a
+:class:`~janito.openai_client.client_support.TurnUsage` per turn, folds every
+round's usage into it (tool-call rounds included), and delivers it to the
+injected observer's ``on_turn_complete`` when the turn finishes (the CLI's
+``RichTurnObserver`` renders it via
 :func:`~janito.openai_client.client_support.display_turn_usage` and records
 the overall-use accounting row).  These tests pin that contract.
 """
@@ -102,7 +102,6 @@ class TestDisplayTurnUsage:
             max_output_tokens=8192,
             message_count=3,
             label="Messages",
-            show_cached=True,
         )
         text = self._render(u)
         assert "Total: 100" in text
@@ -118,14 +117,19 @@ class TestDisplayTurnUsage:
             stats=_token_stats(),
             message_count=4,
             label="Responses",
-            show_cached=False,
         )
         text = self._render(u)
         assert "Responses:" not in text
         assert "Messages:" not in text
 
-    def test_show_cached_false_omits_cached_part(self):
-        u = TurnUsage(stats=_token_stats(), message_count=1, show_cached=False)
+    def test_cached_omitted_when_stats_report_no_cached_tokens(self):
+        # The cached part is driven by the normalized stats: APIs that do not
+        # report cached-token details (native Anthropic / DashScope / Gemini
+        # SDKs) carry ``last_cached``/``turn_cached`` of ``None``.
+        u = TurnUsage(
+            stats=_token_stats(last_cached=None, turn_cached=None),
+            message_count=1,
+        )
         text = self._render(u)
         assert "Cached:" not in text
 
@@ -188,7 +192,8 @@ class TestDisplayTurnUsage:
 class TestRunTurnDeliversTurnReport:
     """``Client.run_turn`` delivers the end-of-turn report to the injected
     observer's ``on_turn_complete`` when the turn finishes (the CLI wrapper
-    that used to do it is gone)."""
+    that used to do it is gone, and the client owns the TurnUsage -- there
+    is no caller-supplied out-param, issue #82)."""
 
     def _client(self, monkeypatch, observer):
         from conftest import make_config
@@ -222,9 +227,7 @@ class TestRunTurnDeliversTurnReport:
             )
         )
 
-    def test_run_turn_calls_on_turn_complete_with_populated_usage_out(
-        self, monkeypatch
-    ):
+    def test_run_turn_calls_on_turn_complete_with_populated_usage(self, monkeypatch):
         recorded = []
 
         class Obs:
@@ -238,15 +241,14 @@ class TestRunTurnDeliversTurnReport:
                 recorded.append(usage_out)
 
         client = self._client(monkeypatch, Obs())
-        usage_out = TurnUsage()
-        result = client.run_turn("hi", tools=[], usage_out=usage_out)
+        result = client.run_turn("hi", tools=[])
         assert result == "final answer"
-        # on_turn_complete was invoked exactly once, with the populated
-        # out-param: usage folded from the stream round, provider/model and
+        # on_turn_complete was invoked exactly once, with the client-built
+        # TurnUsage: usage folded from the stream round, provider/model and
         # the display metadata set by the finalizer.
         assert len(recorded) == 1
         u = recorded[0]
-        assert u is usage_out
+        assert isinstance(u, TurnUsage)
         assert u.stats is not None
         assert u.stats.turn_input == 60
         assert u.stats.turn_output == 40
@@ -254,9 +256,9 @@ class TestRunTurnDeliversTurnReport:
         assert u.model == "gpt-4"
         assert u.message_count == 2  # user + assistant
 
-    def test_run_turn_without_usage_out_skips_report(self, monkeypatch):
-        """Without the usage_out out-param no report is delivered (the
-        headless/CLI callers opt in through the out-param)."""
+    def test_run_turn_always_delivers_turn_report(self, monkeypatch):
+        """The report is always delivered -- the client owns the TurnUsage
+        and does not opt in through a caller-supplied out-param (issue #82)."""
         called = []
 
         class Obs:
@@ -271,7 +273,10 @@ class TestRunTurnDeliversTurnReport:
 
         client = self._client(monkeypatch, Obs())
         client.run_turn("hi", tools=[])
-        assert called == []
+        assert len(called) == 1
+        assert isinstance(called[0], TurnUsage)
+        # The fake stream reported usage, so the report is populated.
+        assert called[0].stats is not None
 
     def test_rich_observer_on_turn_complete_renders_report(self):
         """The CLI's RichTurnObserver renders the report through
@@ -290,7 +295,6 @@ class TestRunTurnDeliversTurnReport:
             max_output_tokens=8192,
             message_count=3,
             label="Messages",
-            show_cached=True,
         )
         observer.on_turn_complete(u)
         text = buf.getvalue()
@@ -312,7 +316,6 @@ class TestRunTurnDeliversTurnReport:
             stats=_token_stats(),
             provider="deepseek",
             model="deepseek-v4-flash",
-            show_cached=True,
         )
         observer.on_turn_complete(u)
         records = accounting.get_records()

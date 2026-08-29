@@ -607,7 +607,6 @@ def _cost_counters(
     input_tokens: int | None,
     output_tokens: int | None,
     cached_tokens: int | None,
-    cached_details_attr: str | None,
 ) -> tuple[int | None, int | None, int | None]:
     """Return the token counters billed for the ``Cost`` estimate.
 
@@ -620,7 +619,7 @@ def _cost_counters(
         return (
             usage_info.turn_input,
             usage_info.turn_output,
-            usage_info.turn_cached if cached_details_attr is not None else None,
+            usage_info.turn_cached,
         )
     return input_tokens, output_tokens, cached_tokens
 
@@ -635,7 +634,6 @@ def _display_usage(
     label: str = "Messages",
     input_attr: str = "prompt_tokens",
     output_attr: str = "completion_tokens",
-    cached_details_attr: str | None = "prompt_tokens_details",
     provider: str | None = None,
     model: str | None = None,
 ) -> None:
@@ -646,11 +644,11 @@ def _display_usage(
     the Responses API reports ``input_tokens``/``output_tokens`` with
     ``input_tokens_details``, and the native SDKs build a ``SimpleNamespace``
     with ``input_tokens``/``output_tokens`` and no cached-token details).
-    The shared :func:`normalize_usage` maps every shape onto one dict, so the
-    display no longer needs per-API attribute plumbing.  ``input_attr`` /
-    ``output_attr`` are retained for signature compatibility; pass
-    ``cached_details_attr=None`` to skip the cached-token read for APIs that
-    do not report it.
+    The shared :func:`normalize_usage` maps every shape onto one dict -- the
+    ``cached`` counter is ``None`` for APIs that do not report cached-token
+    details, so the cached part is shown only when the API actually reports
+    it.  ``input_attr`` / ``output_attr`` are retained for signature
+    compatibility.
 
     ``label`` / ``message_count`` feed the ``INFO`` log line only; the
     summary line itself no longer carries the ``{label}: {message_count}``
@@ -679,9 +677,9 @@ def _display_usage(
     total_tokens = stats["total"]
     input_tokens = stats["input"]
     output_tokens = stats["output"]
-    cached_tokens = stats["cached"] if cached_details_attr is not None else None
+    cached_tokens = stats["cached"]
     cost_input, cost_output, cost_cached = _cost_counters(
-        usage_info, input_tokens, output_tokens, cached_tokens, cached_details_attr
+        usage_info, input_tokens, output_tokens, cached_tokens
     )
 
     parts = []
@@ -730,17 +728,18 @@ def _display_usage(
 
 @dataclass
 class TurnUsage:
-    """Out-param carrying a turn's usage + the display metadata for it.
+    """Client-owned carrier for a turn's usage + the display metadata for it.
 
-    ``Client.run_turn`` populates an instance handed in by the caller: ``stats``
-    holds the normalized per-turn totals (:class:`~janito.agent.usage.TokenStats`
-    mirrors the final request's counters and accumulates the tool-call
-    rounds), and the remaining fields are the values :func:`_display_usage`
-    needs to render the summary line.  At the end of the turn ``run_turn``
-    hands the populated instance to the injected observer's
-    ``on_turn_complete`` (the CLI's ``RichTurnObserver`` renders it with
-    :func:`display_turn_usage` and records the overall-use accounting row),
-    keeping the end-of-turn reports out of the client's ``_finalize`` hooks.
+    ``Client.run_turn`` builds one instance per turn and populates it as the
+    rounds stream: ``stats`` holds the normalized per-turn totals
+    (:class:`~janito.agent.usage.TokenStats` mirrors the final request's
+    counters and accumulates the tool-call rounds), and the remaining fields
+    are the values :func:`_display_usage` needs to render the summary line.
+    At the end of the turn ``run_turn`` hands the populated instance to the
+    injected observer's ``on_turn_complete`` (the CLI's ``RichTurnObserver``
+    renders it with :func:`display_turn_usage` and records the overall-use
+    accounting row), keeping the end-of-turn reports out of the client's
+    ``_finalize`` hooks.  There is no caller-supplied out-param (issue #82).
     """
 
     stats: TokenStats | None = None
@@ -750,9 +749,6 @@ class TurnUsage:
     max_output_tokens: int | None = None
     label: str = "Messages"
     message_count: int | None = None
-    #: Whether the API reports cached-token details (Completions / Responses
-    #: do; the native Anthropic / DashScope / Gemini SDKs do not).
-    show_cached: bool = False
 
 
 def display_turn_usage(
@@ -764,10 +760,10 @@ def display_turn_usage(
 
     Rendered by the CLI's ``RichTurnObserver.on_turn_complete`` -- which
     ``Client.run_turn`` invokes at the end of every turn -- using the
-    ``usage_out`` out-param the client populated (see :class:`TurnUsage`).
-    Replaces the reports the per-client ``_finalize`` helpers used to print
-    inline: the tracked used files first, then the magenta token-usage
-    summary line.  Nothing is printed when no usage was reported.
+    client-built ``usage_out`` (see :class:`TurnUsage`).  Replaces the
+    reports the per-client ``_finalize`` helpers used to print inline: the
+    tracked used files first, then the magenta token-usage summary line.
+    Nothing is printed when no usage was reported.
     """
     console = console or Console()
 
@@ -790,10 +786,6 @@ def display_turn_usage(
         usage_out.message_count if usage_out.message_count is not None else 0,
         console,
         label=usage_out.label,
-        # ``stats`` already carries the normalized cached counter; the
-        # ``cached_details_attr`` toggle only gates reading it, so pass a
-        # sentinel when the API reports cached tokens.
-        cached_details_attr="" if usage_out.show_cached else None,
         provider=usage_out.provider,
         model=usage_out.model,
     )

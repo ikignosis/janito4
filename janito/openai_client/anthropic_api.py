@@ -54,9 +54,9 @@ from .api_config import APIConfig
 # Shared agent-loop pipeline (see Client.run_turn) implemented by AnthropicClient.
 from .base_client import Client
 
-# Shared client helpers: the usage summary out-param used by the module's
-# remaining functions, and the error classifier the native-SDK clients use
-# to pick the observer's explainer explicitly.
+# Shared client helpers: the turn-report type used by the module's
+# _finalize_response helper, and the error classifier the native-SDK
+# clients use to pick the observer's explainer explicitly.
 from .client_support import TurnUsage, _classify_error
 
 # Configure logger for this module
@@ -101,7 +101,6 @@ def run_turn(
     previous_messages: list[dict[str, Any]] | None = None,
     instructions: str | None = None,
     tools: list[dict[str, Any]] | None = None,
-    usage_out: TurnUsage | None = None,
 ) -> str:
     """Send a prompt through the native Anthropic SDK and return the answer.
 
@@ -129,17 +128,17 @@ def run_turn(
             leading ``"system"``-role message in ``previous_messages`` is used.
         tools: Optional list of tool schemas to pass. If None, uses all
             available tools. If an empty list, no tools are passed.
-        usage_out: Optional out-param (a
-            :class:`~janito.openai_client.client_support.TurnUsage`) populated
-            with the turn's usage and display metadata, so the caller can
-            render the end-of-turn reports after the call returns (see
-            :func:`~janito.openai_client.client_support.display_turn_usage`).
 
     Returns:
         The assistant's final text (after any tool-call rounds).
 
     Raises:
         RuntimeError: If the ``anthropic`` package is not installed.
+
+    Note:
+        The end-of-turn report (used files + token-usage summary) is
+        delivered by the client itself to the injected observer's
+        ``on_turn_complete``; there is no ``usage_out`` out-param (issue #82).
 
     Note:
         Thinking mode is resolved into ``config.thinking`` at build time. The
@@ -152,7 +151,6 @@ def run_turn(
         previous_messages=previous_messages,
         instructions=instructions,
         tools=tools,
-        usage_out=usage_out,
     )
 
 
@@ -193,15 +191,24 @@ class AnthropicClient(Client):
             self.config.reasoning_effort,
         )
 
-    def _init_conversation_state(self, prompt, provider, model, **kwargs):
+    def _init_conversation_state(
+        self,
+        prompt,
+        provider,
+        model,
+        *,
+        previous_messages=None,
+        previous_response_id=None,
+        previous_items=None,
+        instructions=None,
+    ):
         # Build the conversation. The Anthropic Messages API takes the system
         # prompt as a top-level `system` parameter (not a "system"-role
         # message), so system-role messages are extracted from the history and
         # the request payload filters them out. The in-place history list
         # keeps them so the shell's messages_history stays intact.
-        previous_messages = kwargs.get("previous_messages")
         messages = previous_messages if previous_messages is not None else []
-        system = _resolve_system_prompt(kwargs.get("instructions"), messages)
+        system = _resolve_system_prompt(instructions, messages)
 
         # NOTE: check `is not None` (not truthiness). An empty list is a valid,
         # caller-owned history (e.g. after a restart or with
@@ -277,7 +284,7 @@ class AnthropicClient(Client):
         full_content,
         reasoning_content,
         state,
-        usage_out=None,
+        usage_out,
     ):
         # No more tool calls, return the final response.
         return _finalize_response(full_content, state["messages"], usage_out)
@@ -385,22 +392,20 @@ def _handle_tool_blocks(
 def _finalize_response(
     full_content: str,
     messages: list[dict[str, Any]],
-    usage_out: TurnUsage | None = None,
+    usage_out: TurnUsage,
 ) -> str:
     """Record the final assistant message and return it.
 
-    ``usage_out`` (when given) receives the display metadata the caller needs
-    to render the end-of-turn reports after ``run_turn`` returns (see
+    ``usage_out`` receives the display metadata the client's end-of-turn
+    report needs (see
     :func:`janito.openai_client.client_support.display_turn_usage`).
     """
     # No more tool calls, return the final response. Record the final
     # assistant text in the client-side history.
     messages.append({"role": "assistant", "content": full_content})
 
-    if usage_out is not None:
-        usage_out.message_count = len(messages)
-        usage_out.label = "Messages"
-        usage_out.show_cached = False
+    usage_out.message_count = len(messages)
+    usage_out.label = "Messages"
     return full_content
 
 

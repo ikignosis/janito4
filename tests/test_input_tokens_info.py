@@ -108,7 +108,6 @@ if pytest is not None:
         provider,
         model,
         usage,
-        cached_details_attr="prompt_tokens_details",
         label="Messages",
         message_count=1,
         max_input_tokens=None,
@@ -132,7 +131,6 @@ if pytest is not None:
             label=label,
             provider=provider,
             model=model,
-            cached_details_attr=cached_details_attr,
         )
         return buf.getvalue().strip()
 

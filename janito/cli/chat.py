@@ -13,11 +13,7 @@ from ..openai_client import (
     build_api_config,
     resolve_runtime_config,
 )
-from ..openai_client.client_support import (
-    RichTurnObserver,
-    TurnUsage,
-    _run_with_progress_bar,
-)
+from ..openai_client.client_support import RichTurnObserver, _run_with_progress_bar
 from ..provider_accessors import get_responses_in_server_from_provider
 from ..shell import InteractiveShell
 from ..tooling.path_utils import display_path
@@ -47,14 +43,13 @@ def _make_turn_func(config: APIConfig):
     Each backend's ``_init_conversation_state`` already picks what it needs
     from the union kwargs, so there is a single body.
 
-    The returned callable creates a fresh
-    :class:`~janito.openai_client.client_support.TurnUsage` out-param for
-    every call, so ``Client.run_turn`` can deliver the end-of-turn reports
-    (used files + token-usage summary) and the overall-use accounting row to
-    the injected observer's ``on_turn_complete`` when the turn finishes.  The
-    observer itself lives on the config (``config.observer``, injected at the
-    composition point), so the client is the only place that delivers turn
-    events.
+    The end-of-turn report (used files + token-usage summary) and the
+    overall-use accounting row are delivered by ``Client.run_turn`` itself:
+    it builds the ``TurnUsage`` internally and hands it to the injected
+    observer's ``on_turn_complete`` when the turn finishes (there is no
+    caller-supplied out-param, issue #82).  The observer itself lives on the
+    config (``config.observer``, injected at the composition point), so the
+    client is the only place that delivers turn events.
 
     Args:
         config: The resolved, immutable
@@ -89,18 +84,15 @@ def _make_turn_func(config: APIConfig):
         previous_items=None,
         instructions=None,
         tools=None,
-        usage_out=None,
     ):
         # ``verbose`` stays a per-call override (design doc §7): ``None``
         # falls back to the session default from the config; /ask forwards
         # the session flag and /compact passes False to suppress the dumps.
         # Thinking mode is resolved into ``config.thinking`` at build time
         # (the shell's /thinking toggle rebuilds the config via the factory).
-        # A fresh TurnUsage out-param lets Client.run_turn deliver the
-        # end-of-turn report (usage summary + accounting) to the injected
-        # observer's on_turn_complete when the turn finishes.
-        if usage_out is None:
-            usage_out = TurnUsage()
+        # The end-of-turn report is delivered by Client.run_turn itself to
+        # the injected observer's on_turn_complete (client-owned TurnUsage,
+        # issue #82) -- the closure has no out-param to pass.
         return client.run_turn(
             prompt,
             verbose=verbose,
@@ -109,7 +101,6 @@ def _make_turn_func(config: APIConfig):
             previous_items=previous_items,
             instructions=instructions,
             tools=tools,
-            usage_out=usage_out,
         )
 
     return run_turn
