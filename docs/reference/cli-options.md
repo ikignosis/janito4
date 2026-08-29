@@ -85,11 +85,23 @@ See [Provider Variants](../configuration/variants.md) for the full guide.
 
 | Option | Description |
 |--------|-------------|
-| `-r`, `--read` | Grant READ privilege |
+| `-r`, `--read` | Grant READ privilege (the default when no `-r`/`-w`/`-x` flag is given) |
 | `-w`, `--write` | Grant WRITE privilege |
 | `-x`, `--exec` | Grant EXEC privilege |
 
-If none of `-r`, `-w`, `-x` are given, janito runs with full privileges and prints a warning.
+If none of `-r`, `-w`, `-x` are given, janito starts **read-only** (READ
+granted, WRITE/EXEC not) and prints a hint right after the version banner:
+
+```
+Started read-only, use /rwx <prompt> for single turn using full privileges
+```
+
+Explicit `-r` alone also leaves the session read-only, so the same hint is
+printed. Explicit `-r`/`-w`/`-x` flags take priority over the default: e.g.
+`-w` alone grants write-only (no default read), and `-r -w -x` grants
+everything. Sessions that grant WRITE or EXEC do not print the read-only
+hint. In the interactive shell, `/rwx <prompt>` runs a single request with
+the full toolset.
 
 ## Tools
 

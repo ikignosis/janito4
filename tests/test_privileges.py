@@ -70,7 +70,12 @@ def _patch_registry(monkeypatch, tools):
 
 
 def test_session_schemas_none_privileges_allows_everything(monkeypatch):
-    """No -r/-w/-x flags -> the session set equals the whole registry."""
+    """running_privileges=None (no restrictions configured) -> everything.
+
+    The CLI default is now read-only (issue #85); None only occurs outside
+    the CLI (e.g. direct registry/web use), where it keeps meaning "no
+    restriction configured".
+    """
     tools = {
         "ReadFile": _fake_tool("ReadFile", "r"),
         "CreateFile": _fake_tool("CreateFile", "w"),
@@ -293,6 +298,128 @@ def test_warn_if_privilege_override_silent_with_full_privileges(capsys):
 
     _privileges_mod.running_privileges = None
     warn_if_privilege_override([_fake_schema("CreateFile", "w")])
+    assert capsys.readouterr().out == ""
+
+
+# ---------------------------------------------------------------------------
+# CLI default privileges (issue #85)
+# ---------------------------------------------------------------------------
+
+
+def _privilege_args(read=False, write=False, exec_=False):
+    """Build a minimal argparse-like namespace with the privilege flags."""
+    args = type("Args", (), {})()
+    args.read = read
+    args.write = write
+    args.exec = exec_
+    return args
+
+
+def test_setup_privileges_default_is_read_only():
+    """No -r/-w/-x flags -> running_privileges is read-only (issue #85)."""
+    from janito import __main__ as main_mod
+
+    _privileges_mod.running_privileges = None
+    args = _privilege_args()
+    main_mod._setup_privileges(args)
+
+    priv = _privileges_mod.running_privileges
+    assert (priv.READ, priv.WRITE, priv.EXEC) == (True, False, False)
+
+
+def test_setup_privileges_read_flag_only():
+    """-r alone -> read-only, same as the default."""
+    from janito import __main__ as main_mod
+
+    _privileges_mod.running_privileges = None
+    args = _privilege_args(read=True)
+    main_mod._setup_privileges(args)
+
+    priv = _privileges_mod.running_privileges
+    assert (priv.READ, priv.WRITE, priv.EXEC) == (True, False, False)
+
+
+def test_setup_privileges_write_flag_takes_priority():
+    """-w alone -> write-only, no default read (flags take priority)."""
+    from janito import __main__ as main_mod
+
+    _privileges_mod.running_privileges = None
+    args = _privilege_args(write=True)
+    main_mod._setup_privileges(args)
+
+    priv = _privileges_mod.running_privileges
+    assert (priv.READ, priv.WRITE, priv.EXEC) == (False, True, False)
+
+
+def test_setup_privileges_read_write_flags():
+    """-r -w -> read + write, no exec."""
+    from janito import __main__ as main_mod
+
+    _privileges_mod.running_privileges = None
+    args = _privilege_args(read=True, write=True)
+    main_mod._setup_privileges(args)
+
+    priv = _privileges_mod.running_privileges
+    assert (priv.READ, priv.WRITE, priv.EXEC) == (True, True, False)
+
+
+def test_setup_privileges_full_flags():
+    """-r -w -x -> full privileges."""
+    from janito import __main__ as main_mod
+
+    _privileges_mod.running_privileges = None
+    args = _privilege_args(read=True, write=True, exec_=True)
+    main_mod._setup_privileges(args)
+
+    priv = _privileges_mod.running_privileges
+    assert (priv.READ, priv.WRITE, priv.EXEC) == (True, True, True)
+
+
+def test_print_privileges_notice_with_no_flags(capsys, monkeypatch):
+    """The read-only startup hint is printed after the version banner."""
+    from janito.cli import chat as chat_mod
+
+    monkeypatch.setattr(chat_mod, "_banner_printed", False)
+    chat_mod._print_privileges_notice(_privilege_args())
+
+    out = capsys.readouterr().out
+    assert "Started read-only" in out
+    assert "/rwx <prompt> for single turn using full privileges" in out
+    assert out.index("Janito") < out.index("Started read-only")
+
+
+def test_print_privileges_notice_with_read_flag(capsys, monkeypatch):
+    """Explicit -r leaves the session read-only, so the hint is printed."""
+    from janito.cli import chat as chat_mod
+
+    monkeypatch.setattr(chat_mod, "_banner_printed", False)
+    chat_mod._print_privileges_notice(_privilege_args(read=True))
+
+    out = capsys.readouterr().out
+    assert "Started read-only" in out
+    assert "/rwx <prompt> for single turn using full privileges" in out
+    assert out.index("Janito") < out.index("Started read-only")
+
+
+def test_print_privileges_notice_silent_with_write_exec_flags(capsys):
+    """Sessions granting WRITE or EXEC silence the read-only notice."""
+    from janito.cli import chat as chat_mod
+
+    chat_mod._print_privileges_notice(_privilege_args(write=True))
+    assert capsys.readouterr().out == ""
+
+    chat_mod._print_privileges_notice(_privilege_args(exec_=True))
+    assert capsys.readouterr().out == ""
+
+    chat_mod._print_privileges_notice(_privilege_args(read=True, write=True))
+    assert capsys.readouterr().out == ""
+
+    chat_mod._print_privileges_notice(_privilege_args(write=True, exec_=True))
+    assert capsys.readouterr().out == ""
+
+    chat_mod._print_privileges_notice(
+        _privilege_args(read=True, write=True, exec_=True)
+    )
     assert capsys.readouterr().out == ""
 
 

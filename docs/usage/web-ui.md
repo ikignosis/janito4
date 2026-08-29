@@ -187,7 +187,10 @@ The server prints the URL it's listening on, then opens your default browser
   a public address (`--web-host 0.0.0.0`) if you understand the risks — Janito tools
   can read/write files and execute code.
 - **Privileges are enforced.** Tools are filtered by `-r/-w/-x` exactly as in the
-  CLI. With no privilege flags, all tools are available (matching CLI behaviour).
+  CLI. With no privilege flags, both the CLI and the web server start
+  **read-only** (issue #85): only the READ tools are offered, and the status
+  bar shows the read badge active with write/exec off. Explicit `-r`/`-w`/`-x`
+  flags take priority (`-r -w` grants read + write, `-r -w -x` everything).
 - **Optional bearer-token auth.** Set the `JANITO_WEB_TOKEN` environment variable
   to require a token on all `/api` requests:
 

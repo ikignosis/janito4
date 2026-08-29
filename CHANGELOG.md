@@ -108,6 +108,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The read-only startup hint (`Started read-only, use /rwx <prompt> for
+  single turn using full privileges`) is now also printed when janito is
+  started with an explicit `-r`, since the session is read-only either way.
+  Only sessions that grant WRITE or EXEC (`-w`/`-x` or any combination)
+  skip the hint.
+
+- The default privileges are now **read-only** (issue #85): with no
+  `-r`/`-w`/`-x` flag janito grants only READ (WRITE/EXEC are off) instead
+  of running with full privileges, and prints a hint right after the version
+  banner -- `Started read-only, use /rwx <prompt> for single request using
+  full privileges`. Explicit `-r`/`-w`/`-x` flags take priority over the
+  default (`-w` alone grants write-only, `-r -w -x` grants everything); the
+  old "Running with full privileges" warning is gone.
 - `/use_stats` now renders the cost column with the **same adaptive,
   magnitude-aware format the end-of-turn `Cost:` summary uses** (issue #67)
   instead of a fixed 4-decimal dollar string: sub-cent values grow their

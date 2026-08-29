@@ -223,17 +223,30 @@ def print_version_banner(console=None):
     _banner_printed = True
 
 
-def _print_full_privileges_warning(args) -> None:
-    """Print a warning banner when running with full privileges."""
-    if getattr(args, "full_privileges", False):
-        from rich.console import Console
+def _print_privileges_notice(args) -> None:
+    """Print a startup notice about the running privileges (issue #85).
 
-        if not _banner_printed:
-            print_version_banner()
-        Console().print(
-            "WARNING: Running with full privileges, consider using -r, -w, -x",
-            style="yellow",
-        )
+    janito now starts **read-only** by default: with no ``-r``/``-w``/``-x``
+    flag the session only gets the READ tools.  Right after the version
+    banner we print a one-line hint telling the user how to run a single
+    request with full privileges (``/rwx <prompt>`` in the interactive
+    shell).  Explicit ``-r`` alone also leaves the session read-only, so the
+    same hint is printed.  Only sessions that actually grant WRITE or EXEC
+    (``-w``/``-x`` or any combination of them) skip the notice, since the
+    read-only hint would be misleading there (``-r -w -x`` grants everything
+    deliberately; ``-w`` alone grants write-only, ...).
+    """
+    if getattr(args, "write", False) or getattr(args, "exec", False):
+        return
+
+    from rich.console import Console
+
+    if not _banner_printed:
+        print_version_banner()
+    Console().print(
+        "Started read-only, use /rwx <prompt> for single turn using full privileges",
+        style="yellow",
+    )
 
 
 def _enable_requested_toolsets(args) -> None:
@@ -281,7 +294,7 @@ def run_interactive_chat(args):
     Args:
         args: Parsed command line arguments
     """
-    _print_full_privileges_warning(args)
+    _print_privileges_notice(args)
     _enable_requested_toolsets(args)
 
     # Check if any skills are installed
@@ -379,7 +392,7 @@ def run_single_prompt(args):
     """
     import sys
 
-    _print_full_privileges_warning(args)
+    _print_privileges_notice(args)
     _enable_requested_toolsets(args)
 
     prompt = args.prompt

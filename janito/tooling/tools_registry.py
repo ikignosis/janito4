@@ -183,11 +183,13 @@ class ToolsRegistry:
 
         Applies the ``-r``/``-w``/``-x`` privilege filter on top of the
         complete registry (see :func:`janito.tools.tool_is_allowed_by_privileges`):
-        with no privilege flags everything is allowed, otherwise only the
-        tools whose declared permissions are satisfied are returned.  This is
-        the default ``tools=`` set for a normal prompt; the per-command tool
-        modes (``/read`` ``/write`` ``/rx`` ``/rw`` ``/rwx``) bypass it by
-        passing their own explicit list (issue #87).
+        with ``running_privileges`` unset (``None``) everything is allowed,
+        otherwise only the tools whose declared permissions are satisfied are
+        returned.  The CLI default is read-only (issue #85), so a normal
+        janito run offers only the READ tools.  This is the default ``tools=``
+        set for a normal prompt; the per-command tool modes (``/read``
+        ``/write`` ``/rx`` ``/rw`` ``/rwx``) bypass it by passing their own
+        explicit list (issue #87).
 
         Returns:
             List[Dict[str, Any]]: List of function-calling schemas allowed by

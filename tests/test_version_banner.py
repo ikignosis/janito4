@@ -1,7 +1,7 @@
 """
 Tests for the CLI version banner printed on the shell.
 
-The banner is printed right before the "Running with full privileges" warning
+The banner is printed right before the default read-only notice (issue #85)
 and shows ``Janito x.y.z - Working at <cwd>`` with the version in cyan and the
 working directory in magenta.
 """
@@ -30,8 +30,8 @@ if pytest is not None:
         out = capsys.readouterr().out.strip()
         assert out == f"Janito {__version__} - Working at {cwd}"
 
-    def test_banner_precedes_full_privileges_warning(monkeypatch, capsys):
-        """run_single_prompt prints the banner before the warning."""
+    def test_banner_precedes_read_only_notice(monkeypatch, capsys):
+        """run_single_prompt prints the banner before the read-only notice."""
         from conftest import make_config
 
         import janito.cli.chat as chat_mod
@@ -41,7 +41,6 @@ if pytest is not None:
         monkeypatch.setattr(chat_mod, "_banner_printed", False)
 
         class _Args:
-            full_privileges = True
             prompt = "hi"
             verbose = False
             thinking = False
@@ -71,8 +70,9 @@ if pytest is not None:
         chat_mod.run_single_prompt(_Args())
 
         out = capsys.readouterr().out
-        assert "Running with full privileges" in out
-        assert out.index("Janito") < out.index("WARNING")
+        assert "Started read-only" in out
+        assert "/rwx" in out
+        assert out.index("Janito") < out.index("Started read-only")
 
 else:  # pragma: no cover - fallback runner without pytest
 

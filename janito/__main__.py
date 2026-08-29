@@ -126,7 +126,13 @@ def _setup_runtime(args) -> int | None:
 
 
 def _setup_privileges(args) -> None:
-    """Configure privilege flags from -r, -w, -x CLI flags."""
+    """Configure privilege flags from -r, -w, -x CLI flags.
+
+    The default (no -r/-w/-x flag) is **read-only**: READ is granted, WRITE
+    and EXEC are not (issue #85).  Explicit -r/-w/-x flags take priority and
+    override the defaults, so e.g. ``-w`` alone grants write-only (no
+    default read).
+    """
     if args.read or args.write or args.exec:
         if _privileges_mod.running_privileges is None:
             _privileges_mod.running_privileges = Privileges()
@@ -136,9 +142,9 @@ def _setup_privileges(args) -> None:
             _privileges_mod.running_privileges.WRITE = True
         if args.exec:
             _privileges_mod.running_privileges.EXEC = True
-
-    if _privileges_mod.running_privileges is None:
-        args.full_privileges = True
+    elif _privileges_mod.running_privileges is None:
+        # No -r/-w/-x flag: default to read-only privileges.
+        _privileges_mod.running_privileges = Privileges(READ=True)
 
 
 def _has_batch_config_ops(args) -> bool:

@@ -70,10 +70,10 @@ def missing_privileges(tool_permissions: str) -> list[str]:
     """Return the privilege characters ``tool_permissions`` needs that the
     current ``running_privileges`` do not grant.
 
-    ``running_privileges`` is ``None`` when no ``-r``/``-w``/``-x`` flags
-    were passed, in which case nothing is missing (the default "everything
-    is permitted" behaviour).  Tools declaring no permissions (``""``)
-    always return an empty list.
+    ``running_privileges`` is ``None`` when no restrictions were configured
+    (outside the CLI, where ``_setup_privileges`` always sets it -- the
+    default is read-only, issue #85), in which case nothing is missing.
+    Tools declaring no permissions (``""``) always return an empty list.
 
     Args:
         tool_permissions: The tool's ``_tool_permissions`` string (e.g.

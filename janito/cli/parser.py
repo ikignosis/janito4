@@ -85,6 +85,10 @@ Examples:
   janito -t                                                    # Enable thinking mode
   janito -r -w                                                   # Grant READ and WRITE privileges
   janito -r -w -x                                                # Grant READ, WRITE, and EXEC privileges
+
+  Defaults to READ-only when no -r/-w/-x flag is given; explicit flags take
+  priority. In the interactive shell, /rwx <prompt> runs a single request
+  with full privileges.
   janito -S "You are a cow"                                   # Override system prompt (tools stay enabled)
   janito --no-tools "Your prompt"                             # No tools loaded (skill tools stay enabled)
   janito --no-plugins "Your prompt"                           # Do not autoload plugins from ~/.janito/plugins
@@ -220,7 +224,10 @@ Note: --set and --set-api-key must be used in separate commands.
     )
 
     parser.add_argument(
-        "-r", "--read", action="store_true", help="Grant READ privilege"
+        "-r",
+        "--read",
+        action="store_true",
+        help="Grant READ privilege (the default when no -r/-w/-x flag is given)",
     )
 
     parser.add_argument(

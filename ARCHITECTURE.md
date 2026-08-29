@@ -63,7 +63,9 @@ the `janito` console script). Flow:
 1. **Parse args** with `janito/cli/parser.py` (argparse).
 2. **Setup runtime** (`_setup_runtime`): apply `-c/--config-dir`, `--local`,
    logging, normalize `--provider`, and apply `-r/-w/-x` privilege flags into
-   the module-level `running_privileges` (used later by tool discovery).
+   the module-level `running_privileges` (used later by tool discovery). With
+   no `-r/-w/-x` flag the default is **read-only** (issue #85): READ is
+   granted, WRITE/EXEC are not; explicit flags take priority.
 3. **Batch config ops** (`--set/--unset/--get/--set-secret/--delete-secret`)
    via `_handle_batch_config`.
 4. **Load plugins** via `janito/plugin_manager.py`: plugins autoloaded from
@@ -260,11 +262,14 @@ stream accumulation and history conversion are implemented once.
 Tools are grouped in directories (`files/`, `system/`, `net/`,
 `janitoweb/`). `discover_toolsets()` in
 `janito/tools/__init__.py` scans each toolset for `@tool`-marked classes,
-runs their `should_load()` gate (missing binaries, credentials, platform),
-checks `_tool_permissions` against `running_privileges`, and wraps each class
-as a callable with the `run()` signature. `wrap_tool_class()` /
-`discover_module_tools()` expose the same pipeline for arbitrary modules so
-the plugin manager can register tools from `plugins/*/tools/`.
+runs their `should_load()` gate (missing binaries, credentials, platform)
+and wraps each class as a callable with the `run()` signature. Privilege
+restrictions are **not** applied at discovery time (everything is loaded so
+the per-command tool modes can override the session privileges, issue #87);
+the session tool selector applies them instead (see
+[Privileges](#privileges)). `wrap_tool_class()` / `discover_module_tools()`
+expose the same pipeline for arbitrary modules so the plugin manager can
+register tools from `plugins/*/tools/`.
 
 ### Plugins (`janito/plugin_manager.py`)
 
@@ -284,9 +289,23 @@ tools). See `docs/PLUGINS.md`.
 ### Privileges
 
 `janito/privileges.py` defines a `Privileges` dataclass (READ/WRITE/EXEC) and
-a module-level `running_privileges`. When `-r/-w/-x` are passed, tools whose
-declared permissions are not satisfied are skipped during discovery with a
-recorded reason (`get_skipped_tools()` in `janito/tools/__init__.py`).
+a module-level `running_privileges`. The default (no `-r`/`-w`/`-x` flag) is
+**read-only** (issue #85): `_setup_privileges` in `janito/__main__.py` grants
+only READ, and explicit `-r`/`-w`/`-x` flags take priority over the default
+(`-r -w -x` grants everything, `-w` alone grants write-only, ...).
+`running_privileges` is `None` only when no restrictions were configured
+(outside the CLI, e.g. direct registry/web use), in which case everything is
+allowed.
+
+Discovery loads every tool whose `should_load()` gate passes; the *session
+tool selector* (`get_session_tool_schemas` / `get_session_tool_names` in
+`janito/tooling/tools_registry.py`) applies the privilege filter to what a
+normal prompt may offer, and the per-command tool modes (`/read` `/write`
+`/rx` `/rw` `/rwx`) can override it for a single turn (issue #87). The
+CLI prints a startup hint (`Started read-only, use /rwx <prompt> for single
+request using full privileges`) after the version banner when running with
+read-only privileges (the default or an explicit `-r`); sessions that grant
+WRITE or EXEC skip the hint.
 
 ---
 
