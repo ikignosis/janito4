@@ -251,6 +251,14 @@ def main():
     if exit_code is not None:
         return exit_code
 
+    # Prune accounting entries older than 10 days on every startup so
+    # <config dir>/accounting.db does not grow unbounded (issue #76). Runs
+    # after _setup_runtime because the config dir (which locates the
+    # database) is applied there; best-effort and never raises.
+    from .tooling.accounting import prune_old_entries
+
+    prune_old_entries()
+
     # Handle batch config operations (--set, --unset, --get, secrets)
     exit_code = _handle_batch_config(args)
     if exit_code is not None:

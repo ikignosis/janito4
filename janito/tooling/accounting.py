@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from ..config_dir import get_config_dir
@@ -214,6 +214,44 @@ class AccountingStore:
             logger.debug(f"Failed to read accounting entries: {e}")
             return []
 
+    def prune_old_entries(self, days: int = 10) -> int:
+        """Delete accounting rows older than ``days`` days (default 10).
+
+        Keeps the database from growing unbounded: rows whose ``timestamp``
+        is older than ``now(UTC) - days`` are removed.  Timestamps are stored
+        as UTC ISO-8601 strings and every row uses the same format, so a
+        lexicographic comparison against the cutoff string is equivalent to a
+        chronological one.
+
+        Best-effort, like every other access in this module: never raises,
+        failures are logged and ``0`` is returned.
+
+        Args:
+            days: Maximum age (in days) an entry may have before it is pruned.
+
+        Returns:
+            int: Number of deleted rows (``0`` when there is nothing to
+            remove or the database cannot be written).
+        """
+        if days < 0:
+            days = 0
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        try:
+            with self._lock:
+                conn = self._connect()
+                try:
+                    cursor = conn.execute(
+                        "DELETE FROM accounting WHERE timestamp < ?",
+                        (cutoff,),
+                    )
+                    conn.commit()
+                    return cursor.rowcount
+                finally:
+                    conn.close()
+        except Exception as e:  # noqa: BLE001 - accounting must never break execution
+            logger.debug(f"Failed to prune accounting entries: {e}")
+            return 0
+
 
 # Module-level singleton store backing the functions below.
 _store = AccountingStore()
@@ -270,6 +308,20 @@ def get_records(limit: int | None = None) -> list[dict]:
             been recorded or the database cannot be read.
     """
     return _store.all_records(limit)
+
+
+def prune_old_entries(days: int = 10) -> int:
+    """Delete accounting rows older than ``days`` days (default 10).
+
+    Thin wrapper over :meth:`AccountingStore.prune_old_entries` (the
+    module-level singleton); see it for the parameter documentation.  Called
+    at startup so the database does not grow unbounded.  Never raises; any
+    database error is logged and ``0`` is returned.
+
+    Returns:
+        int: Number of deleted rows.
+    """
+    return _store.prune_old_entries(days)
 
 
 def main() -> None:

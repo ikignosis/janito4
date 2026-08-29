@@ -44,6 +44,13 @@ summed and aggregated.
     break tool execution or the agent loop. Rows are only written for turns
     that completed successfully and reported usage.
 
+## Retention
+
+On every startup Janito **prunes entries older than 10 days** from
+`accounting.db` (issue #76), so the database reflects roughly the last ten
+days of usage and does not grow unbounded. Pruning is best-effort like every
+other database access — it never raises and never breaks startup.
+
 ## Inspecting the log
 
 The module ships a small command-line inspector:

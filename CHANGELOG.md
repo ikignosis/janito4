@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A new `get_provider_cost_value()` accessor returns the numeric cost (the
   display path keeps its adaptive format), and the database can be inspected
   with `python -m janito.tooling.accounting` (see `docs/usage/accounting.md`).
+  On every startup the database is pruned of entries older than 10 days
+  (issue #76) so it does not grow unbounded — best-effort, never raises.
 
 - `--set system-prompt="..."` and `--set system-prompt-file=path` config keys
   (issue #60): the configured text/file becomes the system prompt's `start`

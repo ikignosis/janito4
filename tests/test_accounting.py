@@ -10,6 +10,7 @@ turn ordinal auto-increments and the cost accessor returns numeric dollars.
 
 import sqlite3
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # Add the repo root to sys.path to allow importing the package directly.
@@ -157,6 +158,86 @@ if pytest is not None:
             "openai", "m", input_tokens=1, cached_tokens=0, output_tokens=1, cwd=""
         )
         assert accounting.get_records() == []
+
+    def test_prune_removes_only_old_entries(monkeypatch, tmp_path):
+        _point_at(monkeypatch, tmp_path)
+        now = datetime.now(timezone.utc)
+        accounting.record_turn(
+            "openai",
+            "old",
+            input_tokens=1,
+            cached_tokens=0,
+            output_tokens=1,
+            timestamp=(now - timedelta(days=30)).isoformat(),
+        )
+        accounting.record_turn(
+            "openai",
+            "recent",
+            input_tokens=1,
+            cached_tokens=0,
+            output_tokens=1,
+            timestamp=now.isoformat(),
+        )
+
+        deleted = accounting.prune_old_entries()
+        assert deleted == 1
+        records = accounting.get_records()
+        assert len(records) == 1
+        assert records[0]["model"] == "recent"
+
+    def test_prune_keeps_entries_younger_than_cutoff(monkeypatch, tmp_path):
+        _point_at(monkeypatch, tmp_path)
+        now = datetime.now(timezone.utc)
+        accounting.record_turn(
+            "openai",
+            "young",
+            input_tokens=1,
+            cached_tokens=0,
+            output_tokens=1,
+            timestamp=(now - timedelta(days=9)).isoformat(),
+        )
+        # Just under the 10-day cutoff (with margin so the test cannot race
+        # against the "now" computed inside prune_old_entries).
+        accounting.record_turn(
+            "openai",
+            "boundary",
+            input_tokens=1,
+            cached_tokens=0,
+            output_tokens=1,
+            timestamp=(now - timedelta(days=10) + timedelta(seconds=30)).isoformat(),
+        )
+
+        assert accounting.prune_old_entries() == 0
+        assert len(accounting.get_records()) == 2
+
+    def test_prune_empty_db_returns_zero(monkeypatch, tmp_path):
+        _point_at(monkeypatch, tmp_path)
+        assert accounting.prune_old_entries() == 0
+
+    def test_prune_custom_days(monkeypatch, tmp_path):
+        _point_at(monkeypatch, tmp_path)
+        now = datetime.now(timezone.utc)
+        accounting.record_turn(
+            "openai",
+            "two-days",
+            input_tokens=1,
+            cached_tokens=0,
+            output_tokens=1,
+            timestamp=(now - timedelta(days=2)).isoformat(),
+        )
+        accounting.record_turn(
+            "openai",
+            "fresh",
+            input_tokens=1,
+            cached_tokens=0,
+            output_tokens=1,
+            timestamp=now.isoformat(),
+        )
+
+        assert accounting.prune_old_entries(days=1) == 1
+        records = accounting.get_records()
+        assert len(records) == 1
+        assert records[0]["model"] == "fresh"
 
     def test_cost_value_from_known_provider():
         """get_provider_cost_value returns numeric dollars for known models."""
