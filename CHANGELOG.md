@@ -53,6 +53,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The `alibaba` provider's built-in default model is now `qwen3.8-flash`
+  instead of `qwen3.8-max` (issue #59): `janito --provider alibaba` without
+  an explicit model resolves to the fast, cost-effective flash model. The
+  flagship `qwen3.8-max` remains a built-in model (its configurable
+  reasoning levels `low`/`medium`/`xhigh`, built-in tools and multimodal
+  DashScope endpoint are unchanged) and can still be selected explicitly
+  with `--set model=qwen3.8-max`. Configurable reasoning depth
+  (`reasoning_effort`) is now exclusive to `qwen3.8-max`: `qwen3.8-flash`
+  has no built-in reasoning-level default.
 - Renamed the final-round token counters on `TokenStats`
   (`janito.agent.usage`) and the web `UsageEvent` from `input`/`output`/
   `cached` to `last_input`/`last_output`/`last_cached` to make explicit that

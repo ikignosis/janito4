@@ -95,7 +95,9 @@ if pytest is not None:
         from janito.openai_client.api_config import build_api_config
 
         save_auth_config({"alibaba": "sk-test"})
-        set_config_from_cli("reasoning-level=medium", "alibaba")
+        # Scope the value to qwen3.8-max: the config key is model-scoped and
+        # the default model qwen3.8-flash has no configurable reasoning level.
+        set_config_from_cli("reasoning-level=medium", "alibaba", "qwen3.8-max")
         fake_run = _fake_run_returns("hi")
         config = build_api_config(
             api_type="Completions",

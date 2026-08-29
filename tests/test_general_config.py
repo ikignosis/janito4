@@ -372,7 +372,11 @@ if pytest is not None:
     def test_set_reasoning_level_per_provider(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
         cc.set_config_from_cli("provider=alibaba")
-        cc.set_config_from_cli("reasoning-level=xhigh")
+        # Reasoning levels belong to qwen3.8-max (the flagship): the default
+        # model qwen3.8-flash has no configurable reasoning level, so scope
+        # the value to the model explicitly.
+        cc.set_config_from_cli("model=qwen3.8-max", "alibaba")
+        cc.set_config_from_cli("reasoning-level=xhigh", "alibaba")
         cc.set_config_from_cli("reasoning-level=low", "openai")
         # Each provider/model pair has its own reasoning-level.
         assert cl.load_reasoning_level("alibaba") == "xhigh"
@@ -645,7 +649,7 @@ if pytest is not None:
         assert gc.resolve_api_type(None, "openai") == "Responses"
         # DeepSeek now ships Responses first too, so it resolves to Responses.
         assert gc.resolve_api_type(None, "deepseek") == "Responses"
-        # Alibaba's default model qwen3.8-max declares Responses as its
+        # Alibaba's default model qwen3.8-flash declares Responses as its
         # built-in default API type too.
         assert gc.resolve_api_type(None, "alibaba") == "Responses"
         # Explicit CLI flag wins over the provider default.

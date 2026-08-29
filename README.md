@@ -91,7 +91,7 @@ janito --show-config
 
 | Provider | Last Model | Price |
 |----------|-------------|---------|
-| Alibaba  | qwen3.8-max | 6$/month (Lite) |
+| Alibaba  | qwen3.8-flash | Pay as you go |
 | Moonshot | kimi-k3 | $15/month (Moderato)|
 | z.ai     | glm-5.3-flash | $12.6/month (Lite)|
 | openai   | gpt-5.6 | Pay as you go |
@@ -208,7 +208,7 @@ janito "Explain quantum computing"
 
 ```bash
 # Step 1: Set provider and model
-janito --set provider=alibaba --set model=qwen3.8-max
+janito --set provider=alibaba --set model=qwen3.8-flash
 # Step 2: Store API key
 janito --set-api-key="your-dashscope-api-key" --provider alibaba
 

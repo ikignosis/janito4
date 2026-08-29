@@ -60,8 +60,8 @@ def _next_or_none(gen):
 async def _dashscope_chunks(handle, call_kwargs: dict):
     """Yield chunks from the sync DashScope stream, off the event loop.
 
-    The native API serves multimodal models (e.g. the alibaba default
-    ``qwen3.8-max``) from the ``multimodal-generation`` endpoint and
+    The native API serves multimodal models (e.g. alibaba's ``qwen3.8-max``
+    flagship) from the ``multimodal-generation`` endpoint and
     plain-text models from ``text-generation``; the endpoint is inferred from
     the model name and, when the API rejects the model with the "url error"
     (model/endpoint mismatch), the call is retried once on the other endpoint

@@ -204,16 +204,16 @@ class TestPrintConfigInfo:
 
     def test_session_model_shown(self, capsys):
         """The shell's session model (--model, /model) is shown as-is."""
-        out = self._run(capsys, provider="alibaba", model="qwen3.8-flash")
+        out = self._run(capsys, provider="alibaba", model="qwen3.8-max")
         assert "Model" in out
-        assert "qwen3.8-flash" in out
-        assert "qwen3.8-max" not in out
+        assert "qwen3.8-max" in out
+        assert "qwen3.8-flash" not in out
         assert "(default)" not in self._model_row(out)
 
     def test_session_model_used_for_model_scoped_settings(self, capsys):
         """Model-scoped resolution (API type) uses the session model."""
-        self._run(capsys, provider="alibaba", model="qwen3.8-flash")
-        assert self._last_resolve_call["model"] == "qwen3.8-flash"
+        self._run(capsys, provider="alibaba", model="qwen3.8-max")
+        assert self._last_resolve_call["model"] == "qwen3.8-max"
 
     def test_provider_default_model_marked(self, capsys):
         """Without a session model, the provider's built-in default is marked.
@@ -221,26 +221,26 @@ class TestPrintConfigInfo:
         Regression test: /status used to omit the Model row entirely, so a
         session running an Alibaba variant showed no model at all (and
         model-scoped settings were silently resolved for the provider's
-        built-in default, e.g. qwen3.8-max for alibaba).
+        built-in default, e.g. qwen3.8-flash for alibaba).
         """
         out = self._run(
             capsys,
             provider="alibaba",
             configured_model=None,
-            default_model="qwen3.8-max",
+            default_model="qwen3.8-flash",
         )
-        assert "qwen3.8-max (default)" in self._model_row(out)
+        assert "qwen3.8-flash (default)" in self._model_row(out)
 
     def test_configured_model_used_without_session_model(self, capsys):
         """Without a session model, the provider's configured model is used."""
         out = self._run(
             capsys,
             provider="alibaba",
-            configured_model="qwen3.8-flash",
-            default_model="qwen3.8-max",
+            configured_model="qwen3.8-max",
+            default_model="qwen3.8-flash",
         )
-        assert "qwen3.8-flash" in self._model_row(out)
-        assert "qwen3.8-max" not in out
+        assert "qwen3.8-max" in self._model_row(out)
+        assert "qwen3.8-flash" not in out
         # A configured model is not the built-in default: no marker.
         assert "(default)" not in self._model_row(out)
 
@@ -393,7 +393,7 @@ class TestStatusCmdHandlerApiType:
             ),
             patch(
                 "janito.shell.cmds.status.get_default_model_from_provider",
-                return_value="qwen3.8-max",
+                return_value="qwen3.8-flash",
             ),
             patch(
                 "janito.shell.cmds.status.load_max_output_tokens",
@@ -419,4 +419,4 @@ class TestStatusCmdHandlerApiType:
             assert StatusCmdHandler().handle(FakeShell(), "/status") is True
 
         out = capsys.readouterr().out
-        assert "qwen3.8-max (default)" in out
+        assert "qwen3.8-flash (default)" in out

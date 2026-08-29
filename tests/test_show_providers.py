@@ -74,14 +74,14 @@ def test_lists_all_builtin_providers(monkeypatch, tmp_path, capsys):
 
 
 def test_alibaba_shows_builtin_tools_per_api_type(monkeypatch, tmp_path, capsys):
-    """Alibaba's qwen3.8-max surfaces its built-in (native) tools, annotated
-    with the API type that enables them (Responses only)."""
+    """Alibaba's default model (qwen3.8-flash) surfaces its built-in (native)
+    tools, annotated with the API type that enables them (Responses only)."""
     _, out = _run(monkeypatch, tmp_path, capsys)
 
-    assert "qwen3.8-max (default) tools" in out
-    # The rich table folds long values, so check the two fragments appear.
-    assert "code_interpreter, web_search, web_extractor" in out
-    assert "(Responses)" in out
+    assert "qwen3.8-flash (default) tools" in out
+    # The rich table folds long values, so check the fragments appear.
+    assert "code_interpreter, i2i_search" in out
+    assert "web_search (Responses)" in out
     # The tools are not enabled for the other API types.
     assert "(Completions)" not in out
 
@@ -120,7 +120,7 @@ def test_lists_registered_variants(monkeypatch, tmp_path, capsys):
     assert "custom-local (variant of custom)" in out
 
     # The variant inherits the base provider's built-in defaults.
-    assert "qwen3.8-max (default)" in out  # alibaba default
+    assert "qwen3.8-flash (default)" in out  # alibaba default
     assert "Completions, Responses (default), DashScope" in out
 
 
@@ -132,7 +132,7 @@ def test_lists_registered_variants(monkeypatch, tmp_path, capsys):
 def test_shows_configured_overrides_and_masked_key(monkeypatch, tmp_path, capsys):
     _use_temp_config(monkeypatch, tmp_path)
     cv.create_variant("alibaba-tokenplan")
-    cc.set_config_from_cli("model=qwen3.8-flash", "alibaba-tokenplan")
+    cc.set_config_from_cli("model=qwen3.8-max", "alibaba-tokenplan")
     cc.set_config_from_cli(
         "endpoint=https://variant.example.com/v1", "alibaba-tokenplan"
     )
@@ -145,8 +145,8 @@ def test_shows_configured_overrides_and_masked_key(monkeypatch, tmp_path, capsys
 
     # The configured model is annotated; the table may wrap the annotation
     # across lines, so assert on wrap-tolerant fragments.
-    assert "qwen3.8-flash (configured" in out
-    assert "qwen3.8-max)" in out
+    assert "qwen3.8-max (configured" in out
+    assert "qwen3.8-flash)" in out
     assert "https://variant.example.com/v1" in out
     assert "sk-abc.............wxyz (set)" in out
 

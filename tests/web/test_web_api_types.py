@@ -104,7 +104,9 @@ def test_web_server_config_effective_tools_for_resolves_per_api_type():
     from janito.cli.parser import create_parser
     from janito.web.backend.config import WebServerConfig
 
-    args = create_parser().parse_args(["--web", "--provider", "alibaba"])
+    args = create_parser().parse_args(
+        ["--web", "--provider", "alibaba", "--model", "qwen3.8-max"]
+    )
     config = WebServerConfig.from_args(args)
 
     assert config.effective_tools_for("Responses") == [

@@ -206,7 +206,7 @@ def test_variant_inherits_base_defaults(monkeypatch, tmp_path):
 
     cv.create_variant("alibaba-tokenplan")
     # The base provider's built-in defaults apply to the variant.
-    assert pa.get_default_model_from_provider("alibaba-tokenplan") == "qwen3.8-max"
+    assert pa.get_default_model_from_provider("alibaba-tokenplan") == "qwen3.8-flash"
     assert pa.get_default_api_type_from_provider("alibaba-tokenplan") == "Responses"
     assert pa.get_default_thinking_from_provider("alibaba-tokenplan") is True
     assert pa.get_endpoint_for_api_type(
@@ -434,7 +434,7 @@ def test_web_providers_list_includes_variant(web_client):
     assert variant["base_provider"] == "alibaba"
     assert variant["api_key_set"] is True
     # Inherits the base's built-in defaults.
-    assert variant["default_model"] == "qwen3.8-max"
+    assert variant["default_model"] == "qwen3.8-flash"
     assert variant["default_thinking"] is True
 
     # Base providers do not carry the variant markers.
