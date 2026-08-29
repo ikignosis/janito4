@@ -127,11 +127,6 @@ class InteractiveShell(_SessionMixin):
         # Set True by the /exit command handler; signals the run loop to
         # break and end the session
         self.exit_requested = False
-        # Conversation turn counter: counts every prompt submitted in this
-        # conversation, starting from 1 after the first message is submitted.
-        # Reset to 0 on a fresh conversation (F2 clear / "clear" / startup);
-        # the pre-prompt rule shows ``turn_count + 1`` as the upcoming turn.
-        self.turn_count = 0
         # Set by /multi for the next prompt only; automatically resets
         # after a multiline input is submitted
         self.multiline_mode = False
@@ -174,9 +169,6 @@ class InteractiveShell(_SessionMixin):
         # completed server-side turns.
         self.mirrored_history = []
         self.mirrored_turn = 0
-        # A fresh conversation restarts the turn counter (Turn 1 is the next
-        # message submitted, shown by the pre-prompt rule).
-        self.turn_count = 0
 
     def get_system_prompt(self) -> str | None:
         """Get the current system prompt."""
@@ -365,9 +357,6 @@ class InteractiveShell(_SessionMixin):
         )
         self.response_turn = len(self.response_chain)
         self.mirrored_turn = len(self.mirrored_history)
-        # Count this submission as the next turn (Turn 1 is the first message
-        # submitted in the conversation); the pre-prompt rule shows it.
-        self.turn_count += 1
         try:
             result = self.turn_func(
                 user_input,
@@ -426,7 +415,10 @@ class InteractiveShell(_SessionMixin):
                 "Request cancelled (Enter). The prompt stays in the conversation history."
             )
         except KeyboardInterrupt:
-            # Rollback any messages appended during this prompt
+            # Rollback any messages appended during this prompt; the
+            # recorded turn start is dropped too, so the rolled-back turn no
+            # longer counts (the pre-prompt rule derives Turn N from
+            # history_turns, issue #78).
             self._rollback_history()
             print(
                 "Request interrupted, previous prompt/answer removed from the conversation history."
@@ -535,10 +527,12 @@ class InteractiveShell(_SessionMixin):
 
             # Show the upcoming conversation turn above the prompt (issue
             # #69): a rich horizontal rule labeled with the next turn number.
-            # Display-only; the counter is bumped when the prompt is actually
-            # submitted (see _run_turn), so a fresh conversation starts at
-            # Turn 1.
-            _rich_console.print(Rule(f"Turn {self.turn_count + 1}"))
+            # Display-only and derived from the recorded turns
+            # (``history_turns``, one entry per submitted turn), so a turn
+            # that is rolled back (Ctrl+C / error) or undone (/rewind) no
+            # longer counts and the number is shown again for the retry
+            # (issue #78); a fresh conversation starts at Turn 1.
+            _rich_console.print(Rule(f"Turn {len(self.history_turns) + 1}"))
             user_input = self._get_user_input()
             if user_input is None:
                 break  # User quit

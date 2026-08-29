@@ -153,6 +153,19 @@ def test_shell_enter_cancel_preserves_history(monkeypatch, capsys):
     assert "cancelled" in out.lower()
 
 
+def test_shell_enter_cancel_keeps_turn_count(monkeypatch):
+    """Enter-cancel does NOT roll the turn back (the user's message stays in
+    the conversation), so the interrupted turn is still counted: the recorded
+    turn stays and the next prompt is Turn 2 (issue #78 scopes the rollback
+    to Ctrl+C / /rewind, which actually drop the turn)."""
+    shell = _run_shell_turn(
+        monkeypatch,
+        _appending_run_turn_factory(RequestCancelled("cancelled by Enter")),
+    )
+
+    assert len(shell.history_turns) == 1
+
+
 def test_shell_ctrl_c_still_rolls_back(monkeypatch, capsys):
     """Ctrl+C keeps rolling the conversation history back (regression)."""
     shell = _run_shell_turn(
@@ -162,6 +175,53 @@ def test_shell_ctrl_c_still_rolls_back(monkeypatch, capsys):
     assert not any(m.get("role") == "user" for m in shell.messages_history)
     out = capsys.readouterr().out
     assert "removed from the conversation history" in out
+
+
+def test_shell_ctrl_c_decrements_turn_count(monkeypatch, capsys):
+    """Ctrl+C rolls the running turn back, so the turn must not be counted:
+    the recorded turn start is dropped and the pre-prompt rule shows the
+    same Turn N again for the retry (issue #78)."""
+    shell = _run_shell_turn(
+        monkeypatch, _appending_run_turn_factory(KeyboardInterrupt())
+    )
+
+    # Turn 1 was recorded then rolled back -> no recorded turns left.
+    assert shell.history_turns == []
+
+
+def test_shell_generic_error_decrements_turn_count(monkeypatch, capsys):
+    """An unexpected turn error also rolls the turn back, so the failed turn
+    must not be counted either (issue #78)."""
+    shell = _run_shell_turn(
+        monkeypatch, _appending_run_turn_factory(RuntimeError("boom"))
+    )
+
+    assert shell.history_turns == []
+    assert "Error: boom" in capsys.readouterr().out
+
+
+def test_shell_successful_turn_increments_turn_count(monkeypatch):
+    """A completed turn is counted: after the first message the next prompt
+    is Turn 2."""
+    shell = InteractiveShell(model="test-model", no_history=True)
+    shell.initialize_history(system_prompt="sys")
+    calls = {"n": 0}
+
+    def fake_prompt(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return "hello"
+        raise EOFError  # end the session on the second prompt
+
+    def turn_func(user_input, **kwargs):
+        kwargs["previous_messages"].append({"role": "user", "content": user_input})
+        kwargs["previous_messages"].append({"role": "assistant", "content": "hi"})
+        return "hi"
+
+    monkeypatch.setattr(shell.session, "prompt", fake_prompt)
+    shell.run(turn_func, no_tools=True)
+
+    assert len(shell.history_turns) == 1
 
 
 def test_shell_enter_cancel_next_turn_keeps_context(monkeypatch):

@@ -1256,9 +1256,66 @@ def test_shell_tracks_stateless_conversation_items():
     assert shell.conversation_turn == 0
 
 
+def test_shell_rewind_completions_truncates_history_and_drops_recorded_turn():
+    """/rewind in Completions mode truncates messages_history back to the
+    last recorded turn start and drops that recorded start, so the rewound
+    turn no longer counts: the pre-prompt rule derives Turn N from
+    history_turns (issue #78)."""
+    from janito.shell.cmds.rewind import RewindCmdHandler
+
+    shell = RewindCmdHandler.__new__(RewindCmdHandler)
+    # Two completed turns: (hello/hi) then (again/ok). The recorded start
+    # before the second turn is row 3 (system + hello + hi).
+    shell.messages_history = [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "hello"},
+        {"role": "assistant", "content": "hi"},
+        {"role": "user", "content": "again"},
+        {"role": "assistant", "content": "ok"},
+    ]
+    shell.history_turns = [1, 3]
+
+    handler = RewindCmdHandler()
+    handler._do_rewind(shell)
+
+    # Rewound to the second turn's start (system + hello + hi).
+    assert shell.messages_history == [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "hello"},
+        {"role": "assistant", "content": "hi"},
+    ]
+    # The rewound turn's recorded start is gone: only one turn left.
+    assert shell.history_turns == [1]
+
+
+def test_shell_rewind_completions_at_turn_reports_nothing(capsys):
+    """A /rewind with nothing to undo (history already truncated exactly at
+    the last turn start) reports so and leaves the recorded turns untouched
+    (issue #78)."""
+    from janito.shell.cmds.rewind import RewindCmdHandler
+
+    shell = RewindCmdHandler.__new__(RewindCmdHandler)
+    # History is exactly the recorded turn start: nothing to undo.
+    shell.messages_history = [{"role": "system", "content": "sys"}]
+    shell.history_turns = [1]
+    shell.conversation_items = None
+    shell.response_chain = []
+    shell.response_turn = 0
+    shell.previous_response_id = None
+
+    handler = RewindCmdHandler()
+    handler._do_rewind(shell)
+
+    # State is preserved: no truncation, no recorded turn dropped.
+    assert shell.messages_history == [{"role": "system", "content": "sys"}]
+    assert shell.history_turns == [1]
+    assert "Nothing to rewind" in capsys.readouterr().out
+
+
 def test_shell_rewind_truncates_stateless_conversation_items():
     """/rewind truncates the client-side items back to the turn for
-    stateless Responses providers."""
+    stateless Responses providers and drops the recorded turn start, so the
+    rewound turn no longer counts (issue #78)."""
     from janito.shell.cmds.rewind import RewindCmdHandler
 
     shell = RewindCmdHandler.__new__(RewindCmdHandler)
@@ -1281,13 +1338,16 @@ def test_shell_rewind_truncates_stateless_conversation_items():
         {"type": "message", "role": "system", "content": []},
         {"type": "message", "role": "user", "content": []},
     ]
+    # The rewound turn's recorded start is gone.
+    assert shell.history_turns == []
 
 
 def test_shell_rewind_server_side_repoints_previous_response_id():
     """/rewind on a server-side Responses conversation (e.g. OpenAI) undoes
     the last completed turn by chaining the next turn (previous_response_id)
     from the response that preceded it, instead of resetting the whole
-    server-side conversation to None."""
+    server-side conversation to None (and drops the recorded turn start --
+    issue #78)."""
     from janito.shell.cmds.rewind import RewindCmdHandler
 
     shell = RewindCmdHandler.__new__(RewindCmdHandler)
@@ -1307,12 +1367,15 @@ def test_shell_rewind_server_side_repoints_previous_response_id():
     # chains from the response before the rewound exchange.
     assert shell.response_chain == ["r1"]
     assert shell.previous_response_id == "r1"
+    # The rewound turn's recorded start is gone.
+    assert shell.history_turns == []
 
 
 def test_shell_rewind_server_side_single_turn_resets_to_fresh(capsys):
     """/rewind on a server-side Responses conversation with a single
     completed turn returns to a fresh server conversation (previous_response_id
-    None), the same end state as the previous full reset for that case."""
+    None), the same end state as the previous full reset for that case (and
+    the recorded turn start is dropped -- issue #78)."""
     from janito.shell.cmds.rewind import RewindCmdHandler
 
     shell = RewindCmdHandler.__new__(RewindCmdHandler)
@@ -1328,13 +1391,15 @@ def test_shell_rewind_server_side_single_turn_resets_to_fresh(capsys):
 
     assert shell.response_chain == []
     assert shell.previous_response_id is None
+    assert shell.history_turns == []
     assert "fresh conversation" in capsys.readouterr().out
 
 
 def test_shell_rewind_server_side_at_turn_reports_nothing(capsys):
     """A second consecutive /rewind on a server-side conversation (already at
     the turn) reports nothing to rewind and keeps the conversation
-    instead of resetting it."""
+    instead of resetting it (and leaves the recorded turns untouched --
+    issue #78)."""
     from janito.shell.cmds.rewind import RewindCmdHandler
 
     shell = RewindCmdHandler.__new__(RewindCmdHandler)
@@ -1351,13 +1416,14 @@ def test_shell_rewind_server_side_at_turn_reports_nothing(capsys):
     # State is preserved: no truncation, no reset.
     assert shell.response_chain == ["r1"]
     assert shell.previous_response_id == "r1"
+    assert shell.history_turns == [1]
     assert "Nothing to rewind" in capsys.readouterr().out
 
 
 def test_shell_rewind_server_side_without_chain_falls_back_to_reset(capsys):
     """/rewind on a server-side conversation with no tracked chain (e.g. a
     manually seeded previous_response_id) keeps the legacy full-reset
-    behaviour."""
+    behaviour (and drops the recorded turn start -- issue #78)."""
     from janito.shell.cmds.rewind import RewindCmdHandler
 
     shell = RewindCmdHandler.__new__(RewindCmdHandler)
@@ -1372,6 +1438,7 @@ def test_shell_rewind_server_side_without_chain_falls_back_to_reset(capsys):
     handler._do_rewind(shell)
 
     assert shell.previous_response_id is None
+    assert shell.history_turns == []
     assert "server-side conversation reset" in capsys.readouterr().out
 
 
@@ -1498,7 +1565,8 @@ def test_shell_run_turn_stateless_does_not_mirror():
 def test_shell_rewind_server_side_truncates_mirrored_history():
     """/rewind on a server-side Responses conversation also truncates the
     display-only /history mirror back to its recorded start, so /history no
-    longer shows the rewound exchange."""
+    longer shows the rewound exchange (and drops the recorded turn start --
+    issue #78)."""
     from janito.shell.cmds.rewind import RewindCmdHandler
 
     shell = RewindCmdHandler.__new__(RewindCmdHandler)
@@ -1549,6 +1617,8 @@ def test_shell_rewind_server_side_truncates_mirrored_history():
             "content": [{"type": "output_text", "text": "reply 1"}],
         },
     ]
+    # The rewound turn's recorded start is gone.
+    assert shell.history_turns == []
 
 
 def test_shell_run_turn_keeps_chain_on_enter_cancel():

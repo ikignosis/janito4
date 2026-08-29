@@ -226,6 +226,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The interactive shell's pre-prompt `Turn N` rule no longer counts turns
+  that are rolled back (issue #78): the turn number is now derived from the
+  recorded turn list (`history_turns`, one entry per submitted turn), so a
+  turn interrupted by Ctrl+C, failed by an unexpected error, or undone with
+  `/rewind` no longer counts (its recorded start is dropped together with
+  the rollback) and the same number is shown again for the retry.
+  Enter-cancelled turns (`RequestCancelled`) keep their count, matching
+  their no-rollback semantics. The redundant `turn_count` attribute was
+  removed — the recorded turns are the single source of truth (the `/compact`
+  reset of `history_turns` also restarts the counter, keeping it consistent
+  with the `/history` markers).
 - `/status` shows a **Model** row with the session's effective model
   (`--model`, `/model` or the startup resolution); the provider's built-in
   default is marked `(default)`. Model-scoped settings (API type, max output
