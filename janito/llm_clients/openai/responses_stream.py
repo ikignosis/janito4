@@ -18,7 +18,7 @@ and drives the per-event handlers.  The module-level ``_consume_response_stream`
 import logging
 from typing import Any
 
-from ..client_support import _extract_raw_attrs
+from janito.agent.sdk import _extract_raw_attrs
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -283,45 +283,6 @@ def _handle_output_item(event, state: dict[str, Any]) -> None:
     consumer = _consumer_from_state(state)
     consumer.handle_output_item(event)
     _state_from_consumer(consumer, state)
-
-
-def _convert_tools_to_responses_format(
-    tools_schemas: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    """Convert Chat Completions tool schemas to the Responses API format.
-
-    The shared schema builders (``get_function_schema`` and the MCP tool
-    conversion in ``mcp_manager._convert_tool_to_openai``) emit the Chat
-    Completions shape with ``name``/``description``/``parameters`` nested
-    under ``function``::
-
-        {"type": "function", "function": {"name": ..., "description": ..., "parameters": ...}}
-
-    The Responses API expects those fields at the **top level**::
-
-        {"type": "function", "name": ..., "description": ..., "parameters": ...}
-
-    Without this conversion ``client.responses.create(tools=...)`` fails with
-    ``tools[0]: missing field 'name'``.
-
-    Args:
-        tools_schemas: Tool schemas in Chat Completions format
-
-    Returns:
-        The same tools in Responses API format
-    """
-    converted = []
-    for schema in tools_schemas:
-        function = schema.get("function", schema)
-        converted.append(
-            {
-                "type": "function",
-                "name": function.get("name"),
-                "description": function.get("description", ""),
-                "parameters": function.get("parameters", {}),
-            }
-        )
-    return converted
 
 
 def _stream_response(client, call_kwargs, tools_schemas, cancel_event=None):

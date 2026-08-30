@@ -19,6 +19,26 @@ Changes since `v4.33.0` (2026-08-29).
 
 ### Changed
 
+- Reviewed the package boundaries (issue #90) and enforced them with a new
+  static import-graph test (`tests/test_import_graph.py`):
+  - `SessionSetup` moved from `janito/cli/session_setup.py` to the package
+    root (`janito/session_setup.py`) so the web backend never imports from
+    the `cli` package.
+  - The concrete `UIConfig` moved from `janito/ui_config.py` to
+    `janito/ui/config.py`; the turn pipeline now depends only on a
+    structural `UIConfig` protocol in `llm_clients/base_client.py`, so the
+    API clients never import the UI package.
+  - The `agent` <-> `llm_clients` cycle was broken: the stream converters
+    (`_convert_tools_to_anthropic_format`,
+    `_convert_tools_to_responses_format`), `_ModelEndpointMismatch`, the
+    Gemini wire-format conversions + `GeminiStreamConsumer` and the SDK
+    raw-attrs helpers (`janito/agent/sdk.py`) moved into the shared
+    `agent` adapter layer; `llm_clients` now depends on `agent` one-way.
+  - The `tooling` <-> `tools` cycle was broken: tool discovery and the
+    privilege predicates moved to `janito/tooling/discovery.py`; `tools/`
+    is now a one-way consumer of the framework.
+  - The remaining `root` <-> `providers` lazy cycle is documented at each
+    import site as accepted-by-design.
 - The UI-side per-session behaviour moved out of `APIConfig` into a new
   frozen `UIConfig` (`janito/ui_config.py`) carrying the per-round
   `stream_runner` and the `TurnObserver`. `build_api_config` no longer

@@ -45,11 +45,13 @@ from types import SimpleNamespace
 from typing import Any
 
 from janito.tooling.executor import ToolExecutor
-from janito.ui_config import UIConfig
 
-# Shared agent-loop pipeline (see Client.run_turn) implemented by DashScopeClient.
+# Shared agent-loop pipeline (see Client.run_turn) implemented by
+# DashScopeClient; ``UIConfig`` is the structural UI-behaviour protocol the
+# pipeline depends on (the concrete frozen bundle lives in
+# ``janito.ui.config``, issue #90).
 from ..api_config import APIConfig
-from ..base_client import Client
+from ..base_client import Client, UIConfig
 
 # Shared client helpers: the error classifier the native-SDK clients use to
 # pick the observer's explainer explicitly.
@@ -142,7 +144,7 @@ def run_turn(
             session.
         prompt: The user prompt to send
         ui_config: The injected, immutable
-            :class:`~janito.ui_config.UIConfig` (per-round stream runner +
+            :class:`~janito.ui.config.UIConfig` (per-round stream runner +
             turn observer) for this session.
         verbose: Explicit per-call emission gate for the verbose call/response
             dumps (``False`` = no dumps).

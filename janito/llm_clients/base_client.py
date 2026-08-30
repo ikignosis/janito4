@@ -44,19 +44,48 @@ monkeypatching a module global.
 
 import logging
 from collections.abc import Callable
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Protocol
 
+from janito.agent.observer import NullObserver, TurnObserver
 from janito.agent.usage import TokenStats
 from janito.tooling.changes import clear_changes
 from janito.tooling.executor import extract_tool_names
 from janito.tooling.used_files import reset_used_files
 
-from ..ui_config import UIConfig
 from .api_config import APIConfig
 from .client_support import _load_mcp
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
+
+
+class UIConfig(Protocol):
+    """Injected UI behaviour bundle (stream runner + turn observer).
+
+    Structural protocol the pipeline depends on: the concrete frozen
+    dataclass lives in :mod:`janito.ui.config` and is composed by the CLI at
+    the composition point, so the API clients stay UI-free (issue #90).
+    """
+
+    stream_runner: Callable | None
+    observer: TurnObserver
+
+
+@dataclass(frozen=True)
+class _HeadlessUIConfig:
+    """Default UI behaviour when no config is injected (headless).
+
+    Mirrors the headless defaults of :class:`janito.ui.config.UIConfig`:
+    each streaming round runs directly in the calling thread (no runner) and
+    every observer event is dropped by the ``NullObserver``.
+    """
+
+    stream_runner: Callable | None = None
+    observer: TurnObserver = NullObserver()
+
+
+_DEFAULT_UI_CONFIG = _HeadlessUIConfig()
 
 
 def _fold_turn_usage(
@@ -92,7 +121,7 @@ class Client:
             session (provider, model, endpoint, api_key, token limits,
             reasoning level, preserve_thinking, use_mcp).
         ui_config: The injected, immutable
-            :class:`~janito.ui_config.UIConfig` for this session (per-round
+            :class:`~janito.ui.config.UIConfig` for this session (per-round
             stream runner + turn observer); defaults to a headless config.
         observer: Convenience alias for ``ui_config.observer`` (a
             :class:`~janito.agent.observer.TurnObserver`); kept so subclass
@@ -115,7 +144,7 @@ class Client:
     ) -> None:
         self.api_config = api_config
         # Convenience aliases (unchanged attribute names for the hooks).
-        ui_config = ui_config or UIConfig()
+        ui_config = ui_config or _DEFAULT_UI_CONFIG
         self.ui_config = ui_config
         self.observer = ui_config.observer
         self.stream_runner = ui_config.stream_runner

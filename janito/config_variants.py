@@ -37,6 +37,9 @@ def load_variants() -> dict[str, dict]:
     Returns:
         Dict mapping variant names to their config entries.
     """
+    # Accepted lazy cycle with the provider package (issue #90): the provider
+    # registry / validation re-enter the config layer for variant lookups, so
+    # variant helpers resolve them lazily instead of at import time.
     from .providers.registry import is_variant_style_name
 
     providers = get_config_value("providers")
@@ -91,6 +94,8 @@ def create_variant(name: str) -> str:
         ValueError: If the name is not ``<provider>-<word>``, the provider
             prefix is unsupported, or the variant is already registered.
     """
+    # Accepted lazy cycle with the provider package (issue #90): see
+    # load_variants -- registry/validation re-enter the config layer.
     from .providers.registry import parse_variant_name
     from .providers.validation import is_supported_provider, list_supported_providers
 

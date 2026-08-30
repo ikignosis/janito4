@@ -44,17 +44,65 @@ point; the turn pipeline is a pure function of `(config, request)` (issue
 | `janito/shell/` | Interactive prompt_toolkit shell and `/`-commands |
 | `janito/agent/` | Shared per-API adapters used by both the CLI and web loops |
 | `janito/llm_clients/` | API clients and the shared agent-loop pipeline |
-| `janito/ui/` | Rich terminal presentation of the agent loop (turn observer, per-round stream runner, usage/error rendering) |
-| `janito/tooling/` | Tool framework: registry, executor, skills, tracking |
-| `janito/tools/` | Built-in tool implementations, organized in toolsets |
+| `janito/ui/` | Rich terminal presentation of the agent loop (turn observer, per-round stream runner, `UIConfig` bundle, usage/error rendering) |
+| `janito/tooling/` | Tool framework: discovery + privilege gating (`discovery.py`), registry, executor, skills, tracking |
+| `janito/tools/` | Built-in tool implementations, organized in toolsets (depends one-way on `tooling`) |
 | `janito/mcp_client/` + `mcp_manager.py` | MCP server connections and tool routing |
 | `janito/web/` | FastAPI web backend + plain HTML/JS/CSS frontend |
+| `janito/session_setup.py` | Shared system-prompt/toolset selection for the CLI and web entry points (outside `cli/` so the web backend never imports from the CLI package) |
 | `janito/plugin_manager.py` | Plugin loader: contract validation, scoped `sys.path`, registration |
 | `../plugins/` (outside the repo) | Optional plugins (e.g. `janito-codesearch-plugin/`) loaded with `--plugin DIR` |
 | `janito/*config*.py`, `provider_*.py` | Configuration storage, loaders, provider registry |
 | `docs/`, `mkdocs.yml` | MkDocs documentation site |
 
 ---
+
+## Domains & boundaries
+
+The codebase is organized into **domains** (the root package plus the
+subpackages below), and the cross-domain import edges are a deliberate,
+enforced contract (issue #90).  The allowed directed edges (source ->
+targets, same-domain imports always allowed) are:
+
+| source \ target | agent | cli | llm_clients | mcp_client | providers | root | shell | tooling | tools | ui | web |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| **root** | | ✓ | | ✓ | ✓ | — | ✓ | ✓ | ✓ | | ✓ |
+| **agent** | — | | | | ✓ | | | | | | |
+| **llm_clients** | ✓ | | — | | ✓ | ✓ | | ✓ | | | |
+| **mcp_client** | | | | — | | | | | | | |
+| **providers** | | | | | — | ✓ | | | | | |
+| **shell** | | | ✓ | | ✓ | ✓ | — | ✓ | ✓ | | |
+| **tooling** | | | | | | ✓ | | — | | | |
+| **tools** | | | | | ✓ | ✓ | | ✓ | — | | |
+| **ui** | ✓ | | ✓ | | ✓ | ✓ | | ✓ | | — | |
+| **cli** | | — | ✓ | | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| **web** | ✓ | | ✓ | | ✓ | ✓ | | ✓ | ✓ | | — |
+
+The intended layering:
+
+- **`ui` / `shell` / `cli` / `web` are the outer presentation / entry
+  layers** — they may depend on anything below them, and nothing below may
+  depend on them.  In particular `web` never imports from `cli` (the shared
+  `SessionSetup` lives at the package root), and the API clients never
+  import the concrete `UIConfig` (they depend on the structural protocol in
+  `llm_clients/base_client.py`; the frozen bundle is composed by the CLI in
+  `janito/ui/config.py`).
+- **`agent` is the shared adapter layer** — both agent loops (CLI and web)
+  build on it; `llm_clients` and `web` depend on it, and it must **never**
+  import from `llm_clients` (the stream converters / `GeminiStreamConsumer`
+  / `_ModelEndpointMismatch` / raw-attrs helpers moved here for that
+  reason).
+- **`llm_clients` depends one-way on `agent`**, `tooling`, `providers` and
+  the root config layer.
+- **`tooling` is the tool framework** — `tools` (the built-in
+  implementations) depends on it, never the other way round; tool discovery
+  and the privilege predicates live in `tooling/discovery.py`.
+- **`providers` and the root config stores are leaves.**
+- The one remaining cycle — **root <-> providers** (config-store /
+  variant-name resolution vs. the provider registry) — is accepted and kept
+  contained with lazy imports on both sides; each site carries an
+  `issue #90` comment.  `tests/test_import_graph.py` statically enforces
+  this matrix, so any new cycle or wrong-direction edge fails the suite.
 
 ## Entry point & CLI dispatch
 
@@ -93,8 +141,9 @@ the `janito` console script). Flow:
 `build_api_config` and returns a `turn_func` bound to the resolved API
 type (Responses / Completions / Anthropic / DashScope / Gemini); it drives
 either the interactive shell or a single prompt.
-`janito/cli/session_setup.py` decides the effective system prompt and which
-toolsets to enable.
+`janito/session_setup.py` (`SessionSetup`) decides the effective system
+prompt and which toolsets to enable — shared with the web backend, which
+imports it from the package root instead of from `cli/` (issue #90).
 
 ---
 
@@ -136,7 +185,10 @@ turn needs that can be decided before the call starts — provider, API type,
 model, base URL, api key, resolved max-output/input tokens, reasoning level,
 thinking mode, `preserve_thinking`, `use_mcp`. The UI-side behaviour
 (per-round stream runner + turn observer) is carried separately by the
-frozen `UIConfig` (`ui_config.py`), injected at the same composition point.
+frozen `UIConfig` (`janito/ui/config.py`), injected at the same composition
+point.  The pipeline depends only on the structural `UIConfig` protocol in
+`llm_clients/base_client.py` (`stream_runner` + `observer`), so the API
+clients never import the UI package (issue #90).
 `build_api_config` is the **single resolution point**: the only place that
 touches the config store / auth store / provider registry. It is called at
 the composition point (`cli/chat.py`'s `_make_turn_factory`, which rebuilds

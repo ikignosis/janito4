@@ -9,6 +9,11 @@ session (or per provider/model/thinking switch) at the composition point
 alongside the resolved
 :class:`~janito.llm_clients.api_config.APIConfig`.
 
+The API clients do **not** import this concrete type (issue #90): the turn
+pipeline depends only on the structural ``UIConfig`` protocol in
+:mod:`janito.llm_clients.base_client` (``stream_runner`` + ``observer``), so
+this UI-side dataclass lives in :mod:`janito.ui` where the CLI composes it.
+
 ``verbose`` deliberately lives **outside** this structure: it is a per-call
 emission gate (``Client.run_turn(verbose=...)``) -- a boolean, not an
 injected object -- so the session default is captured in the CLI turn

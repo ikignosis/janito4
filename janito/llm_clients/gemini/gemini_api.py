@@ -43,23 +43,23 @@ import importlib.util
 import logging
 from typing import Any
 
+# The call-kwargs builder lives in the shared adapter layer
+# (janito.agent.gemini, issue #90); the CLI-only helpers stay in
+# gemini_helpers.
+from janito.agent.gemini import _build_call_kwargs
 from janito.tooling.executor import ToolExecutor
 
-# Injected, immutable per-session UI configuration (stream runner + observer).
-from janito.ui_config import UIConfig
-
-# Resolved, immutable per-session configuration (issue #70): the turn
-# pipeline consumes it instead of re-reading the config/auth stores.
+# Shared agent-loop pipeline (see Client.run_turn) implemented by
+# GeminiClient; ``UIConfig`` is the structural UI-behaviour protocol the
+# pipeline depends on (the concrete frozen bundle lives in
+# ``janito.ui.config``, issue #90).
 from ..api_config import APIConfig
-
-# Shared agent-loop pipeline (see Client.run_turn) implemented by GeminiClient.
-from ..base_client import Client
+from ..base_client import Client, UIConfig
 
 # Shared client helpers: the error classifier the native-SDK clients use to
 # pick the observer's explainer explicitly.
 from ..client_support import _classify_error
 from .gemini_helpers import (
-    _build_call_kwargs,
     _finalize_response,
     _handle_tool_parts,
     _init_state,
@@ -139,7 +139,7 @@ def run_turn(
             session.
         prompt: The user prompt to send
         ui_config: The injected, immutable
-            :class:`~janito.ui_config.UIConfig` (per-round stream runner +
+            :class:`~janito.ui.config.UIConfig` (per-round stream runner +
             turn observer) for this session.
         verbose: Explicit per-call emission gate for the verbose call/response
             dumps (``False`` = no dumps).

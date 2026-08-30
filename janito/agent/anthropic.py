@@ -29,12 +29,50 @@ from .usage import usage_event_from_usage
 logger = logging.getLogger(__name__)
 
 
+def _convert_tools_to_anthropic_format(
+    tools_schemas: list[dict],
+) -> list[dict]:
+    """Convert Chat Completions tool schemas to the Anthropic tools format.
+
+    The shared schema builders (``get_function_schema`` and the MCP tool
+    conversion in ``mcp_manager._convert_tool_to_openai``) emit the Chat
+    Completions shape with ``name``/``description``/``parameters`` nested
+    under ``function``::
+
+        {"type": "function", "function": {"name": ..., "description": ..., "parameters": ...}}
+
+    The Anthropic Messages API expects ``name``/``description``/``input_schema``
+    at the **top level** (``input_schema`` being the JSON-Schema of the
+    parameters)::
+
+        {"name": ..., "description": ..., "input_schema": {"type": "object", "properties": ..., "required": ...}}
+
+    Lives in the shared adapter layer (not ``llm_clients``) so both agent
+    loops convert through the same function (issue #90).
+
+    Args:
+        tools_schemas: Tool schemas in Chat Completions format
+
+    Returns:
+        The same tools in Anthropic Messages format
+    """
+    converted = []
+    for schema in tools_schemas:
+        function = schema.get("function", schema)
+        converted.append(
+            {
+                "name": function.get("name"),
+                "description": function.get("description", ""),
+                "input_schema": function.get(
+                    "parameters", {"type": "object", "properties": {}}
+                ),
+            }
+        )
+    return converted
+
+
 def _convert_tools(tools_schemas: list[dict]) -> list[dict]:
     """Convert Chat Completions tool schemas to the Anthropic tools format."""
-    from janito.llm_clients.anthropic.anthropic_stream import (
-        _convert_tools_to_anthropic_format,
-    )
-
     return _convert_tools_to_anthropic_format(tools_schemas)
 
 
@@ -318,6 +356,7 @@ __all__ = [
     "accumulator",
     "build_call_kwargs",
     "_convert_tools",
+    "_convert_tools_to_anthropic_format",
     "_parse_tool_input",
     "_to_anthropic",
 ]

@@ -31,12 +31,50 @@ from .usage import usage_event_from_usage
 logger = logging.getLogger(__name__)
 
 
+def _convert_tools_to_responses_format(
+    tools_schemas: list[dict],
+) -> list[dict]:
+    """Convert Chat Completions tool schemas to the Responses API format.
+
+    The shared schema builders (``get_function_schema`` and the MCP tool
+    conversion in ``mcp_manager._convert_tool_to_openai``) emit the Chat
+    Completions shape with ``name``/``description``/``parameters`` nested
+    under ``function``::
+
+        {"type": "function", "function": {"name": ..., "description": ..., "parameters": ...}}
+
+    The Responses API expects those fields at the **top level**::
+
+        {"type": "function", "name": ..., "description": ..., "parameters": ...}
+
+    Without this conversion ``client.responses.create(tools=...)`` fails with
+    ``tools[0]: missing field 'name'``.
+
+    Lives in the shared adapter layer (not ``llm_clients``) so both agent
+    loops convert through the same function (issue #90).
+
+    Args:
+        tools_schemas: Tool schemas in Chat Completions format
+
+    Returns:
+        The same tools in Responses API format
+    """
+    converted = []
+    for schema in tools_schemas:
+        function = schema.get("function", schema)
+        converted.append(
+            {
+                "type": "function",
+                "name": function.get("name"),
+                "description": function.get("description", ""),
+                "parameters": function.get("parameters", {}),
+            }
+        )
+    return converted
+
+
 def _convert_tools(tools_schemas: list[dict]) -> list[dict]:
     """Convert Chat Completions tool schemas to the Responses API format."""
-    from janito.llm_clients.openai.responses_stream import (
-        _convert_tools_to_responses_format,
-    )
-
     return _convert_tools_to_responses_format(tools_schemas)
 
 
@@ -407,6 +445,7 @@ __all__ = [
     "accumulator",
     "build_call_kwargs",
     "_convert_tools",
+    "_convert_tools_to_responses_format",
     "_messages_to_input_items",
     "_model_supports_image_generation",
     "_save_base64_image",

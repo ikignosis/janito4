@@ -134,7 +134,7 @@ def test_prompt_cmd_config_start_keeps_section_table(monkeypatch, tmp_path, capf
     configured text in the ``start`` row -- instead of drifting into the
     plain custom-prompt view.
     """
-    from janito.cli.session_setup import SessionSetup
+    from janito.session_setup import SessionSetup
 
     _patch_skills_section(monkeypatch)
     _patch_config_start(monkeypatch, "configured start text")

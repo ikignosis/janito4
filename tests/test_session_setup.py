@@ -1,5 +1,5 @@
 """
-Tests for SessionSetup (janito.cli.session_setup).
+Tests for SessionSetup (janito.session_setup).
 
 SessionSetup centralizes the system-prompt and toolset selection that was
 previously duplicated between ``cli/chat.py`` and
@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
 
-from janito.cli.session_setup import SessionSetup
+from janito.session_setup import SessionSetup
 
 
 def _args(**overrides):

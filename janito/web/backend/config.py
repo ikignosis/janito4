@@ -194,9 +194,9 @@ class WebServerConfig:
     def get_effective_system_prompt(self) -> str | None:
         """Resolve the system prompt for new sessions.
 
-        Shared with ``cli/chat.py`` via :class:`janito.cli.session_setup.SessionSetup`.
+        Shared with ``cli/chat.py`` via :class:`janito.session_setup.SessionSetup`.
         """
-        from janito.cli.session_setup import SessionSetup
+        from janito.session_setup import SessionSetup
 
         return SessionSetup(
             system_prompt=self.system_prompt,
@@ -206,10 +206,10 @@ class WebServerConfig:
     def apply_toolsets(self) -> None:
         """Enable toolsets based on CLI flags.
 
-        Shared with ``cli/chat.py`` via :class:`janito.cli.session_setup.SessionSetup`.
+        Shared with ``cli/chat.py`` via :class:`janito.session_setup.SessionSetup`.
         Called once at server startup.
         """
-        from janito.cli.session_setup import SessionSetup
+        from janito.session_setup import SessionSetup
 
         # The janitoweb toolset (CreateSVG, ...) is web-only and always
         # loaded when the server runs in --web mode.  See issue #11.

@@ -38,6 +38,10 @@ import json
 import logging
 from typing import Any
 
+# Tool-schema conversion (Anthropic Messages format) lives in the shared
+# adapter layer (janito.agent.anthropic, issue #90).
+from janito.agent.anthropic import _convert_tools_to_anthropic_format
+
 # Import the tool executor (routes tool calls to the MCP manager or the
 # built-in registry and tracks usage/used-files/changes around each call)
 from janito.tooling.executor import ToolExecutor
@@ -45,20 +49,20 @@ from janito.tooling.executor import ToolExecutor
 # Import tools
 from janito.tooling.tools_registry import get_session_tool_schemas
 
-# Injected, immutable per-session UI configuration (stream runner + observer).
-from ...ui_config import UIConfig
-
 # Resolved, immutable per-session configuration (issue #70): the turn
 # pipeline consumes it instead of re-reading the config/auth stores.
 from ..api_config import APIConfig
 
-# Shared agent-loop pipeline (see Client.run_turn) implemented by AnthropicClient.
-from ..base_client import Client
+# Shared agent-loop pipeline (see Client.run_turn) implemented by
+# AnthropicClient; ``UIConfig`` is the structural UI-behaviour protocol the
+# pipeline depends on (the concrete frozen bundle lives in
+# ``janito.ui.config``, issue #90).
+from ..base_client import Client, UIConfig
 
 # Shared client helper: the error classifier the native-SDK clients use to
 # pick the observer's explainer explicitly.
 from ..client_support import _classify_error
-from .anthropic_stream import _convert_tools_to_anthropic_format, _stream_response
+from .anthropic_stream import _stream_response
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -125,7 +129,7 @@ def run_turn(
             session.
         prompt: The user prompt to send
         ui_config: The injected, immutable
-            :class:`~janito.ui_config.UIConfig` (per-round stream runner +
+            :class:`~janito.ui.config.UIConfig` (per-round stream runner +
             turn observer) for this session.
         verbose: Explicit per-call emission gate for the verbose call/response
             dumps (``False`` = no dumps).

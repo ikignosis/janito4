@@ -54,15 +54,15 @@ from janito.providers.registry import get_provider
 # built-in registry and tracks usage/used-files/changes around each call)
 from janito.tooling.executor import ToolExecutor
 
-# Injected, immutable per-session UI configuration (stream runner + observer).
-from ...ui_config import UIConfig
-
 # Resolved, immutable per-session configuration (issue #70): the turn
 # pipeline consumes it instead of re-reading the config/auth stores.
 from ..api_config import APIConfig
 
-# Shared agent-loop pipeline (see Client.run_turn) implemented by ResponsesClient.
-from ..base_client import Client
+# Shared agent-loop pipeline (see Client.run_turn) implemented by
+# ResponsesClient; ``UIConfig`` is the structural UI-behaviour protocol the
+# pipeline depends on (the concrete frozen bundle lives in
+# ``janito.ui.config``, issue #90).
+from ..base_client import Client, UIConfig
 
 # Shared client helpers: the RequestCancelled exception raised by the
 # injected per-round stream runner (``janito.ui.stream_runner``); the
@@ -163,7 +163,7 @@ def run_turn(
             session.
         prompt: The user prompt to send
         ui_config: The injected, immutable
-            :class:`~janito.ui_config.UIConfig` (per-round stream runner +
+            :class:`~janito.ui.config.UIConfig` (per-round stream runner +
             turn observer) for this session.
         verbose: Explicit per-call emission gate for the verbose call/response
             dumps (``False`` = no dumps).

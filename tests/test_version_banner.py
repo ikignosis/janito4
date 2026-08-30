@@ -61,7 +61,7 @@ if pytest is not None:
         )
         # Avoid a real system-prompt build: force the shared SessionSetup to
         # resolve a fixed prompt so the test does not depend on skills/cwd.
-        import janito.cli.session_setup as session_setup_mod
+        import janito.session_setup as session_setup_mod
 
         monkeypatch.setattr(
             session_setup_mod.SessionSetup,

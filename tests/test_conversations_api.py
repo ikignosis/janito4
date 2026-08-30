@@ -29,11 +29,9 @@ from conftest import make_config, make_ui_config
 
 import janito.config_dir as config_dir_mod
 import janito.tooling.used_files as used_files
+from janito.agent.responses import _convert_tools_to_responses_format
 from janito.llm_clients.openai import conversations_api as api
-from janito.llm_clients.openai.responses_stream import (
-    _consume_response_stream,
-    _convert_tools_to_responses_format,
-)
+from janito.llm_clients.openai.responses_stream import _consume_response_stream
 
 
 def _responses_config(model="gpt-4o", provider="openai"):

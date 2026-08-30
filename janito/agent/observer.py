@@ -13,7 +13,7 @@ of printing).  The CLI injects the Rich observer
 (:class:`janito.ui.observer.RichTurnObserver`) through
 ``_make_turn_func`` in ``cli/chat.py`` -- the same composition point
 that injects the per-round ``stream_runner`` (both carried by the
-:class:`~janito.ui_config.UIConfig`) -- so every CLI entry point
+:class:`~janito.ui.config.UIConfig`) -- so every CLI entry point
 (interactive shell, ``/ask``, ``/compact``, one-shot prompt) keeps today's
 output.  Non-TUI consumers can implement the protocol to capture or forward
 the events.

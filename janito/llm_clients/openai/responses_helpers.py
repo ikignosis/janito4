@@ -9,15 +9,17 @@ module stays focused on the ``run_turn`` entry point and the
 import logging
 from typing import Any
 
+# Shared client helpers and the Responses API stream consumer.
+# Tool-schema conversion lives in the shared adapter layer
+# (janito.agent.responses, issue #90).
+from janito.agent.responses import _convert_tools_to_responses_format
+
 # Import the tool executor (routes tool calls to the MCP manager or the
 # built-in registry and tracks usage/used-files/changes around each call)
 from janito.tooling.executor import ToolExecutor
 
 # Import tools
 from janito.tooling.tools_registry import get_session_tool_schemas
-
-# Shared client helpers and the Responses API stream consumer.
-from .responses_stream import _convert_tools_to_responses_format
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)

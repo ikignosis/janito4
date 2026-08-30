@@ -59,6 +59,10 @@ def list_variants() -> list:
     Returns:
         Sorted list of registered variant names (e.g. ``["alibaba-tokenplan"]``).
     """
+    # Accepted lazy cycle with the root config layer (issue #90): variant
+    # listing reads the config store while the config layer validates
+    # variant-style names through this module; the imports are lazy on both
+    # sides, keeping the cycle contained.
     from ..config_variants import load_variants
 
     return sorted(load_variants().keys())
@@ -137,6 +141,10 @@ def validate_model_name(provider: str, model: str) -> str:
         ValueError: If the provider has usable built-in models and ``model``
             is not one of them (or a configured per-model entry).
     """
+    # Accepted lazy cycle with the root config layer (issue #90): same
+    # contained lazy cycle as list_variants -- the config layer validates
+    # provider/model names through this module while this module reads the
+    # config store for the configured entries.
     from ..config_keys import normalize_provider
     from ..config_store import get_config_value
 

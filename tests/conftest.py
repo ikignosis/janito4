@@ -6,7 +6,7 @@ from typing import Any
 
 from janito.agent.observer import NullObserver
 from janito.llm_clients.api_config import APIConfig
-from janito.ui_config import UIConfig
+from janito.ui.config import UIConfig
 
 
 def make_config(
@@ -50,7 +50,7 @@ def make_config(
 
 
 def make_ui_config(*, stream_runner=None, observer=None) -> UIConfig:
-    """Build a minimal :class:`~janito.ui_config.UIConfig` for tests.
+    """Build a minimal :class:`~janito.ui.config.UIConfig` for tests.
 
     The per-round stream runner and the turn observer are injected through
     the UI config (no longer constructor params / module globals to

@@ -18,8 +18,7 @@ functions are thin delegators used by ``_stream_response`` and its tests.
 import logging
 
 from janito.agent.completions import CompletionsAccumulator
-
-from ..client_support import _extract_raw_attrs
+from janito.agent.sdk import _extract_raw_attrs
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)

@@ -19,22 +19,11 @@ import re
 from types import SimpleNamespace
 from typing import Any
 
-from ..client_support import _extract_raw_attrs
+from janito.agent.dashscope import _ModelEndpointMismatch
+from janito.agent.sdk import _extract_raw_attrs
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
-
-
-class _ModelEndpointMismatch(RuntimeError):
-    """Raised when the DashScope API rejects a model for the chosen endpoint.
-
-    The native DashScope API serves models from two generation endpoints:
-    ``text-generation`` (``Generation.call``) for plain-text models and
-    ``multimodal-generation`` (``MultiModalConversation.call``) for multimodal
-    models.  Sending a model to the wrong endpoint fails with
-    ``InvalidParameter: url error, please check url``.  ``_stream_response``
-    catches this to retry once on the other endpoint.
-    """
 
 
 def _is_multimodal_model(model: str) -> bool:

@@ -20,7 +20,7 @@ import logging
 from types import SimpleNamespace
 from typing import Any
 
-from ..client_support import _extract_raw_attrs
+from janito.agent.sdk import _extract_raw_attrs
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -319,45 +319,6 @@ def _handle_message_delta(event, state: dict[str, Any]) -> None:
     consumer = _consumer_from_state(state)
     consumer.handle_message_delta(event)
     _state_from_consumer(consumer, state)
-
-
-def _convert_tools_to_anthropic_format(
-    tools_schemas: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    """Convert Chat Completions tool schemas to the Anthropic tools format.
-
-    The shared schema builders (``get_function_schema`` and the MCP tool
-    conversion in ``mcp_manager._convert_tool_to_openai``) emit the Chat
-    Completions shape with ``name``/``description``/``parameters`` nested
-    under ``function``::
-
-        {"type": "function", "function": {"name": ..., "description": ..., "parameters": ...}}
-
-    The Anthropic Messages API expects ``name``/``description``/``input_schema``
-    at the **top level** (``input_schema`` being the JSON-Schema of the
-    parameters)::
-
-        {"name": ..., "description": ..., "input_schema": {"type": "object", "properties": ..., "required": ...}}
-
-    Args:
-        tools_schemas: Tool schemas in Chat Completions format
-
-    Returns:
-        The same tools in Anthropic Messages format
-    """
-    converted = []
-    for schema in tools_schemas:
-        function = schema.get("function", schema)
-        converted.append(
-            {
-                "name": function.get("name"),
-                "description": function.get("description", ""),
-                "input_schema": function.get(
-                    "parameters", {"type": "object", "properties": {}}
-                ),
-            }
-        )
-    return converted
 
 
 def _stream_response(client, call_kwargs, tools_schemas, cancel_event=None):

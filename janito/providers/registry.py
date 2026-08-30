@@ -102,6 +102,10 @@ class ProviderRegistry:
             The canonical base provider name if ``name`` is a registered
             variant, otherwise ``None``.
         """
+        # Accepted lazy cycle with the root config layer (issue #90): the
+        # config layer resolves variant-style names through the registry
+        # while the registry checks registration through the config store;
+        # the imports are lazy on both sides, keeping the cycle contained.
         from ..config_variants import is_registered_variant
 
         parsed = parse_variant_name(name)

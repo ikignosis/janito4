@@ -312,6 +312,9 @@ class ConfigStore:
         """
         provider_config = providers.get(provider)
         if not provider_config:
+            # Accepted lazy cycle with the provider package (issue #90): the
+            # provider registry parses variant-style names through the config
+            # layer, so the store resolves the variant marker lazily.
             from .providers.registry import is_variant_style_name
 
             if not is_variant_style_name(provider):

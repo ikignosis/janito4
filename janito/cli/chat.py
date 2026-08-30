@@ -12,9 +12,9 @@ from ..providers.registry import get_provider
 from ..runtime_config import resolve_runtime_config
 from ..shell import InteractiveShell
 from ..tooling.path_utils import display_path
+from ..ui.config import UIConfig
 from ..ui.observer import RichTurnObserver
 from ..ui.stream_runner import _run_with_progress_bar
-from ..ui_config import UIConfig
 
 # Whether the version banner has already been printed for this process, so it
 # is shown only once (e.g. before plugin loading in main() and again by the
@@ -64,7 +64,7 @@ def _make_turn_func(
             switch by ``build_api_config``; the returned callable performs no
             config-store / auth-store reads.
         ui_config: The injected, immutable
-            :class:`~janito.ui_config.UIConfig` (per-round stream runner +
+            :class:`~janito.ui.config.UIConfig` (per-round stream runner +
             turn observer) for this session.
         session_verbose: The session's verbose flag, captured as the closure
             default for the per-call ``verbose`` gate (``/ask`` and
@@ -261,14 +261,14 @@ def _print_privileges_notice(args) -> None:
 
 def _enable_requested_toolsets(args) -> None:
     """Enable web-only toolsets when requested via CLI flags."""
-    from .session_setup import SessionSetup
+    from ..session_setup import SessionSetup
 
     SessionSetup().enable_toolsets()
 
 
 def _resolve_system_prompt(args) -> tuple[str | None, bool]:
     """Return ``(effective_system_prompt, no_tools)`` for the enabled modes."""
-    from .session_setup import SessionSetup
+    from ..session_setup import SessionSetup
 
     setup = SessionSetup(
         system_prompt=args.system_prompt,
@@ -388,7 +388,7 @@ def run_interactive_chat(args):
 
 def _build_single_prompt_context(args):
     """Build ``(messages_history, tools_to_use)`` for a single prompt run."""
-    from .session_setup import SessionSetup
+    from ..session_setup import SessionSetup
 
     setup = SessionSetup(
         system_prompt=args.system_prompt,

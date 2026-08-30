@@ -146,6 +146,10 @@ def normalize_api_type(value: str) -> str:
     Raises:
         ValueError: If the value is not a known API type
     """
+    # Accepted lazy cycle with the provider package (issue #90): the provider
+    # registry validates variant-style names through the config layer
+    # (config_keys/config_variants), so API-type validation resolves through
+    # the registry lazily instead of at import time.
     from .providers.validation import get_all_api_types
 
     known = get_all_api_types()

@@ -24,7 +24,7 @@ declare ``global`` only where they rebind a name (``_tools_initialized``,
 from collections.abc import Callable
 from typing import Any
 
-from ..tools import discover_toolsets, tool_is_allowed_by_privileges
+from .discovery import discover_toolsets, tool_is_allowed_by_privileges
 from .schema import get_function_schema
 from .skills_provider import get_skills_advertisement, get_skills_tools
 

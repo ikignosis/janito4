@@ -30,6 +30,21 @@ from .usage import usage_event_from_usage
 logger = logging.getLogger(__name__)
 
 
+class _ModelEndpointMismatch(RuntimeError):
+    """Raised when the DashScope API rejects a model for the chosen endpoint.
+
+    The native DashScope API serves models from two generation endpoints:
+    ``text-generation`` (``Generation.call``) for plain-text models and
+    ``multimodal-generation`` (``MultiModalConversation.call``) for multimodal
+    models.  Sending a model to the wrong endpoint fails with
+    ``InvalidParameter: url error, please check url``.  The stream opener
+    catches this to retry once on the other endpoint.
+
+    Lives in the shared adapter layer (not ``llm_clients``) so both agent
+    loops signal endpoint mismatches with the same exception (issue #90).
+    """
+
+
 def build_call_kwargs(
     model: str,
     messages: list[dict],
@@ -180,10 +195,6 @@ class DashScopeTurnAccumulator:
             # The model was sent to the wrong generation endpoint
             # (multimodal vs text): signal the stream opener to retry once on
             # the other endpoint.
-            from janito.llm_clients.dashscope.dashscope_stream import (
-                _ModelEndpointMismatch,
-            )
-
             raise _ModelEndpointMismatch(
                 f"DashScope API error (code={code}): {message}{detail}"
             )
@@ -255,5 +266,6 @@ __all__ = [
     "DashScopeTurnAccumulator",
     "accumulator",
     "build_call_kwargs",
+    "_ModelEndpointMismatch",
     "_get",
 ]

@@ -8,6 +8,10 @@ implemented twice: in ``janito/cli/chat.py`` (``_resolve_system_prompt`` /
 ``janito/web/backend/config.py`` (``WebServerConfig.get_effective_system_prompt``).
 :class:`SessionSetup` centralizes them so both entry points stay in sync;
 the CLI/web functions delegate to it.
+
+The class lives at the package root (not in ``janito/cli/``) so the web
+backend never has to import from the CLI package: both entry points consume
+this shared composition helper (issue #90).
 """
 
 from __future__ import annotations
