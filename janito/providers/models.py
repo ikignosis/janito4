@@ -72,6 +72,19 @@ class ModelConfig:
         """
         return self._data.get("thinking", False)
 
+    def preserve_thinking(self) -> bool | None:
+        """The model's built-in ``preserve_thinking`` default, or ``None``.
+
+        ``preserve_thinking`` is a Qwen extension (see the QwenCloud
+        Thinking guide): when ``True``, the API appends the assistant
+        messages' ``reasoning_content`` to the next input in multi-turn
+        conversations, letting the model reference its own prior reasoning.
+        The built-in Qwen models (``qwen3.8-max`` / ``qwen3.8-flash``)
+        declare it ``True``; other models declare nothing (``None``), so the
+        callers send no flag and the API's own default applies.
+        """
+        return self._data.get("preserve_thinking")
+
     def tools(self, api_type: str | None = None) -> list | None:
         """The model's built-in (native) tool entries, or ``None``.
 
@@ -263,6 +276,15 @@ class Provider:
         ``{'type': 'adaptive'}``).
         """
         return self.model_config(model).default_thinking()
+
+    def preserve_thinking(self, model: str | None = None) -> bool | None:
+        """The model's built-in ``preserve_thinking`` default, or ``None``.
+
+        See :meth:`ModelConfig.preserve_thinking`.  ``None`` (no built-in
+        declaration) means the caller sends no flag and the API's own default
+        applies.
+        """
+        return self.model_config(model).preserve_thinking()
 
     def tools(
         self, model: str | None = None, api_type: str | None = None

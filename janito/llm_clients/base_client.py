@@ -242,7 +242,7 @@ class Client:
         ) = self._resolve_model_settings(provider, model)
         preserve_thinking = self.api_config.preserve_thinking
         if preserve_thinking is not None:
-            logger.debug(f"Using preserve_thinking from config: {preserve_thinking}")
+            logger.debug(f"Using resolved preserve_thinking: {preserve_thinking}")
 
         # Print model and backend info only in verbose mode
         if verbose:

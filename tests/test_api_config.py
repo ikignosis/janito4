@@ -8,7 +8,8 @@ single resolution point:
   args and the auth store (the ``cli_api_type`` selects the built-in default
   endpoint for native-SDK API types, e.g. DashScope);
 - token / reasoning fallbacks (config override > built-in default > 100k);
-- ``preserve_thinking`` is read from the config store;
+- ``preserve_thinking`` is resolved from the provider config (a built-in
+  model default, not a configurable setting);
 - the UI config (``UIConfig``) defaults to the headless ``NullObserver`` and
   carries the stream runner + observer (out of ``APIConfig``);
 - the dataclass is frozen (mutation raises ``FrozenInstanceError``).
@@ -245,18 +246,29 @@ def test_build_api_config_output_tokens_falls_back_to_100k():
 # ---- builder: preserve_thinking / UI injection ----------------------------
 
 
-def test_build_api_config_reads_preserve_thinking_from_store():
-    """preserve_thinking is hoisted from the config store at build time."""
-    set_config_value("preserve_thinking", True)
+def test_build_api_config_resolves_preserve_thinking_from_provider_config():
+    """preserve_thinking comes from the provider config's model entry.
+
+    It is no longer a configurable setting: Alibaba/Qwen's hybrid-thinking
+    models declare it True (their API appends previous reasoning_content to
+    the next input), while models without a built-in declaration resolve to
+    None (the caller sends no flag and the API's own default applies).
+    """
+    # Alibaba/Qwen declare preserve_thinking True.
     config = build_api_config(
-        api_type="Completions", cli_provider="openai", cli_model="gpt-5.6-luna"
+        api_type="Responses", cli_provider="alibaba", cli_model="qwen3.8-max"
     )
     assert config.preserve_thinking is True
 
-    # Unset -> None.
-    from janito.config_store import unset_config_value
+    # Models without a built-in declaration resolve to None.
+    config = build_api_config(
+        api_type="Completions", cli_provider="openai", cli_model="gpt-5.6-luna"
+    )
+    assert config.preserve_thinking is None
 
-    unset_config_value("preserve_thinking")
+    # A legacy flat config key no longer has any effect: the value is
+    # resolved from the provider config, never from the config store.
+    set_config_value("preserve_thinking", True)
     config = build_api_config(
         api_type="Completions", cli_provider="openai", cli_model="gpt-5.6-luna"
     )

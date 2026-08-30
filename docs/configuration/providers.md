@@ -311,6 +311,14 @@ the `alibaba` provider: every call sends
 `extra_body={'enable_thinking': True}`. Pass `-t` / `--thinking` to force it
 on for any provider.
 
+Both built-in Qwen models (`qwen3.8-max` and the default `qwen3.8-flash`)
+also send `extra_body={'preserve_thinking': True}` on the OpenAI-compatible
+Completions / Responses calls. `preserve_thinking` is a Qwen extension (not
+an OpenAI standard parameter): it makes the API append the assistant
+messages' `reasoning_content` to the next input in multi-turn conversations,
+so the model can reference its own prior reasoning across turns. It is a
+built-in model default in janito, not a configurable setting.
+
 ### API Type
 
 The `alibaba` provider defaults to the Responses API for its built-in default

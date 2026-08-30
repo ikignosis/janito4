@@ -26,6 +26,18 @@ Changes since `v4.33.0` (2026-08-29).
 
 ### Changed
 
+- `preserve_thinking` is no longer a configurable setting (a legacy
+  `--set preserve_thinking=...` key in `config.json` is ignored). It is now
+  a built-in model default in the provider config: the Alibaba/Qwen
+  hybrid-thinking models (`qwen3.8-max`, `qwen3.8-flash`) declare it
+  `True`, so the OpenAI-compatible Completions / Responses calls send
+  `extra_body={'preserve_thinking': True}` automatically (per the
+  QwenCloud Thinking guide) -- the API appends the assistant messages'
+  `reasoning_content` to the next input so the model can reference its own
+  prior reasoning across multi-turn conversations. `APIConfig` and the web
+  agent loop now resolve it from the provider config (`Provider
+  .preserve_thinking(model)`), and the native-SDK API types
+  (Anthropic/DashScope/Gemini) continue to drop it.
 - Renamed the shared per-API adapter layer `janito/agent/` ->
   `janito/llm_adapters/` (the package name no longer suggests orchestration
   nor collides with `janito/web/backend/agent/`, the actual web agent

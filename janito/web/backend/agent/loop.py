@@ -27,7 +27,6 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from janito.config_loaders import load_max_output_tokens, load_reasoning_effort
-from janito.config_store import get_config_value
 from janito.general_config import get_active_provider, resolve_api_type
 from janito.llm_adapters.anthropic import accumulator as anthropic_accumulator
 from janito.llm_adapters.anthropic import build_call_kwargs as build_anthropic_kwargs
@@ -71,27 +70,30 @@ logger = logging.getLogger(__name__)
 def _resolve_turn_config(config, effective_provider, model):
     """Resolve max tokens / preserve_thinking / reasoning level for the turn.
 
-    The max-tokens and reasoning-effort defaults are resolved for the
-    **effective model** (the one returned by ``resolve_runtime_config``):
-    a model-scoped config override wins, then the model's built-in default
-    from the provider config (falling back to the default model's entry for
-    models without a built-in entry).
+    The max-tokens, preserve_thinking and reasoning-effort defaults are
+    resolved for the **effective model** (the one returned by
+    ``resolve_runtime_config``): a model-scoped config override wins, then
+    the model's built-in default from the provider config (falling back to
+    the default model's entry for models without a built-in entry).
+    ``preserve_thinking`` comes from the provider config's model entry only
+    (e.g. ``True`` for Alibaba/Qwen, whose API appends previous
+    ``reasoning_content`` to the next input); models that declare none send
+    no flag and the API's own default applies.
     """
+    found = get_provider(effective_provider)
     max_output_tokens = load_max_output_tokens(effective_provider, model)
     if max_output_tokens is None:
         # Fall back to the provider's built-in default (from the provider
         # config).
-        found = get_provider(effective_provider)
         max_output_tokens = (
             found.max_output_tokens(model) if found is not None else None
         )
-    preserve_thinking = get_config_value("preserve_thinking")
+    preserve_thinking = found.preserve_thinking(model) if found is not None else None
 
     # Reasoning level (reasoning_effort): model-scoped config value first,
     # then the model's built-in default (e.g. "low" for qwen3.8-max).
     reasoning_effort = load_reasoning_effort(effective_provider, model)
     if reasoning_effort is None:
-        found = get_provider(effective_provider)
         reasoning_effort = found.reasoning_effort(model) if found is not None else None
 
     return max_output_tokens, preserve_thinking, reasoning_effort

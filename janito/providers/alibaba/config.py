@@ -41,6 +41,14 @@ PROVIDER_CONFIG: dict = {
             # supported level (low) instead of the API's xhigh.
             "default_reasoning_effort": "low",
             "thinking": True,  # Qwen models reason by default
+            # Qwen hybrid-thinking models keep their previous reasoning in
+            # multi-turn context: preserve_thinking appends the assistant
+            # messages' reasoning_content to the next input, so the model can
+            # reference its own prior reasoning (per the QwenCloud Thinking
+            # guide).  Sent as extra_body['preserve_thinking'] on the
+            # OpenAI-compatible Completions / Responses calls (a Qwen
+            # extension, not an OpenAI standard parameter).
+            "preserve_thinking": True,
             # Built-in (native) tools, enabled per API type.  These are
             # *not* function tools: on the Responses API they are entries in
             # the ``tools`` array, on the Completions API they are extra_body
@@ -109,6 +117,10 @@ PROVIDER_CONFIG: dict = {
                 },
             ],
             "thinking": True,  # Qwen models reason by default
+            # See the qwen3.8-max entry: multi-turn reasoning is preserved by
+            # sending extra_body['preserve_thinking'] on the OpenAI-compatible
+            # Completions / Responses calls.
+            "preserve_thinking": True,
             # Built-in (native) tools, enabled per API type.  The official
             # page advertises code_interpreter / i2i_search / t2i_search /
             # web_extractor / web_search for the Responses API.  Like

@@ -38,7 +38,8 @@ def build_call_kwargs(
         with a structured thinking parameter (e.g. MiniMax-M3)
       - max output tokens from ``janito.general_config`` -> max_tokens
         (``max_completion_tokens`` for gpt-5 models)
-      - ``preserve_thinking`` config value -> extra_body
+      - ``preserve_thinking`` (resolved from the provider config's model
+        entry, e.g. ``True`` for Alibaba/Qwen) -> extra_body
       - ``reasoning_effort`` -> ``reasoning_effort`` (e.g. low/medium/xhigh)
 
     Note: the CLI loop keeps its own ``_build_call_kwargs`` (in

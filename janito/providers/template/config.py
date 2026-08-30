@@ -134,6 +134,17 @@ PROVIDER_CONFIG: dict = {
             #: {...}}``).  Absent (or ``False``) means no built-in default.
             #: The CLI ``--thinking`` flag still forces it on explicitly.
             "thinking": True,
+            #: Whether multi-turn reasoning is preserved (optional).  When
+            #: ``True`` (e.g. Alibaba/Qwen's hybrid-thinking models), the
+            #: OpenAI-compatible Completions / Responses calls send
+            #: ``extra_body['preserve_thinking']``: the API appends the
+            #: assistant messages' ``reasoning_content`` to the next input,
+            #: letting the model reference its own prior reasoning across
+            #: turns.  A Qwen extension (not an OpenAI standard parameter);
+            #: absent (``None``) means the caller sends no flag and the
+            #: API's own default applies.  Only meaningful for the
+            #: OpenAI-wire-format API types (the native-SDK types drop it).
+            "preserve_thinking": True,
             #: The built-in (native) tools the model supports, e.g. ``[
             #: {"type": "code_interpreter"}, {"type": "web_search"},
             #: {"type": "web_extractor"}]`` for Alibaba/Qwen's flagship.

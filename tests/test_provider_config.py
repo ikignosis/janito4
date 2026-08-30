@@ -109,6 +109,12 @@ def get_default_thinking_from_provider(provider, model=None):
     return found.default_thinking(model) if found is not None else False
 
 
+def get_preserve_thinking_from_provider(provider, model=None):
+    """The model's built-in preserve_thinking default, or ``None``."""
+    found = get_provider(provider)
+    return found.preserve_thinking(model) if found is not None else None
+
+
 def get_default_tools_from_provider(provider, model=None, api_type=None):
     """The model's built-in (native) tools for ``api_type``, or ``None``."""
     found = get_provider(provider)
@@ -519,6 +525,43 @@ if pytest is not None:
             assert get_default_thinking_from_provider(name) is False
         # Unknown provider returns False.
         assert get_default_thinking_from_provider("bogus") is False
+
+    def test_preserve_thinking_default():
+        # Alibaba's built-in Qwen models (hybrid-thinking) declare
+        # preserve_thinking True: their API appends the assistant messages'
+        # reasoning_content to the next input, so multi-turn reasoning stays
+        # in context.  The no-model lookup resolves to the default model
+        # (qwen3.8-flash), which declares it too.
+        assert get_preserve_thinking_from_provider("alibaba") is True
+        assert get_preserve_thinking_from_provider("alibaba", "qwen3.8-max") is True
+        assert get_preserve_thinking_from_provider("alibaba", "qwen3.8-flash") is True
+        assert (
+            get_provider_config("alibaba")["models"]["qwen3.8-max"]["preserve_thinking"]
+            is True
+        )
+        assert (
+            get_provider_config("alibaba")["models"]["qwen3.8-flash"][
+                "preserve_thinking"
+            ]
+            is True
+        )
+        # Every other provider declares nothing (None) -> no flag is sent and
+        # the API's own default applies.
+        for name in (
+            "openai",
+            "deepseek",
+            "minimax",
+            "google",
+            "xiaomi",
+            "moonshot",
+            "zai",
+            "xai",
+            "anthropic",
+            "custom",
+        ):
+            assert get_preserve_thinking_from_provider(name) is None
+        # Unknown provider returns None.
+        assert get_preserve_thinking_from_provider("bogus") is None
 
     def test_apply_thinking_to_extra_body():
         # A plain True flag -> extra_body enable_thinking.

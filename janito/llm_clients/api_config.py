@@ -42,8 +42,12 @@ class APIConfig:
             as MiniMax-M3's ``{'type': 'adaptive'}``, or ``False``).  A falsy
             value means the flag was not forced on; the resolved value is
             what gets sent to the API.
-        preserve_thinking: The ``preserve_thinking`` config value (may be
-            ``None``).
+        preserve_thinking: The resolved ``preserve_thinking`` for the
+            provider/model -- the model's built-in default from the provider
+            config (e.g. ``True`` for Alibaba/Qwen's hybrid-thinking models,
+            whose API appends previous ``reasoning_content`` to the next
+            input), or ``None`` when the model declares none (the caller
+            sends no flag and the API's own default applies).
         use_mcp: Whether to load and use MCP tools.
     """
 
@@ -112,7 +116,6 @@ def build_api_config(
         load_max_output_tokens,
         load_reasoning_effort,
     )
-    from janito.config_store import get_config_value
     from janito.general_config import get_active_provider
     from janito.providers.registry import get_provider
     from janito.runtime_config import resolve_runtime_config
@@ -127,6 +130,9 @@ def build_api_config(
     found_max_input = found.max_input_tokens(model) if found is not None else None
     found_reasoning = found.reasoning_effort(model) if found is not None else None
     found_thinking = found.default_thinking(model) if found is not None else False
+    found_preserve_thinking = (
+        found.preserve_thinking(model) if found is not None else None
+    )
 
     max_output_tokens = (
         load_max_output_tokens(provider, model) or found_max_output or 100_000
@@ -147,7 +153,7 @@ def build_api_config(
         max_input_tokens=max_input_tokens,
         reasoning_effort=reasoning_effort,
         thinking=thinking,
-        preserve_thinking=get_config_value("preserve_thinking"),
+        preserve_thinking=found_preserve_thinking,
         use_mcp=use_mcp,
     )
 
