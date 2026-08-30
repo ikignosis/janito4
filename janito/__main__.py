@@ -126,12 +126,16 @@ def _setup_runtime(args) -> int | None:
 
 
 def _setup_privileges(args) -> None:
-    """Configure privilege flags from -r, -w, -x CLI flags.
+    """Configure the running privileges.
 
-    The default (no -r/-w/-x flag) is **read-only**: READ is granted, WRITE
-    and EXEC are not (issue #85).  Explicit -r/-w/-x flags take priority and
-    override the defaults, so e.g. ``-w`` alone grants write-only (no
-    default read).
+    Precedence (highest first):
+    1. Explicit ``-r``/``-w``/``-x`` CLI flags -- they override the
+       configured default, so e.g. ``-w`` alone grants write-only (no
+       default read).
+    2. The ``privileges`` config key (``--set privileges=rwx``, issue #89):
+       the session default when no privilege flag is given.
+    3. The built-in default: **read-only** (READ granted, WRITE/EXEC not,
+       issue #85).
     """
     if args.read or args.write or args.exec:
         if _privileges_mod.running_privileges is None:
@@ -142,9 +146,16 @@ def _setup_privileges(args) -> None:
             _privileges_mod.running_privileges.WRITE = True
         if args.exec:
             _privileges_mod.running_privileges.EXEC = True
-    elif _privileges_mod.running_privileges is None:
-        # No -r/-w/-x flag: default to read-only privileges.
-        _privileges_mod.running_privileges = Privileges(READ=True)
+        return
+
+    # No -r/-w/-x flag: use the configured default privileges
+    # (--set privileges=...), else fall back to read-only (issue #85).
+    if _privileges_mod.running_privileges is None:
+        from .config_loaders import load_privileges_from_config
+
+        _privileges_mod.running_privileges = load_privileges_from_config()
+        if _privileges_mod.running_privileges is None:
+            _privileges_mod.running_privileges = Privileges(READ=True)
 
 
 def _has_batch_config_ops(args) -> bool:

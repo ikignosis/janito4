@@ -18,9 +18,12 @@ to repeat the ``determine_provider`` -> guard -> ``get_config_value``
 -> coerce dance); the module-level functions below are the public API and
 delegate to a module-level loader instance.
 
-This module also hosts :func:`load_system_prompt_start`, the resolver for
-the flat ``system-prompt`` / ``system-prompt-file`` keys (the configured
-``start`` section of the system prompt).
+This module also hosts the flat-key resolvers:
+:func:`load_system_prompt_start` (the configured ``start`` section of the
+system prompt, ``system-prompt`` / ``system-prompt-file`` keys),
+:func:`load_privileges_from_config` (the session default privileges,
+``privileges`` key, issue #89) and :func:`load_used_files_enabled` (the
+``used-files`` flag).
 
 ``general_config`` imports this module's helpers at its top, so this module
 imports ``general_config`` *lazily* inside the methods below
@@ -30,6 +33,8 @@ import graph acyclic regardless of which module is imported first.
 
 import logging
 import os
+
+from .privileges import Privileges, parse_privileges
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -524,6 +529,36 @@ def load_used_files_enabled() -> bool:
     if isinstance(value, str):
         return value.strip().lower() in ("true", "1", "yes", "on")
     return bool(value)
+
+
+def load_privileges_from_config() -> Privileges | None:
+    """Load the configured default privileges (``--set privileges=rwx``).
+
+    Reads the flat ``privileges`` config key: a combination of the ``r`` /
+    ``w`` / ``x`` characters (e.g. ``rwx``), parsed by
+    :func:`janito.privileges.parse_privileges`.  Sessions that pass no
+    ``-r`` / ``-w`` / ``-x`` flag start with these privileges; when the key
+    is unset the built-in default applies (read-only, issue #85).
+
+    A value written by hand that fails to parse is **not** fatal: it is
+    logged and ``None`` is returned (the read-only default applies) instead
+    of raising at startup.  ``--set privileges=...`` validates strictly, so
+    values stored through the CLI are always valid.
+
+    Returns:
+        The parsed :class:`~janito.privileges.Privileges`, or ``None`` when
+        the key is unset or invalid.
+    """
+    from .config_store import get_config_value
+
+    value = get_config_value("privileges")
+    if value is None:
+        return None
+    try:
+        return parse_privileges(value)
+    except ValueError as e:
+        logger.warning("Ignoring invalid 'privileges' config value %r: %s", value, e)
+        return None
 
 
 def validate_system_prompt_file_path(file_value: str) -> str:

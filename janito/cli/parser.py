@@ -85,10 +85,12 @@ Examples:
   janito -t                                                    # Enable thinking mode
   janito -r -w                                                   # Grant READ and WRITE privileges
   janito -r -w -x                                                # Grant READ, WRITE, and EXEC privileges
+  janito --set privileges=rwx                                    # Default privileges for every session
 
-  Defaults to READ-only when no -r/-w/-x flag is given; explicit flags take
-  priority. In the interactive shell, /rwx <prompt> runs a single request
-  with full privileges.
+  Defaults to READ-only when no -r/-w/-x flag is given. The 'privileges'
+  config default (--set privileges=rwx) applies when no flag is given;
+  explicit -r/-w/-x flags always take priority. In the interactive shell,
+  /rwx <prompt> runs a single request with full privileges.
   janito -S "You are a cow"                                   # Override system prompt (tools stay enabled)
   janito --no-tools "Your prompt"                             # No tools loaded (skill tools stay enabled)
   janito --no-plugins "Your prompt"                           # Do not autoload plugins from ~/.janito/plugins

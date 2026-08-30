@@ -294,6 +294,62 @@ if pytest is not None:
         config_path.write_text(json.dumps({"used-files": 1}))
         assert load_used_files_enabled() is True
 
+    # ---- flat privileges key (issue #89) ----------------------------------
+
+    def test_set_privileges_canonicalized(monkeypatch, tmp_path):
+        from janito.privileges import Privileges
+
+        _use_temp_config(monkeypatch, tmp_path)
+        from janito.config_loaders import load_privileges_from_config
+
+        # Any order/case is accepted and canonicalized to the r/w/x order.
+        key, value = set_config_from_cli("privileges=xwr")
+        assert key == "privileges"
+        assert value == "rwx"
+        assert load_privileges_from_config() == Privileges(True, True, True)
+
+    def test_set_privileges_write_only_does_not_imply_read(monkeypatch, tmp_path):
+        from janito.privileges import Privileges
+
+        _use_temp_config(monkeypatch, tmp_path)
+        from janito.config_loaders import load_privileges_from_config
+
+        # Flag-semantics parity: 'w' alone is write-only, like `janito -w`.
+        key, value = set_config_from_cli("privileges=w")
+        assert value == "w"
+        assert load_privileges_from_config() == Privileges(False, True, False)
+
+    def test_set_privileges_rejects_invalid_values(monkeypatch, tmp_path):
+        _use_temp_config(monkeypatch, tmp_path)
+
+        with pytest.raises(ValueError, match="privileges"):
+            set_config_from_cli("privileges=rxz")
+        # An empty value is rejected too: --unset privileges is the way back.
+        with pytest.raises(ValueError, match="privileges"):
+            set_config_from_cli("privileges=")
+
+    def test_load_privileges_from_config_none_when_unset(monkeypatch, tmp_path):
+        _use_temp_config(monkeypatch, tmp_path)
+        from janito.config_loaders import load_privileges_from_config
+
+        assert load_privileges_from_config() is None
+
+    def test_load_privileges_from_config_invalid_handwritten_returns_none(
+        monkeypatch, tmp_path
+    ):
+        config_path = _use_temp_config(monkeypatch, tmp_path)
+        from janito.config_loaders import load_privileges_from_config
+
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        # A hand-written invalid value is ignored (read-only default applies)
+        # instead of raising at startup; --set validates strictly.
+        config_path.write_text(json.dumps({"privileges": "rxz"}))
+        assert load_privileges_from_config() is None
+        config_path.write_text(json.dumps({"privileges": "rw"}))
+        from janito.privileges import Privileges
+
+        assert load_privileges_from_config() == Privileges(True, True, False)
+
 else:  # pragma: no cover - fallback runner without pytest
 
     def _main():

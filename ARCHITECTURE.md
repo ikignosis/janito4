@@ -345,11 +345,22 @@ tools). See `docs/PLUGINS.md`.
 
 ### Privileges
 
-`janito/privileges.py` defines a `Privileges` dataclass (READ/WRITE/EXEC) and
-a module-level `running_privileges`. The default (no `-r`/`-w`/`-x` flag) is
-**read-only** (issue #85): `_setup_privileges` in `janito/__main__.py` grants
-only READ, and explicit `-r`/`-w`/`-x` flags take priority over the default
-(`-r -w -x` grants everything, `-w` alone grants write-only, ...).
+`janito/privileges.py` defines a `Privileges` dataclass (READ/WRITE/EXEC), a
+module-level `running_privileges`, and the `parse_privileges()` /
+`format_privileges()` helpers that convert between the `r`/`w`/`x` string
+form and a `Privileges` instance. `_setup_privileges` in
+`janito/__main__.py` resolves the running privileges with this precedence:
+
+1. explicit `-r`/`-w`/`-x` CLI flags (they override the configured default,
+   so `-w` alone grants write-only, ...);
+2. the `privileges` config key (`--set privileges=rwx`, issue #89) -- the
+   session default when no flag is given; validated/canonicalized at set
+   time in `set_config_from_cli`, read at startup by
+   `load_privileges_from_config` in `janito/config_loaders.py` (an invalid
+   hand-written value is logged and ignored, falling back to read-only);
+3. the built-in default **read-only** (issue #85): READ granted, WRITE/EXEC
+   not.
+
 `running_privileges` is `None` only when no restrictions were configured
 (outside the CLI, e.g. direct registry/web use), in which case everything is
 allowed.

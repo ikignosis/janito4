@@ -11,6 +11,13 @@ Changes since `v4.33.0` (2026-08-29).
 
 ### Added
 
+- `--set privileges=rwx` persists the session's default privileges in
+  `config.json` (issue #89): sessions that pass no `-r`/`-w`/`-x` flag
+  start with the configured privileges instead of the built-in read-only
+  default. The value accepts any combination/order of `r`/`w`/`x` and is
+  validated and canonicalized at set time; explicit `-r`/`-w`/`-x` flags
+  always take priority over the configured default, and `--unset
+  privileges` restores read-only.
 - `GetUrl` now accepts a `skip_llms_txt` parameter (default `False`). When set
   to `True`, the tool fetches the requested URL as-is without probing for an
   `llms.txt` site map. Also exposed as the `--skip-llms-txt` CLI flag.

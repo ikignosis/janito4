@@ -14,6 +14,9 @@ Provider-scoped keys (``model``, ``endpoint``) land under
 ``responses-in-server``) land under
 ``providers.<provider>.models.<model>.<key>``, where the model is the
 provider's configured model or, failing that, its built-in default model.
+The flat ``privileges`` key (``--set privileges=rwx``, issue #89) is
+validated and canonicalized when set (see
+:func:`janito.privileges.parse_privileges`).
 
 Setting a ``model`` value validates the name against the provider's built-in
 models (the base provider's models for variants), rejecting unknown names
@@ -163,6 +166,35 @@ def _coerce_bool_value(key: str, value) -> bool:
     return bool(value)
 
 
+def _canonicalize_privileges_value(base_key: str, value: str) -> str:
+    """Canonicalize a ``privileges`` config value when set via CLI.
+
+    ``--set privileges=rwx`` (issue #89) accepts any combination/order/case
+    of the ``r`` / ``w`` / ``x`` characters and stores the canonical
+    ``r``/``w``/``x`` form, so ``--get privileges`` always returns the
+    canonical value.  Anything else (including an empty value) is rejected
+    at set time, so a typo is reported immediately rather than silently
+    changing the session's default privileges.  Non-``privileges`` keys pass
+    through unchanged.
+
+    Args:
+        base_key: The key's leaf name (``key.rsplit(".", 1)[-1]``).
+        value: The raw value to validate/canonicalize.
+
+    Returns:
+        The canonical value (unchanged for non-``privileges`` keys).
+
+    Raises:
+        ValueError: If ``base_key == "privileges"`` and the value is not a
+            valid combination of ``r`` / ``w`` / ``x``.
+    """
+    if base_key != "privileges":
+        return value
+    from .privileges import format_privileges, parse_privileges
+
+    return format_privileges(parse_privileges(value))
+
+
 def set_config_from_cli(
     key_value: str,
     cli_provider: str | None = None,
@@ -255,6 +287,10 @@ def set_config_from_cli(
         from .config_loaders import validate_system_prompt_file_path
 
         validate_system_prompt_file_path(value)
+
+    # Validate the privileges value (--set privileges=rwx, issue #89): see
+    # _canonicalize_privileges_value.
+    value = _canonicalize_privileges_value(base_key, value)
 
     set_config_value(key, value)
 

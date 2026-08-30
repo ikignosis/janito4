@@ -375,6 +375,96 @@ def test_setup_privileges_full_flags():
     assert (priv.READ, priv.WRITE, priv.EXEC) == (True, True, True)
 
 
+# ---------------------------------------------------------------------------
+# Config default privileges (issue #89)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_privileges_normalizes_order_and_case():
+    from janito.privileges import parse_privileges
+
+    assert parse_privileges("rwx") == Privileges(True, True, True)
+    assert parse_privileges("XWR") == Privileges(True, True, True)
+    # Flag-semantics parity: 'w' alone is write-only (no implicit read).
+    assert parse_privileges("w") == Privileges(False, True, False)
+    assert parse_privileges("r") == Privileges(True, False, False)
+    # Duplicates and mixed order are tolerated; whitespace is stripped.
+    assert parse_privileges("rrwwxx") == Privileges(True, True, True)
+    assert parse_privileges(" rw ") == Privileges(True, True, False)
+
+
+def test_parse_privileges_rejects_invalid():
+    from janito.privileges import parse_privileges
+
+    with pytest.raises(ValueError, match="rxz"):
+        parse_privileges("rxz")
+    with pytest.raises(ValueError, match="--unset privileges"):
+        parse_privileges("")
+    with pytest.raises(ValueError):
+        parse_privileges("rwx!")
+
+
+def test_format_privileges_canonical_order():
+    from janito.privileges import Privileges as P
+    from janito.privileges import format_privileges
+
+    assert format_privileges(P(True, True, True)) == "rwx"
+    assert format_privileges(P(True, True, False)) == "rw"
+    assert format_privileges(P(False, True, False)) == "w"
+    assert format_privileges(P()) == ""
+
+
+def test_setup_privileges_uses_config_default(monkeypatch):
+    """No flags + configured privileges -> the config default applies."""
+    from janito import __main__ as main_mod
+
+    _privileges_mod.running_privileges = None
+    monkeypatch.setattr(
+        "janito.config_loaders.load_privileges_from_config",
+        lambda: Privileges(READ=True, WRITE=True, EXEC=True),
+    )
+    main_mod._setup_privileges(_privilege_args())
+
+    priv = _privileges_mod.running_privileges
+    assert (priv.READ, priv.WRITE, priv.EXEC) == (True, True, True)
+
+
+def test_setup_privileges_config_default_is_read_only_when_unset(monkeypatch):
+    """No flags + no configured privileges -> read-only (issue #85)."""
+    from janito import __main__ as main_mod
+
+    _privileges_mod.running_privileges = None
+    monkeypatch.setattr(
+        "janito.config_loaders.load_privileges_from_config", lambda: None
+    )
+    main_mod._setup_privileges(_privilege_args())
+
+    priv = _privileges_mod.running_privileges
+    assert (priv.READ, priv.WRITE, priv.EXEC) == (True, False, False)
+
+
+def test_setup_privileges_flags_override_config_default(monkeypatch):
+    """Explicit flags always beat the configured default (issue #89)."""
+    from janito import __main__ as main_mod
+
+    def full():
+        return Privileges(READ=True, WRITE=True, EXEC=True)
+
+    monkeypatch.setattr("janito.config_loaders.load_privileges_from_config", full)
+
+    # -r alone under a full-privileges config default -> read-only.
+    _privileges_mod.running_privileges = None
+    main_mod._setup_privileges(_privilege_args(read=True))
+    priv = _privileges_mod.running_privileges
+    assert (priv.READ, priv.WRITE, priv.EXEC) == (True, False, False)
+
+    # -w alone under a full-privileges config default -> write-only.
+    _privileges_mod.running_privileges = None
+    main_mod._setup_privileges(_privilege_args(write=True))
+    priv = _privileges_mod.running_privileges
+    assert (priv.READ, priv.WRITE, priv.EXEC) == (False, True, False)
+
+
 def test_print_privileges_notice_with_no_flags(capsys, monkeypatch):
     """The read-only startup hint is printed after the version banner."""
     from janito.cli import chat as chat_mod
