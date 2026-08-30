@@ -25,7 +25,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
-from conftest import make_config
+from conftest import make_config, make_ui_config
 
 from janito.openai_client.base_client import Client
 
@@ -50,7 +50,7 @@ if pytest is not None:
                 {},
             ),
             "_handle_tool_calls": ({}, "", None, {}, None),
-            "_finalize": ("", None, {}, None),
+            "_finalize": ("", None, {}),
         }
         # _run_stream_round has keyword-only params after ``state``.
         with pytest.raises(NotImplementedError):
@@ -378,7 +378,7 @@ if pytest is not None:
             def on_message(self, content):
                 pass
 
-            def on_turn_complete(self, usage_out):
+            def on_turn_complete(self, usage_out, api_config):
                 pass
 
         def fake_run(func, client, call_kwargs, tools_schemas):
@@ -390,13 +390,12 @@ if pytest is not None:
         )
 
         # A fake runner and a capturing observer are injected through the
-        # APIConfig (the UI-side stream runner and the turn observer are no
+        # UIConfig (the UI-side stream runner and the turn observer are no
         # longer constructor params / module globals to monkeypatch).
         observer = FakeObserver()
         client = ca.CompletionsClient(
-            make_config(
-                model="gpt-4", use_mcp=False, stream_runner=fake_run, observer=observer
-            )
+            make_config(model="gpt-4", use_mcp=False),
+            make_ui_config(stream_runner=fake_run, observer=observer),
         )
 
         client.run_turn("hello", verbose=True, tools=[])
@@ -429,7 +428,7 @@ if pytest is not None:
             def on_message(self, content):
                 pass
 
-            def on_turn_complete(self, usage_out):
+            def on_turn_complete(self, usage_out, api_config):
                 pass
 
         def fake_run(func, client, call_kwargs, tools_schemas):
@@ -464,13 +463,8 @@ if pytest is not None:
         )
 
         client = ca.ResponsesClient(
-            make_config(
-                api_type="Responses",
-                model="gpt-4o",
-                use_mcp=False,
-                stream_runner=fake_run,
-                observer=FakeObserver(),
-            )
+            make_config(api_type="Responses", model="gpt-4o", use_mcp=False),
+            make_ui_config(stream_runner=fake_run, observer=FakeObserver()),
         )
 
         result = client.run_turn("hello", verbose=True, tools=[])

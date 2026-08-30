@@ -12,7 +12,8 @@ terminal output at all (the web loop already emits structured events instead
 of printing).  The CLI injects the Rich observer
 (:class:`janito.openai_client.client_support.RichTurnObserver`) through
 ``_make_turn_func`` in ``cli/chat.py`` -- the same composition point
-that injects the per-round ``stream_runner`` -- so every CLI entry point
+that injects the per-round ``stream_runner`` (both carried by the
+:class:`~janito.ui_config.UIConfig`) -- so every CLI entry point
 (interactive shell, ``/ask``, ``/compact``, one-shot prompt) keeps today's
 output.  Non-TUI consumers can implement the protocol to capture or forward
 the events.
@@ -108,11 +109,14 @@ class TurnObserver(Protocol):
         """
         ...
 
-    def on_turn_complete(self, usage_out: Any) -> None:
+    def on_turn_complete(self, usage_out: Any, api_config: Any) -> None:
         """End-of-turn report (used files + token-usage summary + accounting).
 
         Invoked by ``Client.run_turn`` at the end of the turn with the
-        client-built :class:`~janito.openai_client.client_support.TurnUsage`
+        client-built :class:`~janito.agent.usage.TokenStats` (every round's
+        usage folded into it) and the turn's resolved
+        :class:`~janito.openai_client.api_config.APIConfig` (``api_config``);
+        the report's provider / model / max tokens come from the config
         (issue #82: there is no caller-supplied out-param).  The CLI's
         ``RichTurnObserver`` renders the report and records the overall-use
         accounting row from this call; the headless ``NullObserver`` drops it
@@ -177,7 +181,7 @@ class NullObserver:
     ) -> None:
         pass
 
-    def on_turn_complete(self, usage_out: Any) -> None:
+    def on_turn_complete(self, usage_out: Any, api_config: Any) -> None:
         pass
 
 

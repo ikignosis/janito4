@@ -6,6 +6,7 @@ from typing import Any
 
 from janito.agent.observer import NullObserver
 from janito.openai_client.api_config import APIConfig
+from janito.ui_config import UIConfig
 
 
 def make_config(
@@ -21,9 +22,6 @@ def make_config(
     thinking: bool = False,
     preserve_thinking: Any = None,
     use_mcp: bool = False,
-    verbose: bool = False,
-    stream_runner=None,
-    observer=None,
 ) -> APIConfig:
     """Build a minimal :class:`APIConfig` for tests that construct clients
     directly (issue #70).
@@ -32,7 +30,9 @@ def make_config(
     :class:`~janito.openai_client.api_config.APIConfig` instead of resolving
     the config/auth stores at call time, so tests that previously passed
     ``cli_model``/``cli_provider``/``use_mcp``/``stream_runner``/``observer``
-    to the client constructor build a config with this helper instead.
+    to the client constructor build a config with this helper instead.  The
+    UI-side stream runner / turn observer go in
+    :func:`make_ui_config`.
     """
     return APIConfig(
         provider=provider,
@@ -46,7 +46,17 @@ def make_config(
         thinking=thinking,
         preserve_thinking=preserve_thinking,
         use_mcp=use_mcp,
-        verbose=verbose,
+    )
+
+
+def make_ui_config(*, stream_runner=None, observer=None) -> UIConfig:
+    """Build a minimal :class:`~janito.ui_config.UIConfig` for tests.
+
+    The per-round stream runner and the turn observer are injected through
+    the UI config (no longer constructor params / module globals to
+    monkeypatch); ``None`` values fall back to the headless defaults.
+    """
+    return UIConfig(
         stream_runner=stream_runner,
         observer=observer or NullObserver(),
     )

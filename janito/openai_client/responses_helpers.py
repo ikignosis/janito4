@@ -16,9 +16,7 @@ from janito.tooling.executor import ToolExecutor
 # Import tools
 from janito.tooling.tools_registry import get_session_tool_schemas
 
-# Shared client helpers (usage summary out-param) and the Responses API
-# stream consumer.
-from .client_support import TurnUsage
+# Shared client helpers and the Responses API stream consumer.
 from .responses_stream import _convert_tools_to_responses_format
 
 # Configure logger for this module
@@ -177,14 +175,8 @@ def _finalize_conversation(
     responses_in_server: bool,
     *,
     turn_items: list[dict[str, Any]] | None = None,
-    usage_out: TurnUsage,
 ) -> Any:
-    """Assemble the final ConversationResult.
-
-    ``usage_out`` receives the display metadata the client's end-of-turn
-    report needs (see
-    :func:`janito.openai_client.client_support.display_turn_usage`).
-    """
+    """Assemble the final ConversationResult."""
     from .conversations_api import ConversationResult
 
     # Record the final assistant text in the client-side history (stateless
@@ -200,8 +192,6 @@ def _finalize_conversation(
         if turn_items is not None:
             turn_items.append(dict(assistant_item))
 
-    usage_out.message_count = message_count
-    usage_out.label = "Responses"
     return ConversationResult(
         content=full_content,
         response_id=response_id if responses_in_server else None,

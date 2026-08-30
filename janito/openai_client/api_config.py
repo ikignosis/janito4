@@ -9,11 +9,8 @@ config store / auth store / provider registry at call time.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
-
-from janito.agent.observer import NullObserver, TurnObserver
 
 
 @dataclass(frozen=True)
@@ -48,14 +45,6 @@ class APIConfig:
         preserve_thinking: The ``preserve_thinking`` config value (may be
             ``None``).
         use_mcp: Whether to load and use MCP tools.
-        verbose: Session default for verbose output (per-call ``verbose`` on
-            :meth:`Client.run_turn` may still override it).
-        stream_runner: The per-round stream runner (a UI-side concern, e.g.
-            the TUI ``_run_with_progress_bar``); ``None`` = headless (each
-            streaming round runs directly in the calling thread).
-        observer: The turn observer (a
-            :class:`~janito.agent.observer.TurnObserver`); defaults to the
-            headless :class:`~janito.agent.observer.NullObserver`.
     """
 
     # --- Identity / endpoint (from resolve_runtime_config) ---
@@ -73,11 +62,6 @@ class APIConfig:
     preserve_thinking: Any  # config value; may be None
     use_mcp: bool
 
-    # --- UI / observability (composition-point injection) ---
-    verbose: bool
-    stream_runner: Callable | None  # the TUI progress-bar runner; None = headless
-    observer: TurnObserver  # NullObserver by default
-
 
 def build_api_config(
     *,
@@ -87,9 +71,6 @@ def build_api_config(
     reasoning_effort: str | None = None,
     thinking: bool | None = None,
     use_mcp: bool = True,
-    verbose: bool = False,
-    stream_runner: Callable | None = None,
-    observer: TurnObserver | None = None,
 ) -> APIConfig:
     """Resolve everything a turn needs into an immutable APIConfig.
 
@@ -117,12 +98,6 @@ def build_api_config(
             (may be ``None``).  ``True`` forces thinking on; ``False`` (or
             ``None``) leaves it to the provider's built-in default.
         use_mcp: Whether to load and use MCP tools (default ``True``).
-        verbose: Session default for verbose output (may be overridden
-            per call on :meth:`Client.run_turn`).
-        stream_runner: The per-round stream runner injected into the client
-            (``None`` = headless).
-        observer: The turn observer injected into the client (``None`` =
-            headless :class:`~janito.agent.observer.NullObserver`).
 
     Returns:
         A fully resolved, frozen :class:`APIConfig`.
@@ -179,9 +154,6 @@ def build_api_config(
         thinking=thinking,
         preserve_thinking=get_config_value("preserve_thinking"),
         use_mcp=use_mcp,
-        verbose=verbose,
-        stream_runner=stream_runner,
-        observer=observer or NullObserver(),
     )
 
 

@@ -267,9 +267,9 @@ if pytest is not None:
             base_url="https://generativelanguage.googleapis.com",
         )
         client = gemini_api.GeminiClient(config)
-        assert client.config is config
-        assert client.config.api_type == "Gemini"
-        assert client.config.base_url == "https://generativelanguage.googleapis.com"
+        assert client.api_config is config
+        assert client.api_config.api_type == "Gemini"
+        assert client.api_config.base_url == "https://generativelanguage.googleapis.com"
 
     def test_gemini_helpers_build_call_kwargs_sends_config():
         """The CLI Gemini path sends system_instruction, max_output_tokens,

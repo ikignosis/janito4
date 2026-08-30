@@ -9,7 +9,8 @@ single resolution point:
   endpoint for native-SDK API types, e.g. DashScope);
 - token / reasoning fallbacks (config override > built-in default > 100k);
 - ``preserve_thinking`` is read from the config store;
-- the observer defaults to the headless ``NullObserver``;
+- the UI config (``UIConfig``) defaults to the headless ``NullObserver`` and
+  carries the stream runner + observer (out of ``APIConfig``);
 - the dataclass is frozen (mutation raises ``FrozenInstanceError``).
 """
 
@@ -27,6 +28,7 @@ from janito.agent.observer import NullObserver
 from janito.auth_config import save_auth_config
 from janito.config_store import set_config_value
 from janito.openai_client.api_config import APIConfig, build_api_config
+from janito.ui_config import UIConfig
 
 
 @pytest.fixture(autouse=True)
@@ -72,7 +74,9 @@ def _make_observer():
         def on_error(self, e, **kwargs):  # pragma: no cover - protocol stub
             pass
 
-        def on_turn_complete(self, usage_out):  # pragma: no cover - protocol stub
+        def on_turn_complete(  # pragma: no cover - protocol stub
+            self, usage_out, api_config
+        ):
             pass
 
     return _Observer()
@@ -259,34 +263,31 @@ def test_build_api_config_reads_preserve_thinking_from_store():
     assert config.preserve_thinking is None
 
 
-def test_build_api_config_observer_defaults_to_null():
-    """The observer defaults to the headless NullObserver."""
+def test_ui_config_defaults_to_headless():
+    """The UI config defaults to the headless NullObserver / no runner."""
+    ui = UIConfig()
+    assert isinstance(ui.observer, NullObserver)
+    assert ui.stream_runner is None
+
+
+def test_ui_config_injects_settings():
+    """stream_runner / observer are stored as given."""
+    runner = lambda func, *a, **k: func(*a, **k)  # noqa: E731
+    observer = _make_observer()
+    ui = UIConfig(stream_runner=runner, observer=observer)
+    assert ui.stream_runner is runner
+    assert ui.observer is observer
+
+
+def test_api_config_carries_no_ui_fields():
+    """UI concerns live in UIConfig, not APIConfig (the split)."""
     config = build_api_config(
         api_type="Completions", cli_provider="openai", cli_model="gpt-5.6-luna"
     )
-    assert isinstance(config.observer, NullObserver)
-    assert config.stream_runner is None
-    assert config.verbose is False
     assert config.use_mcp is True
-
-
-def test_build_api_config_injects_ui_settings():
-    """verbose / stream_runner / observer / use_mcp are stored as given."""
-    runner = lambda func, *a, **k: func(*a, **k)  # noqa: E731
-    observer = _make_observer()
-    config = build_api_config(
-        api_type="Completions",
-        cli_provider="openai",
-        cli_model="gpt-5.6-luna",
-        use_mcp=False,
-        verbose=True,
-        stream_runner=runner,
-        observer=observer,
-    )
-    assert config.use_mcp is False
-    assert config.verbose is True
-    assert config.stream_runner is runner
-    assert config.observer is observer
+    assert not hasattr(config, "verbose")
+    assert not hasattr(config, "stream_runner")
+    assert not hasattr(config, "observer")
 
 
 # ---- dataclass contract ---------------------------------------------------
@@ -315,9 +316,5 @@ def test_api_config_constructed_directly():
         thinking=False,
         preserve_thinking=None,
         use_mcp=True,
-        verbose=False,
-        stream_runner=None,
-        observer=NullObserver(),
     )
     assert config.model == "gpt-5.6-luna"
-    assert config.observer is not None

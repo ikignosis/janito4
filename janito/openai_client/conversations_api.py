@@ -48,6 +48,9 @@ from openai import AuthenticationError, NotFoundError, OpenAI
 # built-in registry and tracks usage/used-files/changes around each call)
 from janito.tooling.executor import ToolExecutor
 
+# Injected, immutable per-session UI configuration (stream runner + observer).
+from ..ui_config import UIConfig
+
 # Resolved, immutable per-session configuration (issue #70): the turn
 # pipeline consumes it instead of re-reading the config/auth stores.
 from .api_config import APIConfig
@@ -134,9 +137,11 @@ def get_env_config() -> tuple[str | None, str, str]:
 
 
 def run_turn(
-    config: APIConfig,
+    api_config: APIConfig,
     prompt: str,
     *,
+    ui_config: UIConfig | None = None,
+    verbose: bool = False,
     previous_response_id: str | None = None,
     previous_items: list[dict[str, Any]] | None = None,
     instructions: str | None = None,
@@ -146,10 +151,11 @@ def run_turn(
 
     Thin config-driven wrapper (issue #70): all resolved session config
     (provider, model, endpoint, api_key, token limits, reasoning level,
-    thinking, preserve_thinking, use_mcp, verbose, stream_runner, observer)
-    arrives in ``config`` -- built once per session by ``build_api_config`` --
-    so this entry point performs no config-store / auth-store reads of its
-    own.
+    thinking, preserve_thinking, use_mcp)
+    arrives in ``api_config`` -- built once per session by ``build_api_config`` --
+    and the UI-side stream runner / turn observer arrive separately in
+    ``ui_config`` -- so this entry point performs no config-store /
+    auth-store reads of its own.
 
     The conversation history lives **server-side**: the client neither
     stores nor updates a ``messages`` list. Multi-turn conversations chain
@@ -158,10 +164,15 @@ def run_turn(
     caller.
 
     Args:
-        config: The resolved, immutable
+        api_config: The resolved, immutable
             :class:`~janito.openai_client.api_config.APIConfig` for this
             session.
         prompt: The user prompt to send
+        ui_config: The injected, immutable
+            :class:`~janito.ui_config.UIConfig` (per-round stream runner +
+            turn observer) for this session.
+        verbose: Explicit per-call emission gate for the verbose call/response
+            dumps (``False`` = no dumps).
         previous_response_id: The server-side id of the previous response to
             continue from (``None`` for a fresh conversation). Obtained from
             the ``response_id`` of the previous ``ConversationResult``. Only
@@ -195,14 +206,15 @@ def run_turn(
         ``on_turn_complete``; there is no ``usage_out`` out-param (issue #82).
 
     Note:
-        Thinking mode is resolved into ``config.thinking`` at build time: the
-        explicit ``--thinking`` / ``/thinking`` flag wins, otherwise the
+        Thinking mode is resolved into ``api_config.thinking`` at build time:
+        the explicit ``--thinking`` / ``/thinking`` flag wins, otherwise the
         provider's built-in default applies (sent as
         ``extra_body={'enable_thinking': True}``).
     """
     logger.info("Sending prompt to Responses API")
-    return ResponsesClient(config).run_turn(
+    return ResponsesClient(api_config, ui_config).run_turn(
         prompt,
+        verbose=verbose,
         previous_response_id=previous_response_id,
         previous_items=previous_items,
         instructions=instructions,
@@ -239,10 +251,10 @@ class ResponsesClient(Client):
         # and the token limits / reasoning level.  The config store /
         # provider registry is never read here.
         return (
-            self.config.thinking,
-            self.config.max_output_tokens,
-            self.config.max_input_tokens,
-            self.config.reasoning_effort,
+            self.api_config.thinking,
+            self.api_config.max_output_tokens,
+            self.api_config.max_input_tokens,
+            self.api_config.reasoning_effort,
         )
 
     def _init_conversation_state(
@@ -318,7 +330,7 @@ class ResponsesClient(Client):
         from janito.provider_accessors import get_default_tools_from_provider
 
         builtin_tools = get_default_tools_from_provider(
-            self.config.provider, model, api_type="Responses"
+            self.api_config.provider, model, api_type="Responses"
         )
         return _build_call_kwargs(
             model,
@@ -331,7 +343,7 @@ class ResponsesClient(Client):
             state["responses_in_server"],
             state["instructions"],
             builtin_tools,
-            provider=self.config.provider,
+            provider=self.api_config.provider,
         )
 
     def _run_stream_round(
@@ -383,7 +395,7 @@ class ResponsesClient(Client):
         except AuthenticationError as e:
             self.observer.on_error(
                 e,
-                provider=self.config.provider,
+                provider=self.api_config.provider,
                 api_key=api_key,
                 base_url=base_url,
                 model=model,
@@ -434,7 +446,6 @@ class ResponsesClient(Client):
         full_content,
         reasoning_content,
         state,
-        usage_out,
     ):
         # Server-side: the assistant message lives on the server and the
         # caller only needs the response id to chain the next turn. Stateless:
@@ -447,7 +458,6 @@ class ResponsesClient(Client):
             state["response_id"],
             state["responses_in_server"],
             turn_items=state["turn_items"],
-            usage_out=usage_out,
         )
 
 

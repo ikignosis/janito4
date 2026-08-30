@@ -22,7 +22,6 @@ import json
 import logging
 import sys
 import threading
-from dataclasses import dataclass
 from typing import Any
 
 from rich.console import Console
@@ -44,6 +43,10 @@ from janito.provider_accessors import get_provider_cost, get_provider_cost_value
 from janito.tooling.accounting import record_turn
 from janito.tooling.tools_registry import tools_loading_enabled
 from janito.tooling.used_files import format_used_files
+
+# The resolved per-session config (provider / model / max tokens) that the
+# end-of-turn report renders with.
+from .api_config import APIConfig
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -570,18 +573,21 @@ class RichTurnObserver(NullObserver):
             _handle_auth_error(e, provider, api_key, base_url, model, self.console)
         # else: unknown failure -- nothing to explain; the caller re-raises.
 
-    def on_turn_complete(self, usage_out) -> None:
+    def on_turn_complete(self, usage_out, api_config) -> None:
         """End-of-turn report: record accounting, then render the usage summary.
 
         Invoked by ``Client.run_turn`` at the end of every turn that reported
-        token usage.  The overall-use accounting row (:func:`_record_accounting`,
-        best effort, never raises) is written here -- from the observer -- so
-        neither the API clients nor the CLI carry it; the rendered report
-        (used files + token-usage summary) is delegated to
-        :func:`display_turn_usage`.
+        token usage, with the client-built
+        :class:`~janito.agent.usage.TokenStats` and the resolved
+        :class:`~janito.openai_client.api_config.APIConfig` for the turn
+        (provider / model / max tokens come from the api_config).  The
+        overall-use accounting row (:func:`_record_accounting`, best effort,
+        never raises) is written here -- from the observer -- so neither the
+        API clients nor the CLI carry it; the rendered report (used files +
+        token-usage summary) is delegated to :func:`display_turn_usage`.
         """
-        _record_accounting(usage_out)
-        display_turn_usage(usage_out, console=self.console)
+        _record_accounting(usage_out, api_config)
+        display_turn_usage(usage_out, api_config, console=self.console)
 
 
 def _print_input_capacity_warning(
@@ -628,10 +634,8 @@ def _display_usage(
     usage_info: Any,
     max_input_tokens: int | None,
     max_output_tokens: int | None,
-    message_count: int,
     console: Console,
     *,
-    label: str = "Messages",
     input_attr: str = "prompt_tokens",
     output_attr: str = "completion_tokens",
     provider: str | None = None,
@@ -649,11 +653,6 @@ def _display_usage(
     details, so the cached part is shown only when the API actually reports
     it.  ``input_attr`` / ``output_attr`` are retained for signature
     compatibility.
-
-    ``label`` / ``message_count`` feed the ``INFO`` log line only; the
-    summary line itself no longer carries the ``{label}: {message_count}``
-    part.  (The conversation-turn number is no longer shown here -- the
-    interactive shell displays it in the pre-prompt rule instead.)
 
     ``Cost: <cost>`` is computed through
     :func:`janito.provider_accessors.get_provider_cost` from the provider /
@@ -721,49 +720,28 @@ def _display_usage(
     logger.info(
         f"Request completed: total={total_tokens} tokens "
         f"(in={input_tokens}, out={output_tokens}, "
-        f"cached={cached_tokens}, max={max_output_tokens}), "
-        f"{message_count} {label.lower()}"
+        f"cached={cached_tokens}, max={max_output_tokens})"
     )
 
 
-@dataclass
-class TurnUsage:
-    """Client-owned carrier for a turn's usage + the display metadata for it.
-
-    ``Client.run_turn`` builds one instance per turn and populates it as the
-    rounds stream: ``stats`` holds the normalized per-turn totals
-    (:class:`~janito.agent.usage.TokenStats` mirrors the final request's
-    counters and accumulates the tool-call rounds), and the remaining fields
-    are the values :func:`_display_usage` needs to render the summary line.
-    At the end of the turn ``run_turn`` hands the populated instance to the
-    injected observer's ``on_turn_complete`` (the CLI's ``RichTurnObserver``
-    renders it with :func:`display_turn_usage` and records the overall-use
-    accounting row), keeping the end-of-turn reports out of the client's
-    ``_finalize`` hooks.  There is no caller-supplied out-param (issue #82).
-    """
-
-    stats: TokenStats | None = None
-    provider: str | None = None
-    model: str | None = None
-    max_input_tokens: int | None = None
-    max_output_tokens: int | None = None
-    label: str = "Messages"
-    message_count: int | None = None
-
-
 def display_turn_usage(
-    usage_out: TurnUsage | None,
+    usage_out: TokenStats | None,
+    api_config: APIConfig,
     *,
     console: Console | None = None,
 ) -> None:
     """Print the end-of-turn reports (used files + token usage summary).
 
     Rendered by the CLI's ``RichTurnObserver.on_turn_complete`` -- which
-    ``Client.run_turn`` invokes at the end of every turn -- using the
-    client-built ``usage_out`` (see :class:`TurnUsage`).  Replaces the
-    reports the per-client ``_finalize`` helpers used to print inline: the
-    tracked used files first, then the magenta token-usage summary line.
-    Nothing is printed when no usage was reported.
+    ``Client.run_turn`` invokes at the end of every turn -- with the
+    client-built :class:`~janito.agent.usage.TokenStats` (every round's usage
+    folded into it) and the turn's resolved
+    :class:`~janito.openai_client.api_config.APIConfig`, whose
+    ``provider`` / ``model`` / ``max_input_tokens`` / ``max_output_tokens``
+    feed the summary line.  Replaces the reports the per-client ``_finalize``
+    helpers used to print inline: the tracked used files first, then the
+    magenta token-usage summary line.  Nothing is printed when no usage was
+    reported (``usage_out`` is ``None``).
     """
     console = console or Console()
 
@@ -776,62 +754,66 @@ def display_turn_usage(
         if used_files_report:
             console.print(used_files_report, highlight=False)
 
-    if usage_out is None or usage_out.stats is None:
+    if usage_out is None:
         return
 
     _display_usage(
-        usage_out.stats,
-        usage_out.max_input_tokens,
-        usage_out.max_output_tokens,
-        usage_out.message_count if usage_out.message_count is not None else 0,
+        usage_out,
+        api_config.max_input_tokens,
+        api_config.max_output_tokens,
         console,
-        label=usage_out.label,
-        provider=usage_out.provider,
-        model=usage_out.model,
+        provider=api_config.provider,
+        model=api_config.model,
     )
 
 
-def _record_accounting(usage_out: TurnUsage | None) -> None:
+def _record_accounting(usage_out: TokenStats | None, api_config: APIConfig) -> None:
     """Append one overall-use accounting row for a completed turn (best effort).
 
     Uses the turn-wide cumulative counters (:class:`~janito.agent.usage.TokenStats`
     accumulates every round of the turn, tool-call rounds included) so the
     accounting log reflects the billed usage; falls back to the final round's
-    counters when the turn-wide ones were not reported.  The cost is the
-    numeric dollar estimate from
-    :func:`janito.provider_accessors.get_provider_cost_value` (``None`` when
-    the provider/model is unknown).  Never raises -- accounting must not be
-    able to break the agent loop (issue #72).
+    counters when the turn-wide ones were not reported.  The provider / model
+    (and the numeric dollar cost estimate from
+    :func:`janito.provider_accessors.get_provider_cost_value`) come from the
+    turn's resolved :class:`~janito.openai_client.api_config.APIConfig`.
+    Never raises -- accounting must not be able to break the agent loop
+    (issue #72).
 
     Invoked from the observer's ``on_turn_complete`` (the CLI's
     :class:`RichTurnObserver`), so every CLI entry point (interactive shell,
     ``/ask``, ``/compact``, one-shot ``janito <prompt>``) feeds the
     ``accounting.db`` log, mirroring the web loop's own accounting.
     """
-    if usage_out is None or usage_out.stats is None:
+    if usage_out is None:
         return
-    stats = usage_out.stats
     input_tokens = (
-        stats.turn_input if stats.turn_input is not None else stats.last_input
+        usage_out.turn_input
+        if usage_out.turn_input is not None
+        else usage_out.last_input
     )
     cached_tokens = (
-        stats.turn_cached if stats.turn_cached is not None else stats.last_cached
+        usage_out.turn_cached
+        if usage_out.turn_cached is not None
+        else usage_out.last_cached
     )
     output_tokens = (
-        stats.turn_output if stats.turn_output is not None else stats.last_output
+        usage_out.turn_output
+        if usage_out.turn_output is not None
+        else usage_out.last_output
     )
     cost = None
-    if usage_out.provider and usage_out.model:
+    if api_config.provider and api_config.model:
         cost = get_provider_cost_value(
-            usage_out.provider,
-            usage_out.model,
+            api_config.provider,
+            api_config.model,
             input_tokens or 0,
             output_tokens or 0,
             cached_tokens or 0,
         )
     record_turn(
-        usage_out.provider,
-        usage_out.model,
+        api_config.provider,
+        api_config.model,
         input_tokens,
         cached_tokens,
         output_tokens,

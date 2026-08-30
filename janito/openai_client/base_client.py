@@ -17,10 +17,10 @@ construct the subclass with a resolved
 Config is resolved **once** at the composition point by
 :func:`~janito.openai_client.api_config.build_api_config` and handed to the
 client as an immutable :class:`APIConfig` (issue #70): ``Client.run_turn`` is a
-pure function of ``(config, request)`` and never reads the config store /
+pure function of ``(api_config, request)`` and never reads the config store /
 auth store / provider registry itself.  The thinking mode (``--thinking`` /
 ``/thinking`` flag against the provider's *static* built-in default) is
-resolved into ``config.thinking`` at build time, so no resolution is left
+resolved into ``api_config.thinking`` at build time, so no resolution is left
 inside the pipeline.
 
 Test-coupling note
@@ -36,9 +36,9 @@ those names directly (e.g. ``CompletionsClient._resolve_tools`` calls the
 
 The per-round stream runner is the one hook that is **not** resolved through
 module globals: it is a UI-side concern (the TUI progress bar +
-Enter-to-cancel detection) injected through the ``APIConfig``
+Enter-to-cancel detection) injected through the ``UIConfig``
 (``stream_runner``), so ``run_turn``/``Client.run_turn`` stay purely
-API-side and tests inject a fake runner via the config instead of
+API-side and tests inject a fake runner via the UI config instead of
 monkeypatching a module global.
 """
 
@@ -51,8 +51,9 @@ from janito.tooling.changes import clear_changes
 from janito.tooling.executor import extract_tool_names
 from janito.tooling.used_files import reset_used_files
 
+from ..ui_config import UIConfig
 from .api_config import APIConfig
-from .client_support import TurnUsage, _display_usage, _load_mcp
+from .client_support import _load_mcp
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -86,15 +87,17 @@ class Client:
     client instance can be reused for many prompts.
 
     Attributes:
-        config: The resolved, immutable
+        api_config: The resolved, immutable
             :class:`~janito.openai_client.api_config.APIConfig` for this
             session (provider, model, endpoint, api_key, token limits,
-            reasoning level, preserve_thinking, use_mcp and the UI-side
-            ``stream_runner`` / ``observer``).
-        observer: Convenience alias for ``config.observer`` (a
+            reasoning level, preserve_thinking, use_mcp).
+        ui_config: The injected, immutable
+            :class:`~janito.ui_config.UIConfig` for this session (per-round
+            stream runner + turn observer); defaults to a headless config.
+        observer: Convenience alias for ``ui_config.observer`` (a
             :class:`~janito.agent.observer.TurnObserver`); kept so subclass
             hooks keep working unchanged.
-        stream_runner: Convenience alias for ``config.stream_runner`` (the
+        stream_runner: Convenience alias for ``ui_config.stream_runner`` (the
             per-round stream runner, ``None`` = headless).
         api_type: Canonical API type name (e.g. ``"Completions"``).
         backend_default: Fallback backend label for verbose output when
@@ -107,11 +110,15 @@ class Client:
     #: Fallback backend label shown in verbose mode when ``base_url`` is None.
     backend_default: str = "api.openai.com"
 
-    def __init__(self, config: APIConfig) -> None:
-        self.config = config
+    def __init__(
+        self, api_config: APIConfig, ui_config: UIConfig | None = None
+    ) -> None:
+        self.api_config = api_config
         # Convenience aliases (unchanged attribute names for the hooks).
-        self.observer = config.observer
-        self.stream_runner = config.stream_runner
+        ui_config = ui_config or UIConfig()
+        self.ui_config = ui_config
+        self.observer = ui_config.observer
+        self.stream_runner = ui_config.stream_runner
 
     # ------------------------------------------------------------------
     # Template method: the shared turn pipeline
@@ -121,7 +128,7 @@ class Client:
         self,
         prompt: str,
         *,
-        verbose: bool | None = None,
+        verbose: bool = False,
         previous_messages: list[dict[str, Any]] | None = None,
         previous_response_id: str | None = None,
         previous_items: list[dict[str, Any]] | None = None,
@@ -144,20 +151,22 @@ class Client:
             ``previous_items`` (stateless providers, e.g. DeepSeek) chain the
             conversation; ``previous_messages`` is ignored.
 
-        ``verbose`` defaults to the session value from ``config.verbose``;
-        pass an explicit ``True``/``False`` to override it for one call.
+        ``verbose`` is an explicit per-call emission gate for the verbose
+        call/response dumps (the CLI's session default is captured in its
+        turn closure); pass ``True``/``False`` to control it for one call.
 
-        Thinking mode is resolved into ``config.thinking`` at build time
+        Thinking mode is resolved into ``api_config.thinking`` at build time
         (``--thinking`` / ``/thinking`` flag against the provider's built-in
         default); it is not a per-call argument.
 
         The end-of-turn report (used files + token-usage summary) is
         delivered by this method itself: it builds a
-        :class:`~janito.openai_client.client_support.TurnUsage`, folds every
-        round's usage into it (tool-call rounds included), lets the concrete
-        :meth:`_finalize` hook fill in the display metadata, and hands it to
-        the injected observer's ``on_turn_complete`` when the turn finishes
-        -- there is no caller-supplied out-param (see
+        :class:`~janito.agent.usage.TokenStats`, folds every round's usage
+        into it (tool-call rounds included) and hands it -- together with the
+        turn's resolved :class:`~janito.openai_client.api_config.APIConfig`,
+        whose provider / model / max tokens feed the report -- to the
+        injected observer's ``on_turn_complete`` when the turn finishes.
+        There is no caller-supplied out-param (see
         :class:`~janito.agent.observer.TurnObserver`).  The conversation
         turn number is never passed here: it is display-only caller
         knowledge, supplied directly to the renderer by the caller.
@@ -167,23 +176,15 @@ class Client:
             stateless clients, or a ``ConversationResult`` for the Responses
             client.
         """
-        verbose = self.config.verbose if verbose is None else verbose
-
         # Reset per-prompt tracking so ./janito/changes.jsonl and the
         # "Used files" report only describe the current prompt.
         clear_changes()
         reset_used_files()
 
-        # Client-owned turn report (issue #82): folded as the rounds stream
-        # and delivered to the observer's on_turn_complete at the end of the
-        # turn, so the end-of-turn reports stay out of the _finalize hooks
-        # (see TurnUsage).  No caller-supplied out-param.
-        usage_out = TurnUsage()
-
         base_url, api_key, model = (
-            self.config.base_url,
-            self.config.api_key,
-            self.config.model,
+            self.api_config.base_url,
+            self.api_config.api_key,
+            self.api_config.model,
         )
         client = self._create_sdk_client(base_url, api_key)
         logger.debug(f"{type(self).__name__} client created with base_url={base_url}")
@@ -191,7 +192,7 @@ class Client:
         # Initialize MCP manager and load services if enabled; the tool
         # executor routes tool calls to the MCP manager or the built-in
         # registry and tracks usage/used-files/changes around each call.
-        mcp_manager, mcp_tools = _load_mcp(self.config.use_mcp)
+        mcp_manager, mcp_tools = _load_mcp(self.api_config.use_mcp)
         tool_executor = self._create_tool_executor(mcp_manager)
         tools_schemas = self._resolve_tools(tools, mcp_tools)
 
@@ -203,14 +204,14 @@ class Client:
 
         logger.debug(f"Using {len(tools_schemas)} tools total")
 
-        provider = self.config.provider
+        provider = self.api_config.provider
         (
             thinking,
             max_output_tokens,
             max_input_tokens,
             reasoning_effort,
         ) = self._resolve_model_settings(provider, model)
-        preserve_thinking = self.config.preserve_thinking
+        preserve_thinking = self.api_config.preserve_thinking
         if preserve_thinking is not None:
             logger.debug(f"Using preserve_thinking from config: {preserve_thinking}")
 
@@ -236,14 +237,10 @@ class Client:
         )
 
         # Per-turn usage accumulator: folds every round (tool-call rounds
-        # included) into a TokenStats for the end-of-turn report (see
-        # TurnUsage).  Metadata that can only be resolved here is recorded on
-        # the client-owned instance up front.
+        # included) into a TokenStats for the end-of-turn report (issue #82).
+        # The report's provider / model / max tokens come from self.api_config,
+        # handed to the observer alongside the stats when the turn finishes.
         turn_stats: TokenStats | None = None
-        usage_out.provider = provider
-        usage_out.model = model
-        usage_out.max_input_tokens = max_input_tokens
-        usage_out.max_output_tokens = max_output_tokens
 
         while True:
             # Build the base call parameters for one round.
@@ -305,7 +302,6 @@ class Client:
             # is discarded on tool-call rounds, so the usage would otherwise
             # be lost).
             turn_stats = _fold_turn_usage(turn_stats, usage_info)
-            usage_out.stats = turn_stats
 
             # Display the assembled response (markdown in the CLI)
             self.observer.on_message(full_content)
@@ -325,18 +321,20 @@ class Client:
             # of the turn, like every other observer event: the observer's
             # ``on_turn_complete`` renders the usage summary and records the
             # overall-use accounting row (see RichTurnObserver).
-            return self._finish_turn(full_content, reasoning_content, state, usage_out)
+            return self._finish_turn(full_content, reasoning_content, state, turn_stats)
 
-    def _finish_turn(self, full_content, reasoning_content, state, usage_out):
+    def _finish_turn(self, full_content, reasoning_content, state, turn_stats):
         """Finalize the turn and deliver the end-of-turn report.
 
         Runs the concrete client's :meth:`_finalize` hook and then hands the
-        populated client-owned ``usage_out`` to the injected observer's
-        ``on_turn_complete`` (which renders the usage summary and records the
-        overall-use accounting row).  The report is delivered on every turn.
+        populated client-owned :class:`~janito.agent.usage.TokenStats`,
+        together with the turn's resolved ``self.api_config`` (provider / model /
+        max tokens), to the injected observer's ``on_turn_complete`` (which
+        renders the usage summary and records the overall-use accounting
+        row).  The report is delivered on every turn.
         """
-        result = self._finalize(full_content, reasoning_content, state, usage_out)
-        self.observer.on_turn_complete(usage_out)
+        result = self._finalize(full_content, reasoning_content, state)
+        self.observer.on_turn_complete(turn_stats, self.api_config)
         return result
 
     # ------------------------------------------------------------------
@@ -347,7 +345,7 @@ class Client:
         """Run the per-round worker through the injected stream runner.
 
         ``stream_runner`` is a UI-side hook (e.g. the CLI's ``_run_with_progress_bar``
-        Rich spinner + Enter-to-cancel runner) carried by ``config.stream_runner``.
+        Rich spinner + Enter-to-cancel runner) carried by ``ui_config.stream_runner``.
         With the default ``None`` ``func`` is called directly in the calling
         thread -- no thread, no UI -- so the client stays purely API-side.
         When a runner is injected it owns the worker's execution (it creates
@@ -377,7 +375,7 @@ class Client:
     def _resolve_model_settings(self, provider, model):
         """Resolve ``(thinking, max_output_tokens, max_input_tokens, reasoning_effort)``.
 
-        All four come straight from the resolved ``self.config`` (issue #70):
+        All four come straight from the resolved ``self.api_config`` (issue #70):
         ``thinking`` is resolved at build time by ``build_api_config`` (the
         ``--thinking`` / ``/thinking`` flag against the provider's *static*
         built-in default -- a ``True`` flag or a pass-through dict such as
@@ -451,23 +449,20 @@ class Client:
         full_content,
         reasoning_content,
         state,
-        usage_out,
     ):
         """Record the final assistant message and return the result.
 
-        ``usage_out`` (a
-        :class:`~janito.openai_client.client_support.TurnUsage`) receives the
-        display metadata the end-of-turn report needs (message count / label /
-        cached reporting); the token counters were already folded onto
-        ``usage_out.stats`` by :meth:`run_turn`, and the report is delivered
-        to the observer's ``on_turn_complete`` right after this hook returns.
+        The token counters were already folded onto a
+        :class:`~janito.agent.usage.TokenStats` by :meth:`run_turn`, and the
+        report is delivered to the observer's ``on_turn_complete`` right
+        after this hook returns -- this hook no longer carries any usage
+        display metadata (message count / label are gone; provider / model /
+        max tokens come from the resolved ``APIConfig`` that ``run_turn``
+        passes to the observer alongside the stats).
         """
         raise NotImplementedError
 
 
-# Re-export the shared display helper used by subclasses' finalizers so the
-# module is a single import point for the common client machinery.
 __all__ = [
     "Client",
-    "_display_usage",
 ]

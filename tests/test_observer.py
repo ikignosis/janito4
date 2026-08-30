@@ -71,7 +71,7 @@ class TestTurnObserverProtocol:
         obs.on_verbose_call({}, [])
         obs.on_verbose_response("hi", None, None, None, None)
         obs.on_error(ValueError("boom"), error_kind="unknown")
-        obs.on_turn_complete(None)
+        obs.on_turn_complete(None, None)
 
     def test_client_defaults_to_null_observer(self):
         # A config with no observer resolves to NullObserver: the headless
@@ -81,10 +81,11 @@ class TestTurnObserverProtocol:
         assert isinstance(Client(make_config()).observer, NullObserver)
 
     def test_client_accepts_injected_observer(self):
-        from conftest import make_config
+        from conftest import make_config, make_ui_config
 
         obs = NullObserver()
-        assert Client(make_config(observer=obs)).observer is obs
+        client = Client(make_config(), make_ui_config(observer=obs))
+        assert client.observer is obs
 
 
 class TestRichTurnObserver:

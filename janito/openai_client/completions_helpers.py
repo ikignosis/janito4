@@ -19,9 +19,6 @@ from janito.provider_accessors import (
 # Import tools
 from janito.tooling.tools_registry import get_session_tool_schemas
 
-# Shared client helpers (Rich console output, usage summary out-param)
-from .client_support import TurnUsage
-
 # Configure logger for this module
 logger = logging.getLogger(__name__)
 
@@ -108,14 +105,8 @@ def _finalize_response(
     full_content: str,
     reasoning_content: str | None,
     messages: list[dict[str, Any]],
-    usage_out: TurnUsage,
 ) -> str:
-    """Record the final assistant message and return it.
-
-    ``usage_out`` receives the display metadata the client's end-of-turn
-    report needs (see
-    :func:`janito.openai_client.client_support.display_turn_usage`).
-    """
+    """Record the final assistant message and return it."""
     # Build the assistant message with reasoning_content if available
     assistant_message = {"role": "assistant", "content": full_content}
     if reasoning_content:
@@ -124,6 +115,4 @@ def _finalize_response(
     # Add assistant message to conversation history
     messages.append(assistant_message)
 
-    usage_out.message_count = len(messages)
-    usage_out.label = "Messages"
     return full_content

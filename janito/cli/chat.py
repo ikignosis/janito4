@@ -17,6 +17,7 @@ from ..openai_client.client_support import RichTurnObserver, _run_with_progress_
 from ..provider_accessors import get_responses_in_server_from_provider
 from ..shell import InteractiveShell
 from ..tooling.path_utils import display_path
+from ..ui_config import UIConfig
 
 # Whether the version banner has already been printed for this process, so it
 # is shown only once (e.g. before plugin loading in main() and again by the
@@ -24,11 +25,15 @@ from ..tooling.path_utils import display_path
 _banner_printed = False
 
 
-def _make_turn_func(config: APIConfig):
+def _make_turn_func(
+    api_config: APIConfig,
+    ui_config: UIConfig | None = None,
+    session_verbose: bool = False,
+):
     """Return a run-turn callable bound to a resolved APIConfig.
 
     One closure replaces the previous five per-API-type closures (issue #70):
-    the client class is picked from ``config.api_type`` and the union
+    the client class is picked from ``api_config.api_type`` and the union
     signature is kept so the interactive shell can call it identically in all
     modes:
 
@@ -45,20 +50,28 @@ def _make_turn_func(config: APIConfig):
 
     The end-of-turn report (used files + token-usage summary) and the
     overall-use accounting row are delivered by ``Client.run_turn`` itself:
-    it builds the ``TurnUsage`` internally and hands it to the injected
-    observer's ``on_turn_complete`` when the turn finishes (there is no
-    caller-supplied out-param, issue #82).  The observer itself lives on the
-    config (``config.observer``, injected at the composition point), so the
-    client is the only place that delivers turn events.
+    it builds the ``TokenStats`` internally (folding every round's usage into
+    it, tool-call rounds included) and hands it -- together with the resolved
+    ``APIConfig``, whose provider / model / max tokens feed the report -- to
+    the injected observer's ``on_turn_complete`` when the turn finishes
+    (there is no caller-supplied out-param, issue #82).  The observer itself
+    lives on the ``ui_config`` (``ui_config.observer``, injected at the
+    composition point), so the client is the only place that delivers turn
+    events.
 
     Args:
-        config: The resolved, immutable
+        api_config: The resolved, immutable
             :class:`~janito.openai_client.api_config.APIConfig` for this
             session (provider, model, endpoint, api_key, token limits,
-            reasoning level, ``use_mcp`` and the UI-side ``stream_runner`` /
-            ``observer``).  Built once per session / provider switch by
-            ``build_api_config``; the returned callable performs no
+            reasoning level, ``use_mcp``).  Built once per session / provider
+            switch by ``build_api_config``; the returned callable performs no
             config-store / auth-store reads.
+        ui_config: The injected, immutable
+            :class:`~janito.ui_config.UIConfig` (per-round stream runner +
+            turn observer) for this session.
+        session_verbose: The session's verbose flag, captured as the closure
+            default for the per-call ``verbose`` gate (``/ask`` and
+            ``/compact`` still override it per call).
     """
     from .. import dashscope_api, gemini_api
     from ..openai_client import anthropic_api, completions_api, conversations_api
@@ -71,28 +84,31 @@ def _make_turn_func(config: APIConfig):
         "Gemini": gemini_api.GeminiClient,
     }
     try:
-        client = _CLIENTS[config.api_type](config)
+        client = _CLIENTS[api_config.api_type](api_config, ui_config)
     except KeyError:
-        raise ValueError(f"Unsupported API type: {config.api_type}")
+        raise ValueError(f"Unsupported API type: {api_config.api_type}")
 
     def run_turn(
         prompt,
         *,
-        verbose=None,
+        verbose=session_verbose,
         previous_messages=None,
         previous_response_id=None,
         previous_items=None,
         instructions=None,
         tools=None,
     ):
-        # ``verbose`` stays a per-call override (design doc §7): ``None``
-        # falls back to the session default from the config; /ask forwards
-        # the session flag and /compact passes False to suppress the dumps.
-        # Thinking mode is resolved into ``config.thinking`` at build time
-        # (the shell's /thinking toggle rebuilds the config via the factory).
+        # ``verbose`` stays an explicit per-call gate (design doc §7): the
+        # closure defaults it to the session flag captured here (not on any
+        # config); /ask forwards the shell flag and /compact passes False to
+        # suppress the dumps.
+        # Thinking mode is resolved into ``api_config.thinking`` at build
+        # time (the shell's /thinking toggle rebuilds the config via the
+        # factory).
         # The end-of-turn report is delivered by Client.run_turn itself to
-        # the injected observer's on_turn_complete (client-owned TurnUsage,
-        # issue #82) -- the closure has no out-param to pass.
+        # the injected observer's on_turn_complete (client-owned TokenStats
+        # + the resolved APIConfig, issue #82) -- the closure has no out-param
+        # to pass.
         return client.run_turn(
             prompt,
             verbose=verbose,
@@ -135,8 +151,8 @@ def _make_turn_factory(
     way: the shell's runtime ``/thinking`` toggle re-invokes the factory with
     ``thinking_override`` set, so the flip takes effect by rebuilding the
     config.  The CLI's TUI stream runner and Rich turn observer are injected
-    here (composition point), so every CLI entry point keeps the spinner /
-    Enter-to-cancel and rendered output.
+    here via the ``UIConfig`` (composition point), so every CLI entry point
+    keeps the spinner / Enter-to-cancel and rendered output.
 
     Args:
         cli_api_type: API type passed via ``--api-type`` (may be None).
@@ -144,8 +160,9 @@ def _make_turn_factory(
         cli_provider: Provider passed via ``--provider`` (may be None).
         cli_reasoning_effort: Reasoning depth passed via ``--reasoning-effort``
             (may be None).
-        verbose: Session default for verbose output (stored on the config;
-            per-call overrides still possible via ``Client.run_turn(verbose=...)``).
+        verbose: Session default for verbose output (captured in the turn
+            closure; per-call overrides still possible via
+            ``turn_func(verbose=...)``).
         cli_thinking: The ``--thinking`` CLI flag for the session (may be
             None).  ``True`` forces thinking on; ``False``/``None`` leaves it
             to the provider's built-in default.  A ``thinking_override``
@@ -190,10 +207,12 @@ def _make_turn_factory(
                 cli_provider=provider,
                 reasoning_effort=cli_reasoning_effort,
                 thinking=thinking,
-                verbose=verbose,
+            ),
+            ui_config=UIConfig(
                 stream_runner=_run_with_progress_bar,
                 observer=RichTurnObserver(),
-            )
+            ),
+            session_verbose=verbose,
         )
 
     return turn_factory
@@ -400,7 +419,7 @@ def run_single_prompt(args):
         # provider's configured api-type, then its built-in default, and
         # build the resolved per-session APIConfig once (issue #70).  The
         # CLI's TUI stream runner and Rich turn observer are injected at this
-        # composition point.
+        # composition point via the UIConfig.
         turn_func = _make_turn_func(
             build_api_config(
                 api_type=resolve_api_type(
@@ -411,10 +430,12 @@ def run_single_prompt(args):
                 cli_provider=getattr(args, "provider", None),
                 reasoning_effort=getattr(args, "reasoning_effort", None),
                 thinking=getattr(args, "thinking", False),
-                verbose=args.verbose,
+            ),
+            ui_config=UIConfig(
                 stream_runner=_run_with_progress_bar,
                 observer=RichTurnObserver(),
-            )
+            ),
+            session_verbose=args.verbose,
         )
         # In Responses mode the system prompt is sent as `instructions` on the
         # first turn (extracted from the seeded history); in Completions mode

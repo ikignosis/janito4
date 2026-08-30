@@ -14,7 +14,6 @@ import logging
 from types import SimpleNamespace
 from typing import Any
 
-from janito.openai_client.client_support import TurnUsage
 from janito.tooling.executor import ToolExecutor
 from janito.tooling.tools_registry import get_session_tool_schemas
 
@@ -334,14 +333,8 @@ def _finalize_response(
     reasoning_content: str | None,
     thought_parts: list[dict[str, Any]],
     messages: list[dict[str, Any]],
-    usage_out: TurnUsage,
 ) -> str:
-    """Record the final assistant message and return it.
-
-    ``usage_out`` receives the display metadata the client's end-of-turn
-    report needs (see
-    :func:`janito.openai_client.client_support.display_turn_usage`).
-    """
+    """Record the final assistant message and return it."""
     # No more tool calls, return the final response. Record the final
     # assistant text in the client-side history (keeping the model's thought
     # blocks so follow-up turns can resend them verbatim).
@@ -352,6 +345,4 @@ def _finalize_response(
         assistant_message["thought_parts"] = thought_parts
     messages.append(assistant_message)
 
-    usage_out.message_count = len(messages)
-    usage_out.label = "Messages"
     return full_content

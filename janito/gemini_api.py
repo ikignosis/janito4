@@ -64,6 +64,9 @@ from janito.openai_client.client_support import _classify_error
 from janito.openai_client.gemini_stream import _stream_response
 from janito.tooling.executor import ToolExecutor
 
+# Injected, immutable per-session UI configuration (stream runner + observer).
+from janito.ui_config import UIConfig
+
 # Configure logger for this module
 logger = logging.getLogger(__name__)
 
@@ -107,9 +110,11 @@ def _create_client(base_url: str | None, api_key: str) -> Any:
 
 
 def run_turn(
-    config: APIConfig,
+    api_config: APIConfig,
     prompt: str,
     *,
+    ui_config: UIConfig | None = None,
+    verbose: bool = False,
     previous_messages: list[dict[str, Any]] | None = None,
     instructions: str | None = None,
     tools: list[dict[str, Any]] | None = None,
@@ -118,20 +123,26 @@ def run_turn(
 
     Thin config-driven wrapper (issue #70): all resolved session config
     (provider, model, endpoint, api_key, token limits, reasoning level,
-    thinking, preserve_thinking, use_mcp, verbose, stream_runner, observer)
-    arrives in ``config`` -- built once per session by ``build_api_config`` --
-    so this entry point performs no config-store / auth-store reads of its
-    own.
+    thinking, preserve_thinking, use_mcp)
+    arrives in ``api_config`` -- built once per session by ``build_api_config`` --
+    and the UI-side stream runner / turn observer arrive separately in
+    ``ui_config`` -- so this entry point performs no config-store /
+    auth-store reads of its own.
 
     The conversation history is owned **client-side**: ``previous_messages``
     is mutated in place (user and assistant turns are appended) so the
     interactive shell's history keeps growing, exactly like Completions mode.
 
     Args:
-        config: The resolved, immutable
+        api_config: The resolved, immutable
             :class:`~janito.openai_client.api_config.APIConfig` for this
             session.
         prompt: The user prompt to send
+        ui_config: The injected, immutable
+            :class:`~janito.ui_config.UIConfig` (per-round stream runner +
+            turn observer) for this session.
+        verbose: Explicit per-call emission gate for the verbose call/response
+            dumps (``False`` = no dumps).
         previous_messages: List of previous message dicts for conversation
             context (mutated in place). A leading ``"system"``-role message is
             extracted and sent as the top-level Gemini
@@ -155,15 +166,16 @@ def run_turn(
         ``on_turn_complete``; there is no ``usage_out`` out-param (issue #82).
 
     Note:
-        Thinking mode is resolved into ``config.thinking`` at build time.
+        Thinking mode is resolved into ``api_config.thinking`` at build time.
         For Gemini models the flag is accepted for parity only: Gemini 3.x
         models reason by default and thinking depth is controlled through
         ``reasoning_effort`` (mapped to the model's ``thinking_level``)
         instead of a thinking flag.
     """
     logger.info("Sending prompt to Gemini API (native SDK)")
-    return GeminiClient(config).run_turn(
+    return GeminiClient(api_config, ui_config).run_turn(
         prompt,
+        verbose=verbose,
         previous_messages=previous_messages,
         instructions=instructions,
         tools=tools,
@@ -200,10 +212,10 @@ class GeminiClient(Client):
         # reasoning_effort -> thinking_level instead); the token limits and
         # reasoning level come straight from the resolved APIConfig.
         return (
-            self.config.thinking,
-            self.config.max_output_tokens,
-            self.config.max_input_tokens,
-            self.config.reasoning_effort,
+            self.api_config.thinking,
+            self.api_config.max_output_tokens,
+            self.api_config.max_input_tokens,
+            self.api_config.reasoning_effort,
         )
 
     def _init_conversation_state(
@@ -243,7 +255,7 @@ class GeminiClient(Client):
         from janito.provider_accessors import get_default_tools_from_provider
 
         tools = get_default_tools_from_provider(
-            self.config.provider, model, api_type="Gemini"
+            self.api_config.provider, model, api_type="Gemini"
         )
         return _build_call_kwargs(
             model,
@@ -283,7 +295,7 @@ class GeminiClient(Client):
             # re-raised).
             self.observer.on_error(
                 e,
-                provider=self.config.provider,
+                provider=self.api_config.provider,
                 api_key=api_key,
                 base_url=base_url,
                 model=model,
@@ -318,7 +330,6 @@ class GeminiClient(Client):
         full_content,
         reasoning_content,
         state,
-        usage_out,
     ):
         # No more tool calls, return the final response.
         return _finalize_response(
@@ -326,7 +337,6 @@ class GeminiClient(Client):
             reasoning_content,
             state.get("thought_parts") or [],
             state["messages"],
-            usage_out,
         )
 
 

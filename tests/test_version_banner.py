@@ -55,7 +55,9 @@ if pytest is not None:
         # point, so inject a config and a no-op send function.
         monkeypatch.setattr(chat_mod, "build_api_config", lambda **kw: make_config())
         monkeypatch.setattr(
-            chat_mod, "_make_turn_func", lambda config: lambda prompt, **kw: None
+            chat_mod,
+            "_make_turn_func",
+            lambda config, **kw: lambda prompt, **kwargs: None,
         )
         # Avoid a real system-prompt build: force the shared SessionSetup to
         # resolve a fixed prompt so the test does not depend on skills/cwd.

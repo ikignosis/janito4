@@ -133,8 +133,9 @@ The heart of the engine is a **template-method turn pipeline** defined in
 `APIConfig` dataclass (`openai_client/api_config.py`) carries everything a
 turn needs that can be decided before the call starts — provider, API type,
 model, base URL, api key, resolved max-output/input tokens, reasoning level,
-thinking mode, `preserve_thinking`, `use_mcp`, and the UI-side
-`stream_runner` / `observer`.
+thinking mode, `preserve_thinking`, `use_mcp`. The UI-side behaviour
+(per-round stream runner + turn observer) is carried separately by the
+frozen `UIConfig` (`ui_config.py`), injected at the same composition point.
 `build_api_config` is the **single resolution point**: the only place that
 touches the config store / auth store / provider registry. It is called at
 the composition point (`cli/chat.py`'s `_make_turn_factory`, which rebuilds
@@ -162,32 +163,32 @@ The pipeline per turn:
    injected `TurnObserver`, see below) → if tool calls were
    requested, execute them (see [Tool execution](#tool-execution)) and loop
    again; otherwise finalize (record the assistant message, return value).
-   Each round's usage is folded into a `TokenStats` (`janito/agent/usage.py`)
-   accumulated on a client-owned `TurnUsage` (`openai_client/client_support.py`);
+   Each round's usage is folded into a `TokenStats` (`janito/agent/usage.py`);
    `Client.run_turn` itself delivers the end-of-turn reports (used files +
    token-usage summary) to the injected observer's `on_turn_complete` when
-   the turn finishes -- there is no caller-supplied out-param (issue #82) --
-   so the `_finalize` hooks stay display-free and every CLI entry point
-   (interactive shell, `/ask`, `/compact`, one-shot prompt) gets the
-   same reports.
+   the turn finishes, passing the `TokenStats` together with the turn's
+   resolved `APIConfig` (provider / model / max tokens come from the config)
+   -- there is no caller-supplied out-param (issue #82) -- so the `_finalize`
+   hooks stay display-free and every CLI entry point (interactive shell,
+   `/ask`, `/compact`, one-shot prompt) gets the same reports.
 
 The blocking work of each streaming round — thread creation, the Rich spinner
 and Enter-to-cancel detection — lives in a **per-round stream runner**
 (`_run_with_progress_bar` + its `_is_enter_pressed` stdin poller, in
 `openai_client/client_support.py`). It is a UI-side concern **injected** by
-the caller through the `APIConfig` (`stream_runner`): `None` runs each
+the caller through the `UIConfig` (`stream_runner`): `None` runs each
 stream worker directly in the calling thread — no thread, no spinner, no
 Enter-to-cancel — keeping `run_turn`/`Client.run_turn` purely API-side.
 `_make_turn_factory` in `cli/chat.py` (the same composition point that
 injects the turn observer) wires in the TUI runner when it builds
-the config, so every CLI entry point (interactive shell, `/ask`, `/compact`,
+the `UIConfig`, so every CLI entry point (interactive shell, `/ask`, `/compact`,
 one-shot prompt) keeps the spinner. Because the runner is invoked **per
 round** from inside the `Client.run_turn` loop, the spinner is only visible while
 the API stream is in flight — never during tool execution.
 
 All other user-visible output of the turn is routed through a **turn
 observer** (`TurnObserver` protocol in `janito/agent/observer.py`), injected
-through the `APIConfig` the same way as the stream runner: `on_reasoning` /
+through the `UIConfig` the same way as the stream runner: `on_reasoning` /
 `on_message` (per-round reasoning/content fragments), the verbose
 call/response dumps (`on_verbose_info` / `on_verbose_call` /
 `on_verbose_response`), the error explainers (`on_error`, dispatched by an
@@ -203,9 +204,10 @@ default is the headless `NullObserver`, so
 its own structured events instead); the CLI injects the
 `RichTurnObserver` (`openai_client/client_support.py`) when it builds the
 config through `_make_turn_factory`, keeping today's rendered output
-byte-for-byte. `verbose` is likewise a session default on the config, with an
-optional per-call override on `Client.run_turn(verbose=...)` (used by `/ask` and
-`/compact`).
+byte-for-byte. `verbose` is an explicit per-call emission gate on
+`Client.run_turn(verbose=...)` (used by `/ask` and `/compact`); the CLI's
+session default is captured in the turn closure built by `_make_turn_factory`,
+not on the config.
 
 The web loop (`janito/web/backend/agent/loop.py`) drives the **same turn
 pipeline asynchronously**, yielding structured events instead of printing

@@ -26,6 +26,9 @@ from ..provider_validation import is_custom_provider
 # built-in registry and tracks usage/used-files/changes around each call)
 from ..tooling.executor import ToolExecutor
 
+# Injected, immutable per-session UI configuration (stream runner + observer).
+from ..ui_config import UIConfig
+
 # Resolved, immutable per-session configuration (issue #70): the turn
 # pipeline consumes it instead of re-reading the config/auth stores.
 from .api_config import APIConfig
@@ -168,9 +171,11 @@ def get_env_config() -> tuple[str | None, str, str]:
 
 
 def run_turn(
-    config: APIConfig,
+    api_config: APIConfig,
     prompt: str,
     *,
+    ui_config: UIConfig | None = None,
+    verbose: bool = False,
     previous_messages: list[dict[str, Any]] | None = None,
     tools: list[dict[str, Any]] | None = None,
 ) -> str:
@@ -178,16 +183,22 @@ def run_turn(
 
     Thin config-driven wrapper (issue #70): all resolved session config
     (provider, model, endpoint, api_key, token limits, reasoning level,
-    thinking, preserve_thinking, use_mcp, verbose, stream_runner, observer)
-    arrives in ``config`` -- built once per session by ``build_api_config`` --
-    so this entry point performs no config-store / auth-store reads of its
-    own.
+    thinking, preserve_thinking, use_mcp)
+    arrives in ``api_config`` -- built once per session by ``build_api_config`` --
+    and the UI-side stream runner / turn observer arrive separately in
+    ``ui_config`` -- so this entry point performs no config-store /
+    auth-store reads of its own.
 
     Args:
-        config: The resolved, immutable
+        api_config: The resolved, immutable
             :class:`~janito.openai_client.api_config.APIConfig` for this
             session.
         prompt: The user prompt to send
+        ui_config: The injected, immutable
+            :class:`~janito.ui_config.UIConfig` (per-round stream runner +
+            turn observer) for this session.
+        verbose: Explicit per-call emission gate for the verbose call/response
+            dumps (``False`` = no dumps).
         previous_messages: List of previous message dicts for conversation
             context (mutated in place).
         tools: Optional list of tool schemas to pass. If None, uses all
@@ -199,16 +210,17 @@ def run_turn(
         ``on_turn_complete``; there is no ``usage_out`` out-param (issue #82).
 
     Note:
-        Thinking mode is resolved into ``config.thinking`` at build time: the
-        explicit ``--thinking`` / ``/thinking`` flag wins, otherwise the
+        Thinking mode is resolved into ``api_config.thinking`` at build time:
+        the explicit ``--thinking`` / ``/thinking`` flag wins, otherwise the
         provider's built-in default applies (``True`` for DeepSeek and
         Alibaba/Qwen, sent as ``extra_body={'enable_thinking': True}``; a
         pass-through dict such as MiniMax-M3's ``{'type': 'adaptive'}`` is
         sent as ``extra_body={'thinking': {...}}``).
     """
     logger.info("Sending prompt to API")
-    return CompletionsClient(config).run_turn(
+    return CompletionsClient(api_config, ui_config).run_turn(
         prompt,
+        verbose=verbose,
         previous_messages=previous_messages,
         tools=tools,
     )
@@ -242,10 +254,10 @@ class CompletionsClient(Client):
         # {'type': 'adaptive'}) and the token limits / reasoning level.  The
         # config store / provider registry is never read here.
         return (
-            self.config.thinking,
-            self.config.max_output_tokens,
-            self.config.max_input_tokens,
-            self.config.reasoning_effort,
+            self.api_config.thinking,
+            self.api_config.max_output_tokens,
+            self.api_config.max_input_tokens,
+            self.api_config.reasoning_effort,
         )
 
     def _init_conversation_state(
@@ -287,7 +299,7 @@ class CompletionsClient(Client):
         from janito.provider_accessors import get_default_tools_from_provider
 
         tools = get_default_tools_from_provider(
-            self.config.provider, model, api_type="Completions"
+            self.api_config.provider, model, api_type="Completions"
         )
         return _build_call_kwargs(
             model,
@@ -297,7 +309,7 @@ class CompletionsClient(Client):
             preserve_thinking,
             thinking,
             tools,
-            provider=self.config.provider,
+            provider=self.api_config.provider,
         )
 
     def _run_stream_round(
@@ -329,7 +341,7 @@ class CompletionsClient(Client):
         except AuthenticationError as e:
             self.observer.on_error(
                 e,
-                provider=self.config.provider,
+                provider=self.api_config.provider,
                 api_key=api_key,
                 base_url=base_url,
                 model=model,
@@ -352,6 +364,5 @@ class CompletionsClient(Client):
         full_content,
         reasoning_content,
         state,
-        usage_out,
     ):
-        return _finalize_response(full_content, reasoning_content, state, usage_out)
+        return _finalize_response(full_content, reasoning_content, state)

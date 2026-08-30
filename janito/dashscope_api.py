@@ -53,6 +53,7 @@ from janito.openai_client.base_client import Client
 from janito.openai_client.client_support import _classify_error
 from janito.openai_client.dashscope_stream import _stream_response
 from janito.tooling.executor import ToolExecutor
+from janito.ui_config import UIConfig
 
 from .dashscope_helpers import (
     _build_call_kwargs,
@@ -112,9 +113,11 @@ def _create_client(base_url: str | None, api_key: str) -> SimpleNamespace:
 
 
 def run_turn(
-    config: APIConfig,
+    api_config: APIConfig,
     prompt: str,
     *,
+    ui_config: UIConfig | None = None,
+    verbose: bool = False,
     previous_messages: list[dict[str, Any]] | None = None,
     instructions: str | None = None,
     tools: list[dict[str, Any]] | None = None,
@@ -123,20 +126,26 @@ def run_turn(
 
     Thin config-driven wrapper (issue #70): all resolved session config
     (provider, model, endpoint, api_key, token limits, reasoning level,
-    thinking, preserve_thinking, use_mcp, verbose, stream_runner, observer)
-    arrives in ``config`` -- built once per session by ``build_api_config`` --
-    so this entry point performs no config-store / auth-store reads of its
-    own.
+    thinking, preserve_thinking, use_mcp)
+    arrives in ``api_config`` -- built once per session by ``build_api_config`` --
+    and the UI-side stream runner / turn observer arrive separately in
+    ``ui_config`` -- so this entry point performs no config-store /
+    auth-store reads of its own.
 
     The conversation history is owned **client-side**: ``previous_messages``
     is mutated in place (user and assistant turns are appended) so the
     interactive shell's history keeps growing, exactly like Completions mode.
 
     Args:
-        config: The resolved, immutable
+        api_config: The resolved, immutable
             :class:`~janito.openai_client.api_config.APIConfig` for this
             session.
         prompt: The user prompt to send
+        ui_config: The injected, immutable
+            :class:`~janito.ui_config.UIConfig` (per-round stream runner +
+            turn observer) for this session.
+        verbose: Explicit per-call emission gate for the verbose call/response
+            dumps (``False`` = no dumps).
         previous_messages: List of previous message dicts for conversation
             context (mutated in place).  DashScope accepts ``system``-role
             messages directly, so no extraction is needed (unlike the
@@ -159,14 +168,15 @@ def run_turn(
         ``on_turn_complete``; there is no ``usage_out`` out-param (issue #82).
 
     Note:
-        Thinking mode is resolved into ``config.thinking`` at build time: the
-        explicit ``--thinking`` / ``/thinking`` flag wins, otherwise the
+        Thinking mode is resolved into ``api_config.thinking`` at build time:
+        the explicit ``--thinking`` / ``/thinking`` flag wins, otherwise the
         provider's built-in default applies (``True`` for Alibaba/Qwen,
         sent as ``enable_thinking=True``).
     """
     logger.info("Sending prompt to DashScope API (native SDK)")
-    return DashScopeClient(config).run_turn(
+    return DashScopeClient(api_config, ui_config).run_turn(
         prompt,
+        verbose=verbose,
         previous_messages=previous_messages,
         instructions=instructions,
         tools=tools,
@@ -201,9 +211,9 @@ class DashScopeClient(Client):
         # reasoning level is dropped; the token limits and thinking come
         # straight from the resolved APIConfig.
         return (
-            self.config.thinking,
-            self.config.max_output_tokens,
-            self.config.max_input_tokens,
+            self.api_config.thinking,
+            self.api_config.max_output_tokens,
+            self.api_config.max_input_tokens,
             None,
         )
 
@@ -242,7 +252,7 @@ class DashScopeClient(Client):
         from janito.provider_accessors import get_default_tools_from_provider
 
         tools = get_default_tools_from_provider(
-            self.config.provider, model, api_type="DashScope"
+            self.api_config.provider, model, api_type="DashScope"
         )
         # The DashScope native API is stateless and the full history is
         # re-sent on every round.
@@ -275,7 +285,7 @@ class DashScopeClient(Client):
             # picks the right explainer (the exception is always re-raised).
             self.observer.on_error(
                 e,
-                provider=self.config.provider,
+                provider=self.api_config.provider,
                 api_key=api_key,
                 base_url=base_url,
                 model=model,
@@ -301,10 +311,9 @@ class DashScopeClient(Client):
         full_content,
         reasoning_content,
         state,
-        usage_out,
     ):
         # No more tool calls, return the final response.
-        return _finalize_response(full_content, reasoning_content, state, usage_out)
+        return _finalize_response(full_content, reasoning_content, state)
 
 
 __all__ = [

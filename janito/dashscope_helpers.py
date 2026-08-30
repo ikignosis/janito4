@@ -8,7 +8,6 @@ on the ``run_turn`` entry point and the :class:`DashScopeClient` class.
 import logging
 from typing import Any
 
-from janito.openai_client.client_support import TurnUsage
 from janito.provider_accessors import builtin_tools_enable_flags
 from janito.tooling.executor import ToolExecutor
 from janito.tooling.tools_registry import get_session_tool_schemas
@@ -149,14 +148,8 @@ def _finalize_response(
     full_content: str,
     reasoning_content: str | None,
     messages: list[dict[str, Any]],
-    usage_out: TurnUsage,
 ) -> str:
-    """Record the final assistant message and return it.
-
-    ``usage_out`` receives the display metadata the client's end-of-turn
-    report needs (see
-    :func:`janito.openai_client.client_support.display_turn_usage`).
-    """
+    """Record the final assistant message and return it."""
     # No more tool calls, return the final response. Record the final
     # assistant text in the client-side history.
     assistant_message = {"role": "assistant", "content": full_content}
@@ -164,6 +157,4 @@ def _finalize_response(
         assistant_message["reasoning_content"] = reasoning_content
     messages.append(assistant_message)
 
-    usage_out.message_count = len(messages)
-    usage_out.label = "Messages"
     return full_content

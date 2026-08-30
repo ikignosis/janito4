@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from unittest import mock
 
 import pytest
-from conftest import make_config
+from conftest import make_config, make_ui_config
 
 import janito.config_dir as config_dir_mod
 import janito.tooling.used_files as used_files
@@ -994,7 +994,7 @@ def test_make_turn_func_responses_dispatch(monkeypatch):
     captured = {}
 
     class FakeClient:
-        def __init__(self, config):
+        def __init__(self, config, ui_config=None):
             captured["config"] = config
 
         def run_turn(self, prompt, **kwargs):
@@ -1028,7 +1028,7 @@ def test_make_turn_func_responses_dispatch(monkeypatch):
     # previous_messages IS forwarded by the union signature (the Responses
     # backend ignores it -- each _init_conversation_state picks its own).
     assert captured["previous_messages"] == [{"role": "system", "content": "x"}]
-    # No out-param is threaded: the client owns the TurnUsage and delivers
+    # No out-param is threaded: the client owns the TokenStats and delivers
     # the end-of-turn report itself (issue #82).
     assert "usage_out" not in captured
 
@@ -1043,7 +1043,7 @@ def test_make_turn_func_completions_dispatch(monkeypatch):
     captured = {}
 
     class FakeClient:
-        def __init__(self, config):
+        def __init__(self, config, ui_config=None):
             captured["config"] = config
 
         def run_turn(self, prompt, **kwargs):
@@ -1067,7 +1067,7 @@ def test_make_turn_func_completions_dispatch(monkeypatch):
     assert result == "completions answer"
     assert captured["config"].api_type == "Completions"
     assert captured["previous_messages"] == [{"role": "user", "content": "hello"}]
-    # No out-param is threaded: the client owns the TurnUsage and delivers
+    # No out-param is threaded: the client owns the TokenStats and delivers
     # the end-of-turn report itself (issue #82).
     assert "usage_out" not in captured
 
@@ -1088,8 +1088,10 @@ def test_turn_factory_honors_cli_model_for_startup_provider(monkeypatch):
         captured.update(kwargs)
         return fake_config
 
-    def fake_make(config):
+    def fake_make(config, ui_config=None, session_verbose=False):
         captured["config"] = config
+        captured["ui_config"] = ui_config
+        captured["session_verbose"] = session_verbose
         return lambda prompt, **kw: "ok"
 
     monkeypatch.setattr(chat_mod, "build_api_config", fake_build)
@@ -1107,9 +1109,11 @@ def test_turn_factory_honors_cli_model_for_startup_provider(monkeypatch):
     assert captured["cli_provider"] == "openai"
     assert captured["api_type"] == "Responses"  # openai's built-in default
     assert captured["config"] is fake_config
-    # The CLI's TUI stream runner and Rich observer are injected at build time.
-    assert captured["stream_runner"] is chat_mod._run_with_progress_bar
-    assert isinstance(captured["observer"], chat_mod.RichTurnObserver)
+    # The CLI's TUI stream runner and Rich observer are injected via the
+    # UIConfig, alongside the captured session verbose flag.
+    assert captured["ui_config"].stream_runner is chat_mod._run_with_progress_bar
+    assert isinstance(captured["ui_config"].observer, chat_mod.RichTurnObserver)
+    assert captured["session_verbose"] is False
 
 
 def test_turn_factory_resolves_new_provider_model_and_api_type(monkeypatch):
@@ -1123,7 +1127,7 @@ def test_turn_factory_resolves_new_provider_model_and_api_type(monkeypatch):
         captured.update(kwargs)
         return make_config(api_type=kwargs["api_type"])
 
-    def fake_make(config):
+    def fake_make(config, **kwargs):
         return lambda prompt, **kw: "ok"
 
     monkeypatch.setattr(chat_mod, "build_api_config", fake_build)
@@ -1160,7 +1164,7 @@ def test_turn_factory_resolves_configured_model_for_new_provider(monkeypatch, tm
         captured.update(kwargs)
         return make_config(api_type=kwargs["api_type"])
 
-    def fake_make(config):
+    def fake_make(config, **kwargs):
         return lambda prompt, **kw: "ok"
 
     monkeypatch.setattr(chat_mod, "build_api_config", fake_build)
@@ -1191,7 +1195,7 @@ def test_turn_factory_resolves_api_type_per_new_provider(monkeypatch):
         captured["cli_provider"] = kwargs["cli_provider"]
         return make_config(api_type=kwargs["api_type"])
 
-    def fake_make(config):
+    def fake_make(config, **kwargs):
         return lambda prompt, **kw: "ok"
 
     monkeypatch.setattr(chat_mod, "build_api_config", fake_build)
@@ -1691,10 +1695,11 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
     ]
     exc = RequestCancelled("cancelled")
     exc.partial_result = ("", None, [], None, "resp_aborted")
-    # The runner is a UI-side concern injected through the constructor (a
+    # The runner is a UI-side concern injected through the UIConfig (a
     # fake runner that raises the cancelled request).
     client = api.ResponsesClient(
-        make_config(api_type="Responses", stream_runner=mock.Mock(side_effect=exc))
+        make_config(api_type="Responses"),
+        make_ui_config(stream_runner=mock.Mock(side_effect=exc)),
     )
 
     with pytest.raises(RequestCancelled) as excinfo:
@@ -1723,7 +1728,8 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
     exc3 = RequestCancelled("cancelled")
     exc3.partial_result = ("", None, [], None, "resp_aborted")
     client3 = api.ResponsesClient(
-        make_config(api_type="Responses", stream_runner=mock.Mock(side_effect=exc3))
+        make_config(api_type="Responses"),
+        make_ui_config(stream_runner=mock.Mock(side_effect=exc3)),
     )
 
     with pytest.raises(RequestCancelled) as excinfo3:
@@ -1760,7 +1766,8 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
     exc2 = RequestCancelled("cancelled")
     exc2.partial_result = ("", None, [], None, "resp_x")
     client2 = api.ResponsesClient(
-        make_config(api_type="Responses", stream_runner=mock.Mock(side_effect=exc2))
+        make_config(api_type="Responses"),
+        make_ui_config(stream_runner=mock.Mock(side_effect=exc2)),
     )
 
     with pytest.raises(RequestCancelled) as excinfo2:

@@ -108,8 +108,6 @@ if pytest is not None:
         provider,
         model,
         usage,
-        label="Messages",
-        message_count=1,
         max_input_tokens=None,
         max_output_tokens=None,
     ):
@@ -126,9 +124,7 @@ if pytest is not None:
             usage,
             max_input_tokens,
             max_output_tokens,
-            message_count,
             console,
-            label=label,
             provider=provider,
             model=model,
         )
@@ -246,15 +242,6 @@ if pytest is not None:
         # The displayed counters still mirror the final round's request.
         assert "In: 1m" in text
         assert "Out: 1m" in text
-
-    # ---- Label/count in the CLI usage line ---------------------------
-
-    def test_usage_line_omits_label_count():
-        """The summary line no longer shows the {label}: {message_count} part
-        (the conversation turn number lives in the shell's pre-prompt rule)."""
-        text = _display_usage_text(None, None, _usage(1000, 200, 0), message_count=4)
-        assert "Messages: 4" not in text
-        assert "Turn" not in text
 
     # ---- Input-capacity warning (80% of max input tokens) ------------
 

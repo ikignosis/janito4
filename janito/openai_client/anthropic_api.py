@@ -45,6 +45,8 @@ from janito.tooling.executor import ToolExecutor
 # Import tools
 from janito.tooling.tools_registry import get_session_tool_schemas
 
+# Injected, immutable per-session UI configuration (stream runner + observer).
+from ..ui_config import UIConfig
 from .anthropic_stream import _convert_tools_to_anthropic_format, _stream_response
 
 # Resolved, immutable per-session configuration (issue #70): the turn
@@ -54,10 +56,9 @@ from .api_config import APIConfig
 # Shared agent-loop pipeline (see Client.run_turn) implemented by AnthropicClient.
 from .base_client import Client
 
-# Shared client helpers: the turn-report type used by the module's
-# _finalize_response helper, and the error classifier the native-SDK
-# clients use to pick the observer's explainer explicitly.
-from .client_support import TurnUsage, _classify_error
+# Shared client helper: the error classifier the native-SDK clients use to
+# pick the observer's explainer explicitly.
+from .client_support import _classify_error
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -95,9 +96,11 @@ def _create_client(base_url: str | None, api_key: str) -> Any:
 
 
 def run_turn(
-    config: APIConfig,
+    api_config: APIConfig,
     prompt: str,
     *,
+    ui_config: UIConfig | None = None,
+    verbose: bool = False,
     previous_messages: list[dict[str, Any]] | None = None,
     instructions: str | None = None,
     tools: list[dict[str, Any]] | None = None,
@@ -106,20 +109,26 @@ def run_turn(
 
     Thin config-driven wrapper (issue #70): all resolved session config
     (provider, model, endpoint, api_key, token limits, reasoning level,
-    thinking, preserve_thinking, use_mcp, verbose, stream_runner, observer)
-    arrives in ``config`` -- built once per session by ``build_api_config`` --
-    so this entry point performs no config-store / auth-store reads of its
-    own.
+    thinking, preserve_thinking, use_mcp)
+    arrives in ``api_config`` -- built once per session by ``build_api_config`` --
+    and the UI-side stream runner / turn observer arrive separately in
+    ``ui_config`` -- so this entry point performs no config-store /
+    auth-store reads of its own.
 
     The conversation history is owned **client-side**: ``previous_messages``
     is mutated in place (user and assistant turns are appended) so the
     interactive shell's history keeps growing, exactly like Completions mode.
 
     Args:
-        config: The resolved, immutable
+        api_config: The resolved, immutable
             :class:`~janito.openai_client.api_config.APIConfig` for this
             session.
         prompt: The user prompt to send
+        ui_config: The injected, immutable
+            :class:`~janito.ui_config.UIConfig` (per-round stream runner +
+            turn observer) for this session.
+        verbose: Explicit per-call emission gate for the verbose call/response
+            dumps (``False`` = no dumps).
         previous_messages: List of previous message dicts for conversation
             context (mutated in place). A leading ``"system"``-role message is
             extracted and sent as the top-level Anthropic ``system`` parameter.
@@ -141,13 +150,14 @@ def run_turn(
         ``on_turn_complete``; there is no ``usage_out`` out-param (issue #82).
 
     Note:
-        Thinking mode is resolved into ``config.thinking`` at build time. The
-        native Anthropic extended-thinking mode is not wired yet; thinking
+        Thinking mode is resolved into ``api_config.thinking`` at build time.
+        The native Anthropic extended-thinking mode is not wired yet; thinking
         text is still displayed when the model streams it.
     """
     logger.info("Sending prompt to Anthropic API (native SDK)")
-    return AnthropicClient(config).run_turn(
+    return AnthropicClient(api_config, ui_config).run_turn(
         prompt,
+        verbose=verbose,
         previous_messages=previous_messages,
         instructions=instructions,
         tools=tools,
@@ -185,10 +195,10 @@ class AnthropicClient(Client):
         # APIConfig; thinking / reasoning_effort are carried for signature
         # parity but the native extended-thinking mode is not wired yet.
         return (
-            self.config.thinking,
-            self.config.max_output_tokens,
-            self.config.max_input_tokens,
-            self.config.reasoning_effort,
+            self.api_config.thinking,
+            self.api_config.max_output_tokens,
+            self.api_config.max_input_tokens,
+            self.api_config.reasoning_effort,
         )
 
     def _init_conversation_state(
@@ -260,7 +270,7 @@ class AnthropicClient(Client):
             # picks the right explainer (the exception is always re-raised).
             self.observer.on_error(
                 e,
-                provider=self.config.provider,
+                provider=self.api_config.provider,
                 api_key=api_key,
                 base_url=base_url,
                 model=model,
@@ -284,10 +294,9 @@ class AnthropicClient(Client):
         full_content,
         reasoning_content,
         state,
-        usage_out,
     ):
         # No more tool calls, return the final response.
-        return _finalize_response(full_content, state["messages"], usage_out)
+        return _finalize_response(full_content, state["messages"])
 
 
 def _resolve_tools(
@@ -392,20 +401,12 @@ def _handle_tool_blocks(
 def _finalize_response(
     full_content: str,
     messages: list[dict[str, Any]],
-    usage_out: TurnUsage,
 ) -> str:
-    """Record the final assistant message and return it.
-
-    ``usage_out`` receives the display metadata the client's end-of-turn
-    report needs (see
-    :func:`janito.openai_client.client_support.display_turn_usage`).
-    """
+    """Record the final assistant message and return it."""
     # No more tool calls, return the final response. Record the final
     # assistant text in the client-side history.
     messages.append({"role": "assistant", "content": full_content})
 
-    usage_out.message_count = len(messages)
-    usage_out.label = "Messages"
     return full_content
 
 

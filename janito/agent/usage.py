@@ -119,14 +119,19 @@ class TokenStats:
     request of the turn (tool-call rounds included), so a multi-round turn
     carries both the final round and the whole-turn picture.
 
-    The object is built by the web agent loop
-    (``janito.web.backend.agent.loop.stream_prompt``): :meth:`from_usage`
-    seeds it from the first round that reports usage and :meth:`add_round`
-    folds each following round into it.  The cumulative counters are
-    surfaced on the final :class:`~janito.agent.events.UsageEvent` and feed
-    the CLI turn report's ``Cost`` estimate
+    The object is built by both agent loops: :meth:`from_usage` seeds it
+    from the first round that reports usage and :meth:`add_round` folds each
+    following round into it.  The cumulative counters are surfaced on the
+    final :class:`~janito.agent.events.UsageEvent` (web loop) and feed the
+    CLI turn report's ``Cost`` estimate
     (``janito.openai_client.client_support._display_usage``), which bills
     the turn-wide totals so tool-call rounds are included.
+
+    The counters carry no provider/model/max-token metadata: ``Client.run_turn``
+    pairs the populated instance with the resolved
+    :class:`~janito.openai_client.api_config.APIConfig` (provider / model /
+    max tokens) when it hands both to the observer's ``on_turn_complete``,
+    so the report's display metadata always comes from the session config.
     """
 
     total: int | None = None

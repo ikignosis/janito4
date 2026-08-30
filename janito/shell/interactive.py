@@ -360,10 +360,11 @@ class InteractiveShell(_SessionMixin):
         try:
             result = self.turn_func(
                 user_input,
-                # verbose is a session default carried by the APIConfig
-                # (issue #70); thinking is resolved into the config at build
-                # time too -- the /thinking command rebuilds the send
-                # function through the factory so the flip takes effect.
+                # verbose is a session default captured in the turn closure
+                # (an explicit per-call gate on run_turn); thinking is
+                # resolved into the config at build time too -- the /thinking
+                # command rebuilds the send function through the factory so
+                # the flip takes effect.
                 previous_messages=self.messages_history,
                 previous_response_id=self.previous_response_id,
                 previous_items=self.conversation_items,

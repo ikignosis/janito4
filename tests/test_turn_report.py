@@ -3,10 +3,11 @@ Tests for the end-of-turn report.
 
 The CLI no longer prints the token-usage summary inside the per-client
 ``_finalize`` helpers.  Instead ``Client.run_turn`` builds a
-:class:`~janito.openai_client.client_support.TurnUsage` per turn, folds every
-round's usage into it (tool-call rounds included), and delivers it to the
-injected observer's ``on_turn_complete`` when the turn finishes (the CLI's
-``RichTurnObserver`` renders it via
+:class:`~janito.agent.usage.TokenStats` per turn, folds every round's usage
+into it (tool-call rounds included), and delivers it -- together with the
+turn's resolved ``APIConfig``, whose provider / model / max tokens feed the
+report -- to the injected observer's ``on_turn_complete`` when the turn
+finishes (the CLI's ``RichTurnObserver`` renders it via
 :func:`~janito.openai_client.client_support.display_turn_usage` and records
 the overall-use accounting row).  These tests pin that contract.
 """
@@ -27,10 +28,7 @@ import janito.config_dir as config_dir_mod  # noqa: E402
 import janito.tooling.tools_registry as tools_registry  # noqa: E402
 import janito.tooling.used_files as used_files  # noqa: E402
 from janito.agent.usage import TokenStats, normalize_usage  # noqa: E402
-from janito.openai_client.client_support import (  # noqa: E402
-    TurnUsage,
-    display_turn_usage,
-)
+from janito.openai_client.client_support import display_turn_usage  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -61,6 +59,20 @@ def _token_stats(**kw):
     return TokenStats(**defaults)
 
 
+def _config(**kw):
+    """Build the resolved APIConfig the turn report renders with."""
+    from conftest import make_config
+
+    defaults = dict(
+        provider="deepseek",
+        model="deepseek-v4-flash",
+        max_input_tokens=65536,
+        max_output_tokens=8192,
+    )
+    defaults.update(kw)
+    return make_config(**defaults)
+
+
 class TestNormalizeUsageWithTokenStats:
     def test_passes_token_stats_through(self):
         stats = _token_stats()
@@ -87,23 +99,24 @@ class TestNormalizeUsageWithTokenStats:
 
 
 class TestDisplayTurnUsage:
-    def _render(self, usage_out):
+    def _render(self, usage_out, api_config=None):
         buf = StringIO()
         console = Console(file=buf, force_terminal=False, width=120)
-        display_turn_usage(usage_out, console=console)
+        display_turn_usage(usage_out, api_config or _config(), console=console)
         return buf.getvalue()
 
-    def test_renders_usage_line_from_populated_turn_usage(self):
-        u = TurnUsage(
-            stats=_token_stats(),
-            provider="deepseek",
-            model="deepseek-v4-flash",
-            max_input_tokens=65536,
-            max_output_tokens=8192,
-            message_count=3,
-            label="Messages",
+    def test_renders_usage_line_from_populated_turn_stats(self):
+        # The provider/model/max-token metadata comes from the APIConfig.
+        u = _token_stats()
+        text = self._render(
+            u,
+            _config(
+                provider="deepseek",
+                model="deepseek-v4-flash",
+                max_input_tokens=65536,
+                max_output_tokens=8192,
+            ),
         )
-        text = self._render(u)
         assert "Total: 100" in text
         assert "In: 60/65.5k" in text
         assert "Out: 40/8.2k" in text
@@ -112,24 +125,11 @@ class TestDisplayTurnUsage:
         # (it lives in the shell's pre-prompt rule instead).
         assert "Turn" not in text
 
-    def test_omits_label_count(self):
-        u = TurnUsage(
-            stats=_token_stats(),
-            message_count=4,
-            label="Responses",
-        )
-        text = self._render(u)
-        assert "Responses:" not in text
-        assert "Messages:" not in text
-
     def test_cached_omitted_when_stats_report_no_cached_tokens(self):
         # The cached part is driven by the normalized stats: APIs that do not
         # report cached-token details (native Anthropic / DashScope / Gemini
         # SDKs) carry ``last_cached``/``turn_cached`` of ``None``.
-        u = TurnUsage(
-            stats=_token_stats(last_cached=None, turn_cached=None),
-            message_count=1,
-        )
+        u = _token_stats(last_cached=None, turn_cached=None)
         text = self._render(u)
         assert "Cached:" not in text
 
@@ -141,7 +141,7 @@ class TestDisplayTurnUsage:
         used_files.record_used_file("ReadFile", {"filepath": "/a.py"})
         set_config_value("used-files", True)
         try:
-            u = TurnUsage(stats=_token_stats(), message_count=1)
+            u = _token_stats()
             text = self._render(u)
             assert text.index("Used files") < text.index("===")
             assert "1 read : /a.py" in text
@@ -158,7 +158,7 @@ class TestDisplayTurnUsage:
         used_files.record_used_file("ReadFile", {"filepath": "/a.py"})
         unset_config_value("used-files")
         try:
-            u = TurnUsage(stats=_token_stats(), message_count=1)
+            u = _token_stats()
             text = self._render(u)
             assert "Used files" not in text
             assert "1 read : /a.py" not in text
@@ -176,7 +176,7 @@ class TestDisplayTurnUsage:
         used_files.record_used_file("ReadFile", {"filepath": "/a.py"})
         set_config_value("used-files", True)
         try:
-            u = TurnUsage(stats=_token_stats(), message_count=1)
+            u = _token_stats()
             text = self._render(u)
             assert "Used files" in text
             assert "1 read : /a.py" in text
@@ -186,17 +186,17 @@ class TestDisplayTurnUsage:
 
     def test_no_usage_prints_nothing(self):
         used_files.reset_used_files()
-        assert self._render(TurnUsage()) == ""
+        assert self._render(None) == ""
 
 
 class TestRunTurnDeliversTurnReport:
     """``Client.run_turn`` delivers the end-of-turn report to the injected
     observer's ``on_turn_complete`` when the turn finishes (the CLI wrapper
-    that used to do it is gone, and the client owns the TurnUsage -- there
+    that used to do it is gone, and the client owns the TokenStats -- there
     is no caller-supplied out-param, issue #82)."""
 
     def _client(self, monkeypatch, observer):
-        from conftest import make_config
+        from conftest import make_config, make_ui_config
 
         from janito.openai_client.completions_api import CompletionsClient
 
@@ -219,12 +219,8 @@ class TestRunTurnDeliversTurnReport:
             lambda use_mcp: (None, []),
         )
         return CompletionsClient(
-            make_config(
-                model="gpt-4",
-                use_mcp=False,
-                stream_runner=fake_run,
-                observer=observer,
-            )
+            make_config(model="gpt-4", use_mcp=False),
+            make_ui_config(stream_runner=fake_run, observer=observer),
         )
 
     def test_run_turn_calls_on_turn_complete_with_populated_usage(self, monkeypatch):
@@ -237,27 +233,25 @@ class TestRunTurnDeliversTurnReport:
             def on_message(self, content):
                 pass
 
-            def on_turn_complete(self, usage_out):
-                recorded.append(usage_out)
+            def on_turn_complete(self, usage_out, api_config):
+                recorded.append((usage_out, api_config))
 
         client = self._client(monkeypatch, Obs())
         result = client.run_turn("hi", tools=[])
         assert result == "final answer"
         # on_turn_complete was invoked exactly once, with the client-built
-        # TurnUsage: usage folded from the stream round, provider/model and
-        # the display metadata set by the finalizer.
+        # TokenStats (usage folded from the stream round) and the client's
+        # resolved APIConfig (provider/model come from the config).
         assert len(recorded) == 1
-        u = recorded[0]
-        assert isinstance(u, TurnUsage)
-        assert u.stats is not None
-        assert u.stats.turn_input == 60
-        assert u.stats.turn_output == 40
-        assert u.provider == "openai"
-        assert u.model == "gpt-4"
-        assert u.message_count == 2  # user + assistant
+        u, api_config = recorded[0]
+        assert isinstance(u, TokenStats)
+        assert u.turn_input == 60
+        assert u.turn_output == 40
+        assert api_config.provider == "openai"
+        assert api_config.model == "gpt-4"
 
     def test_run_turn_always_delivers_turn_report(self, monkeypatch):
-        """The report is always delivered -- the client owns the TurnUsage
+        """The report is always delivered -- the client owns the TokenStats
         and does not opt in through a caller-supplied out-param (issue #82)."""
         called = []
 
@@ -268,15 +262,17 @@ class TestRunTurnDeliversTurnReport:
             def on_message(self, content):
                 pass
 
-            def on_turn_complete(self, usage_out):
-                called.append(usage_out)
+            def on_turn_complete(self, usage_out, api_config):
+                called.append((usage_out, api_config))
 
         client = self._client(monkeypatch, Obs())
         client.run_turn("hi", tools=[])
         assert len(called) == 1
-        assert isinstance(called[0], TurnUsage)
+        u, api_config = called[0]
+        assert isinstance(u, TokenStats)
+        assert api_config.model == "gpt-4"
         # The fake stream reported usage, so the report is populated.
-        assert called[0].stats is not None
+        assert u.total is not None
 
     def test_rich_observer_on_turn_complete_renders_report(self):
         """The CLI's RichTurnObserver renders the report through
@@ -287,16 +283,16 @@ class TestRunTurnDeliversTurnReport:
         observer = RichTurnObserver(
             console=Console(file=buf, width=120, force_terminal=False)
         )
-        u = TurnUsage(
-            stats=_token_stats(),
-            provider="deepseek",
-            model="deepseek-v4-flash",
-            max_input_tokens=65536,
-            max_output_tokens=8192,
-            message_count=3,
-            label="Messages",
+        u = _token_stats()
+        observer.on_turn_complete(
+            u,
+            _config(
+                provider="deepseek",
+                model="deepseek-v4-flash",
+                max_input_tokens=65536,
+                max_output_tokens=8192,
+            ),
         )
-        observer.on_turn_complete(u)
         text = buf.getvalue()
         assert "Total: 100" in text
         assert "In: 60/65.5k" in text
@@ -312,12 +308,10 @@ class TestRunTurnDeliversTurnReport:
         observer = RichTurnObserver(
             console=Console(file=buf, width=120, force_terminal=False)
         )
-        u = TurnUsage(
-            stats=_token_stats(),
-            provider="deepseek",
-            model="deepseek-v4-flash",
+        u = _token_stats()
+        observer.on_turn_complete(
+            u, _config(provider="deepseek", model="deepseek-v4-flash")
         )
-        observer.on_turn_complete(u)
         records = accounting.get_records()
         assert len(records) == 1
         row = records[0]
@@ -337,6 +331,6 @@ class TestRunTurnDeliversTurnReport:
         observer = RichTurnObserver(
             console=Console(file=buf, width=120, force_terminal=False)
         )
-        observer.on_turn_complete(TurnUsage())
+        observer.on_turn_complete(None, _config())
         assert accounting.get_records() == []
         assert buf.getvalue() == ""
