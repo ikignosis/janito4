@@ -231,7 +231,7 @@ janito/web/backend/
      images.py   GET /api/images/{filename} (serve CreateImage PNGs)
    │
    ▼  reuses (unchanged)
-openai_client • tooling/* • tools/* • mcp_manager • general_config • …
+llm_clients • tooling/* • tools/* • mcp_manager • general_config • …
 
 janito/web/backend/templates/   (Jinja2 — composed server-side by app.py)
    base.html  •  partials/{sidebar,topbar,chat,chat_banner,chat_messages,

@@ -2,7 +2,7 @@
 Stream consumption for the native Gemini API (``generate_content_stream``).
 
 These helpers are shared by the native Gemini client modules (the CLI
-``janito.gemini_api`` and the web agent's shared adapter
+``janito.llm_clients.gemini.gemini_api`` and the web agent's shared adapter
 :mod:`janito.agent.gemini`).  They assemble the streamed ``GenerateContentResponse``
 chunks -- whose ``candidates[0].content.parts`` carry thought text, final
 text and ``function_call`` parts -- into a single response.
@@ -29,7 +29,7 @@ import json
 import logging
 from typing import Any
 
-from .client_support import _extract_raw_attrs
+from ..client_support import _extract_raw_attrs
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -188,7 +188,7 @@ class GeminiStreamConsumer:
 
     def usage_info(self):
         """Map the last ``usage_metadata`` onto the shared usage shape."""
-        from janito.gemini_helpers import _build_usage_info
+        from .gemini_helpers import _build_usage_info
 
         return _build_usage_info(self.usage)
 
@@ -271,7 +271,7 @@ def _stream_response(client, call_kwargs, tools_schemas, cancel_event=None):
     """
     if tools_schemas:
         logger.debug(f"Calling Gemini API (streaming) with {len(tools_schemas)} tools")
-        from janito.gemini_helpers import _convert_tools_to_gemini_format
+        from .gemini_helpers import _convert_tools_to_gemini_format
 
         function_tools = _convert_tools_to_gemini_format(tools_schemas)
         if function_tools:

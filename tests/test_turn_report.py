@@ -8,7 +8,7 @@ into it (tool-call rounds included), and delivers it -- together with the
 turn's resolved ``APIConfig``, whose provider / model / max tokens feed the
 report -- to the injected observer's ``on_turn_complete`` when the turn
 finishes (the CLI's ``RichTurnObserver`` renders it via
-:func:`~janito.openai_client.client_support.display_turn_usage` and records
+:func:`~janito.llm_clients.client_support.display_turn_usage` and records
 the overall-use accounting row).  These tests pin that contract.
 """
 
@@ -28,7 +28,7 @@ import janito.config_dir as config_dir_mod  # noqa: E402
 import janito.tooling.tools_registry as tools_registry  # noqa: E402
 import janito.tooling.used_files as used_files  # noqa: E402
 from janito.agent.usage import TokenStats, normalize_usage  # noqa: E402
-from janito.openai_client.client_support import display_turn_usage  # noqa: E402
+from janito.llm_clients.client_support import display_turn_usage  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -198,7 +198,7 @@ class TestRunTurnDeliversTurnReport:
     def _client(self, monkeypatch, observer):
         from conftest import make_config, make_ui_config
 
-        from janito.openai_client.completions_api import CompletionsClient
+        from janito.llm_clients.openai.completions_api import CompletionsClient
 
         def fake_run(func, client, call_kwargs, tools_schemas):
             return (
@@ -215,7 +215,7 @@ class TestRunTurnDeliversTurnReport:
             )
 
         monkeypatch.setattr(
-            "janito.openai_client.client_support._load_mcp",
+            "janito.llm_clients.client_support._load_mcp",
             lambda use_mcp: (None, []),
         )
         return CompletionsClient(
@@ -277,7 +277,7 @@ class TestRunTurnDeliversTurnReport:
     def test_rich_observer_on_turn_complete_renders_report(self):
         """The CLI's RichTurnObserver renders the report through
         display_turn_usage (byte-for-byte the historical output)."""
-        from janito.openai_client.client_support import RichTurnObserver
+        from janito.llm_clients.client_support import RichTurnObserver
 
         buf = StringIO()
         observer = RichTurnObserver(
@@ -302,7 +302,7 @@ class TestRunTurnDeliversTurnReport:
         accounting row (the end-of-turn bookkeeping lives in the observer,
         mirroring the web loop's own accounting)."""
         import janito.tooling.accounting as accounting
-        from janito.openai_client.client_support import RichTurnObserver
+        from janito.llm_clients.client_support import RichTurnObserver
 
         buf = StringIO()
         observer = RichTurnObserver(
@@ -325,7 +325,7 @@ class TestRunTurnDeliversTurnReport:
     def test_rich_observer_on_turn_complete_without_usage_records_nothing(self):
         """No usage reported -> no accounting row and no rendering."""
         import janito.tooling.accounting as accounting
-        from janito.openai_client.client_support import RichTurnObserver
+        from janito.llm_clients.client_support import RichTurnObserver
 
         buf = StringIO()
         observer = RichTurnObserver(

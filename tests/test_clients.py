@@ -3,7 +3,7 @@ Tests for the shared Client base class and its four concrete subclasses.
 
 The module-level ``run_turn`` functions of ``completions_api``,
 ``conversations_api``, ``anthropic_api`` and ``dashscope_api`` now delegate to
-``*Client`` subclasses of ``janito.openai_client.base_client.Client``.  These
+``*Client`` subclasses of ``janito.llm_clients.base_client.Client``.  These
 tests pin the new class contract:
 
 - The base class raises ``NotImplementedError`` for unimplemented hooks.
@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import pytest
 from conftest import make_config, make_ui_config
 
-from janito.openai_client.base_client import Client
+from janito.llm_clients.base_client import Client
 
 if pytest is not None:
     # ---- base class contract -------------------------------------------
@@ -71,10 +71,10 @@ if pytest is not None:
     # ---- concrete subclasses: identity ----------------------------------
 
     def test_subclass_identities():
-        from janito.dashscope_api import DashScopeClient
-        from janito.openai_client.anthropic_api import AnthropicClient
-        from janito.openai_client.completions_api import CompletionsClient
-        from janito.openai_client.conversations_api import ResponsesClient
+        from janito.llm_clients.anthropic.anthropic_api import AnthropicClient
+        from janito.llm_clients.dashscope.dashscope_api import DashScopeClient
+        from janito.llm_clients.openai.completions_api import CompletionsClient
+        from janito.llm_clients.openai.conversations_api import ResponsesClient
 
         assert issubclass(CompletionsClient, Client)
         assert issubclass(ResponsesClient, Client)
@@ -105,7 +105,7 @@ if pytest is not None:
 
     def test_completions_state_preserves_empty_list():
         """An empty caller-owned history must be kept (not replaced)."""
-        from janito.openai_client.completions_api import CompletionsClient
+        from janito.llm_clients.openai.completions_api import CompletionsClient
 
         c = CompletionsClient(make_config())
         history: list = []
@@ -117,7 +117,7 @@ if pytest is not None:
         assert state == [{"role": "user", "content": "hi"}]
 
     def test_completions_state_none_starts_fresh():
-        from janito.openai_client.completions_api import CompletionsClient
+        from janito.llm_clients.openai.completions_api import CompletionsClient
 
         c = CompletionsClient(make_config())
         state = c._init_conversation_state(
@@ -128,7 +128,7 @@ if pytest is not None:
     def test_anthropic_state_keeps_system_parameter():
         """The top-level system parameter is resolved from instructions and
         the in-place history keeps the system-role message."""
-        from janito.openai_client.anthropic_api import AnthropicClient
+        from janito.llm_clients.anthropic.anthropic_api import AnthropicClient
 
         c = AnthropicClient(make_config(api_type="Anthropic"))
         history = [{"role": "system", "content": "Be helpful"}]
@@ -147,7 +147,7 @@ if pytest is not None:
         assert state["system"] == "Be helpful"
 
     def test_responses_state_dict_shape():
-        from janito.openai_client.conversations_api import ResponsesClient
+        from janito.llm_clients.openai.conversations_api import ResponsesClient
 
         c = ResponsesClient(make_config(api_type="Responses"))
         state = c._init_conversation_state(
@@ -166,7 +166,7 @@ if pytest is not None:
         assert state["message_count"] == 1
 
     def test_dashscope_state_prepends_instructions():
-        from janito.dashscope_api import DashScopeClient
+        from janito.llm_clients.dashscope.dashscope_api import DashScopeClient
 
         c = DashScopeClient(make_config(api_type="DashScope"))
         state = c._init_conversation_state(
@@ -185,7 +185,7 @@ if pytest is not None:
 
     def test_anthropic_model_settings_returns_4_tuple():
         """The hook passes the config's token limits and thinking through."""
-        from janito.openai_client import anthropic_api
+        from janito.llm_clients.anthropic import anthropic_api
 
         config = make_config(
             api_type="Anthropic",
@@ -208,7 +208,7 @@ if pytest is not None:
     def test_anthropic_model_settings_config_override_wins():
         """The resolved config value is passed through unchanged -- no
         config-store read in the hook."""
-        from janito.openai_client import anthropic_api
+        from janito.llm_clients.anthropic import anthropic_api
 
         config = make_config(
             api_type="Anthropic",
@@ -221,7 +221,7 @@ if pytest is not None:
         assert max_in == 4096
 
     def test_dashscope_model_settings_returns_4_tuple():
-        import janito.dashscope_api as dsa
+        import janito.llm_clients.dashscope.dashscope_api as dsa
 
         config = make_config(
             api_type="DashScope",
@@ -248,7 +248,7 @@ if pytest is not None:
 
         from rich.console import Console
 
-        from janito.openai_client.client_support import _print_verbose_api_call
+        from janito.llm_clients.client_support import _print_verbose_api_call
 
         out = StringIO()
         console = Console(file=out, width=120, force_terminal=True)
@@ -289,7 +289,7 @@ if pytest is not None:
 
         from rich.console import Console
 
-        from janito.openai_client.client_support import _print_verbose_api_call
+        from janito.llm_clients.client_support import _print_verbose_api_call
 
         out = StringIO()
         console = Console(file=out, width=120, force_terminal=True)
@@ -313,7 +313,7 @@ if pytest is not None:
 
         from rich.console import Console
 
-        from janito.openai_client.client_support import _print_verbose_api_response
+        from janito.llm_clients.client_support import _print_verbose_api_response
 
         out = StringIO()
         console = Console(file=out, width=120, force_terminal=True)
@@ -357,7 +357,7 @@ if pytest is not None:
     def test_verbose_wiring_in_send(monkeypatch):
         """verbose=True routes the API call params + response summary through
         the injected TurnObserver; verbose=False emits neither verbose event."""
-        import janito.openai_client.completions_api as ca
+        import janito.llm_clients.openai.completions_api as ca
 
         class FakeObserver:
             def __init__(self):
@@ -385,7 +385,7 @@ if pytest is not None:
             return "hi", None, {}, None, {"id": "chatcmpl-1"}
 
         monkeypatch.setattr(
-            "janito.openai_client.client_support._load_mcp",
+            "janito.llm_clients.client_support._load_mcp",
             lambda use_mcp: (None, []),
         )
 
@@ -408,7 +408,7 @@ if pytest is not None:
     def test_verbose_responses_response_id_from_state(monkeypatch):
         """The Responses client's state dict carries the response id into the
         verbose response summary (server-side conversations chain by id)."""
-        import janito.openai_client.conversations_api as ca
+        import janito.llm_clients.openai.conversations_api as ca
 
         captured = {}
 
@@ -442,7 +442,7 @@ if pytest is not None:
             )
 
         monkeypatch.setattr(
-            "janito.openai_client.client_support._load_mcp",
+            "janito.llm_clients.client_support._load_mcp",
             lambda use_mcp: (None, []),
         )
         monkeypatch.setattr(
@@ -476,7 +476,7 @@ if pytest is not None:
     # ---- error classification (native-SDK clients) ----------------------
 
     def test_classify_error_recognizes_not_found_payloads():
-        from janito.openai_client.client_support import _classify_error
+        from janito.llm_clients.client_support import _classify_error
 
         assert _classify_error(Exception("Model not exist: `gpt-4`")) == "not_found"
         assert _classify_error(Exception("model not found")) == "not_found"
@@ -485,7 +485,7 @@ if pytest is not None:
         )
 
     def test_classify_error_recognizes_auth_payloads():
-        from janito.openai_client.client_support import _classify_error
+        from janito.llm_clients.client_support import _classify_error
 
         # 401 status code (Anthropic / DashScope style).
         e = Exception("401 invalid api key")
@@ -503,7 +503,7 @@ if pytest is not None:
         assert _classify_error(e) == "auth"
 
     def test_classify_error_unknown_failure():
-        from janito.openai_client.client_support import _classify_error
+        from janito.llm_clients.client_support import _classify_error
 
         assert _classify_error(Exception("502 upstream timeout")) == "unknown"
 

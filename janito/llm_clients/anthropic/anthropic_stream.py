@@ -1,7 +1,7 @@
 """
 Stream consumption for the native Anthropic Messages API.
 
-These helpers are used by :mod:`janito.openai_client.anthropic_api`, which
+These helpers are used by :mod:`janito.llm_clients.anthropic.anthropic_api`, which
 talks to ``client.messages.create`` with streaming enabled.  The Messages API
 streams typed events; blocks (text, thinking, tool_use) arrive as
 ``content_block_start`` / ``content_block_delta`` / ``content_block_stop``
@@ -20,7 +20,7 @@ import logging
 from types import SimpleNamespace
 from typing import Any
 
-from .client_support import _extract_raw_attrs
+from ..client_support import _extract_raw_attrs
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)

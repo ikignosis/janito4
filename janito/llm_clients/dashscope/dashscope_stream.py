@@ -1,7 +1,7 @@
 """
 Stream consumption for the native DashScope generation API.
 
-These helpers are used by :mod:`janito.dashscope_api`, which talks to the
+These helpers are used by :mod:`janito.llm_clients.dashscope.dashscope_api`, which talks to the
 native DashScope SDK (``Generation.call`` / ``MultiModalConversation.call``)
 with streaming enabled.  They handle both the text-generation and
 multimodal-generation endpoints and accumulate tool-call arguments split
@@ -19,7 +19,7 @@ import re
 from types import SimpleNamespace
 from typing import Any
 
-from .client_support import _extract_raw_attrs
+from ..client_support import _extract_raw_attrs
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)

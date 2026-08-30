@@ -27,7 +27,7 @@ import janito.config_dir as config_dir_mod
 from janito.agent.observer import NullObserver
 from janito.auth_config import save_auth_config
 from janito.config_store import set_config_value
-from janito.openai_client.api_config import APIConfig, build_api_config
+from janito.llm_clients.api_config import APIConfig, build_api_config
 from janito.ui_config import UIConfig
 
 

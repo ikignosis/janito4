@@ -1,7 +1,7 @@
 """
 Shared module-level helpers for the Responses API client.
 
-Extracted from :mod:`janito.openai_client.conversations_api` so the client
+Extracted from :mod:`janito.llm_clients.openai.conversations_api` so the client
 module stays focused on the ``run_turn`` entry point and the
 :class:`ResponsesClient` class.
 """

@@ -231,7 +231,7 @@ def requires_explicit_model(provider: str) -> bool:
     required to supply the model explicitly, either per call (``--model``) or
     persistently (``providers.<provider>.model`` in config.json); when it
     cannot be resolved, callers (e.g.
-    :func:`janito.openai_client.completions_api.resolve_runtime_config`) must
+    :func:`janito.llm_clients.openai.completions_api.resolve_runtime_config`) must
     inform the user instead of falling back to the placeholder.
 
     Args:

@@ -136,7 +136,7 @@ if pytest is not None:
 
     def test_mcp_not_loaded_when_no_tools(monkeypatch):
         """--no-tools also suppresses MCP tool loading in the shared helper."""
-        from janito.openai_client import client_support
+        from janito.llm_clients import client_support
 
         monkeypatch.setattr(tools_registry, "_tools_loading_enabled", False)
         manager, tools = client_support._load_mcp(use_mcp=True)

@@ -33,7 +33,9 @@ logger = logging.getLogger(__name__)
 
 def _convert_tools(tools_schemas: list[dict]) -> list[dict]:
     """Convert Chat Completions tool schemas to the Responses API format."""
-    from janito.openai_client.responses_stream import _convert_tools_to_responses_format
+    from janito.llm_clients.openai.responses_stream import (
+        _convert_tools_to_responses_format,
+    )
 
     return _convert_tools_to_responses_format(tools_schemas)
 
@@ -153,7 +155,7 @@ def build_call_kwargs(
 ) -> dict:
     """Build the ``client.responses.create`` kwargs for one turn.
 
-    Mirrors ``janito.openai_client.responses_state._build_call_kwargs``
+    Mirrors ``janito.llm_clients.openai.responses_state._build_call_kwargs``
     (same max_output_tokens / reasoning / preserve_thinking / thinking
     handling) but always drives the stateless input-items model, so no
     ``previous_response_id`` / ``instructions`` are ever needed: the full

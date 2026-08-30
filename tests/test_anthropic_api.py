@@ -1,5 +1,5 @@
 """
-Tests for the native Anthropic SDK client (``janito.openai_client.anthropic_api``).
+Tests for the native Anthropic SDK client (``janito.llm_clients.anthropic.anthropic_api``).
 
 The stream-assembly logic is tested with fake SDK event objects
 (``SimpleNamespace``) and the package guard is pinned down: ``run_turn`` /
@@ -18,8 +18,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
 
-from janito.openai_client import anthropic_api
-from janito.openai_client.anthropic_stream import _consume_stream
+from janito.llm_clients.anthropic import anthropic_api
+from janito.llm_clients.anthropic.anthropic_stream import _consume_stream
 
 try:
     import anthropic  # noqa: F401

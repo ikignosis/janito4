@@ -222,7 +222,7 @@ if pytest is not None:
         """
         from conftest import make_config
 
-        import janito.openai_client.completions_api as client_mod
+        import janito.llm_clients.openai.completions_api as client_mod
 
         _register(monkeypatch, "ReadFile", "r")
         used_files.record_used_file("ReadFile", {"filepath": "/prev.py"})

@@ -17,7 +17,7 @@ module never requires it.
 the OpenAI chat message shape natively (``system``/``user``/``assistant``/
 ``tool`` with ``tool_calls``), so the session history is sent as-is; the
 multimodal endpoint's content-list conversion is applied per round by the
-stream opener (mirroring ``janito.openai_client.dashscope_stream``).
+stream opener (mirroring ``janito.llm_clients.dashscope.dashscope_stream``).
 """
 
 import logging
@@ -41,7 +41,7 @@ def build_call_kwargs(
 ) -> dict:
     """Build the DashScope generation kwargs for one turn.
 
-    Mirrors ``janito.dashscope_api._build_call_kwargs`` (``result_format``,
+    Mirrors ``janito.llm_clients.dashscope.dashscope_api._build_call_kwargs`` (``result_format``,
     streaming, incremental output, ``enable_thinking``).  The OpenAI-format
     ``messages`` history is sent as-is -- the native API accepts that shape.
     ``preserve_thinking`` / ``reasoning_effort`` are accepted for signature
@@ -180,7 +180,9 @@ class DashScopeTurnAccumulator:
             # The model was sent to the wrong generation endpoint
             # (multimodal vs text): signal the stream opener to retry once on
             # the other endpoint.
-            from janito.openai_client.dashscope_stream import _ModelEndpointMismatch
+            from janito.llm_clients.dashscope.dashscope_stream import (
+                _ModelEndpointMismatch,
+            )
 
             raise _ModelEndpointMismatch(
                 f"DashScope API error (code={code}): {message}{detail}"

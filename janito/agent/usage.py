@@ -8,7 +8,7 @@ the Responses API reports ``input_tokens``/``output_tokens`` (with
 a ``SimpleNamespace`` with ``input_tokens``/``output_tokens`` and no
 cached-token details.  :func:`normalize_usage` maps every shape onto one
 dict; the CLI formats it as a Rich summary line
-(``janito.openai_client.client_support._display_usage``) and the web loop
+(``janito.llm_clients.client_support._display_usage``) and the web loop
 serializes it as a ``UsageEvent``.
 """
 
@@ -124,12 +124,12 @@ class TokenStats:
     following round into it.  The cumulative counters are surfaced on the
     final :class:`~janito.agent.events.UsageEvent` (web loop) and feed the
     CLI turn report's ``Cost`` estimate
-    (``janito.openai_client.client_support._display_usage``), which bills
+    (``janito.llm_clients.client_support._display_usage``), which bills
     the turn-wide totals so tool-call rounds are included.
 
     The counters carry no provider/model/max-token metadata: ``Client.run_turn``
     pairs the populated instance with the resolved
-    :class:`~janito.openai_client.api_config.APIConfig` (provider / model /
+    :class:`~janito.llm_clients.api_config.APIConfig` (provider / model /
     max tokens) when it hands both to the observer's ``on_turn_complete``,
     so the report's display metadata always comes from the session config.
     """

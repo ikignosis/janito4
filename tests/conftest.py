@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from janito.agent.observer import NullObserver
-from janito.openai_client.api_config import APIConfig
+from janito.llm_clients.api_config import APIConfig
 from janito.ui_config import UIConfig
 
 
@@ -27,7 +27,7 @@ def make_config(
     directly (issue #70).
 
     ``run_turn`` / ``Client`` now take a resolved, immutable
-    :class:`~janito.openai_client.api_config.APIConfig` instead of resolving
+    :class:`~janito.llm_clients.api_config.APIConfig` instead of resolving
     the config/auth stores at call time, so tests that previously passed
     ``cli_model``/``cli_provider``/``use_mcp``/``stream_runner``/``observer``
     to the client constructor build a config with this helper instead.  The

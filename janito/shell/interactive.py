@@ -14,7 +14,7 @@ from prompt_toolkit.formatted_text import HTML
 from rich.console import Console
 from rich.rule import Rule
 
-from ..openai_client import RequestCancelled
+from ..llm_clients import RequestCancelled
 from .session import _SessionMixin
 
 _rich_console = Console(markup=False)

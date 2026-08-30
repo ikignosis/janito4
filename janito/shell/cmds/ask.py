@@ -5,7 +5,7 @@ Each invocation of /ask creates its own isolated chat history initialized with
 a system prompt, so it does not pollute the main conversation history.
 """
 
-from ...openai_client import RequestCancelled
+from ...llm_clients import RequestCancelled
 from .base import CmdHandler
 from .registry import register_command
 

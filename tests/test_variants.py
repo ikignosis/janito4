@@ -337,7 +337,7 @@ def test_unset_last_scoped_key_keeps_variant_registered(monkeypatch, tmp_path):
 
 
 def test_resolve_runtime_config_variant_overrides(monkeypatch, tmp_path):
-    from janito.openai_client.completions_api import resolve_runtime_config
+    from janito.llm_clients.openai.completions_api import resolve_runtime_config
 
     _use_temp_config(monkeypatch, tmp_path)
 
@@ -355,7 +355,7 @@ def test_resolve_runtime_config_variant_overrides(monkeypatch, tmp_path):
 
 
 def test_resolve_runtime_config_variant_base_fallback(monkeypatch, tmp_path):
-    from janito.openai_client.completions_api import resolve_runtime_config
+    from janito.llm_clients.openai.completions_api import resolve_runtime_config
 
     _use_temp_config(monkeypatch, tmp_path)
 
@@ -370,7 +370,7 @@ def test_resolve_runtime_config_variant_base_fallback(monkeypatch, tmp_path):
 
 
 def test_resolve_runtime_config_variant_no_key_error(monkeypatch, tmp_path):
-    from janito.openai_client.completions_api import resolve_runtime_config
+    from janito.llm_clients.openai.completions_api import resolve_runtime_config
 
     _use_temp_config(monkeypatch, tmp_path)
 

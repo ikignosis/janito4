@@ -31,7 +31,9 @@ logger = logging.getLogger(__name__)
 
 def _convert_tools(tools_schemas: list[dict]) -> list[dict]:
     """Convert Chat Completions tool schemas to the Anthropic tools format."""
-    from janito.openai_client.anthropic_stream import _convert_tools_to_anthropic_format
+    from janito.llm_clients.anthropic.anthropic_stream import (
+        _convert_tools_to_anthropic_format,
+    )
 
     return _convert_tools_to_anthropic_format(tools_schemas)
 

@@ -5,7 +5,7 @@ Used by both agent loops:
 - the web ``stream_prompt()`` loop imports ``CompletionsAccumulator`` and
   ``build_call_kwargs`` directly from this module;
 - the CLI loop subclasses ``CompletionsAccumulator`` in
-  ``janito.openai_client.completions_stream`` (``CompletionsStreamConsumer``)
+  ``janito.llm_clients.openai.completions_stream`` (``CompletionsStreamConsumer``)
   to add its synchronous Enter-to-cancel stream driver.
 
 The per-chunk folding is identical in both; only the stream *driver* differs
@@ -44,7 +44,7 @@ def build_call_kwargs(
       - ``reasoning_effort`` -> ``reasoning_effort`` (e.g. low/medium/xhigh)
 
     Note: the CLI loop keeps its own ``_build_call_kwargs`` (in
-    ``janito.openai_client.completions_api``) because it threads the
+    ``janito.llm_clients.openai.completions_api``) because it threads the
     ``messages`` list and a raw ``thinking`` flag through the shared
     ``Client`` template method instead of a ``WebServerConfig``.
     """

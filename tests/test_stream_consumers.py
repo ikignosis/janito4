@@ -1,5 +1,5 @@
 """
-Tests for the StreamConsumer classes (janito.openai_client.*_stream).
+Tests for the StreamConsumer classes (janito.llm_clients.*_stream).
 
 The four stream modules implement their assembly logic in consumer
 classes with instance-attribute state:
@@ -48,7 +48,7 @@ if pytest is not None:
 
     def test_responses_consumer_captures_raw_attrs():
         """The Response object's scalar top-level attributes are kept raw."""
-        from janito.openai_client.responses_stream import ResponsesStreamConsumer
+        from janito.llm_clients.openai.responses_stream import ResponsesStreamConsumer
 
         c = ResponsesStreamConsumer()
         c.handle_event(
@@ -80,7 +80,7 @@ if pytest is not None:
         assert "usage" not in c.raw_attrs
 
     def test_responses_consumer_consume_cancel_short_circuits():
-        from janito.openai_client.responses_stream import ResponsesStreamConsumer
+        from janito.llm_clients.openai.responses_stream import ResponsesStreamConsumer
 
         cancel = threading.Event()
         cancel.set()
@@ -102,7 +102,9 @@ if pytest is not None:
     # ---- CompletionsStreamConsumer ------------------------------------
 
     def test_completions_consumer_assembles_chunks():
-        from janito.openai_client.completions_stream import CompletionsStreamConsumer
+        from janito.llm_clients.openai.completions_stream import (
+            CompletionsStreamConsumer,
+        )
 
         c = CompletionsStreamConsumer()
 
@@ -130,7 +132,9 @@ if pytest is not None:
 
     def test_completions_consumer_captures_raw_attrs():
         """Top-level chunk metadata + finish_reason are kept raw."""
-        from janito.openai_client.completions_stream import CompletionsStreamConsumer
+        from janito.llm_clients.openai.completions_stream import (
+            CompletionsStreamConsumer,
+        )
 
         class _Delta:
             def __init__(self, content=None):
@@ -175,7 +179,9 @@ if pytest is not None:
         carrying ``code``/``message`` instead of an HTTP error.  Without the
         guard the turn would end with an empty response and no error output.
         """
-        from janito.openai_client.completions_stream import CompletionsStreamConsumer
+        from janito.llm_clients.openai.completions_stream import (
+            CompletionsStreamConsumer,
+        )
 
         class _ErrorChunk:
             choices = []
@@ -189,7 +195,9 @@ if pytest is not None:
 
     def test_completions_consumer_skips_usage_only_chunks():
         """A usage-only final chunk (no choices, no error) is not an error."""
-        from janito.openai_client.completions_stream import CompletionsStreamConsumer
+        from janito.llm_clients.openai.completions_stream import (
+            CompletionsStreamConsumer,
+        )
 
         class _UsageChunk:
             choices = []
@@ -201,7 +209,9 @@ if pytest is not None:
         assert c.full_content == ""
 
     def test_completions_consumer_accumulates_tool_call_deltas():
-        from janito.openai_client.completions_stream import CompletionsStreamConsumer
+        from janito.llm_clients.openai.completions_stream import (
+            CompletionsStreamConsumer,
+        )
 
         c = CompletionsStreamConsumer()
 
@@ -241,7 +251,9 @@ if pytest is not None:
         it and replay it on ``tool_calls_list`` so the follow-up request is
         not rejected with a 400 "missing thought_signature" error.
         """
-        from janito.openai_client.completions_stream import CompletionsStreamConsumer
+        from janito.llm_clients.openai.completions_stream import (
+            CompletionsStreamConsumer,
+        )
 
         c = CompletionsStreamConsumer()
         extra = {"google": {"thought_signature": "SIG-12345"}}
@@ -269,7 +281,9 @@ if pytest is not None:
 
     def test_completions_consumer_list_omits_extra_content_when_absent():
         """Tool calls without provider extras keep the plain OpenAI shape."""
-        from janito.openai_client.completions_stream import CompletionsStreamConsumer
+        from janito.llm_clients.openai.completions_stream import (
+            CompletionsStreamConsumer,
+        )
 
         c = CompletionsStreamConsumer()
 
@@ -295,7 +309,9 @@ if pytest is not None:
 
     def test_anthropic_consumer_captures_raw_attrs():
         """Message metadata (id/model/role) + stop_reason are kept raw."""
-        from janito.openai_client.anthropic_stream import AnthropicStreamConsumer
+        from janito.llm_clients.anthropic.anthropic_stream import (
+            AnthropicStreamConsumer,
+        )
 
         c = AnthropicStreamConsumer()
         c.handle_event(
@@ -328,7 +344,9 @@ if pytest is not None:
 
     def test_dashscope_consumer_captures_raw_attrs():
         """Top-level chunk metadata (request_id/status_code) + finish_reason kept raw."""
-        from janito.openai_client.dashscope_stream import DashScopeStreamConsumer
+        from janito.llm_clients.dashscope.dashscope_stream import (
+            DashScopeStreamConsumer,
+        )
 
         message = SimpleNamespace(content="hi", reasoning_content="", tool_calls=[])
         choice = SimpleNamespace(finish_reason="stop", message=message)

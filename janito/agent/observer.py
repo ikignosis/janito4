@@ -1,6 +1,6 @@
 """Pluggable UI observer for one LLM turn.
 
-The API clients (``Client.run_turn`` in ``janito.openai_client.base_client``)
+The API clients (``Client.run_turn`` in ``janito.llm_clients.base_client``)
 drive the LLM turn loop; every user-visible output they produce -- reasoning
 fragments, message fragments, the verbose call/response dumps, the error
 explainers and the end-of-turn report -- is routed through a
@@ -10,7 +10,7 @@ The **default observer is ``None``**, which the clients resolve to the
 headless :class:`NullObserver`: ``run_turn``/``Client.run_turn`` produce no
 terminal output at all (the web loop already emits structured events instead
 of printing).  The CLI injects the Rich observer
-(:class:`janito.openai_client.client_support.RichTurnObserver`) through
+(:class:`janito.llm_clients.client_support.RichTurnObserver`) through
 ``_make_turn_func`` in ``cli/chat.py`` -- the same composition point
 that injects the per-round ``stream_runner`` (both carried by the
 :class:`~janito.ui_config.UIConfig`) -- so every CLI entry point
@@ -101,7 +101,7 @@ class TurnObserver(Protocol):
         ``"auth"`` (invalid API key).  The OpenAI SDK clients pass it from
         their typed ``except`` blocks; the native-SDK clients (Anthropic /
         DashScope / Gemini) derive it with
-        :func:`janito.openai_client.client_support._classify_error`, so the
+        :func:`janito.llm_clients.client_support._classify_error`, so the
         observer holds no message-matching heuristics.  ``None``/``"unknown"``
         render nothing.  The observer only *renders* the explainer; the
         client always re-raises the exception after the call, so error
@@ -115,7 +115,7 @@ class TurnObserver(Protocol):
         Invoked by ``Client.run_turn`` at the end of the turn with the
         client-built :class:`~janito.agent.usage.TokenStats` (every round's
         usage folded into it) and the turn's resolved
-        :class:`~janito.openai_client.api_config.APIConfig` (``api_config``);
+        :class:`~janito.llm_clients.api_config.APIConfig` (``api_config``);
         the report's provider / model / max tokens come from the config
         (issue #82: there is no caller-supplied out-param).  The CLI's
         ``RichTurnObserver`` renders the report and records the overall-use

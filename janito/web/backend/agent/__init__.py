@@ -1,7 +1,7 @@
 """Headless streaming agentic loop for the web backend.
 
 This package lifts the agentic while-loop from
-``janito/openai_client/completions_api.py -> run_turn()`` into an async generator
+``janito/llm_clients/openai/completions_api.py -> run_turn()`` into an async generator
 that yields structured events instead of printing to a terminal.  It is the
 **web orchestration loop**; the per-API adapters it dispatches to (call-kwargs
 building, stream accumulation, history conversion) live in the shared
@@ -20,7 +20,7 @@ Modules:
                   dispatches to the API type selected for the provider.
 
 Reuses (unchanged) existing janito modules:
-  - ``janito.openai_client.completions_api.resolve_runtime_config()`` -> config resolution
+  - ``janito.llm_clients.openai.completions_api.resolve_runtime_config()`` -> config resolution
   - ``janito.tooling.tools_registry.*``               -> schemas + lookup
   - ``janito.tooling.executor.run_tool``              -> shared tool-execution core
   - ``janito.mcp_manager.get_mcp_manager()``          -> MCP tools

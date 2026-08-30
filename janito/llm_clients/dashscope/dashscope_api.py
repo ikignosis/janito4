@@ -2,7 +2,7 @@
 DashScope SDK client module for sending prompts through the **native**
 DashScope SDK (``dashscope.Generation.call``).
 
-This is the counterpart of :mod:`janito.openai_client.completions_api` for the
+This is the counterpart of :mod:`janito.llm_clients.openai.completions_api` for the
 ``"DashScope"`` API type: the same config resolution, tool loading, MCP
 support, progress spinner, reasoning panel, used-files report
 and token-usage summary, but talking to the DashScope native API through the
@@ -33,8 +33,8 @@ provider's ``endpoint_by_api_type`` map (or a config endpoint override) before
 each call.
 
 The DashScope stream handling lives in
-:mod:`janito.openai_client.dashscope_stream` and the shared client helpers in
-:mod:`janito.openai_client.client_support`.
+:mod:`janito.llm_clients.dashscope.dashscope_stream` and the shared client helpers in
+:mod:`janito.llm_clients.client_support`.
 """
 
 from __future__ import annotations
@@ -44,17 +44,16 @@ import logging
 from types import SimpleNamespace
 from typing import Any
 
-# Shared agent-loop pipeline (see Client.run_turn) implemented by DashScopeClient.
-from janito.openai_client.api_config import APIConfig
-from janito.openai_client.base_client import Client
-
-# Shared client helpers: the error classifier the native-SDK clients use to
-# pick the observer's explainer explicitly.
-from janito.openai_client.client_support import _classify_error
-from janito.openai_client.dashscope_stream import _stream_response
 from janito.tooling.executor import ToolExecutor
 from janito.ui_config import UIConfig
 
+# Shared agent-loop pipeline (see Client.run_turn) implemented by DashScopeClient.
+from ..api_config import APIConfig
+from ..base_client import Client
+
+# Shared client helpers: the error classifier the native-SDK clients use to
+# pick the observer's explainer explicitly.
+from ..client_support import _classify_error
 from .dashscope_helpers import (
     _build_call_kwargs,
     _finalize_response,
@@ -62,6 +61,7 @@ from .dashscope_helpers import (
     _init_messages,
     _resolve_tools,
 )
+from .dashscope_stream import _stream_response
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -138,7 +138,7 @@ def run_turn(
 
     Args:
         api_config: The resolved, immutable
-            :class:`~janito.openai_client.api_config.APIConfig` for this
+            :class:`~janito.llm_clients.api_config.APIConfig` for this
             session.
         prompt: The user prompt to send
         ui_config: The injected, immutable

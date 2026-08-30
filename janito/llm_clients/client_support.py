@@ -582,7 +582,7 @@ class RichTurnObserver(NullObserver):
         Invoked by ``Client.run_turn`` at the end of every turn that reported
         token usage, with the client-built
         :class:`~janito.agent.usage.TokenStats` and the resolved
-        :class:`~janito.openai_client.api_config.APIConfig` for the turn
+        :class:`~janito.llm_clients.api_config.APIConfig` for the turn
         (provider / model / max tokens come from the api_config).  The
         overall-use accounting row (:func:`_record_accounting`, best effort,
         never raises) is written here -- from the observer -- so neither the
@@ -739,7 +739,7 @@ def display_turn_usage(
     ``Client.run_turn`` invokes at the end of every turn -- with the
     client-built :class:`~janito.agent.usage.TokenStats` (every round's usage
     folded into it) and the turn's resolved
-    :class:`~janito.openai_client.api_config.APIConfig`, whose
+    :class:`~janito.llm_clients.api_config.APIConfig`, whose
     ``provider`` / ``model`` / ``max_input_tokens`` / ``max_output_tokens``
     feed the summary line.  Replaces the reports the per-client ``_finalize``
     helpers used to print inline: the tracked used files first, then the
@@ -779,7 +779,7 @@ def _record_accounting(usage_out: TokenStats | None, api_config: APIConfig) -> N
     counters when the turn-wide ones were not reported.  The provider / model
     (and the numeric dollar cost estimate from
     :func:`janito.provider_accessors.get_provider_cost_value`) come from the
-    turn's resolved :class:`~janito.openai_client.api_config.APIConfig`.
+    turn's resolved :class:`~janito.llm_clients.api_config.APIConfig`.
     Never raises -- accounting must not be able to break the agent loop
     (issue #72).
 

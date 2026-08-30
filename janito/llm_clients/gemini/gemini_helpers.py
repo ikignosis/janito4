@@ -1,7 +1,7 @@
 """
 Shared module-level helpers for the native Gemini client.
 
-Extracted from :mod:`janito.gemini_api` so the client module stays focused
+Extracted from :mod:`janito.llm_clients.gemini.gemini_api` so the client module stays focused
 on the ``run_turn`` entry point and the :class:`GeminiClient` class.  The
 wire-format conversions (OpenAI-format chat ``messages`` -> Gemini
 ``contents``, tool schemas -> ``function_declarations``, usage metadata ->

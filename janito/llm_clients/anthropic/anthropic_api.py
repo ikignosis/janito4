@@ -2,7 +2,7 @@
 Anthropic SDK client module for sending prompts through the **native**
 Anthropic SDK (``client.messages.create``).
 
-This is the counterpart of :mod:`janito.openai_client.completions_api` for the
+This is the counterpart of :mod:`janito.llm_clients.openai.completions_api` for the
 ``"Anthropic"`` API type: the same config resolution, tool loading, MCP
 support, progress spinner, reasoning panel, used-files report
 and token-usage summary, but talking to the Anthropic Messages API through the
@@ -27,8 +27,8 @@ and mutates ``previous_messages`` in place (Completions-style), so the
 interactive shell treats this mode exactly like Completions.
 
 The Messages API stream handling lives in
-:mod:`janito.openai_client.anthropic_stream` and the shared client helpers in
-:mod:`janito.openai_client.client_support`.
+:mod:`janito.llm_clients.anthropic.anthropic_stream` and the shared client helpers in
+:mod:`janito.llm_clients.client_support`.
 """
 
 from __future__ import annotations
@@ -46,19 +46,19 @@ from janito.tooling.executor import ToolExecutor
 from janito.tooling.tools_registry import get_session_tool_schemas
 
 # Injected, immutable per-session UI configuration (stream runner + observer).
-from ..ui_config import UIConfig
-from .anthropic_stream import _convert_tools_to_anthropic_format, _stream_response
+from ...ui_config import UIConfig
 
 # Resolved, immutable per-session configuration (issue #70): the turn
 # pipeline consumes it instead of re-reading the config/auth stores.
-from .api_config import APIConfig
+from ..api_config import APIConfig
 
 # Shared agent-loop pipeline (see Client.run_turn) implemented by AnthropicClient.
-from .base_client import Client
+from ..base_client import Client
 
 # Shared client helper: the error classifier the native-SDK clients use to
 # pick the observer's explainer explicitly.
-from .client_support import _classify_error
+from ..client_support import _classify_error
+from .anthropic_stream import _convert_tools_to_anthropic_format, _stream_response
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -121,7 +121,7 @@ def run_turn(
 
     Args:
         api_config: The resolved, immutable
-            :class:`~janito.openai_client.api_config.APIConfig` for this
+            :class:`~janito.llm_clients.api_config.APIConfig` for this
             session.
         prompt: The user prompt to send
         ui_config: The injected, immutable

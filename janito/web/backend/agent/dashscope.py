@@ -61,11 +61,11 @@ async def _dashscope_chunks(handle, call_kwargs: dict):
     the model name and, when the API rejects the model with the "url error"
     (model/endpoint mismatch), the call is retried once on the other endpoint
     so misclassified models still work (mirrors
-    ``janito.openai_client.dashscope_stream._stream_response``).
+    ``janito.llm_clients.dashscope.dashscope_stream._stream_response``).
     """
     from dashscope import Generation, MultiModalConversation
 
-    from janito.openai_client.dashscope_stream import (
+    from janito.llm_clients.dashscope.dashscope_stream import (
         _is_multimodal_model,
         _ModelEndpointMismatch,
         _to_multimodal_messages,

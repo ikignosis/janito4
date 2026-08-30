@@ -7,7 +7,7 @@ two objects travel together as a frozen :class:`UIConfig`, built once per
 session (or per provider/model/thinking switch) at the composition point
 (``cli/chat.py``'s ``_make_turn_factory``) and handed to the client
 alongside the resolved
-:class:`~janito.openai_client.api_config.APIConfig`.
+:class:`~janito.llm_clients.api_config.APIConfig`.
 
 ``verbose`` deliberately lives **outside** this structure: it is a per-call
 emission gate (``Client.run_turn(verbose=...)``) -- a boolean, not an

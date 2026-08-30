@@ -7,7 +7,7 @@ The Responses API keeps the conversation server-side for most providers
 a previous response id, so the client tracks the full conversation as
 Responses input items and re-sends them on every request.  These helpers
 build that per-round state and the call parameters; they were extracted from
-:mod:`janito.openai_client.conversations_api`.
+:mod:`janito.llm_clients.openai.conversations_api`.
 """
 
 from typing import Any

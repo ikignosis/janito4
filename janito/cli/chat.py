@@ -7,13 +7,13 @@ from collections.abc import Callable
 
 from .. import __version__
 from ..general_config import load_provider_from_config, resolve_api_type
-from ..openai_client import (
+from ..llm_clients import (
     APIConfig,
     RequestCancelled,
     build_api_config,
     resolve_runtime_config,
 )
-from ..openai_client.client_support import RichTurnObserver, _run_with_progress_bar
+from ..llm_clients.client_support import RichTurnObserver, _run_with_progress_bar
 from ..provider_accessors import get_responses_in_server_from_provider
 from ..shell import InteractiveShell
 from ..tooling.path_utils import display_path
@@ -61,7 +61,7 @@ def _make_turn_func(
 
     Args:
         api_config: The resolved, immutable
-            :class:`~janito.openai_client.api_config.APIConfig` for this
+            :class:`~janito.llm_clients.api_config.APIConfig` for this
             session (provider, model, endpoint, api_key, token limits,
             reasoning level, ``use_mcp``).  Built once per session / provider
             switch by ``build_api_config``; the returned callable performs no
@@ -73,8 +73,10 @@ def _make_turn_func(
             default for the per-call ``verbose`` gate (``/ask`` and
             ``/compact`` still override it per call).
     """
-    from .. import dashscope_api, gemini_api
-    from ..openai_client import anthropic_api, completions_api, conversations_api
+    from ..llm_clients.anthropic import anthropic_api
+    from ..llm_clients.dashscope import dashscope_api
+    from ..llm_clients.gemini import gemini_api
+    from ..llm_clients.openai import completions_api, conversations_api
 
     _CLIENTS = {
         "Completions": completions_api.CompletionsClient,

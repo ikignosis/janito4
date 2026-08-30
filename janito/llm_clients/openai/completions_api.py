@@ -16,25 +16,25 @@ from janito.config_loaders import load_endpoint_from_config, load_model_from_con
 from janito.general_config import load_provider_from_config
 
 # Import provider configuration for base URLs and built-in defaults.
-from ..provider_accessors import (
+from ...provider_accessors import (
     get_default_model_from_provider,
     requires_explicit_model,
 )
-from ..provider_validation import is_custom_provider
+from ...provider_validation import is_custom_provider
 
 # Import the tool executor (routes tool calls to the MCP manager or the
 # built-in registry and tracks usage/used-files/changes around each call)
-from ..tooling.executor import ToolExecutor
+from ...tooling.executor import ToolExecutor
 
 # Injected, immutable per-session UI configuration (stream runner + observer).
-from ..ui_config import UIConfig
+from ...ui_config import UIConfig
 
 # Resolved, immutable per-session configuration (issue #70): the turn
 # pipeline consumes it instead of re-reading the config/auth stores.
-from .api_config import APIConfig
+from ..api_config import APIConfig
 
 # Shared agent-loop pipeline (see Client.run_turn) implemented by CompletionsClient.
-from .base_client import Client
+from ..base_client import Client
 
 # Shared client helpers (the per-round stream runner, Rich console output and
 # auth-error explainer are injected by the CLI via ``Client``; see
@@ -151,8 +151,8 @@ def resolve_runtime_config(
                 f"Provider '{provider}' requires an endpoint. "
                 f"Set it with: janito --provider {provider} --set endpoint=<url>"
             )
-        from ..general_config import resolve_api_type
-        from ..provider_accessors import get_endpoint_for_api_type
+        from ...general_config import resolve_api_type
+        from ...provider_accessors import get_endpoint_for_api_type
 
         api_type = resolve_api_type(cli_api_type, provider)
         base_url = get_endpoint_for_api_type(provider, api_type)
@@ -191,7 +191,7 @@ def run_turn(
 
     Args:
         api_config: The resolved, immutable
-            :class:`~janito.openai_client.api_config.APIConfig` for this
+            :class:`~janito.llm_clients.api_config.APIConfig` for this
             session.
         prompt: The user prompt to send
         ui_config: The injected, immutable

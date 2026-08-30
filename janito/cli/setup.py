@@ -3,7 +3,7 @@ CLI setup helpers.
 
 Runtime configuration (API key, endpoint, model) is resolved on demand from the
 auth store (~/.janito/auth.json) and the config file (~/.janito/config.json) --
-see :func:`janito.openai_client.resolve_runtime_config`. No ``OPENAI_*``
+see :func:`janito.llm_clients.resolve_runtime_config`. No ``OPENAI_*``
 environment variables are read or written.
 
 These helpers only perform an early, friendly validation before a session
@@ -13,7 +13,7 @@ of failing deep inside the API call.
 
 import sys
 
-from ..openai_client.completions_api import resolve_runtime_config
+from ..llm_clients.openai.completions_api import resolve_runtime_config
 
 
 def validate_runtime_config(args=None) -> None:

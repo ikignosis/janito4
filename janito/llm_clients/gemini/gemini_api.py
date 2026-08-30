@@ -3,7 +3,7 @@ Gemini SDK client module for sending prompts through the **native** Gemini
 API (``client.models.generate_content_stream``, the stable ``generateContent``
 API from the ``google-genai`` package).
 
-This is the counterpart of :mod:`janito.openai_client.completions_api` for the
+This is the counterpart of :mod:`janito.llm_clients.openai.completions_api` for the
 ``"Gemini"`` API type: the same config resolution, tool loading, MCP support,
 progress spinner, reasoning panel, used-files report and token-usage summary,
 but talking to the native Gemini API through the official ``google-genai``
@@ -33,8 +33,8 @@ requests must resend the model's thought blocks verbatim, so the client keeps
 them (``thought_parts`` plus the per-call ``thought_signature``) in the
 client-side history and echoes them back on the next round.
 
-The Gemini stream handling lives in :mod:`janito.openai_client.gemini_stream`
-and the wire-format helpers in :mod:`janito.gemini_helpers`.
+The Gemini stream handling lives in :mod:`janito.llm_clients.gemini.gemini_stream`
+and the wire-format helpers in :mod:`janito.llm_clients.gemini.gemini_helpers`.
 """
 
 from __future__ import annotations
@@ -43,29 +43,29 @@ import importlib.util
 import logging
 from typing import Any
 
-from janito.gemini_helpers import (
+from janito.tooling.executor import ToolExecutor
+
+# Injected, immutable per-session UI configuration (stream runner + observer).
+from janito.ui_config import UIConfig
+
+# Resolved, immutable per-session configuration (issue #70): the turn
+# pipeline consumes it instead of re-reading the config/auth stores.
+from ..api_config import APIConfig
+
+# Shared agent-loop pipeline (see Client.run_turn) implemented by GeminiClient.
+from ..base_client import Client
+
+# Shared client helpers: the error classifier the native-SDK clients use to
+# pick the observer's explainer explicitly.
+from ..client_support import _classify_error
+from .gemini_helpers import (
     _build_call_kwargs,
     _finalize_response,
     _handle_tool_parts,
     _init_state,
     _resolve_tools,
 )
-
-# Resolved, immutable per-session configuration (issue #70): the turn
-# pipeline consumes it instead of re-reading the config/auth stores.
-from janito.openai_client.api_config import APIConfig
-
-# Shared agent-loop pipeline (see Client.run_turn) implemented by GeminiClient.
-from janito.openai_client.base_client import Client
-
-# Shared client helpers: the error classifier the native-SDK clients use to
-# pick the observer's explainer explicitly.
-from janito.openai_client.client_support import _classify_error
-from janito.openai_client.gemini_stream import _stream_response
-from janito.tooling.executor import ToolExecutor
-
-# Injected, immutable per-session UI configuration (stream runner + observer).
-from janito.ui_config import UIConfig
+from .gemini_stream import _stream_response
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -135,7 +135,7 @@ def run_turn(
 
     Args:
         api_config: The resolved, immutable
-            :class:`~janito.openai_client.api_config.APIConfig` for this
+            :class:`~janito.llm_clients.api_config.APIConfig` for this
             session.
         prompt: The user prompt to send
         ui_config: The injected, immutable

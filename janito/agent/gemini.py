@@ -14,7 +14,7 @@ module never requires it.
 
 **Conversation model.** The ``generateContent`` API is stateless, so every
 round re-sends the full history.  The session stores the conversation in the
-portable OpenAI chat format; :func:`janito.gemini_helpers._messages_to_contents`
+portable OpenAI chat format; :func:`janito.llm_clients.gemini.gemini_helpers._messages_to_contents`
 converts it on the fly: system messages are folded into the top-level
 ``system_instruction``, ``assistant`` ``tool_calls`` become ``function_call``
 parts (with the model's ``thought_signature`` re-attached), and ``tool``
@@ -26,9 +26,11 @@ multi-turn requests resend them, preserving reasoning continuity.
 import json
 import logging
 
-from janito.gemini_helpers import _build_call_kwargs as _build_gemini_call_kwargs
-from janito.gemini_helpers import _resolve_system_instruction
-from janito.openai_client.gemini_stream import GeminiStreamConsumer
+from janito.llm_clients.gemini.gemini_helpers import (
+    _build_call_kwargs as _build_gemini_call_kwargs,
+)
+from janito.llm_clients.gemini.gemini_helpers import _resolve_system_instruction
+from janito.llm_clients.gemini.gemini_stream import GeminiStreamConsumer
 
 from .usage import usage_event_from_usage
 
@@ -46,7 +48,7 @@ def build_call_kwargs(
 ) -> dict:
     """Build the ``generate_content_stream`` kwargs for one turn.
 
-    Mirrors ``janito.gemini_api._build_call_kwargs``: the OpenAI-format
+    Mirrors ``janito.llm_clients.gemini.gemini_api._build_call_kwargs``: the OpenAI-format
     history is converted to Gemini ``contents`` (with the leading
     ``system``-role message folded into ``system_instruction``) and the
     function-tool schemas to ``function_declarations``.  The resolved
@@ -70,7 +72,7 @@ def build_call_kwargs(
 class GeminiTurnAccumulator(GeminiStreamConsumer):
     """Fold Gemini ``generate_content_stream`` chunks (web agent loop).
 
-    Reuses :class:`~janito.openai_client.gemini_stream.GeminiStreamConsumer`
+    Reuses :class:`~janito.llm_clients.gemini.gemini_stream.GeminiStreamConsumer`
     for the per-chunk folding (thought / text / ``function_call`` parts,
     usage metadata, ``done`` flag) and adds the web-loop accessors:
     :meth:`tool_calls_list` returns the OpenAI wire format that

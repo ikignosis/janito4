@@ -12,10 +12,10 @@ This module extracts that pipeline into a :class:`Client` base class as a
 template method (:meth:`run_turn`).  Subclasses implement the API-specific hooks;
 the module-level ``run_turn`` functions remain as thin wrappers that
 construct the subclass with a resolved
-:class:`~janito.openai_client.api_config.APIConfig` and call :meth:`run_turn`.
+:class:`~janito.llm_clients.api_config.APIConfig` and call :meth:`run_turn`.
 
 Config is resolved **once** at the composition point by
-:func:`~janito.openai_client.api_config.build_api_config` and handed to the
+:func:`~janito.llm_clients.api_config.build_api_config` and handed to the
 client as an immutable :class:`APIConfig` (issue #70): ``Client.run_turn`` is a
 pure function of ``(api_config, request)`` and never reads the config store /
 auth store / provider registry itself.  The thinking mode (``--thinking`` /
@@ -88,7 +88,7 @@ class Client:
 
     Attributes:
         api_config: The resolved, immutable
-            :class:`~janito.openai_client.api_config.APIConfig` for this
+            :class:`~janito.llm_clients.api_config.APIConfig` for this
             session (provider, model, endpoint, api_key, token limits,
             reasoning level, preserve_thinking, use_mcp).
         ui_config: The injected, immutable
@@ -163,7 +163,7 @@ class Client:
         delivered by this method itself: it builds a
         :class:`~janito.agent.usage.TokenStats`, folds every round's usage
         into it (tool-call rounds included) and hands it -- together with the
-        turn's resolved :class:`~janito.openai_client.api_config.APIConfig`,
+        turn's resolved :class:`~janito.llm_clients.api_config.APIConfig`,
         whose provider / model / max tokens feed the report -- to the
         injected observer's ``on_turn_complete`` when the turn finishes.
         There is no caller-supplied out-param (see

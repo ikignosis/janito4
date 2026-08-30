@@ -1,7 +1,7 @@
 """
 Shared module-level helpers for the DashScope client.
 
-Extracted from :mod:`janito.dashscope_api` so the client module stays focused
+Extracted from :mod:`janito.llm_clients.dashscope.dashscope_api` so the client module stays focused
 on the ``run_turn`` entry point and the :class:`DashScopeClient` class.
 """
 

@@ -1,5 +1,5 @@
 """
-Tests for the Responses API client (:mod:`janito.openai_client.conversations_api`).
+Tests for the Responses API client (:mod:`janito.llm_clients.openai.conversations_api`).
 
 ``conversations_api.run_turn`` mirrors ``completions_api.run_turn`` but
 targets the Responses API (``client.responses.create``) with server-side
@@ -29,8 +29,8 @@ from conftest import make_config, make_ui_config
 
 import janito.config_dir as config_dir_mod
 import janito.tooling.used_files as used_files
-from janito.openai_client import conversations_api as api
-from janito.openai_client.responses_stream import (
+from janito.llm_clients.openai import conversations_api as api
+from janito.llm_clients.openai.responses_stream import (
     _consume_response_stream,
     _convert_tools_to_responses_format,
 )
@@ -304,7 +304,7 @@ def _mock_run_turn(monkeypatch, create_side_effect):
     client_inst.responses.create.side_effect = create_side_effect
     monkeypatch.setattr(api, "OpenAI", mock.Mock(return_value=client_inst))
     monkeypatch.setattr(
-        "janito.openai_client.responses_helpers.get_session_tool_schemas",
+        "janito.llm_clients.openai.responses_helpers.get_session_tool_schemas",
         lambda: [{"type": "function", "function": {"name": "list_files"}}],
     )
     executor_inst = mock.Mock()
@@ -325,7 +325,7 @@ def _mock_run_turn_for_model(monkeypatch, model, builtin_tools, create_side_effe
     client_inst.responses.create.side_effect = create_side_effect
     monkeypatch.setattr(api, "OpenAI", mock.Mock(return_value=client_inst))
     monkeypatch.setattr(
-        "janito.openai_client.responses_helpers.get_session_tool_schemas",
+        "janito.llm_clients.openai.responses_helpers.get_session_tool_schemas",
         lambda: [{"type": "function", "function": {"name": "list_files"}}],
     )
     monkeypatch.setattr(
@@ -348,7 +348,7 @@ def test_run_turn_stateless_replays_full_history(monkeypatch):
     resolve a previous_response_id: the client re-sends the full conversation
     as input items on every request and never chains with an id."""
     monkeypatch.setattr(
-        "janito.openai_client.responses_state.get_responses_in_server_from_provider",
+        "janito.llm_clients.openai.responses_state.get_responses_in_server_from_provider",
         lambda p, m=None: False,
     )
     seen = []
@@ -449,7 +449,7 @@ def test_run_turn_stateless_replays_full_history(monkeypatch):
 def test_run_turn_stateless_continues_with_previous_items(monkeypatch):
     """The next turn re-sends the previous turn's items plus the new prompt."""
     monkeypatch.setattr(
-        "janito.openai_client.responses_state.get_responses_in_server_from_provider",
+        "janito.llm_clients.openai.responses_state.get_responses_in_server_from_provider",
         lambda p, m=None: False,
     )
     seen = []
@@ -989,7 +989,7 @@ def test_make_turn_func_responses_dispatch(monkeypatch):
     client and forwards the union kwargs via ``client.run_turn`` (each backend's
     ``_init_conversation_state`` picks what it needs)."""
     import janito.cli.chat as chat_mod
-    import janito.openai_client.conversations_api as conv_api
+    import janito.llm_clients.openai.conversations_api as conv_api
 
     captured = {}
 
@@ -1038,7 +1038,7 @@ def test_make_turn_func_completions_dispatch(monkeypatch):
     history list is mutated in place by the Completions client) and returns
     the assistant text."""
     import janito.cli.chat as chat_mod
-    import janito.openai_client.completions_api as comp_api
+    import janito.llm_clients.openai.completions_api as comp_api
 
     captured = {}
 
@@ -1455,7 +1455,7 @@ def test_shell_run_turn_records_server_side_response_chain():
     """Each completed server-side Responses turn appends its final response id
     to the shell's response_chain, so /rewind has a rewind target (and a
     second turn appends the next id, keeping the chain in turn order)."""
-    from janito.openai_client.conversations_api import ConversationResult
+    from janito.llm_clients.openai.conversations_api import ConversationResult
     from janito.shell import InteractiveShell
 
     shell = InteractiveShell(model="test-model", no_history=True)
@@ -1488,7 +1488,7 @@ def test_shell_run_turn_mirrors_server_side_turns_for_history():
     mirror (user prompt + assistant text, Responses input items) to the
     shell's mirrored_history, so /history can render the conversation even
     though the real history lives on the server."""
-    from janito.openai_client.conversations_api import ConversationResult
+    from janito.llm_clients.openai.conversations_api import ConversationResult
     from janito.shell import InteractiveShell
 
     shell = InteractiveShell(model="test-model", no_history=True)
@@ -1535,7 +1535,7 @@ def test_shell_run_turn_mirrors_server_side_turns_for_history():
 def test_shell_run_turn_stateless_does_not_mirror():
     """Stateless Responses (e.g. DeepSeek) mirrors through
     conversation_items, so the /history display mirror stays empty."""
-    from janito.openai_client.conversations_api import ConversationResult
+    from janito.llm_clients.openai.conversations_api import ConversationResult
     from janito.shell import InteractiveShell
 
     shell = InteractiveShell(model="test-model", no_history=True)
@@ -1634,7 +1634,7 @@ def test_shell_run_turn_keeps_chain_on_enter_cancel():
     """An Enter-cancelled server-side turn (RequestCancelled) appends nothing
     to the response_chain: the shell keeps chaining from the last completed
     response."""
-    from janito.openai_client import RequestCancelled
+    from janito.llm_clients import RequestCancelled
     from janito.shell import InteractiveShell
 
     shell = InteractiveShell(model="test-model", no_history=True)
@@ -1681,7 +1681,7 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
     id is discarded by the provider and must NOT be chained from), stateless
     conversations pass back the full client-side items (which include the
     cancelled message)."""
-    from janito.openai_client import RequestCancelled
+    from janito.llm_clients import RequestCancelled
 
     # Server-side: the pending user messages are handed back for the caller
     # to re-send chained from the last completed response id; the aborted

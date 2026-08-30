@@ -18,7 +18,7 @@ import pytest
 from conftest import make_config, make_ui_config
 
 import janito.config_dir as config_dir_mod
-import janito.openai_client.completions_api as client_mod
+import janito.llm_clients.openai.completions_api as client_mod
 from janito.agent.completions import build_call_kwargs
 from janito.auth_config import save_auth_config
 
@@ -94,7 +94,7 @@ if pytest is not None:
         """A per-provider config value resolves through build_api_config when
         no CLI arg is given."""
         from janito.config_cli import set_config_from_cli
-        from janito.openai_client.api_config import build_api_config
+        from janito.llm_clients.api_config import build_api_config
 
         save_auth_config({"alibaba": "sk-test"})
         # Scope the value to qwen3.8-max: the config key is model-scoped
@@ -131,7 +131,7 @@ if pytest is not None:
     def test_run_turn_thinking_defaults_on_for_deepseek():
         """DeepSeek reasons by default: enable_thinking is sent without -t
         (the provider default is resolved into the config at build time)."""
-        from janito.openai_client.api_config import build_api_config
+        from janito.llm_clients.api_config import build_api_config
 
         fake_run = _fake_run_returns("hi")
         config = build_api_config(
@@ -149,7 +149,7 @@ if pytest is not None:
     def test_run_turn_thinking_defaults_on_for_alibaba():
         """Alibaba/Qwen reasons by default: enable_thinking is sent without -t
         (the provider default is resolved into the config at build time)."""
-        from janito.openai_client.api_config import build_api_config
+        from janito.llm_clients.api_config import build_api_config
 
         fake_run = _fake_run_returns("hi")
         config = build_api_config(
@@ -205,7 +205,7 @@ if pytest is not None:
         """MiniMax-M3 reasons by default: the structured thinking dict is
         passed through (extra_body thinking {'type': 'adaptive'}) without -t
         (the provider default is resolved into the config at build time)."""
-        from janito.openai_client.api_config import build_api_config
+        from janito.llm_clients.api_config import build_api_config
 
         fake_run = _fake_run_returns("hi")
         config = build_api_config(
@@ -239,7 +239,7 @@ if pytest is not None:
     def test_run_turn_explicit_thinking_flag_still_wins():
         """-t forces enable_thinking even for providers without a default (the
         flag is resolved into the config at build time)."""
-        from janito.openai_client.api_config import build_api_config
+        from janito.llm_clients.api_config import build_api_config
 
         fake_run = _fake_run_returns("hi")
         config = build_api_config(
@@ -258,7 +258,7 @@ if pytest is not None:
         """Gemini-flavored providers (google) never send enable_thinking (the
         field does not exist on their OpenAI-compatibility layer); no
         thinking_config payload is sent either."""
-        from janito.openai_client.api_config import build_api_config
+        from janito.llm_clients.api_config import build_api_config
 
         fake_run = _fake_run_returns("hi")
         config = build_api_config(

@@ -99,7 +99,7 @@ def test_requires_explicit_model():
 def test_resolve_runtime_config_requires_model(monkeypatch, tmp_path):
     """Without --model or a configured model, resolution fails with an
     actionable message instead of falling back to the placeholder."""
-    from janito.openai_client.completions_api import resolve_runtime_config
+    from janito.llm_clients.openai.completions_api import resolve_runtime_config
 
     _use_temp_config(monkeypatch, tmp_path)
     set_api_key("openrouter", "sk-test")  # pragma: allowlist secret
@@ -110,7 +110,7 @@ def test_resolve_runtime_config_requires_model(monkeypatch, tmp_path):
 
 def test_resolve_runtime_config_cli_model(monkeypatch, tmp_path):
     """--model supplies the model explicitly."""
-    from janito.openai_client.completions_api import resolve_runtime_config
+    from janito.llm_clients.openai.completions_api import resolve_runtime_config
 
     _use_temp_config(monkeypatch, tmp_path)
     set_api_key("openrouter", "sk-test")  # pragma: allowlist secret
@@ -123,7 +123,7 @@ def test_resolve_runtime_config_cli_model(monkeypatch, tmp_path):
 
 def test_resolve_runtime_config_configured_model(monkeypatch, tmp_path):
     """A model set in config.json (providers.openrouter.model) resolves too."""
-    from janito.openai_client.completions_api import resolve_runtime_config
+    from janito.llm_clients.openai.completions_api import resolve_runtime_config
 
     _use_temp_config(monkeypatch, tmp_path)
     set_api_key("openrouter", "sk-test")  # pragma: allowlist secret

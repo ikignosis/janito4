@@ -51,6 +51,14 @@ Changes since `v4.33.0` (2026-08-29).
   cache-hit rate -- is now derived from the normalized usage stats, which
   already carry `cached=None` for APIs that do not report cached-token
   details (the native Anthropic / DashScope / Gemini SDKs).
+- Reorganized the LLM-related modules (issue #79): `janito/openai_client/`
+  is gone, replaced by `janito/llm_clients/` holding the SDK-agnostic core
+  (`api_config.py`, `base_client.py`, `client_support.py`) plus per-vendor
+  subpackages `openai/` (Completions + Responses), `anthropic/`, `dashscope/`
+  and `gemini/`. The root-level `dashscope_api.py` / `dashscope_helpers.py` /
+  `gemini_api.py` / `gemini_helpers.py` moved into their vendor subpackages,
+  and all imports, tests and docs were updated accordingly (no compat
+  shims).
 
 ### Fixed
 

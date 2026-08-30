@@ -20,7 +20,7 @@ from pathlib import Path
 # Add the repo root to sys.path to allow importing the package directly.
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from janito.openai_client import RequestCancelled
+from janito.llm_clients import RequestCancelled
 from janito.shell import InteractiveShell
 from janito.shell.cmds.compact import (
     KEEP_TURNS,

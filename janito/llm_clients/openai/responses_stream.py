@@ -1,7 +1,7 @@
 """
 Stream consumption for the Responses API.
 
-These helpers are used by :mod:`janito.openai_client.conversations_api`, which
+These helpers are used by :mod:`janito.llm_clients.openai.conversations_api`, which
 talks to ``client.responses.create`` with streaming enabled.  The Responses
 API emits typed SSE events (``response.output_text.delta``,
 ``response.function_call_arguments.delta``, ``response.output_item.done``,
@@ -18,7 +18,7 @@ and drives the per-event handlers.  The module-level ``_consume_response_stream`
 import logging
 from typing import Any
 
-from .client_support import _extract_raw_attrs
+from ..client_support import _extract_raw_attrs
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)

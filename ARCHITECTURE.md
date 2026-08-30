@@ -31,7 +31,7 @@ Everything else — CLI parsing, tool discovery, MCP, skills, the web UI,
 configuration — exists to feed or present this loop. The per-session
 configuration (provider, model, endpoint, api key, token limits, reasoning
 level) is resolved **once** into an immutable `APIConfig`
-(`openai_client/api_config.py` → `build_api_config`) at the composition
+(`llm_clients/api_config.py` → `build_api_config`) at the composition
 point; the turn pipeline is a pure function of `(config, request)` (issue
 #70).
 
@@ -43,7 +43,7 @@ point; the turn pipeline is a pure function of `(config, request)` (issue
 | `janito/cli/` | CLI parsing, chat modes, flag-driven command handlers |
 | `janito/shell/` | Interactive prompt_toolkit shell and `/`-commands |
 | `janito/agent/` | Shared per-API adapters used by both the CLI and web loops |
-| `janito/openai_client/` | API clients and the shared agent-loop pipeline |
+| `janito/llm_clients/` | API clients and the shared agent-loop pipeline |
 | `janito/tooling/` | Tool framework: registry, executor, skills, tracking |
 | `janito/tools/` | Built-in tool implementations, organized in toolsets |
 | `janito/mcp_client/` + `mcp_manager.py` | MCP server connections and tool routing |
@@ -119,18 +119,18 @@ browser chat interface served as static HTML/JS/CSS (no build step).
 ## Agent loop & API clients
 
 The heart of the engine is a **template-method turn pipeline** defined in
-`janito/openai_client/base_client.py` (`Client.run_turn`), shared by five clients:
+`janito/llm_clients/base_client.py` (`Client.run_turn`), shared by five clients:
 
 | Client | API type | File |
 |--------|----------|------|
-| Completions | `chat.completions` | `openai_client/completions_api.py` |
-| Responses | `/responses` | `openai_client/conversations_api.py` |
-| Anthropic | native `anthropic` SDK | `openai_client/anthropic_api.py` |
-| DashScope | native `dashscope` SDK | `dashscope_api.py` + `openai_client/dashscope_stream.py` |
-| Gemini | native `google-genai` SDK | `gemini_api.py` + `openai_client/gemini_stream.py` |
+| Completions | `chat.completions` | `llm_clients/openai/completions_api.py` |
+| Responses | `/responses` | `llm_clients/openai/conversations_api.py` |
+| Anthropic | native `anthropic` SDK | `llm_clients/anthropic/anthropic_api.py` |
+| DashScope | native `dashscope` SDK | `llm_clients/dashscope/dashscope_api.py` + `llm_clients/dashscope/dashscope_stream.py` |
+| Gemini | native `google-genai` SDK | `llm_clients/gemini/gemini_api.py` + `llm_clients/gemini/gemini_stream.py` |
 
 **Configuration is resolved once, not per turn** (issue #70). The immutable
-`APIConfig` dataclass (`openai_client/api_config.py`) carries everything a
+`APIConfig` dataclass (`llm_clients/api_config.py`) carries everything a
 turn needs that can be decided before the call starts — provider, API type,
 model, base URL, api key, resolved max-output/input tokens, reasoning level,
 thinking mode, `preserve_thinking`, `use_mcp`. The UI-side behaviour
@@ -175,7 +175,7 @@ The pipeline per turn:
 The blocking work of each streaming round — thread creation, the Rich spinner
 and Enter-to-cancel detection — lives in a **per-round stream runner**
 (`_run_with_progress_bar` + its `_is_enter_pressed` stdin poller, in
-`openai_client/client_support.py`). It is a UI-side concern **injected** by
+`llm_clients/client_support.py`). It is a UI-side concern **injected** by
 the caller through the `UIConfig` (`stream_runner`): `None` runs each
 stream worker directly in the calling thread — no thread, no spinner, no
 Enter-to-cancel — keeping `run_turn`/`Client.run_turn` purely API-side.
@@ -202,7 +202,7 @@ that call). The
 default is the headless `NullObserver`, so
 `run_turn`/`Client.run_turn` produce no terminal output (the web loop emits
 its own structured events instead); the CLI injects the
-`RichTurnObserver` (`openai_client/client_support.py`) when it builds the
+`RichTurnObserver` (`llm_clients/client_support.py`) when it builds the
 config through `_make_turn_factory`, keeping today's rendered output
 byte-for-byte. `verbose` is an explicit per-call emission gate on
 `Client.run_turn(verbose=...)` (used by `/ask` and `/compact`); the CLI's

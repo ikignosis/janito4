@@ -24,7 +24,7 @@ from typing import Any
 
 from rich.console import Console
 
-from ...openai_client import RequestCancelled
+from ...llm_clients import RequestCancelled
 from .base import CmdHandler
 from .history import _responses_item_to_row
 from .registry import register_command

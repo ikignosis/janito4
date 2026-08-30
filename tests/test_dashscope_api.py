@@ -1,5 +1,5 @@
 """
-Tests for the native DashScope SDK client (``janito.dashscope_api``).
+Tests for the native DashScope SDK client (``janito.llm_clients.dashscope.dashscope_api``).
 
 The ``dashscope`` package is **not** installed in the test environment, so the
 stream-assembly logic is tested with fake SDK chunk objects (``SimpleNamespace``)
@@ -16,8 +16,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
 
-from janito import dashscope_api
-from janito.openai_client.dashscope_stream import (
+from janito.llm_clients.dashscope import dashscope_api
+from janito.llm_clients.dashscope.dashscope_stream import (
     _consume_stream,
     _get,
     _is_multimodal_model,
@@ -138,7 +138,7 @@ if pytest is not None:
         """The CLI DashScope path sends the model's built-in tools as
         request-body enable_* kwargs (enable_code_interpreter /
         enable_search), forcing enable_thinking for code_interpreter."""
-        from janito.dashscope_helpers import _build_call_kwargs
+        from janito.llm_clients.dashscope.dashscope_helpers import _build_call_kwargs
 
         tools = [
             {"type": "code_interpreter"},
@@ -158,7 +158,7 @@ if pytest is not None:
 
     def test_dashscope_helpers_build_call_kwargs_omits_builtin_tools_when_none():
         """No built-in tools -> no enable_* tool kwargs are sent."""
-        from janito.dashscope_helpers import _build_call_kwargs
+        from janito.llm_clients.dashscope.dashscope_helpers import _build_call_kwargs
 
         kwargs = _build_call_kwargs(
             "qwen3.8-max",

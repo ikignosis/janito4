@@ -1,5 +1,5 @@
 """
-Tests for the native Gemini SDK client (``janito.gemini_api``).
+Tests for the native Gemini SDK client (``janito.llm_clients.gemini.gemini_api``).
 
 The stream-assembly logic is tested with fake SDK chunk objects
 (``SimpleNamespace`` mirroring ``GenerateContentResponse`` /
@@ -17,8 +17,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
 
-from janito import gemini_api
-from janito.openai_client.gemini_stream import _consume_stream
+from janito.llm_clients.gemini import gemini_api
+from janito.llm_clients.gemini.gemini_stream import _consume_stream
 
 try:
     import google.genai  # noqa: F401
@@ -274,7 +274,7 @@ if pytest is not None:
     def test_gemini_helpers_build_call_kwargs_sends_config():
         """The CLI Gemini path sends system_instruction, max_output_tokens,
         thinking_config.thinking_level and function_declarations."""
-        from janito.gemini_helpers import _build_call_kwargs
+        from janito.llm_clients.gemini.gemini_helpers import _build_call_kwargs
 
         schemas = [
             {
@@ -314,7 +314,7 @@ if pytest is not None:
 
     def test_gemini_helpers_build_call_kwargs_omits_tools_when_none():
         """No tools -> the request carries no tools key."""
-        from janito.gemini_helpers import _build_call_kwargs
+        from janito.llm_clients.gemini.gemini_helpers import _build_call_kwargs
 
         kwargs = _build_call_kwargs(
             "gemini-3.7-flash",
@@ -332,7 +332,9 @@ if pytest is not None:
         """Built-in (native) tools (code_interpreter / web_search) are not
         converted to function_declarations -- they are model capabilities,
         not function tools."""
-        from janito.gemini_helpers import _convert_tools_to_gemini_format
+        from janito.llm_clients.gemini.gemini_helpers import (
+            _convert_tools_to_gemini_format,
+        )
 
         assert (
             _convert_tools_to_gemini_format(
@@ -344,7 +346,7 @@ if pytest is not None:
     def test_gemini_helpers_messages_to_contents_roundtrip():
         """OpenAI-format history converts to Gemini contents, keeping the
         model's thought blocks and per-call signatures verbatim."""
-        from janito.gemini_helpers import _messages_to_contents
+        from janito.llm_clients.gemini.gemini_helpers import _messages_to_contents
 
         messages = [
             {"role": "system", "content": "Be terse"},
@@ -403,7 +405,7 @@ if pytest is not None:
         key: Gemini's ``function_response.response`` must be a JSON object and
         the google-genai SDK rejects raw strings (e.g. the ``extra_forbidden``
         ``Part.role``/``Part.parts`` validation error)."""
-        from janito.gemini_helpers import _messages_to_contents
+        from janito.llm_clients.gemini.gemini_helpers import _messages_to_contents
 
         messages = [
             {"role": "user", "content": "get details for library-skills"},
@@ -448,7 +450,7 @@ if pytest is not None:
 
     def test_gemini_helpers_messages_to_contents_keeps_object_tool_results():
         """JSON-object tool results stay structured (not wrapped)."""
-        from janito.gemini_helpers import _messages_to_contents
+        from janito.llm_clients.gemini.gemini_helpers import _messages_to_contents
 
         messages = [
             {
@@ -467,7 +469,7 @@ if pytest is not None:
     def test_gemini_helpers_handle_tool_parts_records_history():
         """Tool calls are recorded with their signatures and the results are
         appended as tool-role messages."""
-        from janito.gemini_helpers import _handle_tool_parts
+        from janito.llm_clients.gemini.gemini_helpers import _handle_tool_parts
 
         calls = []
 

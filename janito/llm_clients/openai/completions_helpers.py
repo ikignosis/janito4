@@ -1,7 +1,7 @@
 """
 Shared module-level helpers for the Chat Completions client.
 
-Extracted from :mod:`janito.openai_client.completions_api` so the client
+Extracted from :mod:`janito.llm_clients.openai.completions_api` so the client
 module stays focused on the ``run_turn`` entry point, the
 :class:`CompletionsClient` class and the shared runtime helpers
 (``resolve_runtime_config``, progress bar, Enter-cancel detection).

@@ -3,7 +3,7 @@ OpenAI client module for sending prompts to OpenAI-compatible endpoints using
 the Responses API (``client.responses.create``) with server-side conversation
 state.
 
-This module mirrors :mod:`janito.openai_client.completions_api` (same config
+This module mirrors :mod:`janito.llm_clients.openai.completions_api` (same config
 resolution, tool loading, MCP support, progress spinner, reasoning panel,
 used-files report and token-usage summary), but targets the Responses API
 instead of the Chat Completions API.
@@ -32,8 +32,8 @@ model of ownership: the full conversation is tracked as Responses input items
 ``previous_items``, with the system instructions folded into the first turn.
 
 The Responses API stream handling lives in
-:mod:`janito.openai_client.responses_stream` and the shared client helpers in
-:mod:`janito.openai_client.client_support`.
+:mod:`janito.llm_clients.openai.responses_stream` and the shared client helpers in
+:mod:`janito.llm_clients.client_support`.
 """
 
 from __future__ import annotations
@@ -49,18 +49,18 @@ from openai import AuthenticationError, NotFoundError, OpenAI
 from janito.tooling.executor import ToolExecutor
 
 # Injected, immutable per-session UI configuration (stream runner + observer).
-from ..ui_config import UIConfig
+from ...ui_config import UIConfig
 
 # Resolved, immutable per-session configuration (issue #70): the turn
 # pipeline consumes it instead of re-reading the config/auth stores.
-from .api_config import APIConfig
+from ..api_config import APIConfig
 
 # Shared agent-loop pipeline (see Client.run_turn) implemented by ResponsesClient.
-from .base_client import Client
+from ..base_client import Client
 
 # Shared client helpers: the RequestCancelled exception raised by the
 # injected per-round stream runner (see ``client_support``).
-from .client_support import RequestCancelled
+from ..client_support import RequestCancelled
 
 # Runtime config resolution, shared with the Chat Completions implementation
 # so both modules stay in sync.
@@ -165,7 +165,7 @@ def run_turn(
 
     Args:
         api_config: The resolved, immutable
-            :class:`~janito.openai_client.api_config.APIConfig` for this
+            :class:`~janito.llm_clients.api_config.APIConfig` for this
             session.
         prompt: The user prompt to send
         ui_config: The injected, immutable
