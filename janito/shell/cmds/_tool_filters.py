@@ -52,8 +52,8 @@ def warn_if_privilege_override(schemas: list[dict[str, Any]]) -> None:
         from rich.console import Console
 
         Console().print(
-            "[bold yellow]Note:[/bold yellow] this turn overrides the "
-            "session privileges (-r/-w/-x)"
+            "[bold yellow]Note:[/bold yellow] this turn runs with "
+            "privileges (-r/-w/-x)"
         )
 
 

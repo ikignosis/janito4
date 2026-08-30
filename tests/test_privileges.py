@@ -274,7 +274,7 @@ def test_warn_if_privilege_override_prints_warning(monkeypatch, capsys):
 
     warn_if_privilege_override([_fake_schema("CreateFile", "w")])
     out = capsys.readouterr().out
-    assert "overrides the session privileges" in out
+    assert "runs with privileges" in out
     assert "this turn" in out
     # The tool names are intentionally not listed in the note.
     assert "CreateFile" not in out
