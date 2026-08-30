@@ -60,6 +60,27 @@ def test_is_enter_pressed_posix_detects_enter(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
+def test_run_with_progress_bar_shows_elapsed_time_column(monkeypatch):
+    """The waiting spinner renders the elapsed time via TimeElapsedColumn."""
+    import rich.progress as rich_progress
+    from rich.progress import TimeElapsedColumn
+
+    captured = {}
+    original_init = rich_progress.Progress.__init__
+
+    def capture_init(self, *columns, **kwargs):
+        captured["columns"] = columns
+        original_init(self, *columns, **kwargs)
+
+    monkeypatch.setattr(rich_progress.Progress, "__init__", capture_init)
+
+    def worker(cancel_event=None):
+        return "done"
+
+    assert _run_with_progress_bar(worker) == "done"
+    assert any(isinstance(c, TimeElapsedColumn) for c in captured["columns"])
+
+
 def test_run_with_progress_bar_raises_request_cancelled_on_enter(monkeypatch):
     """Pressing Enter while the worker runs aborts it and raises RequestCancelled."""
     started = threading.Event()

@@ -27,7 +27,7 @@ from typing import Any
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.text import Text
 
 # Pluggable UI observer (headless default; the CLI injects RichTurnObserver).
@@ -119,6 +119,8 @@ def _run_with_progress_bar(func, *args, **kwargs):
     if the user presses Enter, the in-flight request is aborted through a
     shared ``cancel_event`` and :class:`RequestCancelled` is raised (an
     interrupt without rolling the conversation history back, unlike Ctrl+C).
+    The spinner renders the elapsed waiting time via Rich's
+    ``TimeElapsedColumn`` (``0:00:12`` style).
 
     This is the **UI-side** per-round stream runner injected by the CLI (see
     ``Client.stream_runner``): it creates the ``cancel_event`` and passes it
@@ -143,6 +145,7 @@ def _run_with_progress_bar(func, *args, **kwargs):
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
+        TimeElapsedColumn(),
         transient=True,
     ) as progress:
         task = progress.add_task(

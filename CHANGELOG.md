@@ -14,6 +14,8 @@ Changes since `v4.33.0` (2026-08-29).
 - `GetUrl` now accepts a `skip_llms_txt` parameter (default `False`). When set
   to `True`, the tool fetches the requested URL as-is without probing for an
   `llms.txt` site map. Also exposed as the `--skip-llms-txt` CLI flag.
+- The "Waiting for response from the API server..." spinner now renders the
+  elapsed waiting time via Rich's `TimeElapsedColumn` (issue #88).
 
 ### Changed
 
