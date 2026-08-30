@@ -20,7 +20,7 @@ Modules:
                   dispatches to the API type selected for the provider.
 
 Reuses (unchanged) existing janito modules:
-  - ``janito.llm_clients.openai.completions_api.resolve_runtime_config()`` -> config resolution
+  - ``janito.runtime_config.resolve_runtime_config()`` -> config resolution
   - ``janito.tooling.tools_registry.*``               -> schemas + lookup
   - ``janito.tooling.executor.run_tool``              -> shared tool-execution core
   - ``janito.mcp_manager.get_mcp_manager()``          -> MCP tools

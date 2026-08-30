@@ -97,8 +97,9 @@ def get_endpoint_for_api_type(provider: str, api_type: str | None = None) -> str
        "custom").
 
     A per-provider config endpoint override (``--set endpoint=...``) always
-    wins over this resolution; callers (e.g. ``resolve_runtime_config``)
-    prefer ``load_endpoint_from_config`` before consulting this helper.
+    wins over this resolution; callers (e.g.
+    :func:`janito.runtime_config.resolve_runtime_config`) prefer
+    ``load_endpoint_from_config`` before consulting this helper.
 
     Args:
         provider: The provider name (case-insensitive)
@@ -231,7 +232,7 @@ def requires_explicit_model(provider: str) -> bool:
     required to supply the model explicitly, either per call (``--model``) or
     persistently (``providers.<provider>.model`` in config.json); when it
     cannot be resolved, callers (e.g.
-    :func:`janito.llm_clients.openai.completions_api.resolve_runtime_config`) must
+    :func:`janito.runtime_config.resolve_runtime_config`) must
     inform the user instead of falling back to the placeholder.
 
     Args:

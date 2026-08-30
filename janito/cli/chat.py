@@ -7,13 +7,9 @@ from collections.abc import Callable
 
 from .. import __version__
 from ..general_config import load_provider_from_config, resolve_api_type
-from ..llm_clients import (
-    APIConfig,
-    RequestCancelled,
-    build_api_config,
-    resolve_runtime_config,
-)
+from ..llm_clients import APIConfig, RequestCancelled, build_api_config
 from ..provider_accessors import get_responses_in_server_from_provider
+from ..runtime_config import resolve_runtime_config
 from ..shell import InteractiveShell
 from ..tooling.path_utils import display_path
 from ..ui import RichTurnObserver, _run_with_progress_bar

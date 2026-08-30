@@ -974,11 +974,14 @@ def test_conversation_result_defaults():
     assert result.message_count == 1
 
 
-def test_module_reexports_completions_api_helpers():
-    # Runtime-config helpers are shared with the Completions implementation
-    # so callers can import everything from a single module.
-    assert api.resolve_runtime_config is not None
-    assert api.get_env_config is not None
+def test_runtime_config_resolver_moved_out_of_client_modules():
+    # Runtime-config resolution moved to the config layer
+    # (janito.runtime_config); the client modules no longer re-export it.
+    from janito.runtime_config import resolve_runtime_config
+
+    assert callable(resolve_runtime_config)
+    assert not hasattr(api, "resolve_runtime_config")
+    assert not hasattr(api, "get_env_config")
 
 
 # ---- API-type selection (chat.py wrapper + shell state) -------------------

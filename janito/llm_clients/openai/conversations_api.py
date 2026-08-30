@@ -64,10 +64,6 @@ from ..base_client import Client
 # injected per-round stream runner (``janito.ui.stream_runner``); the
 # exception itself lives here in ``client_support``.
 from ..client_support import RequestCancelled
-
-# Runtime config resolution, shared with the Chat Completions implementation
-# so both modules stay in sync.
-from .completions_api import resolve_runtime_config
 from .responses_helpers import (
     _finalize_conversation,
     _handle_tool_calls,
@@ -128,15 +124,6 @@ class ConversationResult:
     message_count: int = 1
     input_items: list[dict[str, Any]] | None = None
     turn_items: list[dict[str, Any]] | None = None
-
-
-def get_env_config() -> tuple[str | None, str, str]:
-    """Backward-compatible alias for :func:`resolve_runtime_config`.
-
-    Mirrors ``completions_api.get_env_config``; resolves configuration from
-    auth/config without using environment variables.
-    """
-    return resolve_runtime_config()
 
 
 def run_turn(
@@ -466,7 +453,5 @@ class ResponsesClient(Client):
 
 __all__ = [
     "ConversationResult",
-    "get_env_config",
-    "resolve_runtime_config",
     "run_turn",
 ]

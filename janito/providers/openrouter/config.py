@@ -12,7 +12,7 @@ type), so API-type resolution still works before a model is configured.
 The placeholder default model is not a real model name: runtime model
 resolution treats it as "no model configured" and informs the user (see
 ``janito.provider_accessors.requires_explicit_model`` and
-``janito.llm_clients.openai.completions_api.resolve_runtime_config``).
+``janito.runtime_config.resolve_runtime_config``).
 
 See :mod:`janito.providers.template.config` for the full reference of every
 CONFIG option.

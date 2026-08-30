@@ -69,6 +69,15 @@ Changes since `v4.33.0` (2026-08-29).
   holds only the LLM-domain helpers (`RequestCancelled`, `_load_mcp`,
   `_object_items`/`_extract_raw_attrs`, `_classify_error`); the CLI and the
   affected tests import the UI pieces from `janito.ui` (no compat shims).
+- `resolve_runtime_config` (and its `get_env_config` alias) moved out of the
+  LLM client domain into the config layer as `janito.runtime_config` (issue
+  #79 follow-up). `janito/llm_clients` no longer resolves runtime config
+  itself: `build_api_config` lazy-imports the resolver from
+  `janito.runtime_config` and stays the only place in `llm_clients` that
+  touches the config/auth stores, so every client receives the resolved
+  values through the frozen `APIConfig`. The CLI setup check, the chat model
+  display and the web agent loop import the resolver from its new home; the
+  client modules no longer re-export it (no compat shims).
 
 ### Fixed
 

@@ -48,12 +48,12 @@ from janito.agent.usage import TokenStats
 from janito.config_loaders import load_max_output_tokens, load_reasoning_effort
 from janito.config_store import get_config_value
 from janito.general_config import get_active_provider, resolve_api_type
-from janito.llm_clients.openai.completions_api import resolve_runtime_config
 from janito.provider_accessors import (
     get_default_max_output_tokens_from_provider,
     get_default_reasoning_effort_from_provider,
     get_provider_cost_value,
 )
+from janito.runtime_config import resolve_runtime_config
 from janito.tooling.accounting import record_turn
 from janito.tooling.executor import extract_tool_names
 
