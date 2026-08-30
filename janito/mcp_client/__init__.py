@@ -1,23 +1,12 @@
-"""
-MCP Client Module
-
-Communication with MCP (Model Context Protocol) servers.
+"""MCP client: transports for the Model Context Protocol.
 
 Supports two transport types:
-- stdio: Local process communication via stdin/stdout
-- http: Remote server communication via HTTP/SSE
 
-Usage:
-    from janito.mcp_client import create_transport
+- ``stdio``: local process communication via stdin/stdout.
+- ``http``: remote server communication via HTTP/SSE.
 
-    # From config
-    config = {"transport": "stdio", "command": "python -m mcp.server"}
-    transport = create_transport(config)
-
-    if transport.connect():
-        tools = transport.list_tools()
-        result = transport.call_tool("tool_name", {"arg": "value"})
-        transport.disconnect()
+Use :func:`create_transport` to build a transport from a config dict
+(see :mod:`janito.mcp_client.factory`).
 """
 
 # Core exports

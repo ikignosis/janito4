@@ -24,7 +24,6 @@ import importlib.util
 import sys
 
 from . import privileges as _privileges_mod
-from .cli import create_parser
 from .cli.chat import print_version_banner, run_interactive_chat, run_single_prompt
 from .cli.handlers import (
     handle_config_interactive,
@@ -54,6 +53,7 @@ from .cli.handlers import (
 from .cli.handlers.variants import handle_create_variant, handle_delete_variant
 from .cli.input import read_stdin_prompt
 from .cli.logging_config import setup_logging
+from .cli.parser import create_parser
 from .cli.setup import validate_runtime_config, validate_system_prompt_file
 from .config_dir import set_config_dir, set_local_config_mode
 from .privileges import Privileges

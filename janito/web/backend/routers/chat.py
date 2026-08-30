@@ -16,7 +16,7 @@ from janito.agent.events import event_to_dict
 from janito.config_loaders import load_model_from_config
 from janito.providers.registry import get_provider
 
-from ..agent import stream_prompt
+from ..agent.loop import stream_prompt
 from ..prompts import PromptRegistry
 from ..session import ConversationSession, SessionManager
 from .chat_helpers import _read_client_message, _run_prompt_turn, _send_session_greeting

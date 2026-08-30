@@ -12,7 +12,8 @@ from ..providers.registry import get_provider
 from ..runtime_config import resolve_runtime_config
 from ..shell import InteractiveShell
 from ..tooling.path_utils import display_path
-from ..ui import RichTurnObserver, _run_with_progress_bar
+from ..ui.observer import RichTurnObserver
+from ..ui.stream_runner import _run_with_progress_bar
 from ..ui_config import UIConfig
 
 # Whether the version banner has already been printed for this process, so it
