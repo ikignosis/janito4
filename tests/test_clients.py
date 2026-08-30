@@ -248,7 +248,7 @@ if pytest is not None:
 
         from rich.console import Console
 
-        from janito.llm_clients.client_support import _print_verbose_api_call
+        from janito.ui.display import _print_verbose_api_call
 
         out = StringIO()
         console = Console(file=out, width=120, force_terminal=True)
@@ -289,7 +289,7 @@ if pytest is not None:
 
         from rich.console import Console
 
-        from janito.llm_clients.client_support import _print_verbose_api_call
+        from janito.ui.display import _print_verbose_api_call
 
         out = StringIO()
         console = Console(file=out, width=120, force_terminal=True)
@@ -313,7 +313,7 @@ if pytest is not None:
 
         from rich.console import Console
 
-        from janito.llm_clients.client_support import _print_verbose_api_response
+        from janito.ui.display import _print_verbose_api_response
 
         out = StringIO()
         console = Console(file=out, width=120, force_terminal=True)

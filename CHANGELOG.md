@@ -59,6 +59,16 @@ Changes since `v4.33.0` (2026-08-29).
   `gemini_api.py` / `gemini_helpers.py` moved into their vendor subpackages,
   and all imports, tests and docs were updated accordingly (no compat
   shims).
+- The Rich/UI-side code moved out of `janito/llm_clients/client_support.py`
+  into a new `janito/ui/` subpackage, keeping `llm_clients/` LLM-only:
+  `ui/observer.py` (`RichTurnObserver` + `_record_accounting`),
+  `ui/stream_runner.py` (`_run_with_progress_bar` + `_is_enter_pressed`),
+  `ui/display.py` (verbose banners/panels, reasoning/content renderers),
+  `ui/usage.py` (`_display_usage`, `display_turn_usage`, capacity warning)
+  and `ui/errors.py` (auth / not-found explainers). `client_support.py` now
+  holds only the LLM-domain helpers (`RequestCancelled`, `_load_mcp`,
+  `_object_items`/`_extract_raw_attrs`, `_classify_error`); the CLI and the
+  affected tests import the UI pieces from `janito.ui` (no compat shims).
 
 ### Fixed
 

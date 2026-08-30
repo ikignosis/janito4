@@ -44,6 +44,7 @@ point; the turn pipeline is a pure function of `(config, request)` (issue
 | `janito/shell/` | Interactive prompt_toolkit shell and `/`-commands |
 | `janito/agent/` | Shared per-API adapters used by both the CLI and web loops |
 | `janito/llm_clients/` | API clients and the shared agent-loop pipeline |
+| `janito/ui/` | Rich terminal presentation of the agent loop (turn observer, per-round stream runner, usage/error rendering) |
 | `janito/tooling/` | Tool framework: registry, executor, skills, tracking |
 | `janito/tools/` | Built-in tool implementations, organized in toolsets |
 | `janito/mcp_client/` + `mcp_manager.py` | MCP server connections and tool routing |
@@ -175,7 +176,7 @@ The pipeline per turn:
 The blocking work of each streaming round — thread creation, the Rich spinner
 and Enter-to-cancel detection — lives in a **per-round stream runner**
 (`_run_with_progress_bar` + its `_is_enter_pressed` stdin poller, in
-`llm_clients/client_support.py`). It is a UI-side concern **injected** by
+`janito/ui/stream_runner.py`). It is a UI-side concern **injected** by
 the caller through the `UIConfig` (`stream_runner`): `None` runs each
 stream worker directly in the calling thread — no thread, no spinner, no
 Enter-to-cancel — keeping `run_turn`/`Client.run_turn` purely API-side.
@@ -194,7 +195,8 @@ call/response dumps (`on_verbose_info` / `on_verbose_call` /
 `on_verbose_response`), the error explainers (`on_error`, dispatched by an
 explicit `error_kind` -- `"not_found"` / `"auth"` -- passed by the OpenAI
 SDK clients' typed `except` blocks or derived for the native-SDK clients by
-`_classify_error` in `client_support.py`; the exception is always re-raised)
+`_classify_error` in `llm_clients/client_support.py`; the exception is always
+re-raised)
 and the end-of-turn report (`on_turn_complete`, invoked by
 `Client.run_turn` when the turn finishes -- the CLI's `RichTurnObserver`
 renders the usage summary *and* records the overall-use accounting row from
@@ -202,7 +204,7 @@ that call). The
 default is the headless `NullObserver`, so
 `run_turn`/`Client.run_turn` produce no terminal output (the web loop emits
 its own structured events instead); the CLI injects the
-`RichTurnObserver` (`llm_clients/client_support.py`) when it builds the
+`RichTurnObserver` (`janito/ui/observer.py`) when it builds the
 config through `_make_turn_factory`, keeping today's rendered output
 byte-for-byte. `verbose` is an explicit per-call emission gate on
 `Client.run_turn(verbose=...)` (used by `/ask` and `/compact`); the CLI's

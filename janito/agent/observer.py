@@ -10,7 +10,7 @@ The **default observer is ``None``**, which the clients resolve to the
 headless :class:`NullObserver`: ``run_turn``/``Client.run_turn`` produce no
 terminal output at all (the web loop already emits structured events instead
 of printing).  The CLI injects the Rich observer
-(:class:`janito.llm_clients.client_support.RichTurnObserver`) through
+(:class:`janito.ui.observer.RichTurnObserver`) through
 ``_make_turn_func`` in ``cli/chat.py`` -- the same composition point
 that injects the per-round ``stream_runner`` (both carried by the
 :class:`~janito.ui_config.UIConfig`) -- so every CLI entry point
@@ -27,8 +27,8 @@ deltas.
 The end-of-turn report (``on_turn_complete``) is delivered by
 ``Client.run_turn`` itself when the turn finishes -- like every other
 observer event -- so the caller has nothing to wrap; the CLI's
-``RichTurnObserver`` renders the report *and* records the overall-use
-accounting row from that call.
+``RichTurnObserver`` (:mod:`janito.ui.observer`) renders the report *and*
+records the overall-use accounting row from that call.
 """
 
 from __future__ import annotations
@@ -118,8 +118,9 @@ class TurnObserver(Protocol):
         :class:`~janito.llm_clients.api_config.APIConfig` (``api_config``);
         the report's provider / model / max tokens come from the config
         (issue #82: there is no caller-supplied out-param).  The CLI's
-        ``RichTurnObserver`` renders the report and records the overall-use
-        accounting row from this call; the headless ``NullObserver`` drops it
+        ``RichTurnObserver`` (:mod:`janito.ui.observer`) renders the report
+        and records the overall-use accounting row from this call; the
+        headless ``NullObserver`` drops it
         (the web loop emits its own structured events and records its own
         accounting).
         """

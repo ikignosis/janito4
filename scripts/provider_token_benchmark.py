@@ -294,7 +294,7 @@ MODEL_RE = re.compile(
 )
 
 # Exact per-round usage from the --log=info line emitted by
-# janito.llm_clients.client_support._display_usage, e.g.:
+# janito.ui.usage._display_usage, e.g.:
 #   INFO: Request completed: total=1234 tokens (in=1000, out=234, cached=None, max=128000), 1 messages
 USAGE_LOG_RE = re.compile(
     r"INFO: Request completed: total=(?P<total>\d+|None) tokens "

@@ -5,8 +5,10 @@ Layout (issue #79):
 - SDK-agnostic core: :mod:`~janito.llm_clients.api_config` (``APIConfig`` +
   ``build_api_config``), :mod:`~janito.llm_clients.base_client`
   (``Client.run_turn``) and :mod:`~janito.llm_clients.client_support`
-  (error classification, usage display, the Rich turn observer and the
-  per-round stream runner).
+  (error classification, SDK response-object introspection, MCP loading and
+  the ``RequestCancelled`` control-flow exception).  The UI-side pieces (the
+  Rich turn observer and the per-round stream runner) live in
+  :mod:`janito.ui`, injected by the CLI.
 - Per-vendor subpackages:
 
   - :mod:`~janito.llm_clients.openai` -- Chat Completions and Responses.

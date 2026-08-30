@@ -5,7 +5,7 @@ The API clients route every user-visible event through a
 :class:`~janito.agent.observer.TurnObserver` so ``Client.run_turn`` itself stays
 UI-free: the default resolves to the headless
 :class:`~janito.agent.observer.NullObserver`, and the CLI injects the Rich
-observer (:class:`~janito.llm_clients.client_support.RichTurnObserver`)
+observer (:class:`~janito.ui.observer.RichTurnObserver`)
 through ``_make_turn_func``.  These tests pin the protocol surface,
 the headless default, the Rich observer's rendering and its error dispatch.
 """
@@ -23,7 +23,7 @@ from rich.console import Console  # noqa: E402
 
 from janito.agent.observer import NullObserver  # noqa: E402
 from janito.llm_clients.base_client import Client  # noqa: E402
-from janito.llm_clients.client_support import RichTurnObserver  # noqa: E402
+from janito.ui.observer import RichTurnObserver  # noqa: E402
 
 _PROTOCOL_METHODS = (
     "on_reasoning",

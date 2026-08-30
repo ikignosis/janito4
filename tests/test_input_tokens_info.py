@@ -116,7 +116,7 @@ if pytest is not None:
 
         from rich.console import Console
 
-        from janito.llm_clients.client_support import _display_usage
+        from janito.ui.usage import _display_usage
 
         buf = StringIO()
         console = Console(file=buf, force_terminal=False, width=120)

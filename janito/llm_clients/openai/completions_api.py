@@ -38,7 +38,8 @@ from ..base_client import Client
 
 # Shared client helpers (the per-round stream runner, Rich console output and
 # auth-error explainer are injected by the CLI via ``Client``; see
-# ``client_support``).
+# ``janito.ui`` for the UI-side pieces and ``client_support`` for the
+# remaining LLM-side helpers).
 from .completions_helpers import _build_call_kwargs, _finalize_response, _resolve_tools
 from .completions_stream import _stream_response
 

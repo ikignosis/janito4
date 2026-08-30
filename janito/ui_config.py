@@ -33,7 +33,8 @@ class UIConfig:
 
     Attributes:
         stream_runner: The per-round stream runner (a UI-side concern, e.g.
-            the TUI ``_run_with_progress_bar``); ``None`` = headless (each
+            the TUI ``_run_with_progress_bar`` in
+            :mod:`janito.ui.stream_runner`); ``None`` = headless (each
             streaming round runs directly in the calling thread).
         observer: The turn observer (a
             :class:`~janito.agent.observer.TurnObserver`); defaults to the

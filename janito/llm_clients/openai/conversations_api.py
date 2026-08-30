@@ -32,8 +32,10 @@ model of ownership: the full conversation is tracked as Responses input items
 ``previous_items``, with the system instructions folded into the first turn.
 
 The Responses API stream handling lives in
-:mod:`janito.llm_clients.openai.responses_stream` and the shared client helpers in
-:mod:`janito.llm_clients.client_support`.
+:mod:`janito.llm_clients.openai.responses_stream`; the shared LLM-side client
+helpers (incl. the ``RequestCancelled`` control-flow exception) live in
+:mod:`janito.llm_clients.client_support` and the injected UI-side pieces
+(stream runner + turn observer) in :mod:`janito.ui`.
 """
 
 from __future__ import annotations
@@ -59,7 +61,8 @@ from ..api_config import APIConfig
 from ..base_client import Client
 
 # Shared client helpers: the RequestCancelled exception raised by the
-# injected per-round stream runner (see ``client_support``).
+# injected per-round stream runner (``janito.ui.stream_runner``); the
+# exception itself lives here in ``client_support``.
 from ..client_support import RequestCancelled
 
 # Runtime config resolution, shared with the Chat Completions implementation

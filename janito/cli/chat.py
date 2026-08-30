@@ -13,10 +13,10 @@ from ..llm_clients import (
     build_api_config,
     resolve_runtime_config,
 )
-from ..llm_clients.client_support import RichTurnObserver, _run_with_progress_bar
 from ..provider_accessors import get_responses_in_server_from_provider
 from ..shell import InteractiveShell
 from ..tooling.path_utils import display_path
+from ..ui import RichTurnObserver, _run_with_progress_bar
 from ..ui_config import UIConfig
 
 # Whether the version banner has already been printed for this process, so it

@@ -8,7 +8,7 @@ the Responses API reports ``input_tokens``/``output_tokens`` (with
 a ``SimpleNamespace`` with ``input_tokens``/``output_tokens`` and no
 cached-token details.  :func:`normalize_usage` maps every shape onto one
 dict; the CLI formats it as a Rich summary line
-(``janito.llm_clients.client_support._display_usage``) and the web loop
+(``janito.ui.usage._display_usage``) and the web loop
 serializes it as a ``UsageEvent``.
 """
 
@@ -124,7 +124,7 @@ class TokenStats:
     following round into it.  The cumulative counters are surfaced on the
     final :class:`~janito.agent.events.UsageEvent` (web loop) and feed the
     CLI turn report's ``Cost`` estimate
-    (``janito.llm_clients.client_support._display_usage``), which bills
+    (``janito.ui.usage._display_usage``), which bills
     the turn-wide totals so tool-call rounds are included.
 
     The counters carry no provider/model/max-token metadata: ``Client.run_turn``
