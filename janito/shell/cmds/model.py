@@ -49,10 +49,10 @@ def available_model_names(provider: str | None, prefix: str = "") -> Iterable[st
     """
     from janito.config_keys import normalize_provider
     from janito.config_store import get_config_value
-    from janito.provider_registry import _registry
+    from janito.providers.registry import get_provider
 
     names: set[str] = set()
-    found = _registry.get(provider)
+    found = get_provider(provider)
     if found is not None:
         names.update(found.model_names())
 
@@ -115,7 +115,7 @@ class ModelCmdHandler(CmdHandler):
     def _switch_model(shell, model_name: str) -> None:
         """Apply the new model for this shell session only."""
         from janito.general_config import get_active_provider
-        from janito.provider_validation import validate_model_name
+        from janito.providers.validation import validate_model_name
 
         # The provider in effect: the session's displayed provider (set from
         # --provider at startup, or updated by an earlier /provider switch),

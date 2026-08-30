@@ -78,6 +78,23 @@ Changes since `v4.33.0` (2026-08-29).
   values through the frozen `APIConfig`. The CLI setup check, the chat model
   display and the web agent loop import the resolver from its new home; the
   client modules no longer re-export it (no compat shims).
+- The legacy `janito/provider_accessors.py` facade (the module-level
+  `get_*_from_provider` API) is gone; callers now use the typed provider
+  accessors directly through the new `get_provider(name)` entry point in
+  `janito/provider_registry.py` (returns a `Provider` whose methods replace
+  every former accessor, e.g. `get_default_model_from_provider(name)` ->
+  `get_provider(name).default_model()`). The former payload helpers
+  (`apply_thinking_to_extra_body`, `apply_builtin_tools_to_extra_body`,
+  `builtin_tools_enable_flags`, `format_thinking_display`) moved to the new
+  `janito/provider_payloads.py`, the cost subsystem (`get_provider_cost`,
+  `get_provider_cost_value`, and the promoted public `format_cost`) to
+  `janito/provider_cost.py` (with a cached cost-module loader), and the
+  API-type availability functions (`get_all_api_types`,
+  `ensure_api_type_available`, ...) into `janito/provider_validation.py`.
+  The duplicate `get_provider_config` in `janito/providers/__init__.py` was
+  deleted (its consumers read the raw dict via `get_provider(name).info`),
+  and `ProviderRegistry._variant_base` was promoted to the public
+  `variant_base` method (no compat shims).
 
 ### Fixed
 

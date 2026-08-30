@@ -252,11 +252,10 @@ class GeminiClient(Client):
         # they are attached to config.tools by gemini_stream._stream_response
         # (mirroring the Completions / Anthropic / DashScope clients), which
         # receives the resolved tools_schemas from the shared turn pipeline.
-        from janito.provider_accessors import get_default_tools_from_provider
+        from janito.providers.registry import get_provider
 
-        tools = get_default_tools_from_provider(
-            self.api_config.provider, model, api_type="Gemini"
-        )
+        found = get_provider(self.api_config.provider)
+        tools = found.tools(model, api_type="Gemini") if found is not None else None
         return _build_call_kwargs(
             model,
             state["messages"],

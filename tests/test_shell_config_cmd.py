@@ -2,7 +2,64 @@
 
 from unittest.mock import patch
 
+from janito.providers.registry import get_provider as _real_get_provider
 from janito.shell.cmds.status import _print_config_info
+
+#: Sentinel: a ``_fake_provider`` knob not overridden delegates to the real
+#: provider's value.
+_MISSING = object()
+
+
+def _fake_provider(
+    name,
+    *,
+    default_model=_MISSING,
+    default_max_tokens=_MISSING,
+    responses_in_server=_MISSING,
+):
+    """A Provider-like object for ``name`` with selected lookups overridden.
+
+    Un-overridden methods fall back to the real :class:`Provider`, so
+    provider-specific defaults (e.g. DeepSeek's built-in thinking) stay
+    intact while the tests pin the display knobs.
+    """
+    real = _real_get_provider(name)
+
+    def _pick(override, fallback):
+        """Return ``override`` when set, else ``fallback``."""
+        return override if override is not _MISSING else fallback
+
+    class _P:
+        def default_model(self):
+            return _pick(
+                default_model, real.default_model() if real is not None else None
+            )
+
+        def max_output_tokens(self, model=None):
+            return _pick(
+                default_max_tokens,
+                real.max_output_tokens(model) if real is not None else None,
+            )
+
+        def responses_in_server(self, model=None):
+            return _pick(
+                responses_in_server,
+                real.responses_in_server(model) if real is not None else True,
+            )
+
+        def endpoint_for(self, api_type=None):
+            return real.endpoint_for(api_type) if real is not None else None
+
+        def default_thinking(self, model=None):
+            return real.default_thinking(model) if real is not None else False
+
+        def reasoning_effort(self, model=None):
+            return real.reasoning_effort(model) if real is not None else None
+
+        def gemini_flavor(self):
+            return real.gemini_flavor() if real is not None else False
+
+    return _P()
 
 
 class TestPrintConfigInfo:
@@ -72,8 +129,13 @@ class TestPrintConfigInfo:
                 return_value=configured_model,
             ),
             patch(
-                "janito.shell.cmds.status.get_default_model_from_provider",
-                return_value=default_model,
+                "janito.shell.cmds.status.get_provider",
+                return_value=_fake_provider(
+                    provider,
+                    default_model=default_model,
+                    default_max_tokens=default_max_tokens,
+                    responses_in_server=responses_in_server,
+                ),
             ),
             patch(
                 "janito.shell.cmds.status.load_max_output_tokens",
@@ -84,16 +146,8 @@ class TestPrintConfigInfo:
                 return_value=None,
             ),
             patch(
-                "janito.shell.cmds.status.get_default_max_output_tokens_from_provider",
-                return_value=default_max_tokens,
-            ),
-            patch(
                 "janito.shell.cmds.status.resolve_api_type",
                 side_effect=_fake_resolve_api_type,
-            ),
-            patch(
-                "janito.shell.cmds.status.get_responses_in_server_from_provider",
-                return_value=responses_in_server,
             ),
         ):
             _print_config_info(provider, thinking, cli_api_type, model)
@@ -294,16 +348,16 @@ class TestStatusCmdHandlerApiType:
                 return_value=None,
             ),
             patch(
-                "janito.shell.cmds.status.get_default_max_output_tokens_from_provider",
-                return_value=None,
+                "janito.shell.cmds.status.get_provider",
+                return_value=_fake_provider(
+                    "google",
+                    default_max_tokens=None,
+                    responses_in_server=True,
+                ),
             ),
             patch(
                 "janito.shell.cmds.status.resolve_api_type",
                 side_effect=fake_resolve_api_type,
-            ),
-            patch(
-                "janito.shell.cmds.status.get_responses_in_server_from_provider",
-                return_value=True,
             ),
         ):
             assert StatusCmdHandler().handle(FakeShell(), "/status") is True
@@ -352,16 +406,16 @@ class TestStatusCmdHandlerApiType:
                 return_value=None,
             ),
             patch(
-                "janito.shell.cmds.status.get_default_max_output_tokens_from_provider",
-                return_value=None,
+                "janito.shell.cmds.status.get_provider",
+                return_value=_fake_provider(
+                    "google",
+                    default_max_tokens=None,
+                    responses_in_server=True,
+                ),
             ),
             patch(
                 "janito.shell.cmds.status.resolve_api_type",
                 side_effect=fake_resolve_api_type,
-            ),
-            patch(
-                "janito.shell.cmds.status.get_responses_in_server_from_provider",
-                return_value=True,
             ),
         ):
             assert StatusCmdHandler().handle(FakeShell(), "/status") is True
@@ -392,8 +446,13 @@ class TestStatusCmdHandlerApiType:
                 return_value=None,
             ),
             patch(
-                "janito.shell.cmds.status.get_default_model_from_provider",
-                return_value="qwen3.8-flash",
+                "janito.shell.cmds.status.get_provider",
+                return_value=_fake_provider(
+                    "alibaba",
+                    default_model="qwen3.8-flash",
+                    default_max_tokens=None,
+                    responses_in_server=True,
+                ),
             ),
             patch(
                 "janito.shell.cmds.status.load_max_output_tokens",
@@ -404,16 +463,8 @@ class TestStatusCmdHandlerApiType:
                 return_value=None,
             ),
             patch(
-                "janito.shell.cmds.status.get_default_max_output_tokens_from_provider",
-                return_value=None,
-            ),
-            patch(
                 "janito.shell.cmds.status.resolve_api_type",
                 return_value="Responses",
-            ),
-            patch(
-                "janito.shell.cmds.status.get_responses_in_server_from_provider",
-                return_value=True,
             ),
         ):
             assert StatusCmdHandler().handle(FakeShell(), "/status") is True

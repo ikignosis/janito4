@@ -5,10 +5,10 @@ Defines :class:`ModelConfig` and :class:`Provider` -- the typed accessors
 over the static provider registry
 (:data:`janito.providers._PROVIDER_CONFIGS`).
 Part of the split provider-config module family (see
-:mod:`janito.provider_accessors`).
+:mod:`janito.providers.registry`).
 """
 
-from .providers import _PROVIDER_CONFIGS
+from . import _PROVIDER_CONFIGS
 
 
 class ModelConfig:
@@ -67,7 +67,7 @@ class ModelConfig:
         pass-through dict for providers whose API takes a structured
         thinking parameter (MiniMax-M3: ``{'type': 'adaptive'}``).  Callers
         must not coerce the dict to a bool -- use
-        :func:`~janito.provider_accessors.apply_thinking_to_extra_body` to
+        :func:`~janito.providers.payloads.apply_thinking_to_extra_body` to
         turn the value into the API's ``extra_body`` payload.
         """
         return self._data.get("thinking", False)
@@ -80,7 +80,7 @@ class ModelConfig:
         {"type": "web_extractor"}]`` for Alibaba/Qwen's flagship).  These
         are not function tools: each ``type`` is enabled through
         request-body flags on the API call -- see
-        :func:`janito.provider_accessors.get_default_tools_from_provider`.
+        :meth:`janito.providers.models.Provider.tools`.
 
         When ``api_type`` is given and the model declares a
         ``tools_by_api_type`` map containing it, that API type's own list is
@@ -294,7 +294,7 @@ class Provider:
         # A configured override takes priority over the built-in default.  The
         # import is deferred to avoid a module-level cycle (general_config does
         # not import provider_config at import time either).
-        from .config_loaders import load_responses_in_server_from_config
+        from ..config_loaders import load_responses_in_server_from_config
 
         override = load_responses_in_server_from_config(self._name, model)
         if override is not None:

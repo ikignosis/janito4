@@ -37,7 +37,7 @@ def _resolve_target_provider(body: dict, config):
     wins; otherwise the provider the next prompt resolves to.
     """
     from janito.general_config import get_active_provider
-    from janito.provider_validation import validate_provider_name
+    from janito.providers.validation import validate_provider_name
 
     raw_provider = str(body.get("provider") or "").strip()
     if raw_provider:
@@ -57,9 +57,12 @@ def _entry_model(provider: str) -> str | None:
     (e.g. ``custom`` before a model is set).
     """
     from janito.config_loaders import load_model_from_config
-    from janito.provider_accessors import get_default_model_from_provider
+    from janito.providers.registry import get_provider
 
-    return load_model_from_config(provider) or get_default_model_from_provider(provider)
+    found = get_provider(provider)
+    return load_model_from_config(provider) or (
+        found.default_model() if found is not None else None
+    )
 
 
 def _patch_model(body, provider, effective, config, updated) -> JSONResponse | None:
@@ -77,7 +80,7 @@ def _patch_model(body, provider, effective, config, updated) -> JSONResponse | N
     # model=...``; "custom" and "openrouter" accept any model name.  Empty
     # (unset) is always allowed.
     if model:
-        from janito.provider_validation import validate_model_name
+        from janito.providers.validation import validate_model_name
 
         try:
             model = validate_model_name(provider, model)
@@ -133,7 +136,7 @@ def _patch_api_type(body, provider, effective, config, updated) -> JSONResponse 
 
     from janito.config_keys import model_scoped_config_key, normalize_api_type
     from janito.config_store import set_config_value, unset_config_value
-    from janito.provider_accessors import ensure_api_type_available
+    from janito.providers.validation import ensure_api_type_available
 
     raw = str(body["api_type"]).strip()
 
@@ -238,15 +241,15 @@ def _base_info_for(variant: str):
         A ``(base_name, base_info)`` tuple; ``base_info`` is ``None`` when the
         prefix does not map to a supported provider.
     """
-    from janito.provider_registry import parse_variant_name
-    from janito.provider_validation import canonical_provider_name
-    from janito.providers import get_provider_config
+    from janito.providers.registry import get_provider, parse_variant_name
+    from janito.providers.validation import canonical_provider_name
 
     base_name = parse_variant_name(variant)[0]
     canonical = canonical_provider_name(base_name)
     if canonical is None:
         return base_name, None
-    return canonical, get_provider_config(canonical)
+    found = get_provider(canonical)
+    return canonical, found.info if found is not None else None
 
 
 def _build_provider_entry(
@@ -288,22 +291,12 @@ def _build_provider_entry(
         load_model_from_config,
         load_responses_in_server_from_config,
     )
-    from janito.provider_accessors import (
-        get_default_api_type_from_provider,
-        get_default_max_input_tokens_from_provider,
-        get_default_max_output_tokens_from_provider,
-        get_default_reasoning_effort_from_provider,
-        get_default_thinking_from_provider,
-        get_endpoint_for_api_type,
-        get_required_package_for_api_type,
-        get_responses_in_server_from_provider,
-        get_supported_api_types_from_provider,
-        get_supported_reasoning_efforts_from_provider,
-        is_api_type_available,
-        requires_explicit_model,
-    )
-    from janito.provider_registry import ProviderRegistry
     from janito.providers import CUSTOM_ENDPOINT_MARKER
+    from janito.providers.registry import get_provider
+    from janito.providers.validation import (
+        get_required_package_for_api_type,
+        is_api_type_available,
+    )
 
     configured_model = load_model_from_config(name)
     default_model = info.get("default_model")
@@ -311,7 +304,8 @@ def _build_provider_entry(
     # it only carries built-in defaults such as the default API type, so it is
     # not shown as the provider's default model.  The entry's model is the
     # configured override, else the built-in default.
-    if default_model and requires_explicit_model(name):
+    provider_obj = get_provider(name)
+    if default_model == "custom":
         default_model = None
     entry_model = configured_model or default_model
 
@@ -319,14 +313,14 @@ def _build_provider_entry(
     # takes priority, otherwise the provider's built-in default resolved
     # for the entry model's default API type (honors the provider's
     # ``endpoint_by_api_type`` map, e.g. Anthropic's native-SDK URL).
-    # ``get_endpoint_for_api_type`` / ``get_default_api_type_from_provider``
-    # resolve variants to their base provider automatically.
     endpoint_override = load_endpoint_from_config(name)
     if endpoint_override:
         base_url = endpoint_override
     else:
-        built_in_url = get_endpoint_for_api_type(
-            name, get_default_api_type_from_provider(name, entry_model)
+        built_in_url = (
+            provider_obj.endpoint_for(provider_obj.default_api_type(entry_model))
+            if provider_obj is not None
+            else None
         )
         if built_in_url and built_in_url != CUSTOM_ENDPOINT_MARKER:
             base_url = built_in_url
@@ -340,7 +334,11 @@ def _build_provider_entry(
     # built-in default applies) and the effective ``responses_in_server``
     # flag (configured override first, else the built-in default).
     api_type_override = load_api_type(name, entry_model)
-    responses_in_server = get_responses_in_server_from_provider(name, entry_model)
+    responses_in_server = (
+        provider_obj.responses_in_server(entry_model)
+        if provider_obj is not None
+        else True
+    )
 
     # Per-API-type availability for the Settings drawer's API Type
     # combobox.  The OpenAI-SDK types (Responses / Completions) are
@@ -350,7 +348,11 @@ def _build_provider_entry(
     # unavailable types OUT of the combobox and shows this info instead,
     # so the user sees why a type is missing and how to enable it.
     api_types = []
-    supported_api_types = get_supported_api_types_from_provider(name, entry_model) or []
+    supported_api_types = (
+        provider_obj.supported_api_types(entry_model)
+        if provider_obj is not None
+        else None
+    ) or []
     for api_type in supported_api_types:
         package = get_required_package_for_api_type(api_type)
         available = is_api_type_available(api_type)
@@ -367,38 +369,25 @@ def _build_provider_entry(
 
     # Per-model summary (name + defaults) so the drawer can show per-model
     # information beyond the entry's effective model.
-    registry = ProviderRegistry()
-    provider_obj = registry.get(name)
     models_summary = []
-    for model_name in provider_obj.model_names() if provider_obj is not None else []:
-        models_summary.append(
-            {
-                "name": model_name,
-                "default": model_name == default_model,
-                "supported_api_types": get_supported_api_types_from_provider(
-                    name, model_name
-                ),
-                "default_api_type": get_default_api_type_from_provider(
-                    name, model_name
-                ),
-                "max_input_tokens": get_default_max_input_tokens_from_provider(
-                    name, model_name
-                ),
-                "max_output_tokens": get_default_max_output_tokens_from_provider(
-                    name, model_name
-                ),
-                "reasoning_effort": get_default_reasoning_effort_from_provider(
-                    name, model_name
-                ),
-                "supported_reasoning_efforts": get_supported_reasoning_efforts_from_provider(
-                    name, model_name
-                ),
-                "thinking": get_default_thinking_from_provider(name, model_name),
-                "responses_in_server": get_responses_in_server_from_provider(
-                    name, model_name
-                ),
-            }
-        )
+    if provider_obj is not None:
+        for model_name in provider_obj.model_names():
+            models_summary.append(
+                {
+                    "name": model_name,
+                    "default": model_name == default_model,
+                    "supported_api_types": provider_obj.supported_api_types(model_name),
+                    "default_api_type": provider_obj.default_api_type(model_name),
+                    "max_input_tokens": provider_obj.max_input_tokens(model_name),
+                    "max_output_tokens": provider_obj.max_output_tokens(model_name),
+                    "reasoning_effort": provider_obj.reasoning_effort(model_name),
+                    "supported_reasoning_efforts": provider_obj.supported_reasoning_efforts(
+                        model_name
+                    ),
+                    "thinking": provider_obj.default_thinking(model_name),
+                    "responses_in_server": provider_obj.responses_in_server(model_name),
+                }
+            )
 
     # The built-in (raw) responses-in-server default for the entry's model --
     # NOT the config-overridden effective value, so the drawer can show the
@@ -415,8 +404,16 @@ def _build_provider_entry(
         "model": configured_model,
         "default_model": default_model,
         "api_type": api_type_override,
-        "default_api_type": get_default_api_type_from_provider(name, entry_model),
-        "supported_api_types": get_supported_api_types_from_provider(name, entry_model),
+        "default_api_type": (
+            provider_obj.default_api_type(entry_model)
+            if provider_obj is not None
+            else None
+        ),
+        "supported_api_types": (
+            provider_obj.supported_api_types(entry_model)
+            if provider_obj is not None
+            else None
+        ),
         "api_types": api_types,
         "endpoint_by_api_type": info.get("endpoint_by_api_type"),
         "responses_in_server": responses_in_server,
@@ -424,19 +421,31 @@ def _build_provider_entry(
         "responses_in_server_override": load_responses_in_server_from_config(
             name, entry_model
         ),
-        "default_max_input_tokens": get_default_max_input_tokens_from_provider(
-            name, entry_model
+        "default_max_input_tokens": (
+            provider_obj.max_input_tokens(entry_model)
+            if provider_obj is not None
+            else None
         ),
-        "default_max_output_tokens": get_default_max_output_tokens_from_provider(
-            name, entry_model
+        "default_max_output_tokens": (
+            provider_obj.max_output_tokens(entry_model)
+            if provider_obj is not None
+            else None
         ),
-        "default_reasoning_effort": get_default_reasoning_effort_from_provider(
-            name, entry_model
+        "default_reasoning_effort": (
+            provider_obj.reasoning_effort(entry_model)
+            if provider_obj is not None
+            else None
         ),
-        "supported_reasoning_efforts": get_supported_reasoning_efforts_from_provider(
-            name, entry_model
+        "supported_reasoning_efforts": (
+            provider_obj.supported_reasoning_efforts(entry_model)
+            if provider_obj is not None
+            else None
         ),
-        "default_thinking": get_default_thinking_from_provider(name, entry_model),
+        "default_thinking": (
+            provider_obj.default_thinking(entry_model)
+            if provider_obj is not None
+            else False
+        ),
         "models": models_summary,
         "endpoint": endpoint_override,
         "api_key_set": bool(api_key),

@@ -36,10 +36,10 @@ import janito.config_dir as config_dir_mod
 import janito.config_loaders as cl
 import janito.config_store as cs
 import janito.config_variants as cv
-import janito.provider_accessors as pa
-import janito.provider_registry as pr
-import janito.provider_validation as pv
+import janito.providers.registry as pr
+import janito.providers.validation as pv
 from janito.auth_config import get_api_key, set_api_key
+from janito.providers.registry import get_provider
 
 
 def _use_temp_config(monkeypatch, tmp_path):
@@ -206,12 +206,12 @@ def test_variant_inherits_base_defaults(monkeypatch, tmp_path):
 
     cv.create_variant("alibaba-tokenplan")
     # The base provider's built-in defaults apply to the variant.
-    assert pa.get_default_model_from_provider("alibaba-tokenplan") == "qwen3.8-flash"
-    assert pa.get_default_api_type_from_provider("alibaba-tokenplan") == "Responses"
-    assert pa.get_default_thinking_from_provider("alibaba-tokenplan") is True
-    assert pa.get_endpoint_for_api_type(
-        "alibaba-tokenplan", "Completions"
-    ) == pa.get_endpoint_for_api_type("alibaba", "Completions")
+    assert get_provider("alibaba-tokenplan").default_model() == "qwen3.8-flash"
+    assert get_provider("alibaba-tokenplan").default_api_type() == "Responses"
+    assert get_provider("alibaba-tokenplan").default_thinking() is True
+    assert get_provider("alibaba-tokenplan").endpoint_for(
+        "Completions"
+    ) == get_provider("alibaba").endpoint_for("Completions")
 
     # A registered variant of "custom" counts as custom.
     cv.create_variant("custom-local")
@@ -364,9 +364,9 @@ def test_resolve_runtime_config_variant_base_fallback(monkeypatch, tmp_path):
 
     # No per-variant overrides: the base provider's defaults apply.
     base_url, api_key, model = resolve_runtime_config(None, "alibaba-tokenplan")
-    assert base_url == pa.get_endpoint_for_api_type("alibaba", "Completions")
+    assert base_url == get_provider("alibaba").endpoint_for("Completions")
     assert api_key == "sk-variant"  # pragma: allowlist secret
-    assert model == pa.get_default_model_from_provider("alibaba")
+    assert model == get_provider("alibaba").default_model()
 
 
 def test_resolve_runtime_config_variant_no_key_error(monkeypatch, tmp_path):

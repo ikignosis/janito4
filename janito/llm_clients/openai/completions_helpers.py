@@ -11,7 +11,7 @@ import logging
 from typing import Any
 
 # Import provider configuration for base URLs and built-in defaults
-from janito.provider_accessors import (
+from janito.providers.payloads import (
     apply_builtin_tools_to_extra_body,
     apply_thinking_to_extra_body,
 )

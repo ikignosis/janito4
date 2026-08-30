@@ -249,11 +249,10 @@ class DashScopeClient(Client):
         # (see dashscope_helpers._build_call_kwargs).  They are resolved for
         # the DashScope API type, so API types without built-in tools (e.g.
         # alibaba's qwen3.8-max) send nothing.
-        from janito.provider_accessors import get_default_tools_from_provider
+        from janito.providers.registry import get_provider
 
-        tools = get_default_tools_from_provider(
-            self.api_config.provider, model, api_type="DashScope"
-        )
+        found = get_provider(self.api_config.provider)
+        tools = found.tools(model, api_type="DashScope") if found is not None else None
         # The DashScope native API is stateless and the full history is
         # re-sent on every round.
         return _build_call_kwargs(model, state, max_output_tokens, thinking, tools)

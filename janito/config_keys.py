@@ -134,7 +134,7 @@ def normalize_api_type(value: str) -> str:
     ``--set api-type=...`` -- and returns the canonical form
     (``"Responses"`` / ``"Completions"`` / ``"Anthropic"`` /
     ``"DashScope"`` / ``"Gemini"``, ...). The accepted set is the OpenAI-SDK types plus the keys of
-    ``REQUIRES_BY_API_TYPE`` (see ``provider_accessors.get_all_api_types``).
+    ``REQUIRES_BY_API_TYPE`` (see ``providers.validation.get_all_api_types``).
 
     Args:
         value: The raw API type value
@@ -146,7 +146,7 @@ def normalize_api_type(value: str) -> str:
     Raises:
         ValueError: If the value is not a known API type
     """
-    from .provider_accessors import get_all_api_types
+    from .providers.validation import get_all_api_types
 
     known = get_all_api_types()
     raw = str(value).strip()

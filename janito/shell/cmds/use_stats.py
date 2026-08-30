@@ -10,7 +10,7 @@ day/provider/model (issue #75).
 
 from __future__ import annotations
 
-from janito.provider_accessors import _format_cost
+from janito.providers.costing import format_cost
 
 from .base import CmdHandler
 from .registry import register_command
@@ -87,7 +87,7 @@ class UseStatsCmdHandler(CmdHandler):
 
         for row in stats:
             cost = row["cost"]
-            cost_text = _format_cost(cost) if cost is not None else "N/A"
+            cost_text = format_cost(cost) if cost is not None else "N/A"
             table.add_row(
                 row["day"],
                 f"{row['input_tokens']:,}",
@@ -132,7 +132,7 @@ class UseStatsCmdHandler(CmdHandler):
 
         for row in stats:
             cost = row["cost"]
-            cost_text = _format_cost(cost) if cost is not None else "N/A"
+            cost_text = format_cost(cost) if cost is not None else "N/A"
             table.add_row(
                 row["day"],
                 row["provider"] or "unknown",

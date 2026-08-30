@@ -15,37 +15,129 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import pytest
 
 import janito.config_dir as config_dir_mod
-from janito.provider_accessors import (
+from janito.providers import REQUIRES_BY_API_TYPE
+from janito.providers.payloads import (
     apply_builtin_tools_to_extra_body,
     apply_thinking_to_extra_body,
     builtin_tools_enable_flags,
+)
+from janito.providers.registry import get_provider
+from janito.providers.validation import (
+    canonical_provider_name,
     ensure_api_type_available,
     get_all_api_types,
-    get_base_url_from_provider,
-    get_default_api_type_from_provider,
-    get_default_max_input_tokens_from_provider,
-    get_default_max_output_tokens_from_provider,
-    get_default_model_from_provider,
-    get_default_reasoning_effort_from_provider,
-    get_default_thinking_from_provider,
-    get_default_tools_from_provider,
-    get_endpoint_by_api_type,
-    get_endpoint_for_api_type,
-    get_gemini_flavor_from_provider,
-    get_provider_config,
     get_required_package_for_api_type,
-    get_responses_in_server_from_provider,
-    get_supported_api_types_from_provider,
-    get_supported_reasoning_efforts_from_provider,
     is_api_type_available,
-)
-from janito.provider_validation import (
-    canonical_provider_name,
     is_supported_provider,
     list_supported_providers,
     validate_provider_name,
 )
-from janito.providers import REQUIRES_BY_API_TYPE
+
+# ---------------------------------------------------------------------------
+# Test-local mapping of the former ``provider_accessors`` helpers onto the
+# the Provider accessors (``get_provider(name)`` -> ``Provider``).  These
+# keep the table-driven assertions below readable; the package itself only
+# exposes the typed API.
+# ---------------------------------------------------------------------------
+
+
+def get_provider_config(provider, model=None):
+    """The provider info dict (or one model's entry); ``None`` when unknown."""
+    found = get_provider(provider)
+    if found is None:
+        return None
+    info = found.info
+    if model is None:
+        return info
+    models = info.get("models", {})
+    if not isinstance(models, dict):
+        return None
+    return models.get(model)
+
+
+def get_base_url_from_provider(provider):
+    """The provider's built-in ``endpoint`` entry, or ``None``."""
+    found = get_provider(provider)
+    return found.info.get("endpoint") if found is not None else None
+
+
+def get_endpoint_by_api_type(provider):
+    """The provider's ``endpoint_by_api_type`` map, or ``None``."""
+    found = get_provider(provider)
+    return found.info.get("endpoint_by_api_type") if found is not None else None
+
+
+def get_endpoint_for_api_type(provider, api_type=None):
+    """The provider's base URL for ``api_type``, or ``None``."""
+    found = get_provider(provider)
+    return found.endpoint_for(api_type) if found is not None else None
+
+
+def get_default_model_from_provider(provider):
+    """The provider's built-in default model, or ``None``."""
+    found = get_provider(provider)
+    return found.default_model() if found is not None else None
+
+
+def get_default_max_output_tokens_from_provider(provider, model=None):
+    """The model's built-in max output tokens, or ``None``."""
+    found = get_provider(provider)
+    return found.max_output_tokens(model) if found is not None else None
+
+
+def get_default_max_input_tokens_from_provider(provider, model=None):
+    """The model's built-in max input tokens, or ``None``."""
+    found = get_provider(provider)
+    return found.max_input_tokens(model) if found is not None else None
+
+
+def get_default_reasoning_effort_from_provider(provider, model=None):
+    """The model's built-in default reasoning effort, or ``None``."""
+    found = get_provider(provider)
+    return found.reasoning_effort(model) if found is not None else None
+
+
+def get_supported_reasoning_efforts_from_provider(provider, model=None):
+    """The model's supported reasoning efforts, or ``None``."""
+    found = get_provider(provider)
+    return found.supported_reasoning_efforts(model) if found is not None else None
+
+
+def get_default_thinking_from_provider(provider, model=None):
+    """The model's built-in thinking default (``True`` / dict / ``False``)."""
+    found = get_provider(provider)
+    return found.default_thinking(model) if found is not None else False
+
+
+def get_default_tools_from_provider(provider, model=None, api_type=None):
+    """The model's built-in (native) tools for ``api_type``, or ``None``."""
+    found = get_provider(provider)
+    return found.tools(model, api_type=api_type) if found is not None else None
+
+
+def get_gemini_flavor_from_provider(provider):
+    """Whether the provider's API uses the Gemini (Google) flavor."""
+    found = get_provider(provider)
+    return found.gemini_flavor() if found is not None else False
+
+
+def get_supported_api_types_from_provider(provider, model=None):
+    """The API types the model supports, or ``None``."""
+    found = get_provider(provider)
+    return found.supported_api_types(model) if found is not None else None
+
+
+def get_default_api_type_from_provider(provider, model=None):
+    """The model's built-in default API type, or ``None``."""
+    found = get_provider(provider)
+    return found.default_api_type(model) if found is not None else None
+
+
+def get_responses_in_server_from_provider(provider, model=None):
+    """Whether the model's Responses API keeps server-side state."""
+    found = get_provider(provider)
+    return found.responses_in_server(model) if found is not None else True
+
 
 if pytest is not None:
 
@@ -110,31 +202,24 @@ if pytest is not None:
         # The "custom" provider has no built-in models.
         assert get_provider_config("custom", "any-model") is None
 
-    def test_providers_package_get_provider_config():
-        """The per-provider config package exposes the same lookup directly."""
+    def test_provider_info_is_package_config_dict():
+        """The typed Provider's ``info`` is the same dict the package registry reads."""
         from janito.providers import _PROVIDER_CONFIGS as PACKAGE_PROVIDER_CONFIGS
-        from janito.providers import get_provider_config as package_get_provider_config
 
-        # The package's config registry is the same dict the registry reads.
-        assert (
-            package_get_provider_config("openai") is PACKAGE_PROVIDER_CONFIGS["openai"]
-        )
-        # model=None -> full entry; model given -> that model's entry.
-        assert package_get_provider_config("minimax")["endpoint"] == (
-            "https://api.minimax.io/v1"
-        )
-        assert package_get_provider_config("openai", "gpt-5.6-luna")[
-            "max_output_tokens"
-        ] == (128000)
-        assert package_get_provider_config("minimax", "MiniMax-M3")["thinking"] == {
+        # The provider object's info entry is the package's config dict.
+        assert get_provider("openai").info is PACKAGE_PROVIDER_CONFIGS["openai"]
+        # Provider-level fields and per-model entries come from that dict.
+        assert get_provider("minimax").info["endpoint"] == "https://api.minimax.io/v1"
+        assert get_provider("openai").max_output_tokens("gpt-5.6-luna") == 128000
+        assert get_provider("minimax").default_thinking("MiniMax-M3") == {
             "type": "adaptive"
         }
         # Case-insensitive provider lookup works.
-        assert package_get_provider_config("MiniMax")["default_model"] == "MiniMax-M3"
-        # Unknown provider/model -> None.
-        assert package_get_provider_config("bogus") is None
-        assert package_get_provider_config("openai", "nope") is None
-        assert package_get_provider_config("custom", "any-model") is None
+        assert get_provider("MiniMax").default_model() == "MiniMax-M3"
+        # Unknown provider -> None.
+        assert get_provider("bogus") is None
+        # The "custom" provider has no built-in models (empty config -> None).
+        assert get_provider("custom").max_output_tokens("any-model") is None
 
     def test_deepseek_provider():
         info = get_provider_config("deepseek")
@@ -802,7 +887,6 @@ if pytest is not None:
     def test_get_endpoint_for_api_type_single_entry_fallback():
         """A single-entry endpoint_by_api_type dict is the default for ANY
         API type (the issue's requirement), unless a config endpoint is set."""
-        import janito.provider_accessors as pa
         import janito.providers as pvd
 
         # Inject a fake provider with a single-entry map to pin the rule.
@@ -821,20 +905,19 @@ if pytest is not None:
         try:
             # The single entry is used for any API type...
             assert (
-                pa.get_endpoint_for_api_type("fake-provider", "Anthropic")
+                get_endpoint_for_api_type("fake-provider", "Anthropic")
                 == "https://native.example"
             )
             assert (
-                pa.get_endpoint_for_api_type("fake-provider", "Completions")
+                get_endpoint_for_api_type("fake-provider", "Completions")
                 == "https://native.example"
             )
             assert (
-                pa.get_endpoint_for_api_type("fake-provider", "Responses")
+                get_endpoint_for_api_type("fake-provider", "Responses")
                 == "https://native.example"
             )
             assert (
-                pa.get_endpoint_for_api_type("fake-provider")
-                == "https://native.example"
+                get_endpoint_for_api_type("fake-provider") == "https://native.example"
             )
         finally:
             pvd._PROVIDER_CONFIGS.clear()
@@ -1050,7 +1133,7 @@ if pytest is not None:
     def test_custom_provider_empty_models():
         """The 'custom' provider has no built-in models: model-level accessors
         return None/empty, and there is no default model."""
-        import janito.provider_models as pm
+        import janito.providers.models as pm
 
         assert get_provider_config("custom")["default_model"] is None
         assert get_provider_config("custom")["models"] == {}

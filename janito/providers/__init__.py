@@ -40,7 +40,7 @@ Provider-level fields:
     entry only carries built-in defaults (e.g. the default API type), so
     runtime model resolution treats it as "no model configured" and requires
     the user to supply a model explicitly (see
-    ``janito.provider_accessors.requires_explicit_model``).
+    :func:`janito.runtime_config.resolve_runtime_config`).
   - "endpoint": the OpenAI-compatible base URL. ``None`` means the standard
     OpenAI API endpoint (no custom base URL needed); the special
     ``CUSTOM_ENDPOINT`` marker means the endpoint must come from config.
@@ -97,7 +97,7 @@ Model-level fields (each entry of the ``models`` dict):
     thinking parameter (MiniMax-M3: ``{'type': 'adaptive'}``, sent as
     ``extra_body={'thinking': {...}}``). Absent (or ``False``) means no
     built-in default. The CLI ``--thinking`` flag still forces it on
-    explicitly. See :func:`janito.provider_accessors.apply_thinking_to_extra_body`.
+    explicitly. See :func:`janito.providers.payloads.apply_thinking_to_extra_body`.
   - "tools": the built-in (native) tools the model supports, e.g.
     ``[{"type": "code_interpreter"}, {"type": "web_search"},
     {"type": "web_extractor"}]`` for Alibaba/Qwen's flagship. These are
@@ -108,7 +108,7 @@ Model-level fields (each entry of the ``models`` dict):
     native DashScope API. ``code_interpreter`` only supports calls in
     thinking mode, so it also forces ``enable_thinking`` on. Absent (or
     ``None``) means the model has no built-in tools. See
-    :func:`janito.provider_accessors.get_default_tools_from_provider`.
+    :meth:`janito.providers.models.Provider.tools`.
   - "tools_by_api_type": per-API-type overrides for the built-in tools
     (optional). When a model's endpoint does not accept every built-in tool
     (e.g. Alibaba's qwen3.8-max rejects ``code_interpreter`` on the
@@ -117,7 +117,7 @@ Model-level fields (each entry of the ``models`` dict):
     default: each API type in the map gets its own list, and API types
     absent from the map send no built-in tools. When the plain ``tools``
     default is present it applies to every API type not listed here. See
-    :func:`janito.provider_accessors.get_default_tools_from_provider`.
+    :meth:`janito.providers.models.Provider.tools`.
 
 For a fully commented reference of *every* CONFIG option (with example
 values), see :mod:`janito.providers.template.config`.
@@ -175,51 +175,9 @@ _PROVIDER_CONFIGS: dict[str, dict] = {
 #
 # When the user attempts to set an API type whose required package is missing,
 # the change is aborted with a message naming the package that must be
-# installed (see :func:`janito.provider_accessors.ensure_api_type_available`).
+# installed (see :func:`janito.providers.validation.ensure_api_type_available`).
 REQUIRES_BY_API_TYPE: dict[str, str] = {
     "Anthropic": "anthropic",
     "DashScope": "dashscope",
     "Gemini": "google-genai",
 }
-
-
-def get_provider_config(provider: str, model: str | None = None) -> dict | None:
-    """Get the config entry for a provider, or for one of its models.
-
-    Without ``model`` this returns the provider's full entry (the
-    provider-level fields plus its ``models`` dict).  With ``model`` it
-    returns just that model's entry *within* the provider (the
-    ``models[model]`` dict with the model-level fields).
-
-    Args:
-        provider: The provider name (case-insensitive).
-        model: The model name to return the config for. ``None`` returns the
-            whole provider entry.
-
-    Returns:
-        The provider's info dict when ``model`` is ``None``; the model's
-        entry when ``model`` is given; ``None`` when the provider is unknown
-        or the model has no built-in entry.
-    """
-    if not provider:
-        return None
-    if provider in _PROVIDER_CONFIGS:
-        entry = _PROVIDER_CONFIGS[provider]
-    else:
-        provider_lower = provider.lower()
-        entry = next(
-            (
-                info
-                for key, info in _PROVIDER_CONFIGS.items()
-                if key.lower() == provider_lower
-            ),
-            None,
-        )
-    if entry is None:
-        return None
-    if model is None:
-        return entry
-    models = entry.get("models", {})
-    if not isinstance(models, dict):
-        return None
-    return models.get(model)

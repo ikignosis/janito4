@@ -5,11 +5,11 @@ Defines :class:`ProviderRegistry` (case-insensitive lookup over
 :data:`janito.providers._PROVIDER_CONFIGS`, including registered provider
 variants) plus the ``parse_variant_name`` / ``is_variant_style_name``
 helpers it relies on.  Part of the split provider-config module family (see
-:mod:`janito.provider_accessors`).
+:mod:`janito.providers.models` and :mod:`janito.providers.validation`).
 """
 
-from .provider_models import Provider
-from .providers import _PROVIDER_CONFIGS, REQUIRES_BY_API_TYPE
+from . import _PROVIDER_CONFIGS, REQUIRES_BY_API_TYPE
+from .models import Provider
 
 
 def parse_variant_name(name: str) -> tuple[str, str] | None:
@@ -85,7 +85,7 @@ class ProviderRegistry:
         return self._requires
 
     @staticmethod
-    def _variant_base(name: str) -> str | None:
+    def variant_base(name: str) -> str | None:
         """Return the canonical base provider of a registered variant.
 
         A variant is a ``<provider>-<word>`` name registered via
@@ -102,7 +102,7 @@ class ProviderRegistry:
             The canonical base provider name if ``name`` is a registered
             variant, otherwise ``None``.
         """
-        from .config_variants import is_registered_variant
+        from ..config_variants import is_registered_variant
 
         parsed = parse_variant_name(name)
         if parsed is None:
@@ -146,7 +146,7 @@ class ProviderRegistry:
 
         # Registered provider variant (<provider>-<word>): the base must be a
         # supported provider and the variant must be registered.
-        if self._variant_base(provider) is not None:
+        if self.variant_base(provider) is not None:
             return provider_lower
         return None
 
@@ -179,7 +179,7 @@ class ProviderRegistry:
 
         # Registered provider variant: build a Provider over the base
         # provider's info, keeping the variant name as the provider name.
-        base = self._variant_base(name)
+        base = self.variant_base(name)
         if base is not None:
             return Provider(name.strip().lower(), self._data, variant_of=base)
 
@@ -215,7 +215,7 @@ class ProviderRegistry:
             )
         if canonical in self._data:
             return Provider(canonical, self._data)
-        base = self._variant_base(canonical)
+        base = self.variant_base(canonical)
         if base is None:  # pragma: no cover - canonical implies a match
             supported = ", ".join(sorted(self._data.keys()))
             raise ValueError(
@@ -230,3 +230,20 @@ class ProviderRegistry:
 
 # Module-level singleton registry backing the functions below.
 _registry = ProviderRegistry()
+
+
+def get_provider(name: str) -> Provider | None:
+    """Look up a provider by name (case-insensitive), returning ``None`` when unknown.
+
+    The single entry point for callers that need the typed
+    :class:`Provider` accessor.  Mirrors :meth:`ProviderRegistry.get`: an
+    exact match wins, then a case-insensitive match, and registered provider
+    variants resolve to a :class:`Provider` over their base provider's info.
+
+    Args:
+        name: The provider name.
+
+    Returns:
+        A :class:`Provider`, or ``None`` when unknown/empty.
+    """
+    return _registry.get(name)

@@ -312,7 +312,7 @@ class ConfigStore:
         """
         provider_config = providers.get(provider)
         if not provider_config:
-            from .provider_registry import is_variant_style_name
+            from .providers.registry import is_variant_style_name
 
             if not is_variant_style_name(provider):
                 providers.pop(provider, None)

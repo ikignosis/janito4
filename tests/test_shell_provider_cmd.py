@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import janito.config_dir as config_dir_mod
 from janito.config_store import get_config_value
-from janito.provider_validation import list_supported_providers
+from janito.providers.validation import list_supported_providers
 from janito.shell import InteractiveShell
 from janito.shell.cmds.provider import available_provider_names
 from janito.shell.cmds.registry import get_registered_commands

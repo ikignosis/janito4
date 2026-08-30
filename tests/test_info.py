@@ -23,8 +23,43 @@ from janito.cli.handlers.info import (
     handle_show_config,
     handle_show_system_prompt,
 )
+from janito.providers.registry import get_provider as _real_get_provider
 
 SKILLS_SECTION = "## Available Skills\n(fake skills section)"
+
+#: Sentinel: a ``_fake_provider`` knob not overridden delegates to the real
+#: provider's value.
+_MISSING = object()
+
+
+def _fake_provider(name, *, default_model=_MISSING, default_thinking=False):
+    """A Provider-like object for ``name`` with selected lookups overridden.
+
+    ``endpoint_for`` is stubbed to ``None`` and un-overridden methods fall
+    back to the real :class:`Provider` (e.g. ``gemini_flavor`` stays real so
+    the Google N/A thinking display keeps working).
+    """
+    real = _real_get_provider(name)
+
+    class _P:
+        def default_model(self):
+            if default_model is not _MISSING or real is None:
+                return default_model
+            return real.default_model()
+
+        def default_thinking(self, model=None):
+            return default_thinking
+
+        def endpoint_for(self, api_type=None):
+            return None
+
+        def gemini_flavor(self):
+            return real.gemini_flavor() if real is not None else False
+
+        def responses_in_server(self, model=None):
+            return real.responses_in_server(model) if real is not None else True
+
+    return _P()
 
 
 def _fake_resolve_api_type(cli_api_type, provider, model=None):
@@ -138,8 +173,8 @@ def _run_show_config(
             return_value=config_model,
         ),
         patch(
-            "janito.cli.handlers.info.get_default_model_from_provider",
-            return_value=default_model,
+            "janito.cli.handlers.info.get_provider",
+            return_value=_fake_provider(provider, default_model=default_model),
         ),
         patch(
             "janito.cli.handlers.info.get_api_key",
@@ -159,14 +194,6 @@ def _run_show_config(
         ),
         patch(
             "janito.cli.handlers.info.is_custom_provider",
-            return_value=False,
-        ),
-        patch(
-            "janito.cli.handlers.info.get_endpoint_for_api_type",
-            return_value=None,
-        ),
-        patch(
-            "janito.cli.handlers.info.get_default_thinking_from_provider",
             return_value=False,
         ),
     ):

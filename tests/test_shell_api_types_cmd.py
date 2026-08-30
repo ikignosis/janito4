@@ -3,10 +3,10 @@ Tests for the shell /api_types command handler.
 
 ``/api_types`` renders a table with one row per built-in model: the
 provider, the model name and the API types the model supports (from its
-``supported_api_types`` entry via
-:func:`janito.provider_accessors.get_supported_api_types_from_provider`),
+``supported_api_types`` entry via the typed provider accessor
+``Provider.supported_api_types``),
 marking the built-in default API type (its ``default_api_type`` entry, via
-:func:`janito.provider_accessors.get_default_api_type_from_provider`) with
+``Provider.default_api_type``) with
 ``(default)``.  Models without a built-in entry (e.g. the ``custom``
 provider's) show ``(none)``.  The command must not match non-``/api_types``
 input (e.g. ``/api_type``).
@@ -19,12 +19,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import janito.config_dir as config_dir_mod
-from janito.provider_accessors import (
-    get_default_api_type_from_provider,
-    get_supported_api_types_from_provider,
-)
-from janito.provider_registry import _registry
-from janito.provider_validation import list_supported_providers
+from janito.providers.registry import get_provider
+from janito.providers.validation import list_supported_providers
 from janito.shell import InteractiveShell
 from janito.shell.cmds.registry import get_registered_commands
 
@@ -60,24 +56,24 @@ def test_api_types_lists_providers_and_models(monkeypatch, tmp_path, capsys):
 
     out = capsys.readouterr().out
     for provider in list_supported_providers():
-        found = _registry.get(provider)
+        found = get_provider(provider)
         for model in found.model_names():
             assert provider in out
             assert model in out
 
 
-def test_api_types_column_matches_provider_accessors(monkeypatch, tmp_path, capsys):
-    """The supported API types column equals the provider accessor output."""
+def test_api_types_column_matches_typed_accessors(monkeypatch, tmp_path, capsys):
+    """The supported API types column equals the typed accessor output."""
     _use_temp_config(monkeypatch, tmp_path)
     shell = _shell()
     assert _api_types_handler().handle(shell, "/api_types") is True
 
     out = capsys.readouterr().out
     for provider in list_supported_providers():
-        found = _registry.get(provider)
+        found = get_provider(provider)
         for model in found.model_names():
-            api_types = get_supported_api_types_from_provider(provider, model) or []
-            default_api_type = get_default_api_type_from_provider(provider, model)
+            api_types = found.supported_api_types(model) or []
+            default_api_type = found.default_api_type(model)
             for api_type in api_types:
                 assert api_type in out
                 if api_type == default_api_type:

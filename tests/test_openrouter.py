@@ -31,11 +31,11 @@ import pytest
 
 import janito.config_dir as config_dir_mod
 import janito.config_store as cs
-import janito.provider_accessors as pa
 from janito.auth_config import set_api_key
 from janito.cli.handlers.models import handle_list_models
 from janito.cli.handlers.providers import _provider_rows
-from janito.provider_models import Provider
+from janito.providers.models import Provider
+from janito.providers.registry import get_provider
 
 
 def _use_temp_config(monkeypatch, tmp_path):
@@ -51,7 +51,7 @@ def _use_temp_config(monkeypatch, tmp_path):
 
 
 def test_provider_registered():
-    from janito.provider_validation import list_supported_providers
+    from janito.providers.validation import list_supported_providers
 
     assert "openrouter" in list_supported_providers()
 
@@ -72,8 +72,8 @@ def test_provider_config_shape():
 def test_placeholder_model_entry_carries_defaults():
     """The placeholder 'custom' model entry provides the default API type,
     so API-type resolution works before a model is configured."""
-    assert pa.get_default_api_type_from_provider("openrouter", None) == "Completions"
-    assert pa.get_default_model_from_provider("openrouter") == "custom"
+    assert get_provider("openrouter").default_api_type() == "Completions"
+    assert get_provider("openrouter").default_model() == "custom"
 
 
 # ---------------------------------------------------------------------------
@@ -82,13 +82,16 @@ def test_placeholder_model_entry_carries_defaults():
 
 
 def test_requires_explicit_model():
-    assert pa.requires_explicit_model("openrouter") is True
+    # The placeholder "custom" default (e.g. openrouter) means an explicit
+    # model is required; real-default providers and "custom" do not.
+    assert get_provider("openrouter").default_model() == "custom"
     # Case-insensitive lookup.
-    assert pa.requires_explicit_model("OpenRouter") is True
+    assert get_provider("OpenRouter").default_model() == "custom"
     # Real-default providers and the custom provider do not.
-    assert pa.requires_explicit_model("openai") is False
-    assert pa.requires_explicit_model("custom") is False
-    assert pa.requires_explicit_model("bogus") is False
+    assert get_provider("openai").default_model() != "custom"
+    assert get_provider("custom").default_model() != "custom"
+    # Unknown provider: no provider object at all.
+    assert get_provider("bogus") is None
 
 
 # ---------------------------------------------------------------------------

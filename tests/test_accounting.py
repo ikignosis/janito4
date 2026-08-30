@@ -20,7 +20,7 @@ import pytest
 
 import janito.config_dir as config_dir_mod
 import janito.tooling.accounting as accounting
-from janito.provider_accessors import get_provider_cost_value
+from janito.providers.costing import get_provider_cost_value
 
 #: All columns of the ``accounting`` table (including the rowid alias).
 EXPECTED_COLUMNS = {

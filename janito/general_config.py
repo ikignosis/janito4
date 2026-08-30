@@ -132,7 +132,7 @@ def resolve_api_type(
             API type.
     """
     from .config_keys import normalize_api_type
-    from .provider_accessors import get_default_api_type_from_provider
+    from .providers.registry import get_provider
 
     provider = cli_provider or get_active_provider()
     effective_model = cli_model or load_model_from_config(provider)
@@ -145,5 +145,6 @@ def resolve_api_type(
             logger.error(f"Unsupported API type: {raw}")
             raise
 
-    default = get_default_api_type_from_provider(provider, effective_model)
+    found = get_provider(provider)
+    default = found.default_api_type(effective_model) if found is not None else None
     return default or "Completions"

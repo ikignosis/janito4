@@ -16,7 +16,7 @@ See also:
   - :mod:`janito.providers` -- how the per-provider entries are assembled
     into the registry (including the ``REQUIRES_BY_API_TYPE`` optional-
     package map that native-SDK API types must be added to).
-  - :mod:`janito.provider_accessors` -- how each CONFIG option is read and
+  - :mod:`janito.providers.models` -- how each CONFIG option is read and
     applied at runtime.
 """
 
@@ -146,7 +146,7 @@ PROVIDER_CONFIG: dict = {
             #: ``code_interpreter`` only supports calls in thinking mode, so
             #: it also forces ``enable_thinking`` on.  Absent (or ``None``)
             #: means the model has no built-in tools.  See
-            #: :func:`janito.provider_accessors.get_default_tools_from_provider`.
+            #: :meth:`janito.providers.models.Provider.tools`.
             "tools": [
                 {"type": "code_interpreter"},
                 {"type": "web_search"},

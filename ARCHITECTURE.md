@@ -425,13 +425,19 @@ Key modules:
   `model_config(model)` and per-model accessors defaulting to the provider's
   default model) and `ModelConfig` (typed accessors over one model entry).
 - **`provider_registry.py`** — `ProviderRegistry` (case-insensitive lookup
-  over `janito.providers._PROVIDER_CONFIGS`, including registered variants)
-  and the `parse_variant_name` / `is_variant_style_name` helpers.
-- **`provider_accessors.py`** — the module-level `get_*_from_provider`
-  helpers (defaults, endpoints, API-type validation, ...) that accept an
-  optional `model` argument.
+  over `janito.providers._PROVIDER_CONFIGS`, including registered variants),
+  the `parse_variant_name` / `is_variant_style_name` helpers, and the
+  module-level `get_provider(name)` entry point that callers use to obtain a
+  typed `Provider` (the former `get_*_from_provider` facade).
+- **`provider_payloads.py`** — pure request-payload helpers
+  (`apply_thinking_to_extra_body`, `apply_builtin_tools_to_extra_body`,
+  `builtin_tools_enable_flags`, `format_thinking_display`).
+- **`provider_cost.py`** — cost estimation (`get_provider_cost`,
+  `get_provider_cost_value`, adaptive `format_cost`).
 - **`provider_validation.py`** — provider name validation / listing helpers
-  (`validate_provider_name`, `is_supported_provider`, `list_variants`, ...).
+  (`validate_provider_name`, `is_supported_provider`, `list_variants`, ...)
+  and API-type availability (`get_all_api_types`,
+  `ensure_api_type_available`, ...).
 - **`auth_config.py`, `secrets_config.py`, `mcp_config.py`** — auth, secrets
   and MCP service stores.
 

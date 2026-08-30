@@ -5,24 +5,10 @@ from ...config_keys import get_masked_api_key
 from ...config_loaders import load_endpoint_from_config, load_model_from_config
 from ...config_store import get_config_path
 from ...general_config import get_active_provider
-from ...provider_accessors import (
-    format_thinking_display,
-    get_default_api_type_from_provider,
-    get_default_max_input_tokens_from_provider,
-    get_default_max_output_tokens_from_provider,
-    get_default_model_from_provider,
-    get_default_reasoning_effort_from_provider,
-    get_default_thinking_from_provider,
-    get_default_tools_from_provider,
-    get_endpoint_for_api_type,
-    get_supported_api_types_from_provider,
-    requires_explicit_model,
-)
-from ...provider_registry import ProviderRegistry, parse_variant_name
-from ...provider_validation import list_variants
 from ...providers import CUSTOM_ENDPOINT_MARKER
-
-_registry = ProviderRegistry()
+from ...providers.payloads import format_thinking_display
+from ...providers.registry import get_provider, parse_variant_name
+from ...providers.validation import list_supported_providers, list_variants
 
 
 def _format_token_limit(value: int | None) -> str:
@@ -38,9 +24,12 @@ def _tools_display(provider: str, model: str) -> str | None:
     web_search, web_extractor (Responses)"``.  Returns ``None`` when no API
     type has built-in tools.
     """
+    found = get_provider(provider)
+    if found is None:
+        return None
     segments = []
-    for api_type in get_supported_api_types_from_provider(provider, model) or []:
-        tools = get_default_tools_from_provider(provider, model, api_type=api_type)
+    for api_type in found.supported_api_types(model) or []:
+        tools = found.tools(model, api_type=api_type)
         if tools:
             joined = ", ".join(
                 tool.get("type") if isinstance(tool, dict) else str(tool)
@@ -64,9 +53,10 @@ def _resolve_endpoint_display(provider: str) -> tuple[str, str]:
     if config_endpoint:
         return config_endpoint, "configured"
 
-    built_in = get_endpoint_for_api_type(
-        provider, get_default_api_type_from_provider(provider)
-    )
+    found = get_provider(provider)
+    if found is None:
+        return "", "default OpenAI (no custom base URL)"
+    built_in = found.endpoint_for(found.default_api_type())
     if built_in is None:
         return "", "default OpenAI (no custom base URL)"
     if built_in == CUSTOM_ENDPOINT_MARKER:
@@ -83,8 +73,9 @@ def _model_rows(
     if default_model and model == default_model:
         label += " (default)"
 
-    api_types = get_supported_api_types_from_provider(provider, model) or []
-    default_api_type = get_default_api_type_from_provider(provider, model)
+    found = get_provider(provider)
+    api_types = (found.supported_api_types(model) if found is not None else None) or []
+    default_api_type = found.default_api_type(model) if found is not None else None
     if api_types:
         api_types_display = ", ".join(
             f"{api_type} (default)" if api_type == default_api_type else api_type
@@ -94,7 +85,7 @@ def _model_rows(
         api_types_display = "(none)"
     rows.append((f"{label} API types", api_types_display))
 
-    thinking = get_default_thinking_from_provider(provider, model)
+    thinking = found.default_thinking(model) if found is not None else False
     rows.append(
         (f"{label} thinking", format_thinking_display(thinking, provider=provider))
     )
@@ -107,12 +98,12 @@ def _model_rows(
     if tools_display:
         rows.append((f"{label} tools", tools_display))
 
-    reasoning = get_default_reasoning_effort_from_provider(provider, model)
+    reasoning = found.reasoning_effort(model) if found is not None else None
     if reasoning:
         rows.append((f"{label} reasoning", f"{reasoning} (default)"))
 
-    max_input = get_default_max_input_tokens_from_provider(provider, model)
-    max_output = get_default_max_output_tokens_from_provider(provider, model)
+    max_input = found.max_input_tokens(model) if found is not None else None
+    max_output = found.max_output_tokens(model) if found is not None else None
     if max_input is not None or max_output is not None:
         rows.append(
             (
@@ -137,8 +128,9 @@ def _provider_rows(
     # carries built-in defaults such as the default API type -- so it is not
     # shown as a default.
     configured_model = load_model_from_config(name)
-    default_model = get_default_model_from_provider(name)
-    if default_model and requires_explicit_model(name):
+    found = get_provider(name)
+    default_model = found.default_model() if found is not None else None
+    if default_model == "custom":
         default_model = None
     if configured_model:
         model_display = configured_model
@@ -164,8 +156,8 @@ def _provider_rows(
     # Per-model rows: every built-in model entry with its capabilities and
     # defaults (the default model is marked).  Variants inherit the base
     # provider's ``models`` dict, so they list the same models.
-    provider = _registry.get(name)
-    for model in provider.model_names() if provider is not None else []:
+    found = get_provider(name)
+    for model in found.model_names() if found is not None else []:
         rows.extend(_model_rows(name, model, default_model=default_model))
 
     return rows
@@ -194,7 +186,7 @@ def handle_show_providers(args) -> int:
 
     # Built-in providers, in registry order; variants appended afterwards
     # (sorted), matching the web UI's provider list.
-    entries = [(name, None) for name in _registry.names()]
+    entries = [(name, None) for name in list_supported_providers()]
     entries += [
         (variant, parse_variant_name(variant)[0]) for variant in list_variants()
     ]

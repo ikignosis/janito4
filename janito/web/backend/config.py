@@ -91,9 +91,10 @@ class WebServerConfig:
             return self.thinking_override
         if self.thinking:
             return True
-        from janito.provider_accessors import get_default_thinking_from_provider
+        from janito.providers.registry import get_provider
 
-        return get_default_thinking_from_provider(self.effective_provider, self.model)
+        found = get_provider(self.effective_provider)
+        return found.default_thinking(self.model) if found is not None else False
 
     def effective_tools_for(self, api_type: str):
         """The effective model's built-in (native) tools for an API type.
@@ -110,11 +111,10 @@ class WebServerConfig:
         type.  These are not function tools: each ``type`` is enabled
         through request-body flags on the API call.
         """
-        from janito.provider_accessors import get_default_tools_from_provider
+        from janito.providers.registry import get_provider
 
-        return get_default_tools_from_provider(
-            self.effective_provider, self.model, api_type=api_type
-        )
+        found = get_provider(self.effective_provider)
+        return found.tools(self.model, api_type=api_type) if found is not None else None
 
     # --- System prompt ---
     system_prompt: str | None = None  # -S "custom prompt"

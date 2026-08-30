@@ -99,9 +99,10 @@ class ThinkingCmdHandler(CmdHandler):
 
 def _is_gemini_flavor(provider: str | None) -> bool:
     """Return True when the provider is Gemini-flavored (thinking via reasoning level)."""
-    from ...provider_accessors import get_gemini_flavor_from_provider
+    from ...providers.registry import get_provider
 
-    return bool(provider) and get_gemini_flavor_from_provider(provider)
+    found = get_provider(provider) if provider else None
+    return found is not None and found.gemini_flavor()
 
 
 def _rebind_send_function(shell) -> None:

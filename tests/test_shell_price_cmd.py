@@ -5,7 +5,7 @@ Tests for the shell /price command handler.
 the model name and the estimated cost of a notional request of **1M input
 tokens (cache miss) + 1M cached input tokens + 1M output tokens**.  The
 cost column is computed by the provider's cost module via
-:func:`janito.provider_accessors.get_provider_cost` with
+:func:`janito.providers.costing.get_provider_cost` with
 ``is_reference=True`` (so reference/peak rates apply and the string carries
 no rate-band suffix); providers/models without a cost module show ``N/A``.
 The command must not match non-``/price`` input (e.g. ``/prices``).
@@ -18,9 +18,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import janito.config_dir as config_dir_mod
-from janito.provider_accessors import get_provider_cost
-from janito.provider_registry import _registry
-from janito.provider_validation import list_supported_providers
+from janito.providers.costing import get_provider_cost
+from janito.providers.registry import get_provider
+from janito.providers.validation import list_supported_providers
 from janito.shell import InteractiveShell
 from janito.shell.cmds.registry import get_registered_commands
 
@@ -89,7 +89,7 @@ def test_price_lists_providers_and_models(monkeypatch, tmp_path, capsys):
 
     out = capsys.readouterr().out
     for provider in list_supported_providers():
-        found = _registry.get(provider)
+        found = get_provider(provider)
         for model in found.model_names():
             assert provider in out
             assert model in out
@@ -103,7 +103,7 @@ def test_price_cost_column_matches_provider_cost(monkeypatch, tmp_path, capsys):
 
     out = capsys.readouterr().out
     for provider in list_supported_providers():
-        found = _registry.get(provider)
+        found = get_provider(provider)
         for model in found.model_names():
             expected = get_provider_cost(
                 provider, model, 1_000_000, 1_000_000, 1_000_000, is_reference=True

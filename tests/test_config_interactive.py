@@ -1,6 +1,6 @@
 """Tests for the interactive ``--config`` provider selection (questionary)."""
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -124,8 +124,8 @@ def test_prompt_max_input_tokens_defaults_to_provider_builtin(monkeypatch):
         lambda prompt, default=None, is_password=False: default,
     )
     monkeypatch.setattr(
-        "janito.cli.handlers.config.get_default_max_input_tokens_from_provider",
-        lambda provider, model=None: 200000,
+        "janito.cli.handlers.config.get_provider",
+        lambda provider: Mock(max_input_tokens=lambda model=None: 200000),
     )
     result = _prompt_max_input_tokens("openai", "gpt-5.6-luna", None)
     assert result == 200000
@@ -138,8 +138,8 @@ def test_prompt_max_input_tokens_falls_back_to_128k(monkeypatch):
     )
     # No existing value and no provider built-in (e.g. 'custom').
     monkeypatch.setattr(
-        "janito.cli.handlers.config.get_default_max_input_tokens_from_provider",
-        lambda provider, model=None: None,
+        "janito.cli.handlers.config.get_provider",
+        lambda provider: Mock(max_input_tokens=lambda model=None: None),
     )
     result = _prompt_max_input_tokens("custom", None, None)
     assert result == 128000

@@ -47,7 +47,7 @@ import pytest
 import janito.config_dir as config_dir_mod
 import janito.config_loaders as cl
 import janito.config_store as cs
-from janito.provider_accessors import is_api_type_available
+from janito.providers.validation import is_api_type_available
 
 # The web routes need the optional `web` extra (fastapi). Skip gracefully
 # when fastapi is not installed (e.g. minimal tox envs).

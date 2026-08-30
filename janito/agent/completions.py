@@ -16,7 +16,7 @@ loop under a progress spinner).
 from dataclasses import dataclass, field
 from typing import Any
 
-from janito.provider_accessors import (
+from janito.providers.payloads import (
     apply_builtin_tools_to_extra_body,
     apply_thinking_to_extra_body,
 )

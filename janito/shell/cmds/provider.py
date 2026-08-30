@@ -49,7 +49,7 @@ def available_provider_names(
         The matching provider names in their canonical casing.
     """
     from janito.auth_config import get_api_key
-    from janito.provider_validation import list_supported_providers, list_variants
+    from janito.providers.validation import list_supported_providers, list_variants
 
     names = list_supported_providers() + list_variants()
     if only_with_api_key:
@@ -101,11 +101,8 @@ class ProviderCmdHandler(CmdHandler):
         """Validate and apply the new provider for this shell session only."""
         from janito.config_loaders import load_model_from_config
         from janito.general_config import get_active_provider
-        from janito.provider_accessors import (
-            get_default_model_from_provider,
-            requires_explicit_model,
-        )
-        from janito.provider_validation import validate_provider_name
+        from janito.providers.registry import get_provider
+        from janito.providers.validation import validate_provider_name
 
         try:
             canonical = validate_provider_name(provider_name)
@@ -132,9 +129,11 @@ class ProviderCmdHandler(CmdHandler):
         # model via the runtime resolution.
         model = load_model_from_config(canonical)
         if not model:
-            default = get_default_model_from_provider(canonical)
-            if default and not requires_explicit_model(canonical):
-                model = default
+            found = get_provider(canonical)
+            if found is not None:
+                default = found.default_model()
+                if default != "custom":
+                    model = default
         if model:
             shell.model = model
 

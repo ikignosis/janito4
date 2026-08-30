@@ -5,17 +5,10 @@ from ...config_keys import get_masked_api_key
 from ...config_loaders import load_endpoint_from_config, load_model_from_config
 from ...config_store import get_config_path
 from ...general_config import load_provider_from_config, resolve_api_type
-from ...provider_accessors import (
-    format_thinking_display,
-    get_default_model_from_provider,
-    get_default_thinking_from_provider,
-    get_endpoint_for_api_type,
-    get_gemini_flavor_from_provider,
-    get_responses_in_server_from_provider,
-    requires_explicit_model,
-)
-from ...provider_validation import is_custom_provider
 from ...providers import CUSTOM_ENDPOINT_MARKER
+from ...providers.payloads import format_thinking_display
+from ...providers.registry import get_provider
+from ...providers.validation import is_custom_provider
 
 
 def _resolve_provider_source(args) -> tuple[str, str]:
@@ -52,7 +45,8 @@ def _resolve_endpoint_source(provider: str, api_type: str) -> tuple[str | None, 
         return config_endpoint, f"config.json ({provider}.endpoint)"
     if is_custom_provider(provider):
         return None, "required but not set (set endpoint in config.json)"
-    provider_default = get_endpoint_for_api_type(provider, api_type)
+    found = get_provider(provider)
+    provider_default = found.endpoint_for(api_type) if found is not None else None
     if provider_default and provider_default != CUSTOM_ENDPOINT_MARKER:
         return provider_default, f"{provider} default"
     if provider_default is None:
@@ -79,8 +73,9 @@ def _resolve_effective_model(
     model = cli_model or load_model_from_config(provider)
     if model:
         return model, "CLI argument" if cli_model else f"{provider}.model"
-    default = get_default_model_from_provider(provider)
-    if default and requires_explicit_model(provider):
+    found = get_provider(provider)
+    default = found.default_model() if found is not None else None
+    if default == "custom":
         return None, "not set"
     return default, f"{provider} default"
 
@@ -123,7 +118,10 @@ def handle_info(args) -> int:
         ("API Type", api_type),
     ]
     if api_type == "Responses":
-        responses_in_server = get_responses_in_server_from_provider(provider, model)
+        found = get_provider(provider)
+        responses_in_server = (
+            found.responses_in_server(model) if found is not None else True
+        )
         responses_display = (
             "server-side (previous_response_id)"
             if responses_in_server
@@ -216,7 +214,8 @@ def handle_show_config(args=None) -> int:
         endpoint = config_endpoint
         endpoint_source = "config.json"
     elif provider and not is_custom_provider(provider):
-        provider_base = get_endpoint_for_api_type(provider, api_type)
+        found = get_provider(provider)
+        provider_base = found.endpoint_for(api_type) if found is not None else None
         if provider_base and provider_base != CUSTOM_ENDPOINT_MARKER:
             endpoint = provider_base
             endpoint_source = f"{provider} default"
@@ -229,14 +228,15 @@ def handle_show_config(args=None) -> int:
     # otherwise the effective model's built-in default (True for DeepSeek
     # and Alibaba/Qwen; a pass-through dict such as {'type': 'adaptive'}
     # for MiniMax-M3).
-    thinking = getattr(args, "thinking", False) or get_default_thinking_from_provider(
-        provider, model
+    found = get_provider(provider)
+    thinking = getattr(args, "thinking", False) or (
+        found.default_thinking(model) if found is not None else False
     )
     thinking_display = format_thinking_display(thinking, provider=provider)
     if (
         thinking
         and not getattr(args, "thinking", False)
-        and not (provider and get_gemini_flavor_from_provider(provider))
+        and not (provider and found is not None and found.gemini_flavor())
     ):
         thinking_display += " (model default)"
 

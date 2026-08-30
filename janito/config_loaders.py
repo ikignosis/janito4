@@ -63,15 +63,16 @@ class ProviderConfigLoader:
         configured model (``<provider>.model``), then the provider's
         built-in default model.
         """
-        from .provider_accessors import get_default_model_from_provider
+        from .providers.registry import get_provider
 
         if model:
             return model
         provider = ProviderConfigLoader._resolve_provider(cli_provider)
         if not provider:
             return None
-        return load_model_from_config(provider) or get_default_model_from_provider(
-            provider
+        found = get_provider(provider)
+        return load_model_from_config(provider) or (
+            found.default_model() if found is not None else None
         )
 
     def load_model(self, cli_provider: str | None = None) -> str | None:

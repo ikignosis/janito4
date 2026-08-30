@@ -19,8 +19,8 @@ import logging
 from .auth_config import get_api_key
 from .config_loaders import load_endpoint_from_config, load_model_from_config
 from .general_config import load_provider_from_config
-from .provider_accessors import get_default_model_from_provider, requires_explicit_model
-from .provider_validation import is_custom_provider
+from .providers.registry import get_provider
+from .providers.validation import is_custom_provider
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ def resolve_runtime_config(
       - base_url: the endpoint configured for the provider (``--set endpoint``)
                   or, when none is set, the provider's built-in default base
                   URL resolved for the effective API type (see
-                  ``provider_accessors.get_endpoint_for_api_type``, honoring the
+                  ``providers.registry.get_provider(...).endpoint_for``, honoring the
                   provider's ``endpoint_by_api_type`` map). ``None`` means the
                   standard OpenAI endpoint.
       - model:    ``--model`` (``cli_model``) when given, otherwise the model
@@ -103,9 +103,15 @@ def resolve_runtime_config(
     # silently sending the placeholder to the API.
     model = cli_model or load_model_from_config(provider)
     if not model:
-        model = get_default_model_from_provider(provider)
-        if model and requires_explicit_model(provider):
-            model = None
+        found = get_provider(provider)
+        if found is not None:
+            model = found.default_model()
+            # A provider whose built-in default is the "custom" placeholder
+            # (e.g. "openrouter") has no usable default: the placeholder only
+            # carries built-in defaults (the default API type), so the user
+            # must supply the model explicitly.
+            if model == "custom":
+                model = None
     if not model:
         logger.error(f"No model configured for provider '{provider}'")
         raise ValueError(
@@ -127,10 +133,10 @@ def resolve_runtime_config(
                 f"Set it with: janito --provider {provider} --set endpoint=<url>"
             )
         from .general_config import resolve_api_type
-        from .provider_accessors import get_endpoint_for_api_type
 
         api_type = resolve_api_type(cli_api_type, provider)
-        base_url = get_endpoint_for_api_type(provider, api_type)
+        found = get_provider(provider)
+        base_url = found.endpoint_for(api_type) if found is not None else None
 
     logger.debug(f"Runtime config resolved: base_url={base_url}, model={model}")
     return base_url, api_key, model

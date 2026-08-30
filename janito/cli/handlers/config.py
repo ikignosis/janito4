@@ -20,8 +20,8 @@ from ...config_loaders import (
 )
 from ...config_store import get_config_path, get_config_paths, load_config
 from ...general_config import load_provider_from_config
-from ...provider_accessors import get_default_max_input_tokens_from_provider
-from ...provider_validation import is_custom_provider, list_supported_providers
+from ...providers.registry import get_provider
+from ...providers.validation import is_custom_provider, list_supported_providers
 
 
 def handle_get_config(keys: list[str], cli_provider: str = None) -> int:
@@ -277,7 +277,8 @@ def _prompt_max_input_tokens(
     # generic 128k fallback.
     default_max_input = existing_max_input_tokens
     if default_max_input is None:
-        default_max_input = get_default_max_input_tokens_from_provider(provider, model)
+        found = get_provider(provider)
+        default_max_input = found.max_input_tokens(model) if found is not None else None
     if default_max_input is None:
         default_max_input = 128000
     max_input_str = _prompt_with_default(

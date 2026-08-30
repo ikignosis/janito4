@@ -320,7 +320,7 @@ def _mock_run_turn(monkeypatch, create_side_effect):
 
 def _mock_run_turn_for_model(monkeypatch, model, builtin_tools, create_side_effect):
     """Like ``_mock_run_turn`` but for a specific model, with the model's
-    built-in (native) tools resolved via the provider accessor."""
+    built-in (native) tools resolved via the typed provider accessor."""
     client_inst = mock.Mock()
     client_inst.responses.create.side_effect = create_side_effect
     monkeypatch.setattr(api, "OpenAI", mock.Mock(return_value=client_inst))
@@ -329,8 +329,8 @@ def _mock_run_turn_for_model(monkeypatch, model, builtin_tools, create_side_effe
         lambda: [{"type": "function", "function": {"name": "list_files"}}],
     )
     monkeypatch.setattr(
-        "janito.provider_accessors.get_default_tools_from_provider",
-        lambda p, m=None, api_type=None: builtin_tools,
+        "janito.llm_clients.openai.conversations_api.get_provider",
+        lambda p: mock.Mock(tools=lambda model=None, api_type=None: builtin_tools),
     )
     executor_inst = mock.Mock()
     executor_inst.execute_tool_call.return_value = {
@@ -348,8 +348,8 @@ def test_run_turn_stateless_replays_full_history(monkeypatch):
     resolve a previous_response_id: the client re-sends the full conversation
     as input items on every request and never chains with an id."""
     monkeypatch.setattr(
-        "janito.llm_clients.openai.responses_state.get_responses_in_server_from_provider",
-        lambda p, m=None: False,
+        "janito.llm_clients.openai.responses_state.get_provider",
+        lambda p: mock.Mock(responses_in_server=lambda model=None: False),
     )
     seen = []
 
@@ -449,8 +449,8 @@ def test_run_turn_stateless_replays_full_history(monkeypatch):
 def test_run_turn_stateless_continues_with_previous_items(monkeypatch):
     """The next turn re-sends the previous turn's items plus the new prompt."""
     monkeypatch.setattr(
-        "janito.llm_clients.openai.responses_state.get_responses_in_server_from_provider",
-        lambda p, m=None: False,
+        "janito.llm_clients.openai.responses_state.get_provider",
+        lambda p: mock.Mock(responses_in_server=lambda model=None: False),
     )
     seen = []
 

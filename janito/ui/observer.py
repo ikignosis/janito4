@@ -14,7 +14,7 @@ from rich.console import Console
 
 from janito.agent.observer import NullObserver
 from janito.agent.usage import TokenStats
-from janito.provider_accessors import get_provider_cost_value
+from janito.providers.costing import get_provider_cost_value
 from janito.tooling.accounting import record_turn
 
 from ..llm_clients.api_config import APIConfig
@@ -144,7 +144,7 @@ def _record_accounting(usage_out: TokenStats | None, api_config: APIConfig) -> N
     accounting log reflects the billed usage; falls back to the final round's
     counters when the turn-wide ones were not reported.  The provider / model
     (and the numeric dollar cost estimate from
-    :func:`janito.provider_accessors.get_provider_cost_value`) come from the
+    :func:`janito.providers.costing.get_provider_cost_value`) come from the
     turn's resolved :class:`~janito.llm_clients.api_config.APIConfig`.
     Never raises -- accounting must not be able to break the agent loop
     (issue #72).

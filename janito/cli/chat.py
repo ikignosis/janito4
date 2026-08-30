@@ -8,7 +8,7 @@ from collections.abc import Callable
 from .. import __version__
 from ..general_config import load_provider_from_config, resolve_api_type
 from ..llm_clients import APIConfig, RequestCancelled, build_api_config
-from ..provider_accessors import get_responses_in_server_from_provider
+from ..providers.registry import get_provider
 from ..runtime_config import resolve_runtime_config
 from ..shell import InteractiveShell
 from ..tooling.path_utils import display_path
@@ -178,7 +178,7 @@ def _make_turn_factory(
         thinking_override: bool | None = None,
     ) -> Callable:
         from janito.config_loaders import load_model_from_config
-        from janito.provider_accessors import get_default_model_from_provider
+        from janito.providers.registry import get_provider
 
         # An explicit /model switch (model_override) always wins.  Otherwise
         # --model applies to the startup provider only; a switched-to
@@ -189,8 +189,9 @@ def _make_turn_factory(
         elif (provider or "").lower() == (cli_provider or "").lower():
             model = cli_model
         else:
-            model = load_model_from_config(provider) or get_default_model_from_provider(
-                provider
+            found = get_provider(provider)
+            model = load_model_from_config(provider) or (
+                found.default_model() if found is not None else None
             )
         # Thinking is resolved into the config at build time (issue #70): the
         # shell's runtime /thinking toggle passes thinking_override (the
@@ -337,7 +338,10 @@ def run_interactive_chat(args):
     # in which case the client re-sends the full history; Completions and
     # other API types always keep history client-side.
     if api_type == "Responses" and provider != "(not configured)":
-        responses_in_server = get_responses_in_server_from_provider(provider, model)
+        found = get_provider(provider)
+        responses_in_server = (
+            found.responses_in_server(model) if found is not None else True
+        )
         state = "server-side" if responses_in_server else "client-side"
     else:
         state = "client-side"

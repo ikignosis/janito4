@@ -8,9 +8,9 @@ Renders a table with one row per built-in model: the provider, the model
 name, and the API types the model supports.  The API types come from the
 model's ``supported_api_types`` entry (e.g. ``Responses`` / ``Completions``
 plus native-SDK types such as ``Anthropic`` / ``DashScope`` / ``Gemini``)
-via :func:`janito.provider_accessors.get_supported_api_types_from_provider`;
+via the typed provider accessor (``Provider.supported_api_types``);
 the model's built-in default API type (its ``default_api_type`` entry, via
-:func:`janito.provider_accessors.get_default_api_type_from_provider`) is
+``Provider.default_api_type``) is
 marked ``(default)``.  Models without a built-in entry (e.g. the ``custom``
 provider's) show ``(none)``.
 """
@@ -43,12 +43,8 @@ class ApiTypesCmdHandler(CmdHandler):
     @staticmethod
     def _show_api_types() -> None:
         """Print a per-model API-type table for every built-in model."""
-        from janito.provider_accessors import (
-            get_default_api_type_from_provider,
-            get_supported_api_types_from_provider,
-        )
-        from janito.provider_registry import _registry
-        from janito.provider_validation import list_supported_providers
+        from janito.providers.registry import get_provider
+        from janito.providers.validation import list_supported_providers
 
         table = Table(
             title="API Types by Provider/Model",
@@ -62,12 +58,12 @@ class ApiTypesCmdHandler(CmdHandler):
         table.add_column("Supported API Types")
 
         for provider in list_supported_providers():
-            found = _registry.get(provider)
+            found = get_provider(provider)
             if found is None:
                 continue
             for model in sorted(found.model_names()):
-                api_types = get_supported_api_types_from_provider(provider, model) or []
-                default_api_type = get_default_api_type_from_provider(provider, model)
+                api_types = found.supported_api_types(model) or []
+                default_api_type = found.default_api_type(model)
                 if api_types:
                     display = ", ".join(
                         f"{api_type} (default)"

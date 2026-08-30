@@ -6,7 +6,7 @@ listing supported providers.  Part of the split provider-config module
 family.
 """
 
-from .provider_registry import _registry
+from .registry import _registry
 
 
 def canonical_provider_name(provider: str) -> str | None:
@@ -50,7 +50,7 @@ def is_registered_provider_variant(name: str) -> bool:
     Returns:
         True if the name is a registered variant.
     """
-    return _registry._variant_base(name) is not None
+    return _registry.variant_base(name) is not None
 
 
 def list_variants() -> list:
@@ -59,7 +59,7 @@ def list_variants() -> list:
     Returns:
         Sorted list of registered variant names (e.g. ``["alibaba-tokenplan"]``).
     """
-    from .config_variants import load_variants
+    from ..config_variants import load_variants
 
     return sorted(load_variants().keys())
 
@@ -117,7 +117,7 @@ def validate_model_name(provider: str, model: str) -> str:
     (the variant inherits them).  The ``custom`` and ``openrouter`` providers
     accept any model name -- they have no usable built-in model list to
     restrict selection to (see
-    :meth:`janito.provider_models.Provider.has_usable_builtin_models`).
+    :meth:`janito.providers.models.Provider.has_usable_builtin_models`).
 
     A model matching a built-in entry -- or an already-configured per-model
     entry under ``providers.<provider>.models`` in config.json, the same set
@@ -137,8 +137,8 @@ def validate_model_name(provider: str, model: str) -> str:
         ValueError: If the provider has usable built-in models and ``model``
             is not one of them (or a configured per-model entry).
     """
-    from .config_keys import normalize_provider
-    from .config_store import get_config_value
+    from ..config_keys import normalize_provider
+    from ..config_store import get_config_value
 
     found = _registry.get(provider)
     if found is None or not found.has_usable_builtin_models():
@@ -180,3 +180,98 @@ def list_supported_providers() -> list:
         List of provider names
     """
     return _registry.names()
+
+
+# ---------------------------------------------------------------------------
+# API-type availability (optional packages per API type)
+# ---------------------------------------------------------------------------
+
+
+def get_all_api_types() -> list[str]:
+    """
+    List every canonical API type the CLI understands.
+
+    The two OpenAI-SDK types (``"Responses"`` and ``"Completions"``) plus the
+    keys of :data:`janito.providers.REQUIRES_BY_API_TYPE` (e.g. ``"Anthropic"``
+    for the native Anthropic SDK). Used by ``normalize_api_type`` /
+    ``--api-type`` validation and by the web API-type comboboxes.
+
+    Returns:
+        Sorted list of canonical API type names.
+    """
+    return sorted(set(("Responses", "Completions")) | set(_registry.requires))
+
+
+def get_required_package_for_api_type(api_type: str) -> str | None:
+    """
+    Get the optional Python package required by an API type, if any.
+
+    API types served by the OpenAI SDK (``"Responses"`` / ``"Completions"``)
+    return ``None``: ``openai`` is a hard dependency. Native-SDK API types
+    (e.g. ``"Anthropic"``) return the package that must be installed for them
+    to work (see :data:`janito.providers.REQUIRES_BY_API_TYPE`).
+
+    Args:
+        api_type: The API type name (case-insensitive)
+
+    Returns:
+        The required package name, or ``None`` when the API type has no
+        optional-package requirement (or is unknown).
+    """
+    if not api_type:
+        return None
+    api_type_lower = api_type.strip().lower()
+    for key, package in _registry.requires.items():
+        if key.lower() == api_type_lower:
+            return package
+    return None
+
+
+def is_api_type_available(api_type: str) -> bool:
+    """
+    Check whether an API type's required package is installed.
+
+    API types without an optional-package requirement (``Responses`` /
+    ``Completions``) are always available.
+
+    Args:
+        api_type: The API type name (case-insensitive)
+
+    Returns:
+        ``True`` when the API type can be used (its required package is
+        installed or it has no requirement), ``False`` otherwise.
+    """
+    package = get_required_package_for_api_type(api_type)
+    if package is None:
+        return True
+    import importlib.util
+
+    return importlib.util.find_spec(package) is not None
+
+
+def ensure_api_type_available(api_type: str) -> None:
+    """
+    Abort with an actionable message when an API type's package is missing.
+
+    Called when the user attempts to *set* an API type (``--set api-type=...``
+    or the web Settings drawer). When the API type has no optional-package
+    requirement, this is a no-op.
+
+    Args:
+        api_type: The canonical API type name (e.g. ``"Anthropic"``)
+
+    Raises:
+        ValueError: If the API type requires an optional package that is not
+            installed. The message names the package and how to install it.
+    """
+    package = get_required_package_for_api_type(api_type)
+    if package is None:
+        return
+    import importlib.util
+
+    if importlib.util.find_spec(package) is None:
+        raise ValueError(
+            f"API type '{api_type}' requires the optional '{package}' package, "
+            f"which is not installed. "
+            f"Install it with: pip install {package}"
+        )

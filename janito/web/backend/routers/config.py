@@ -210,8 +210,8 @@ async def list_providers(request: Request):
       kept out of the combobox and surfaced as info instead.
     """
     from janito.general_config import get_active_provider
-    from janito.provider_validation import list_supported_providers, list_variants
-    from janito.providers import get_provider_config
+    from janito.providers.registry import get_provider
+    from janito.providers.validation import list_supported_providers, list_variants
 
     config = _get_config(request)
     active_provider = get_active_provider()
@@ -223,7 +223,7 @@ async def list_providers(request: Request):
     providers = [
         _build_provider_entry(
             name,
-            get_provider_config(name),
+            get_provider(name).info,
             active_provider=active_provider,
             effective_provider=effective_provider,
         )
@@ -270,8 +270,8 @@ async def set_session_provider(request: Request):
     """
     from janito.auth_config import get_api_key
     from janito.config_loaders import load_model_from_config
-    from janito.provider_accessors import get_default_model_from_provider
-    from janito.provider_validation import validate_provider_name
+    from janito.providers.registry import get_provider
+    from janito.providers.validation import validate_provider_name
 
     try:
         body = await request.json()
@@ -317,9 +317,10 @@ async def set_session_provider(request: Request):
     # belongs to the previous provider would make the next API call fail.
     config = _get_config(request)
     try:
-        selected_model = load_model_from_config(
-            provider
-        ) or get_default_model_from_provider(provider)
+        found = get_provider(provider)
+        selected_model = load_model_from_config(provider) or (
+            found.default_model() if found is not None else None
+        )
         if session:
             session.provider = provider
             session.model = selected_model
@@ -359,7 +360,7 @@ async def set_default_provider(request: Request):
     from janito.auth_config import get_api_key
     from janito.config_loaders import load_model_from_config
     from janito.config_store import set_config_value
-    from janito.provider_validation import validate_provider_name
+    from janito.providers.validation import validate_provider_name
 
     try:
         body = await request.json()
@@ -427,7 +428,7 @@ async def set_provider_api_key(request: Request):
     """
     from janito.auth_config import set_api_key
     from janito.config_keys import get_masked_api_key
-    from janito.provider_validation import validate_provider_name
+    from janito.providers.validation import validate_provider_name
 
     try:
         body = await request.json()
@@ -472,12 +473,9 @@ async def get_status(request: Request, provider: str | None = None):
     from janito.config_keys import get_masked_api_key
     from janito.config_loaders import load_endpoint_from_config
     from janito.general_config import get_active_provider
-    from janito.provider_accessors import (
-        get_default_api_type_from_provider,
-        get_endpoint_for_api_type,
-    )
-    from janito.provider_validation import validate_provider_name
     from janito.providers import CUSTOM_ENDPOINT_MARKER
+    from janito.providers.registry import get_provider
+    from janito.providers.validation import validate_provider_name
 
     config = _get_config(request)
     active = get_active_provider()
@@ -499,11 +497,11 @@ async def get_status(request: Request, provider: str | None = None):
     # default API type (None => standard OpenAI).
     base_url = load_endpoint_from_config(target)
     if not base_url:
-        provider_default = get_endpoint_for_api_type(
-            target, get_default_api_type_from_provider(target)
-        )
-        if provider_default and provider_default != CUSTOM_ENDPOINT_MARKER:
-            base_url = provider_default
+        found = get_provider(target)
+        if found is not None:
+            provider_default = found.endpoint_for(found.default_api_type())
+            if provider_default and provider_default != CUSTOM_ENDPOINT_MARKER:
+                base_url = provider_default
 
     return {
         "api_key": get_masked_api_key(api_key) if api_key else "(not set)",

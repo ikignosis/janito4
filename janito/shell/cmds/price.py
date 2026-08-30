@@ -9,7 +9,7 @@ name, and the estimated cost of a notional request of **1M input tokens
 (cache miss) + 1M cached input tokens + 1M output tokens**, sorted by
 cost from max to min.  The cost column is computed by the provider's
 cost module (``janito.providers.<name>.cost``, the ``cost_*`` rate tables) via
-:func:`janito.provider_accessors.get_provider_cost` with
+:func:`janito.providers.costing.get_provider_cost` with
 ``is_reference=True``, so reference (e.g. peak) rates apply and the returned
 string carries no rate-band suffix (e.g. DeepSeek's ``(off-peak)``/``(peak)``
 annotation).  Providers/models without a cost module show ``N/A``.
@@ -63,9 +63,9 @@ class PriceCmdHandler(CmdHandler):
     @staticmethod
     def _show_prices() -> None:
         """Print a per-model pricing table for every built-in model."""
-        from janito.provider_accessors import get_provider_cost
-        from janito.provider_registry import _registry
-        from janito.provider_validation import list_supported_providers
+        from janito.providers.costing import get_provider_cost
+        from janito.providers.registry import get_provider
+        from janito.providers.validation import list_supported_providers
 
         table = Table(
             title="Model Pricing (per 1M tokens)",
@@ -80,7 +80,7 @@ class PriceCmdHandler(CmdHandler):
 
         rows: list[tuple[str, str, str]] = []
         for provider in list_supported_providers():
-            found = _registry.get(provider)
+            found = get_provider(provider)
             if found is None:
                 continue
             for model in sorted(found.model_names()):

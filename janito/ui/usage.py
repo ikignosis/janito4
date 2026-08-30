@@ -4,7 +4,7 @@ Rendered by the CLI's ``RichTurnObserver.on_turn_complete`` with the
 client-built :class:`~janito.agent.usage.TokenStats` and the turn's resolved
 :class:`~janito.llm_clients.api_config.APIConfig`.  Pure presentation: the
 token counters are normalized by :func:`janito.agent.usage.normalize_usage`
-and the cost estimate comes from ``janito.provider_accessors``.
+and the cost estimate comes from ``janito.providers.costing``.
 """
 
 import logging
@@ -15,7 +15,7 @@ from rich.text import Text
 
 from janito.agent.usage import TokenStats, format_tokens, normalize_usage
 from janito.config_loaders import load_used_files_enabled
-from janito.provider_accessors import get_provider_cost
+from janito.providers.costing import get_provider_cost
 from janito.tooling.used_files import format_used_files
 
 from ..llm_clients.api_config import APIConfig
@@ -88,7 +88,7 @@ def _display_usage(
     compatibility.
 
     ``Cost: <cost>`` is computed through
-    :func:`janito.provider_accessors.get_provider_cost` from the provider /
+    :func:`janito.providers.costing.get_provider_cost` from the provider /
     model and the token counts (cached input tokens are billed at the
     provider's cache-hit rate); it falls back to ``N/A`` when the provider
     or model is unknown, or when no cost module exists for the provider.

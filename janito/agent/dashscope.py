@@ -23,7 +23,7 @@ stream opener (mirroring ``janito.llm_clients.dashscope.dashscope_stream``).
 import logging
 from types import SimpleNamespace
 
-from janito.provider_accessors import builtin_tools_enable_flags
+from janito.providers.payloads import builtin_tools_enable_flags
 
 from .usage import usage_event_from_usage
 

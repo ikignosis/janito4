@@ -30,7 +30,7 @@ import janito.config_store as cs
 import janito.config_variants as cv
 from janito.auth_config import set_api_key
 from janito.cli.handlers.providers import handle_show_providers
-from janito.provider_validation import list_supported_providers
+from janito.providers.validation import list_supported_providers
 
 
 def _use_temp_config(monkeypatch, tmp_path):

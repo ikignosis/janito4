@@ -37,7 +37,7 @@ def load_variants() -> dict[str, dict]:
     Returns:
         Dict mapping variant names to their config entries.
     """
-    from .provider_registry import is_variant_style_name
+    from .providers.registry import is_variant_style_name
 
     providers = get_config_value("providers")
     if not isinstance(providers, dict):
@@ -91,8 +91,8 @@ def create_variant(name: str) -> str:
         ValueError: If the name is not ``<provider>-<word>``, the provider
             prefix is unsupported, or the variant is already registered.
     """
-    from .provider_registry import parse_variant_name
-    from .provider_validation import is_supported_provider, list_supported_providers
+    from .providers.registry import parse_variant_name
+    from .providers.validation import is_supported_provider, list_supported_providers
 
     normalized = normalize_provider(name)
     if not normalized:

@@ -12,10 +12,8 @@ build that per-round state and the call parameters; they were extracted from
 
 from typing import Any
 
-from janito.provider_accessors import (
-    apply_thinking_to_extra_body,
-    get_responses_in_server_from_provider,
-)
+from janito.providers.payloads import apply_thinking_to_extra_body
+from janito.providers.registry import get_provider
 
 
 def _init_conversation_state(
@@ -45,7 +43,10 @@ def _init_conversation_state(
     The ``responses_in_server`` flag is resolved for the effective ``model``
     (a per-provider/model config override wins over the built-in default).
     """
-    responses_in_server = get_responses_in_server_from_provider(provider, model)
+    found = get_provider(provider)
+    responses_in_server = (
+        found.responses_in_server(model) if found is not None else True
+    )
     if responses_in_server:
         response_id = previous_response_id
         conversation_items: list[dict[str, Any]] | None = None

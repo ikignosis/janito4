@@ -19,7 +19,7 @@ Setting a ``model`` value validates the name against the provider's built-in
 models (the base provider's models for variants), rejecting unknown names
 with the available models listed; the ``custom`` and ``openrouter`` providers
 accept any model name.  A matching name is stored in its canonical casing
-(see :func:`janito.provider_validation.validate_model_name`).
+(see :func:`janito.providers.validation.validate_model_name`).
 """
 
 import json
@@ -116,7 +116,7 @@ def _resolve_model_scoped_key(
             without a configured or default model)
     """
     from .config_loaders import load_model_from_config
-    from .provider_accessors import get_default_model_from_provider
+    from .providers.registry import get_provider
 
     provider = determine_provider(cli_provider)
     if not provider:
@@ -125,10 +125,11 @@ def _resolve_model_scoped_key(
             f"Set one first with: janito --set provider=<name> "
             f"or pass --provider <name>."
         )
+    found = get_provider(provider)
     model = (
         cli_model
         or load_model_from_config(provider)
-        or get_default_model_from_provider(provider)
+        or (found.default_model() if found is not None else None)
     )
     if not model:
         raise ModelRequiredError(
@@ -210,7 +211,7 @@ def set_config_from_cli(
     # Validate provider name against supported providers (those that map to a
     # base URL) and normalize it to the canonical casing.
     if key == "provider":
-        from .provider_validation import validate_provider_name
+        from .providers.validation import validate_provider_name
 
         value = validate_provider_name(value)
 
@@ -219,7 +220,7 @@ def set_config_from_cli(
     # usable built-in model list and accept any model name.  A matching name
     # is normalized to its canonical casing before storing.
     if key.endswith(".model"):
-        from .provider_validation import validate_model_name
+        from .providers.validation import validate_model_name
 
         provider = key.rsplit(".", 1)[0]
         value = validate_model_name(provider, value)
@@ -242,7 +243,7 @@ def set_config_from_cli(
     # aborted (nothing is written) with a message naming the package.
     if base_key == "api-type":
         value = normalize_api_type(value)
-        from .provider_accessors import ensure_api_type_available
+        from .providers.validation import ensure_api_type_available
 
         ensure_api_type_available(value)
 

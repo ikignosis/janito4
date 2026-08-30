@@ -11,7 +11,7 @@ Unlike ``custom``, it ships a built-in endpoint and a placeholder
 type), so API-type resolution still works before a model is configured.
 The placeholder default model is not a real model name: runtime model
 resolution treats it as "no model configured" and informs the user (see
-``janito.provider_accessors.requires_explicit_model`` and
+``Provider.default_model() == "custom"`` and
 ``janito.runtime_config.resolve_runtime_config``).
 
 See :mod:`janito.providers.template.config` for the full reference of every

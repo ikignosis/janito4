@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 
 from janito.agent.events import event_to_dict
 from janito.config_loaders import load_model_from_config
-from janito.provider_accessors import get_default_model_from_provider
+from janito.providers.registry import get_provider
 
 from ..agent import stream_prompt
 from ..prompts import PromptRegistry
@@ -161,9 +161,9 @@ async def _process_prompt(
     if session.provider is None:
         session.provider = config.effective_provider
         session.model = config.model or load_model_from_config(session.provider)
-        session.model = session.model or get_default_model_from_provider(
-            session.provider
-        )
+        if not session.model:
+            found = get_provider(session.provider)
+            session.model = found.default_model() if found is not None else None
         sessions.persist(session)
     turn_config = copy.copy(config)
     turn_config.session_provider = session.provider
@@ -316,9 +316,9 @@ async def one_shot_prompt(request: Request):
     if session.provider is None:
         session.provider = config.effective_provider
         session.model = config.model or load_model_from_config(session.provider)
-        session.model = session.model or get_default_model_from_provider(
-            session.provider
-        )
+        if not session.model:
+            found = get_provider(session.provider)
+            session.model = found.default_model() if found is not None else None
         sessions.persist(session)
     turn_config = copy.copy(config)
     turn_config.provider = session.provider

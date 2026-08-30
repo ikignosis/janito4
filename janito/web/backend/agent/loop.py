@@ -48,11 +48,8 @@ from janito.agent.usage import TokenStats
 from janito.config_loaders import load_max_output_tokens, load_reasoning_effort
 from janito.config_store import get_config_value
 from janito.general_config import get_active_provider, resolve_api_type
-from janito.provider_accessors import (
-    get_default_max_output_tokens_from_provider,
-    get_default_reasoning_effort_from_provider,
-    get_provider_cost_value,
-)
+from janito.providers.costing import get_provider_cost_value
+from janito.providers.registry import get_provider
 from janito.runtime_config import resolve_runtime_config
 from janito.tooling.accounting import record_turn
 from janito.tooling.executor import extract_tool_names
@@ -81,8 +78,9 @@ def _resolve_turn_config(config, effective_provider, model):
     if max_output_tokens is None:
         # Fall back to the provider's built-in default (from the provider
         # config).
-        max_output_tokens = get_default_max_output_tokens_from_provider(
-            effective_provider, model
+        found = get_provider(effective_provider)
+        max_output_tokens = (
+            found.max_output_tokens(model) if found is not None else None
         )
     preserve_thinking = get_config_value("preserve_thinking")
 
@@ -90,9 +88,8 @@ def _resolve_turn_config(config, effective_provider, model):
     # then the model's built-in default (e.g. "low" for qwen3.8-max).
     reasoning_effort = load_reasoning_effort(effective_provider, model)
     if reasoning_effort is None:
-        reasoning_effort = get_default_reasoning_effort_from_provider(
-            effective_provider, model
-        )
+        found = get_provider(effective_provider)
+        reasoning_effort = found.reasoning_effort(model) if found is not None else None
 
     return max_output_tokens, preserve_thinking, reasoning_effort
 

@@ -24,7 +24,7 @@ import json
 import logging
 import tempfile
 
-from janito.provider_accessors import apply_thinking_to_extra_body
+from janito.providers.payloads import apply_thinking_to_extra_body
 
 from .usage import usage_event_from_usage
 

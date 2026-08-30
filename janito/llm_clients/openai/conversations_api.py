@@ -46,6 +46,10 @@ from typing import Any
 
 from openai import AuthenticationError, NotFoundError, OpenAI
 
+# Typed provider accessor (get_provider(name) -> Provider): resolves the
+# effective model's built-in (native) tools for the Responses API type.
+from janito.providers.registry import get_provider
+
 # Import the tool executor (routes tool calls to the MCP manager or the
 # built-in registry and tracks usage/used-files/changes around each call)
 from janito.tooling.executor import ToolExecutor
@@ -317,10 +321,9 @@ class ResponsesClient(Client):
         # capabilities, not function tools, so they are enabled whenever the
         # model declares them for this API type -- even with no_tools / an
         # empty function-tools list (mirroring the web agent).
-        from janito.provider_accessors import get_default_tools_from_provider
-
-        builtin_tools = get_default_tools_from_provider(
-            self.api_config.provider, model, api_type="Responses"
+        found = get_provider(self.api_config.provider)
+        builtin_tools = (
+            found.tools(model, api_type="Responses") if found is not None else None
         )
         return _build_call_kwargs(
             model,

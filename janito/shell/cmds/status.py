@@ -13,15 +13,8 @@ from janito.config_loaders import (
     load_reasoning_effort,
 )
 from janito.general_config import get_active_provider, resolve_api_type
-from janito.provider_accessors import (
-    format_thinking_display,
-    get_default_max_output_tokens_from_provider,
-    get_default_model_from_provider,
-    get_default_reasoning_effort_from_provider,
-    get_default_thinking_from_provider,
-    get_gemini_flavor_from_provider,
-    get_responses_in_server_from_provider,
-)
+from janito.providers.payloads import format_thinking_display
+from janito.providers.registry import get_provider
 
 from .base import CmdHandler
 from .registry import register_command
@@ -46,7 +39,8 @@ def _resolve_effective_model(
     configured = load_model_from_config(provider)
     if configured:
         return configured, False
-    default = get_default_model_from_provider(provider)
+    found = get_provider(provider)
+    default = found.default_model() if found is not None else None
     return default, default is not None
 
 
@@ -92,6 +86,10 @@ def _print_config_info(
     # configured) is marked '(default)' in the display.
     model, model_default = _resolve_effective_model(provider, model)
 
+    # The typed provider accessor backing every built-in default lookup below
+    # (None for unknown providers -> the accessor-style None defaults).
+    found = get_provider(provider)
+
     max_output_tokens = load_max_output_tokens(provider, model)
 
     # Resolve the effective API type first (--api-type, otherwise the
@@ -106,9 +104,7 @@ def _print_config_info(
     # effective API type.
     base_url = load_endpoint_from_config(provider)
     if not base_url:
-        from janito.provider_accessors import get_endpoint_for_api_type
-
-        base_url = get_endpoint_for_api_type(provider, api_type)
+        base_url = found.endpoint_for(api_type) if found is not None else None
 
     if base_url:
         base_url_display = base_url
@@ -121,8 +117,8 @@ def _print_config_info(
     if max_output_tokens:
         max_output_tokens_display = str(max_output_tokens)
     else:
-        default_max_output_tokens = get_default_max_output_tokens_from_provider(
-            provider, model
+        default_max_output_tokens = (
+            found.max_output_tokens(model) if found is not None else None
         )
         max_output_tokens_display = (
             f"{default_max_output_tokens} (default)"
@@ -137,8 +133,8 @@ def _print_config_info(
     if reasoning_effort:
         reasoning_effort_display = reasoning_effort
     else:
-        default_reasoning_effort = get_default_reasoning_effort_from_provider(
-            provider, model
+        default_reasoning_effort = (
+            found.reasoning_effort(model) if found is not None else None
         )
         reasoning_effort_display = (
             f"{default_reasoning_effort} (default)"
@@ -151,12 +147,14 @@ def _print_config_info(
     # config
     # (True for DeepSeek/Alibaba-Qwen; a pass-through dict such as
     # {'type': 'adaptive'} for MiniMax-M3).
-    effective_thinking = thinking or get_default_thinking_from_provider(provider, model)
+    effective_thinking = thinking or (
+        found.default_thinking(model) if found is not None else False
+    )
     thinking_display = format_thinking_display(effective_thinking, provider=provider)
     if (
         effective_thinking
         and not thinking
-        and not (provider and get_gemini_flavor_from_provider(provider))
+        and not (provider and found is not None and found.gemini_flavor())
     ):
         thinking_display += " (model default)"
 
@@ -166,7 +164,7 @@ def _print_config_info(
     # client re-sends the full history on every request, e.g. DeepSeek).
     responses_in_server_display = ""
     if api_type == "Responses":
-        if get_responses_in_server_from_provider(provider, model):
+        if found is not None and found.responses_in_server(model):
             responses_in_server_display = "server-side (previous_response_id)"
         else:
             responses_in_server_display = "stateless (client re-sends history)"

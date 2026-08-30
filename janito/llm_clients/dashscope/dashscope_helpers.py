@@ -8,7 +8,7 @@ on the ``run_turn`` entry point and the :class:`DashScopeClient` class.
 import logging
 from typing import Any
 
-from janito.provider_accessors import builtin_tools_enable_flags
+from janito.providers.payloads import builtin_tools_enable_flags
 from janito.tooling.executor import ToolExecutor
 from janito.tooling.tools_registry import get_session_tool_schemas
 

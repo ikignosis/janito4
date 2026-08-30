@@ -67,9 +67,10 @@ def _alibaba_base_url() -> str | None:
         pass
 
     try:
-        from ...provider_accessors import get_base_url_from_provider
+        from ...providers.registry import get_provider
 
-        return get_base_url_from_provider("alibaba")
+        found = get_provider("alibaba")
+        return found.info.get("endpoint") if found is not None else None
     except Exception:
         return None
 

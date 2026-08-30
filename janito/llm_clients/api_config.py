@@ -114,12 +114,7 @@ def build_api_config(
     )
     from janito.config_store import get_config_value
     from janito.general_config import get_active_provider
-    from janito.provider_accessors import (
-        get_default_max_input_tokens_from_provider,
-        get_default_max_output_tokens_from_provider,
-        get_default_reasoning_effort_from_provider,
-        get_default_thinking_from_provider,
-    )
+    from janito.providers.registry import get_provider
     from janito.runtime_config import resolve_runtime_config
 
     provider = cli_provider or get_active_provider()
@@ -127,20 +122,20 @@ def build_api_config(
         cli_model, cli_provider, cli_api_type=api_type
     )
 
+    found = get_provider(provider)
+    found_max_output = found.max_output_tokens(model) if found is not None else None
+    found_max_input = found.max_input_tokens(model) if found is not None else None
+    found_reasoning = found.reasoning_effort(model) if found is not None else None
+    found_thinking = found.default_thinking(model) if found is not None else False
+
     max_output_tokens = (
-        load_max_output_tokens(provider, model)
-        or get_default_max_output_tokens_from_provider(provider, model)
-        or 100_000
+        load_max_output_tokens(provider, model) or found_max_output or 100_000
     )
-    max_input_tokens = load_max_input_tokens(
-        provider, model
-    ) or get_default_max_input_tokens_from_provider(provider, model)
+    max_input_tokens = load_max_input_tokens(provider, model) or found_max_input
     reasoning_effort = (
-        reasoning_effort
-        or load_reasoning_effort(provider, model)
-        or get_default_reasoning_effort_from_provider(provider, model)
+        reasoning_effort or load_reasoning_effort(provider, model) or found_reasoning
     )
-    thinking = thinking or get_default_thinking_from_provider(provider, model)
+    thinking = thinking or found_thinking
 
     return APIConfig(
         provider=provider,
