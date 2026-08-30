@@ -11,8 +11,8 @@ from typing import Any
 
 # Shared client helpers and the Responses API stream consumer.
 # Tool-schema conversion lives in the shared adapter layer
-# (janito.agent.responses, issue #90).
-from janito.agent.responses import _convert_tools_to_responses_format
+# (janito.llm_adapters.responses, issue #90).
+from janito.llm_adapters.responses import _convert_tools_to_responses_format
 
 # Import the tool executor (routes tool calls to the MCP manager or the
 # built-in registry and tracks usage/used-files/changes around each call)

@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import pytest
 
 if pytest is not None:
-    from janito.agent.usage import format_tokens
+    from janito.llm_adapters.usage import format_tokens
 
     # ---- format_tokens unit tests ------------------------------------
 
@@ -216,7 +216,7 @@ if pytest is not None:
         included).  DeepSeek V4-Flash off-peak: $0.22 in (miss) + $0.66 out
         + $0.007 cache-hit per 1M tokens.
         """
-        from janito.agent.usage import TokenStats
+        from janito.llm_adapters.usage import TokenStats
 
         # Pin the request time to a weekday off-peak hour (Monday 12:00 UTC)
         # so the estimate is deterministic.
@@ -285,7 +285,7 @@ if pytest is not None:
     # ---- Web UsageEvent serialization --------------------------------
 
     def test_usage_event_to_dict_without_max():
-        from janito.agent.events import UsageEvent
+        from janito.web.backend.events import UsageEvent
 
         ev = UsageEvent(total=100, last_input=80, last_output=20, last_cached=10)
         d = ev.to_dict()
@@ -299,7 +299,7 @@ if pytest is not None:
         assert "max_tokens" not in d
 
     def test_usage_event_to_dict_with_max():
-        from janito.agent.events import UsageEvent
+        from janito.web.backend.events import UsageEvent
 
         ev = UsageEvent(
             total=100, last_input=80, last_output=20, last_cached=0, max_tokens=65536
@@ -307,10 +307,13 @@ if pytest is not None:
         d = ev.to_dict()
         assert d["max_tokens"] == 65536
 
-    # ---- StreamAccumulator.usage_event with max_tokens ---------------
+    # ---- usage_event_from_usage with max_tokens ----------------------
 
     def test_stream_accumulator_usage_event_passes_max_tokens():
-        from janito.agent.completions import CompletionsAccumulator as StreamAccumulator
+        from janito.llm_adapters.completions import (
+            CompletionsAccumulator as StreamAccumulator,
+        )
+        from janito.web.backend.events import usage_event_from_usage
 
         class FakeUsage:
             total_tokens = 200
@@ -319,13 +322,16 @@ if pytest is not None:
             prompt_tokens_details = None
 
         acc = StreamAccumulator(usage=FakeUsage())
-        ev = acc.usage_event(max_tokens=32768)
+        ev = usage_event_from_usage(acc.usage_object(), max_tokens=32768)
         assert ev is not None
         assert ev.max_tokens == 32768
         assert ev.to_dict()["max_tokens"] == 32768
 
     def test_stream_accumulator_usage_event_no_max():
-        from janito.agent.completions import CompletionsAccumulator as StreamAccumulator
+        from janito.llm_adapters.completions import (
+            CompletionsAccumulator as StreamAccumulator,
+        )
+        from janito.web.backend.events import usage_event_from_usage
 
         class FakeUsage:
             total_tokens = 200
@@ -334,7 +340,7 @@ if pytest is not None:
             prompt_tokens_details = None
 
         acc = StreamAccumulator(usage=FakeUsage())
-        ev = acc.usage_event()
+        ev = usage_event_from_usage(acc.usage_object())
         assert ev is not None
         assert ev.max_tokens is None
         assert "max_tokens" not in ev.to_dict()

@@ -4,7 +4,7 @@ Shared module-level helpers for the native Gemini client.
 The wire-format conversions (OpenAI-format chat ``messages`` -> Gemini
 ``contents``, tool schemas -> ``function_declarations``, usage metadata ->
 the shared token-usage shape, call-kwargs building) live in the shared
-adapter layer :mod:`janito.agent.gemini` (issue #90).  This module keeps the
+adapter layer :mod:`janito.llm_adapters.gemini` (issue #90).  This module keeps the
 CLI-only helpers (``_resolve_tools``, ``_init_state``, ``_handle_tool_parts``,
 ``_finalize_response``) that drive the
 :class:`~janito.llm_clients.gemini.gemini_api.GeminiClient` turn pipeline;
@@ -15,7 +15,7 @@ rest of the conversion lives.
 import logging
 from typing import Any
 
-from janito.agent.gemini import _resolve_system_instruction
+from janito.llm_adapters.gemini import _resolve_system_instruction
 from janito.tooling.executor import ToolExecutor
 from janito.tooling.tools_registry import get_session_tool_schemas
 

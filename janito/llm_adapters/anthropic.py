@@ -24,8 +24,6 @@ import json
 import logging
 from types import SimpleNamespace
 
-from .usage import usage_event_from_usage
-
 logger = logging.getLogger(__name__)
 
 
@@ -182,7 +180,7 @@ class AnthropicTurnAccumulator:
     """Fold Anthropic Messages stream events into one turn's collected state.
 
     Implements the same interface as
-    :class:`~janito.agent.completions.CompletionsAccumulator` (``handle`` ->
+    :class:`~janito.llm_adapters.completions.CompletionsAccumulator` (``handle`` ->
     ``(reasoning_delta, content_delta)`` plus the end-of-turn accessors).
     Text deltas are forwarded to the browser as they arrive; ``tool_use``
     blocks are assembled per index (the ``input_json_delta`` fragments
@@ -320,16 +318,6 @@ class AnthropicTurnAccumulator:
             }
             for block in self.tool_use_blocks
         ]
-
-    def usage_event(self, max_tokens: int | None = None):
-        if self.input_tokens is None and self.output_tokens is None:
-            return None
-        usage = SimpleNamespace(
-            total_tokens=(self.input_tokens or 0) + (self.output_tokens or 0),
-            input_tokens=self.input_tokens,
-            output_tokens=self.output_tokens,
-        )
-        return usage_event_from_usage(usage, max_tokens)
 
     def usage_object(self):
         """The raw usage object of this round, or ``None`` when unreported.

@@ -1,20 +1,21 @@
 """Native Anthropic SDK runner for the web agentic loop.
 
 The per-API adapter (call-kwargs building, history conversion, stream
-accumulation) lives in :mod:`janito.agent.anthropic` — the shared adapter
+accumulation) lives in :mod:`janito.llm_adapters.anthropic` — the shared adapter
 layer used by both agent loops.  This module keeps the web-only glue:
 :func:`create_client` (async Anthropic SDK client, lazily importing the
 optional ``anthropic`` package) and :func:`stream_turn_events` (which
 drives the stream and yields reasoning/token events to the browser).  The
 loop builds call kwargs and accumulators directly from the shared adapters
-in :mod:`janito.agent.anthropic`.
+in :mod:`janito.llm_adapters.anthropic`.
 """
 
 import importlib.util
 import logging
 
-from janito.agent.anthropic import AnthropicTurnAccumulator
-from janito.agent.events import ReasoningEvent, TokenEvent
+from janito.llm_adapters.anthropic import AnthropicTurnAccumulator
+
+from ..events import ReasoningEvent, TokenEvent
 
 logger = logging.getLogger(__name__)
 

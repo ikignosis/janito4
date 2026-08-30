@@ -1,7 +1,7 @@
 """Injected, immutable per-session UI configuration (composition-point injection).
 
 The turn pipeline is purely API-side: every user-visible effect of a turn is
-routed through an injected :class:`~janito.agent.observer.TurnObserver`, and
+routed through an injected :class:`~janito.llm_adapters.observer.TurnObserver`, and
 the per-round blocking work runs through an injected stream runner.  Those
 two objects travel together as a frozen :class:`UIConfig`, built once per
 session (or per provider/model/thinking switch) at the composition point
@@ -25,7 +25,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from janito.agent.observer import NullObserver, TurnObserver
+from janito.llm_adapters.observer import NullObserver, TurnObserver
 
 
 @dataclass(frozen=True)
@@ -42,8 +42,8 @@ class UIConfig:
             :mod:`janito.ui.stream_runner`); ``None`` = headless (each
             streaming round runs directly in the calling thread).
         observer: The turn observer (a
-            :class:`~janito.agent.observer.TurnObserver`); defaults to the
-            headless :class:`~janito.agent.observer.NullObserver`.
+            :class:`~janito.llm_adapters.observer.TurnObserver`); defaults to the
+            headless :class:`~janito.llm_adapters.observer.NullObserver`.
     """
 
     stream_runner: Callable | None = None

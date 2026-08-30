@@ -47,8 +47,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from janito.agent.observer import NullObserver, TurnObserver
-from janito.agent.usage import TokenStats
+from janito.llm_adapters.observer import NullObserver, TurnObserver
+from janito.llm_adapters.usage import TokenStats
 from janito.tooling.changes import clear_changes
 from janito.tooling.executor import extract_tool_names
 from janito.tooling.used_files import reset_used_files
@@ -124,7 +124,7 @@ class Client:
             :class:`~janito.ui.config.UIConfig` for this session (per-round
             stream runner + turn observer); defaults to a headless config.
         observer: Convenience alias for ``ui_config.observer`` (a
-            :class:`~janito.agent.observer.TurnObserver`); kept so subclass
+            :class:`~janito.llm_adapters.observer.TurnObserver`); kept so subclass
             hooks keep working unchanged.
         stream_runner: Convenience alias for ``ui_config.stream_runner`` (the
             per-round stream runner, ``None`` = headless).
@@ -190,13 +190,13 @@ class Client:
 
         The end-of-turn report (used files + token-usage summary) is
         delivered by this method itself: it builds a
-        :class:`~janito.agent.usage.TokenStats`, folds every round's usage
+        :class:`~janito.llm_adapters.usage.TokenStats`, folds every round's usage
         into it (tool-call rounds included) and hands it -- together with the
         turn's resolved :class:`~janito.llm_clients.api_config.APIConfig`,
         whose provider / model / max tokens feed the report -- to the
         injected observer's ``on_turn_complete`` when the turn finishes.
         There is no caller-supplied out-param (see
-        :class:`~janito.agent.observer.TurnObserver`).  The conversation
+        :class:`~janito.llm_adapters.observer.TurnObserver`).  The conversation
         turn number is never passed here: it is display-only caller
         knowledge, supplied directly to the renderer by the caller.
 
@@ -356,7 +356,7 @@ class Client:
         """Finalize the turn and deliver the end-of-turn report.
 
         Runs the concrete client's :meth:`_finalize` hook and then hands the
-        populated client-owned :class:`~janito.agent.usage.TokenStats`,
+        populated client-owned :class:`~janito.llm_adapters.usage.TokenStats`,
         together with the turn's resolved ``self.api_config`` (provider / model /
         max tokens), to the injected observer's ``on_turn_complete`` (which
         renders the usage summary and records the overall-use accounting
@@ -482,7 +482,7 @@ class Client:
         """Record the final assistant message and return the result.
 
         The token counters were already folded onto a
-        :class:`~janito.agent.usage.TokenStats` by :meth:`run_turn`, and the
+        :class:`~janito.llm_adapters.usage.TokenStats` by :meth:`run_turn`, and the
         report is delivered to the observer's ``on_turn_complete`` right
         after this hook returns -- this hook no longer carries any usage
         display metadata (message count / label are gone; provider / model /

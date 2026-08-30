@@ -82,7 +82,7 @@ def _cfg(thinking=False):
 
 
 def test_gemini_build_call_kwargs_converts_history_and_tools():
-    from janito.agent import gemini
+    from janito.llm_adapters import gemini
 
     messages = [
         {"role": "system", "content": "Be helpful."},
@@ -121,7 +121,7 @@ def test_gemini_build_call_kwargs_converts_history_and_tools():
 
 
 def test_gemini_build_call_kwargs_omits_tools_when_none():
-    from janito.agent import gemini
+    from janito.llm_adapters import gemini
 
     kwargs = gemini.build_call_kwargs(
         "gemini-3.7-flash",
@@ -137,7 +137,8 @@ def test_gemini_build_call_kwargs_omits_tools_when_none():
 
 
 def test_gemini_accumulator_folds_chunks():
-    from janito.agent.gemini import GeminiTurnAccumulator
+    from janito.llm_adapters.gemini import GeminiTurnAccumulator
+    from janito.web.backend.events import usage_event_from_usage
 
     acc = GeminiTurnAccumulator()
     chunks = [
@@ -181,7 +182,7 @@ def test_gemini_accumulator_folds_chunks():
             "thought_signature": "sig-2",
         }
     ]
-    usage = acc.usage_event()
+    usage = usage_event_from_usage(acc.usage_object())
     assert (usage.last_input, usage.last_output, usage.total) == (3, 7, 10)
     assert deltas[0] == ("think", None)
     assert deltas[1] == (None, "Hi ")
@@ -189,11 +190,12 @@ def test_gemini_accumulator_folds_chunks():
 
 def test_gemini_accumulator_usage_event_none_without_usage():
     """No usage metadata -> no usage event."""
-    from janito.agent.gemini import GeminiTurnAccumulator
+    from janito.llm_adapters.gemini import GeminiTurnAccumulator
+    from janito.web.backend.events import usage_event_from_usage
 
     acc = GeminiTurnAccumulator()
     acc.handle(_chunk([_part(text="hi")], finish_reason=None))
-    assert acc.usage_event() is None
+    assert usage_event_from_usage(acc.usage_object()) is None
 
 
 def test_gemini_create_client_aborts_without_google_genai(monkeypatch):
@@ -224,9 +226,9 @@ def test_gemini_stream_turn_events_consumes_sync_stream(monkeypatch):
     event loop and yields reasoning/token events."""
     import asyncio
 
-    from janito.agent.events import ReasoningEvent, TokenEvent
-    from janito.agent.gemini import accumulator, build_call_kwargs
+    from janito.llm_adapters.gemini import accumulator, build_call_kwargs
     from janito.web.backend.agent import gemini
+    from janito.web.backend.events import ReasoningEvent, TokenEvent
 
     stop = _chunk([_part(text="done")], finish_reason=SimpleNamespace(name="STOP"))
     calls = []

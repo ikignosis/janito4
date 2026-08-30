@@ -34,7 +34,6 @@ from types import SimpleNamespace
 from typing import Any
 
 from .sdk import _extract_raw_attrs
-from .usage import usage_event_from_usage
 
 logger = logging.getLogger(__name__)
 
@@ -484,9 +483,9 @@ class GeminiTurnAccumulator(GeminiStreamConsumer):
     text / ``function_call`` parts, usage metadata, ``done`` flag) and adds
     the web-loop accessors: :meth:`tool_calls_list` returns the OpenAI wire
     format that ``run_tool_turn`` expects (keeping the per-call
-    ``thought_signature`` so the assistant message can echo it back), and
-    :meth:`usage_event` maps the Gemini usage metadata onto a
-    :class:`~janito.agent.events.UsageEvent`.
+    ``thought_signature`` so the assistant message can echo it back); raw
+    usage is exposed via :meth:`usage_object` (the web loop builds its own
+    ``UsageEvent`` on top of it).
     """
 
     def tool_calls_list(self) -> list[dict]:
@@ -506,16 +505,6 @@ class GeminiTurnAccumulator(GeminiStreamConsumer):
                 call["thought_signature"] = entry["thought_signature"]
             calls.append(call)
         return calls
-
-    def usage_event(self, max_tokens: int | None = None):
-        usage = self.usage_info()
-        if usage is None or (
-            usage.total_tokens is None
-            and usage.input_tokens is None
-            and usage.output_tokens is None
-        ):
-            return None
-        return usage_event_from_usage(usage, max_tokens)
 
     def usage_object(self):
         """The raw usage object of this round, or ``None`` when unreported.

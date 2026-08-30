@@ -19,8 +19,8 @@ import re
 from types import SimpleNamespace
 from typing import Any
 
-from janito.agent.dashscope import _ModelEndpointMismatch
-from janito.agent.sdk import _extract_raw_attrs
+from janito.llm_adapters.dashscope import _ModelEndpointMismatch
+from janito.llm_adapters.sdk import _extract_raw_attrs
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)

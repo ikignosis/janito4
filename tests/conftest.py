@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from janito.agent.observer import NullObserver
+from janito.llm_adapters.observer import NullObserver
 from janito.llm_clients.api_config import APIConfig
 from janito.ui.config import UIConfig
 

@@ -55,7 +55,7 @@ def _cfg(thinking=False):
 
 
 def test_anthropic_build_call_kwargs_extracts_system_and_converts_tools():
-    from janito.agent import anthropic
+    from janito.llm_adapters import anthropic
 
     messages = [
         {"role": "system", "content": "Be helpful."},
@@ -81,7 +81,7 @@ def test_anthropic_build_call_kwargs_extracts_system_and_converts_tools():
 
 
 def test_anthropic_conversion_merges_consecutive_tool_messages():
-    from janito.agent.anthropic import _to_anthropic
+    from janito.llm_adapters.anthropic import _to_anthropic
 
     messages = [
         {"role": "user", "content": "do it"},
@@ -128,7 +128,7 @@ def test_anthropic_conversion_merges_consecutive_tool_messages():
 
 
 def test_anthropic_accumulator_folds_stream_events():
-    from janito.agent.anthropic import AnthropicTurnAccumulator
+    from janito.llm_adapters.anthropic import AnthropicTurnAccumulator
 
     acc = AnthropicTurnAccumulator()
     events = [
@@ -181,7 +181,9 @@ def test_anthropic_accumulator_folds_stream_events():
             "function": {"name": "ReadFile", "arguments": '{"filepath": "/tmp/x"}'},
         }
     ]
-    usage = acc.usage_event()
+    from janito.web.backend.events import usage_event_from_usage
+
+    usage = usage_event_from_usage(acc.usage_object())
     assert (usage.last_input, usage.last_output, usage.total) == (5, 3, 8)
     assert deltas[2] == (None, "Hi ")
     assert deltas[3] == (None, "there")

@@ -14,7 +14,6 @@ converts the captured output into ``ToolProgressEvent``s for the browser.
 import asyncio
 import logging
 
-from janito.agent.events import ToolProgressEvent
 from janito.mcp_manager import get_mcp_manager
 from janito.tooling.executor import (
     is_mcp_tool as is_mcp_tool,  # re-exported for turn.py
@@ -28,6 +27,8 @@ from janito.tooling.tools_registry import tools_loading_enabled
 from janito.tooling.used_files import (
     reset_used_files as reset_used_files,  # re-exported for loop.py
 )
+
+from ..events import ToolProgressEvent
 
 logger = logging.getLogger(__name__)
 

@@ -3,7 +3,7 @@ Tests for the end-of-turn report.
 
 The CLI no longer prints the token-usage summary inside the per-client
 ``_finalize`` helpers.  Instead ``Client.run_turn`` builds a
-:class:`~janito.agent.usage.TokenStats` per turn, folds every round's usage
+:class:`~janito.llm_adapters.usage.TokenStats` per turn, folds every round's usage
 into it (tool-call rounds included), and delivers it -- together with the
 turn's resolved ``APIConfig``, whose provider / model / max tokens feed the
 report -- to the injected observer's ``on_turn_complete`` when the turn
@@ -27,7 +27,7 @@ from rich.console import Console  # noqa: E402
 import janito.config_dir as config_dir_mod  # noqa: E402
 import janito.tooling.tools_registry as tools_registry  # noqa: E402
 import janito.tooling.used_files as used_files  # noqa: E402
-from janito.agent.usage import TokenStats, normalize_usage  # noqa: E402
+from janito.llm_adapters.usage import TokenStats, normalize_usage  # noqa: E402
 from janito.ui.usage import display_turn_usage  # noqa: E402
 
 

@@ -6,14 +6,14 @@ for the *effective provider* (``--api-type`` > the provider's configured
 ``api-type`` written by the Settings drawer > the provider's built-in
 default) and dispatches to a per-type runner:
 
-* ``Completions`` -> the loop's built-in path (``janito.agent.completions``)
+* ``Completions`` -> the loop's built-in path (``janito.llm_adapters.completions``)
 * ``Responses``   -> ``janito.web.backend.agent.responses``
 * ``Anthropic``   -> ``janito.web.backend.agent.anthropic``
 * ``DashScope``   -> ``janito.web.backend.agent.dashscope``
 
 Each runner exposes the same interface (``create_client`` / stream driver),
 with the call-kwargs builder and accumulator coming straight from the
-shared ``janito.agent`` adapters, and keeps the session history in the
+shared ``janito.llm_adapters`` adapters, and keeps the session history in the
 portable OpenAI chat format -- each API type converts it to its own wire
 format when calling.
 
@@ -73,14 +73,20 @@ def clean_config(request):
 
 
 def test_loop_dispatches_each_api_type_to_its_runner():
-    from janito.agent.anthropic import accumulator as anthropic_accumulator
-    from janito.agent.anthropic import build_call_kwargs as anthropic_build_call_kwargs
-    from janito.agent.dashscope import accumulator as dashscope_accumulator
-    from janito.agent.dashscope import build_call_kwargs as dashscope_build_call_kwargs
-    from janito.agent.gemini import accumulator as gemini_accumulator
-    from janito.agent.gemini import build_call_kwargs as gemini_build_call_kwargs
-    from janito.agent.responses import accumulator as responses_accumulator
-    from janito.agent.responses import build_call_kwargs as responses_build_call_kwargs
+    from janito.llm_adapters.anthropic import accumulator as anthropic_accumulator
+    from janito.llm_adapters.anthropic import (
+        build_call_kwargs as anthropic_build_call_kwargs,
+    )
+    from janito.llm_adapters.dashscope import accumulator as dashscope_accumulator
+    from janito.llm_adapters.dashscope import (
+        build_call_kwargs as dashscope_build_call_kwargs,
+    )
+    from janito.llm_adapters.gemini import accumulator as gemini_accumulator
+    from janito.llm_adapters.gemini import build_call_kwargs as gemini_build_call_kwargs
+    from janito.llm_adapters.responses import accumulator as responses_accumulator
+    from janito.llm_adapters.responses import (
+        build_call_kwargs as responses_build_call_kwargs,
+    )
     from janito.web.backend.agent import loop
 
     responses = loop._runner_for("Responses")
@@ -153,8 +159,7 @@ def test_web_server_config_effective_tools_for_resolves_per_api_type():
 
 
 def test_usage_event_from_usage_handles_both_usage_shapes():
-    from janito.agent.events import UsageEvent
-    from janito.agent.usage import usage_event_from_usage
+    from janito.web.backend.events import UsageEvent, usage_event_from_usage
 
     # Chat Completions shape
     completions_usage = SimpleNamespace(

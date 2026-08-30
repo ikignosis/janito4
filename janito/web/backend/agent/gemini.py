@@ -1,20 +1,21 @@
 """Native Gemini SDK runner for the web agentic loop.
 
 The per-API adapter (call-kwargs building, stream accumulation) lives in
-:mod:`janito.agent.gemini` -- the shared adapter layer used by both agent
+:mod:`janito.llm_adapters.gemini` -- the shared adapter layer used by both agent
 loops.  This module keeps the web-only glue: :func:`create_client`
 (prepares the sync ``google-genai`` client, guarding the optional package)
 and :func:`stream_turn_events` (consumes the sync stream chunk-by-chunk
 through ``asyncio.to_thread``).  The loop builds call kwargs and
-accumulators directly from the shared adapters in :mod:`janito.agent.gemini`.
+accumulators directly from the shared adapters in :mod:`janito.llm_adapters.gemini`.
 """
 
 import asyncio
 import importlib.util
 import logging
 
-from janito.agent.events import ReasoningEvent, TokenEvent
-from janito.agent.gemini import GeminiTurnAccumulator
+from janito.llm_adapters.gemini import GeminiTurnAccumulator
+
+from ..events import ReasoningEvent, TokenEvent
 
 logger = logging.getLogger(__name__)
 

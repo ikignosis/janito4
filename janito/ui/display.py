@@ -16,7 +16,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.text import Text
 
-from janito.agent.usage import normalize_usage
+from janito.llm_adapters.usage import normalize_usage
 
 logger = logging.getLogger(__name__)
 

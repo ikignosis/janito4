@@ -10,9 +10,9 @@ The loop is API-type agnostic.  The API type for the turn is resolved for the
 ``api-type`` (written by the web Settings drawer), then the provider's
 built-in default.  Each API type contributes a small runner (client factory,
 stream driver) exposing the same interface; the call-kwargs builder and
-accumulator class come straight from the shared ``janito.agent`` adapters:
+accumulator class come straight from the shared ``janito.llm_adapters`` adapters:
 
-- Completions  -> the loop's built-in path (``janito.agent.completions``)
+- Completions  -> the loop's built-in path (``janito.llm_adapters.completions``)
 - Responses    -> ``janito.web.backend.agent.responses``
 - Anthropic    -> ``janito.web.backend.agent.anthropic``
 - DashScope    -> ``janito.web.backend.agent.dashscope``
@@ -26,28 +26,22 @@ from typing import Any
 
 from openai import AsyncOpenAI
 
-from janito.agent.anthropic import accumulator as anthropic_accumulator
-from janito.agent.anthropic import build_call_kwargs as build_anthropic_kwargs
-from janito.agent.completions import CompletionsAccumulator
-from janito.agent.completions import build_call_kwargs as build_completions_kwargs
-from janito.agent.dashscope import accumulator as dashscope_accumulator
-from janito.agent.dashscope import build_call_kwargs as build_dashscope_kwargs
-from janito.agent.events import (
-    AgentEvent,
-    DoneEvent,
-    ErrorEvent,
-    ReasoningEvent,
-    TokenEvent,
-    WaitingEvent,
-)
-from janito.agent.gemini import accumulator as gemini_accumulator
-from janito.agent.gemini import build_call_kwargs as build_gemini_kwargs
-from janito.agent.responses import accumulator as responses_accumulator
-from janito.agent.responses import build_call_kwargs as build_responses_kwargs
-from janito.agent.usage import TokenStats
 from janito.config_loaders import load_max_output_tokens, load_reasoning_effort
 from janito.config_store import get_config_value
 from janito.general_config import get_active_provider, resolve_api_type
+from janito.llm_adapters.anthropic import accumulator as anthropic_accumulator
+from janito.llm_adapters.anthropic import build_call_kwargs as build_anthropic_kwargs
+from janito.llm_adapters.completions import CompletionsAccumulator
+from janito.llm_adapters.completions import (
+    build_call_kwargs as build_completions_kwargs,
+)
+from janito.llm_adapters.dashscope import accumulator as dashscope_accumulator
+from janito.llm_adapters.dashscope import build_call_kwargs as build_dashscope_kwargs
+from janito.llm_adapters.gemini import accumulator as gemini_accumulator
+from janito.llm_adapters.gemini import build_call_kwargs as build_gemini_kwargs
+from janito.llm_adapters.responses import accumulator as responses_accumulator
+from janito.llm_adapters.responses import build_call_kwargs as build_responses_kwargs
+from janito.llm_adapters.usage import TokenStats
 from janito.providers.costing import get_provider_cost_value
 from janito.providers.registry import get_provider
 from janito.runtime_config import resolve_runtime_config
@@ -55,6 +49,15 @@ from janito.tooling.accounting import record_turn
 from janito.tooling.executor import extract_tool_names
 
 from ..config import WebServerConfig
+from ..events import (
+    AgentEvent,
+    DoneEvent,
+    ErrorEvent,
+    ReasoningEvent,
+    TokenEvent,
+    WaitingEvent,
+    usage_event_from_usage,
+)
 from . import anthropic as anthropic_runner
 from . import dashscope as dashscope_runner
 from . import gemini as gemini_runner
@@ -100,7 +103,7 @@ class _Runner:
 
     Bundles the web-only glue (client creation, event streaming) from the
     runner module with the shared call-kwargs builder and accumulator class
-    from the ``janito.agent`` adapters, so the loop keeps a single uniform
+    from the ``janito.llm_adapters`` adapters, so the loop keeps a single uniform
     interface per API type.
     """
 
@@ -451,7 +454,9 @@ async def stream_prompt(
         # --- No tool calls: final response ---
         messages.append(_build_assistant_message(acc, full_content))
 
-        usage_event = acc.usage_event(max_tokens=max_output_tokens)
+        usage_event = usage_event_from_usage(
+            acc.usage_object(), max_tokens=max_output_tokens
+        )
         if usage_event:
             # Attach the cumulative turn totals (tool-call rounds included)
             # to the final-round usage event when the turn spanned several

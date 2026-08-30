@@ -7,7 +7,7 @@ streamed deltas (content, reasoning/thinking text and tool-call arguments,
 which arrive split across many chunks) into a single response.
 
 The per-chunk folding lives in the shared
-:class:`~janito.agent.completions.CompletionsAccumulator` (used directly by
+:class:`~janito.llm_adapters.completions.CompletionsAccumulator` (used directly by
 the web loop); :class:`CompletionsStreamConsumer` adds
 the CLI-specific driver — :meth:`consume` walks a sync stream with
 Enter-to-cancel support and returns the response parts.  The module-level
@@ -17,8 +17,8 @@ functions are thin delegators used by ``_stream_response`` and its tests.
 
 import logging
 
-from janito.agent.completions import CompletionsAccumulator
-from janito.agent.sdk import _extract_raw_attrs
+from janito.llm_adapters.completions import CompletionsAccumulator
+from janito.llm_adapters.sdk import _extract_raw_attrs
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)

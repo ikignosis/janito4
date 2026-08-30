@@ -1,18 +1,19 @@
 """Responses API runner for the web agentic loop.
 
 The per-API adapter (call-kwargs building, history conversion, stream
-accumulation) lives in :mod:`janito.agent.responses` — the shared adapter
+accumulation) lives in :mod:`janito.llm_adapters.responses` — the shared adapter
 layer used by both agent loops.  This module keeps the web-only glue:
 :func:`create_client` (async SDK client) and :func:`stream_turn_events`
 (which drives the stream and yields reasoning/token/image events to the
 browser).  The loop builds call kwargs and accumulators directly from the
-shared adapters in :mod:`janito.agent.responses`.
+shared adapters in :mod:`janito.llm_adapters.responses`.
 """
 
 import logging
 
-from janito.agent.events import ImageEvent, ReasoningEvent, TokenEvent
-from janito.agent.responses import ResponsesTurnAccumulator
+from janito.llm_adapters.responses import ResponsesTurnAccumulator
+
+from ..events import ImageEvent, ReasoningEvent, TokenEvent
 
 logger = logging.getLogger(__name__)
 

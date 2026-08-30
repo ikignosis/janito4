@@ -172,7 +172,7 @@ def test_thinking_toggle_not_persisted_to_disk(client):
 @requires_fastapi
 def test_build_call_kwargs_honors_runtime_override(client):
     """enable_thinking follows the runtime override in both directions."""
-    from janito.agent.completions import build_call_kwargs
+    from janito.llm_adapters.completions import build_call_kwargs
 
     cfg = client.app.state.config
 
@@ -195,7 +195,7 @@ def test_build_call_kwargs_honors_runtime_override(client):
 def test_build_call_kwargs_passes_structured_thinking_dict(client):
     """A provider-default thinking dict (e.g. MiniMax-M3 {'type': 'adaptive'})
     is sent through as extra_body thinking, not enable_thinking."""
-    from janito.agent.completions import build_call_kwargs
+    from janito.llm_adapters.completions import build_call_kwargs
 
     cfg = client.app.state.config
     _reset(cfg)

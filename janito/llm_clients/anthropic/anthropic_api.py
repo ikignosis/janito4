@@ -39,8 +39,8 @@ import logging
 from typing import Any
 
 # Tool-schema conversion (Anthropic Messages format) lives in the shared
-# adapter layer (janito.agent.anthropic, issue #90).
-from janito.agent.anthropic import _convert_tools_to_anthropic_format
+# adapter layer (janito.llm_adapters.anthropic, issue #90).
+from janito.llm_adapters.anthropic import _convert_tools_to_anthropic_format
 
 # Import the tool executor (routes tool calls to the MCP manager or the
 # built-in registry and tracks usage/used-files/changes around each call)

@@ -8,8 +8,8 @@ the Responses API reports ``input_tokens``/``output_tokens`` (with
 a ``SimpleNamespace`` with ``input_tokens``/``output_tokens`` and no
 cached-token details.  :func:`normalize_usage` maps every shape onto one
 dict; the CLI formats it as a Rich summary line
-(``janito.ui.usage._display_usage``) and the web loop
-serializes it as a ``UsageEvent``.
+(``janito.ui.usage._display_usage``) and the web loop builds its own
+``UsageEvent`` wire format on top of it (``janito.web.backend.events``).
 """
 
 from dataclasses import dataclass
@@ -80,27 +80,6 @@ def format_tokens(count):
     return str(int(value))
 
 
-def usage_event_from_usage(usage: Any, max_tokens: int | None = None):
-    """Build a :class:`~janito.agent.events.UsageEvent` from a usage object.
-
-    Handles every usage shape the supported API types report (see
-    :func:`normalize_usage`).  Returns ``None`` when no usage was reported
-    by the stream.
-    """
-    if usage is None:
-        return None
-    from .events import UsageEvent
-
-    stats = normalize_usage(usage)
-    return UsageEvent(
-        total=stats["total"] or 0,
-        last_input=stats["input"] or 0,
-        last_output=stats["output"] or 0,
-        last_cached=stats["cached"] or 0,
-        max_tokens=max_tokens,
-    )
-
-
 def _add(a: int | None, b: int | None) -> int | None:
     """None-aware sum: ``None`` means "not reported", not zero."""
     if a is None and b is None:
@@ -122,8 +101,8 @@ class TokenStats:
     The object is built by both agent loops: :meth:`from_usage` seeds it
     from the first round that reports usage and :meth:`add_round` folds each
     following round into it.  The cumulative counters are surfaced on the
-    final :class:`~janito.agent.events.UsageEvent` (web loop) and feed the
-    CLI turn report's ``Cost`` estimate
+    final :class:`~janito.web.backend.events.UsageEvent` (web loop) and feed
+    the CLI turn report's ``Cost`` estimate
     (``janito.ui.usage._display_usage``), which bills
     the turn-wide totals so tool-call rounds are included.
 

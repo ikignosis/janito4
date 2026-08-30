@@ -42,7 +42,7 @@ point; the turn pipeline is a pure function of `(config, request)` (issue
 | `janito/__main__.py` | Entry point: argument parsing, dispatch, runtime setup |
 | `janito/cli/` | CLI parsing, chat modes, flag-driven command handlers |
 | `janito/shell/` | Interactive prompt_toolkit shell and `/`-commands |
-| `janito/agent/` | Shared per-API adapters used by both the CLI and web loops |
+| `janito/llm_adapters/` | Shared per-API adapters used by both the CLI and web loops |
 | `janito/llm_clients/` | API clients and the shared agent-loop pipeline |
 | `janito/ui/` | Rich terminal presentation of the agent loop (turn observer, per-round stream runner, `UIConfig` bundle, usage/error rendering) |
 | `janito/tooling/` | Tool framework: discovery + privilege gating (`discovery.py`), registry, executor, skills, tracking |
@@ -64,10 +64,10 @@ subpackages below), and the cross-domain import edges are a deliberate,
 enforced contract (issue #90).  The allowed directed edges (source ->
 targets, same-domain imports always allowed) are:
 
-| source \ target | agent | cli | llm_clients | mcp_client | providers | root | shell | tooling | tools | ui | web |
+| source \ target | llm_adapters | cli | llm_clients | mcp_client | providers | root | shell | tooling | tools | ui | web |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | **root** | | ✓ | | ✓ | ✓ | — | ✓ | ✓ | ✓ | | ✓ |
-| **agent** | — | | | | ✓ | | | | | | |
+| **llm_adapters** | — | | | | ✓ | | | | | | |
 | **llm_clients** | ✓ | | — | | ✓ | ✓ | | ✓ | | | |
 | **mcp_client** | | | | — | | | | | | | |
 | **providers** | | | | | — | ✓ | | | | | |
@@ -87,13 +87,13 @@ The intended layering:
   import the concrete `UIConfig` (they depend on the structural protocol in
   `llm_clients/base_client.py`; the frozen bundle is composed by the CLI in
   `janito/ui/config.py`).
-- **`agent` is the shared adapter layer** — both agent loops (CLI and web)
-  build on it; `llm_clients` and `web` depend on it, and it must **never**
-  import from `llm_clients` (the stream converters / `GeminiStreamConsumer`
-  / `_ModelEndpointMismatch` / raw-attrs helpers moved here for that
-  reason).
-- **`llm_clients` depends one-way on `agent`**, `tooling`, `providers` and
-  the root config layer.
+- **`llm_adapters` is the shared adapter layer** — both agent loops (CLI and web)
+  build on it; `llm_clients`, `ui` and `web` depend on it, and it must
+  **never** import from `llm_clients` (the stream converters /
+  `GeminiStreamConsumer` / `_ModelEndpointMismatch` / raw-attrs helpers moved
+  here for that reason).
+- **`llm_clients` depends one-way on `llm_adapters`**, `tooling`,
+  `providers` and the root config layer.
 - **`tooling` is the tool framework** — `tools` (the built-in
   implementations) depends on it, never the other way round; tool discovery
   and the privilege predicates live in `tooling/discovery.py`.
@@ -216,7 +216,7 @@ The pipeline per turn:
    injected `TurnObserver`, see below) → if tool calls were
    requested, execute them (see [Tool execution](#tool-execution)) and loop
    again; otherwise finalize (record the assistant message, return value).
-   Each round's usage is folded into a `TokenStats` (`janito/agent/usage.py`);
+   Each round's usage is folded into a `TokenStats` (`janito/llm_adapters/usage.py`);
    `Client.run_turn` itself delivers the end-of-turn reports (used files +
    token-usage summary) to the injected observer's `on_turn_complete` when
    the turn finishes, passing the `TokenStats` together with the turn's
@@ -240,7 +240,7 @@ round** from inside the `Client.run_turn` loop, the spinner is only visible whil
 the API stream is in flight — never during tool execution.
 
 All other user-visible output of the turn is routed through a **turn
-observer** (`TurnObserver` protocol in `janito/agent/observer.py`), injected
+observer** (`TurnObserver` protocol in `janito/llm_adapters/observer.py`), injected
 through the `UIConfig` the same way as the stream runner: `on_reasoning` /
 `on_message` (per-round reasoning/content fragments), the verbose
 call/response dumps (`on_verbose_info` / `on_verbose_call` /
@@ -265,9 +265,10 @@ not on the config.
 
 The web loop (`janito/web/backend/agent/loop.py`) drives the **same turn
 pipeline asynchronously**, yielding structured events instead of printing
-Rich output. Both loops share the per-API adapter layer in `janito/agent/`
-(`completions.py`, `responses.py`, `anthropic.py`, `dashscope.py`,
-`gemini.py`, `usage.py`, `events.py`), so API-specific call-kwargs building,
+Rich output. Both loops share the per-API adapter layer in
+`janito/llm_adapters/` (`completions.py`, `responses.py`, `anthropic.py`,
+`dashscope.py`, `gemini.py`, `usage.py`); the web loop's wire-format events
+live in `janito/web/backend/events.py`. API-specific call-kwargs building,
 stream accumulation and history conversion are implemented once.
 
 ---

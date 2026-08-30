@@ -1,13 +1,13 @@
 """Native DashScope SDK runner for the web agentic loop.
 
 The per-API adapter (call-kwargs building, stream accumulation) lives in
-:mod:`janito.agent.dashscope` — the shared adapter layer used by both agent
+:mod:`janito.llm_adapters.dashscope` — the shared adapter layer used by both agent
 loops.  This module keeps the web-only glue: :func:`create_client`
 (prepares the sync DashScope SDK), :func:`_dashscope_chunks` (consumes the
 sync stream chunk-by-chunk through ``asyncio.to_thread``, retrying once on
 a model/endpoint mismatch) and :func:`stream_turn_events`.  The loop
 builds call kwargs and accumulators directly from the shared adapters in
-:mod:`janito.agent.dashscope`.
+:mod:`janito.llm_adapters.dashscope`.
 """
 
 import asyncio
@@ -15,8 +15,9 @@ import importlib.util
 import logging
 from types import SimpleNamespace
 
-from janito.agent.dashscope import DashScopeTurnAccumulator
-from janito.agent.events import ReasoningEvent, TokenEvent
+from janito.llm_adapters.dashscope import DashScopeTurnAccumulator
+
+from ..events import ReasoningEvent, TokenEvent
 
 logger = logging.getLogger(__name__)
 

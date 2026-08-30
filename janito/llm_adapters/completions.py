@@ -21,8 +21,6 @@ from janito.providers.payloads import (
     apply_thinking_to_extra_body,
 )
 
-from .usage import usage_event_from_usage
-
 
 def build_call_kwargs(
     model: str,
@@ -229,15 +227,6 @@ class CompletionsAccumulator:
                 call["extra_content"] = extra_content
             calls.append(call)
         return calls
-
-    def usage_event(self, max_tokens: int | None = None):
-        """Build a UsageEvent from the streamed usage info (or ``None``).
-
-        Args:
-            max_tokens: The configured max-output-tokens limit (from
-                ``build_call_kwargs``), surfaced as ``input/max``.
-        """
-        return usage_event_from_usage(self.usage, max_tokens)
 
     def usage_object(self):
         """The raw usage object of this round, or ``None`` when unreported.

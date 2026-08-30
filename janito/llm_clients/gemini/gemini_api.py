@@ -44,9 +44,9 @@ import logging
 from typing import Any
 
 # The call-kwargs builder lives in the shared adapter layer
-# (janito.agent.gemini, issue #90); the CLI-only helpers stay in
+# (janito.llm_adapters.gemini, issue #90); the CLI-only helpers stay in
 # gemini_helpers.
-from janito.agent.gemini import _build_call_kwargs
+from janito.llm_adapters.gemini import _build_call_kwargs
 from janito.tooling.executor import ToolExecutor
 
 # Shared agent-loop pipeline (see Client.run_turn) implemented by

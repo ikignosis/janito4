@@ -8,7 +8,7 @@ carry thought text, final text and ``function_call`` parts -- into a single
 response.
 
 The per-chunk folding lives in
-:class:`janito.agent.gemini.GeminiStreamConsumer` (the shared adapter layer,
+:class:`janito.llm_adapters.gemini.GeminiStreamConsumer` (the shared adapter layer,
 issue #90); the module-level ``_consume_stream`` / ``_consume_chunk``
 functions are thin delegators used by the module's own ``_stream_response``
 and by the client tests.
@@ -16,7 +16,7 @@ and by the client tests.
 
 import logging
 
-from janito.agent.gemini import GeminiStreamConsumer
+from janito.llm_adapters.gemini import GeminiStreamConsumer
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ def _stream_response(client, call_kwargs, tools_schemas, cancel_event=None):
     """
     if tools_schemas:
         logger.debug(f"Calling Gemini API (streaming) with {len(tools_schemas)} tools")
-        from janito.agent.gemini import _convert_tools_to_gemini_format
+        from janito.llm_adapters.gemini import _convert_tools_to_gemini_format
 
         function_tools = _convert_tools_to_gemini_format(tools_schemas)
         if function_tools:

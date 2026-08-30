@@ -19,6 +19,27 @@ Changes since `v4.33.0` (2026-08-29).
 
 ### Changed
 
+- Renamed the shared per-API adapter layer `janito/agent/` ->
+  `janito/llm_adapters/` (the package name no longer suggests orchestration
+  nor collides with `janito/web/backend/agent/`, the actual web agent
+  loop). The domain matrix in `tests/test_import_graph.py` and
+  `ARCHITECTURE.md` were updated accordingly (`llm_clients`, `ui` and
+  `web` depend one-way on `llm_adapters`, which must never import from
+  `llm_clients`).
+  - The web agent event dataclasses moved back to their historical home
+    `janito/web/backend/events.py` (from `llm_adapters/events.py`): they
+    are the browser wire format and only the web loop consumes them.
+    `usage_event_from_usage` now lives there too (built on
+    `janito.llm_adapters.usage.normalize_usage`), and the web-only
+    `.usage_event()` methods were removed from the five shared
+    accumulators in `llm_adapters` -- the web loop builds the `UsageEvent`
+    via `usage_event_from_usage(acc.usage_object(), ...)` instead.
+    `llm_adapters/usage.py` keeps only the CLI/UI-shared
+    `TokenStats` / `normalize_usage` / `format_tokens`.
+  - `TurnObserver` / `NullObserver` remain in `llm_adapters/observer.py`:
+    the turn pipeline (`llm_clients`) drives the observer, so it cannot
+    move into `ui/` without creating the forbidden `llm_clients -> ui`
+    edge (issue #90).
 - Reviewed the package boundaries (issue #90) and enforced them with a new
   static import-graph test (`tests/test_import_graph.py`):
   - `SessionSetup` moved from `janito/cli/session_setup.py` to the package

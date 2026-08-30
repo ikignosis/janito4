@@ -24,9 +24,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import pytest
 
 import janito.config_dir as config_dir_mod
-from janito.agent.observer import NullObserver
 from janito.auth_config import save_auth_config
 from janito.config_store import set_config_value
+from janito.llm_adapters.observer import NullObserver
 from janito.llm_clients.api_config import APIConfig, build_api_config
 from janito.ui.config import UIConfig
 

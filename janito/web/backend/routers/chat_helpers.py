@@ -12,9 +12,9 @@ import logging
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from janito.agent.events import event_to_dict
 from janito.tooling.prompting import set_prompt_handler
 
+from ..events import event_to_dict
 from ..prompts import PromptRegistry, WebPromptHandler
 from ..session import ConversationSession, SessionManager
 

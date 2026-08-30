@@ -19,8 +19,8 @@ from conftest import make_config, make_ui_config
 
 import janito.config_dir as config_dir_mod
 import janito.llm_clients.openai.completions_api as client_mod
-from janito.agent.completions import build_call_kwargs
 from janito.auth_config import save_auth_config
+from janito.llm_adapters.completions import build_call_kwargs
 
 
 @pytest.fixture(autouse=True)

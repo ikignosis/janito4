@@ -1,21 +1,23 @@
 """Enforce the package/domain boundaries of the ``janito`` codebase (issue #90).
 
 Every module in ``janito/`` is assigned to a **domain**: the root package
-(``janito`` and its top-level modules) or one of the subpackages (``agent``,
-``cli``, ``llm_clients``, ``mcp_client``, ``providers``, ``shell``,
-``tooling``, ``tools``, ``ui``, ``web``).  This test statically parses every
-import in the codebase (lazy imports inside functions included, since the
-agent loop relies on them) and fails on any directed cross-domain edge that
-is not in the allowed matrix below.
+(``janito`` and its top-level modules) or one of the subpackages
+(``llm_adapters``, ``cli``, ``llm_clients``, ``mcp_client``, ``providers``,
+``shell``, ``tooling``, ``tools``, ``ui``, ``web``).  This test statically
+parses every import in the codebase (lazy imports inside functions included,
+since the agent loop relies on them) and fails on any directed cross-domain
+edge that is not in the allowed matrix below.
 
 The matrix encodes the intended layering:
 
 - the **outer** presentation / entry layers (``ui``, ``shell``, ``cli``,
   ``web``) may depend on anything below them;
-- ``llm_clients`` depends one-way on the shared adapter layer (``agent``)
-  and on ``tooling`` / ``providers`` / the root config layer;
-- ``agent`` is the shared adapter layer (depended-on by ``llm_clients`` and
-  ``web``); it must never import from ``llm_clients``;
+- ``llm_clients`` depends one-way on the shared adapter layer
+  (``llm_adapters``) and on ``tooling`` / ``providers`` / the root config
+  layer;
+- ``llm_adapters`` is the shared per-API adapter layer (depended-on by
+  ``llm_clients``, ``ui`` and ``web``); it must never import from
+  ``llm_clients``;
 - ``tooling`` is the tool framework, depended-on by ``tools`` (never the
   other way round);
 - ``providers`` and the root config stores are leaves.
@@ -33,8 +35,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 PACKAGE_DIR = REPO_ROOT / "janito"
 
 DOMAINS = {
-    "agent",
     "cli",
+    "llm_adapters",
     "llm_clients",
     "mcp_client",
     "providers",
@@ -53,16 +55,16 @@ DOMAINS = {
 # into the packages lazily.
 ALLOWED_EDGES: dict[str, set[str]] = {
     "root": {"cli", "mcp_client", "providers", "shell", "tooling", "tools", "web"},
-    "agent": {"providers"},
-    "llm_clients": {"agent", "providers", "root", "tooling"},
+    "llm_adapters": {"providers"},
+    "llm_clients": {"llm_adapters", "providers", "root", "tooling"},
     "mcp_client": set(),
     "providers": {"root"},
     "shell": {"llm_clients", "providers", "root", "tooling", "tools"},
     "tooling": {"root"},
     "tools": {"providers", "root", "tooling"},
-    "ui": {"agent", "llm_clients", "providers", "root", "tooling"},
+    "ui": {"llm_adapters", "llm_clients", "providers", "root", "tooling"},
     "cli": {"llm_clients", "providers", "root", "shell", "tooling", "tools", "ui"},
-    "web": {"agent", "llm_clients", "providers", "root", "tooling", "tools"},
+    "web": {"llm_adapters", "llm_clients", "providers", "root", "tooling", "tools"},
 }
 
 

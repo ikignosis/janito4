@@ -18,7 +18,7 @@ that injects the per-round ``stream_runner`` (both carried by the
 output.  Non-TUI consumers can implement the protocol to capture or forward
 the events.
 
-The event vocabulary mirrors :mod:`janito.agent.events` (the web loop's
+The event vocabulary mirrors :mod:`janito.web.backend.events` (the web loop's
 WebSocket events): ``on_reasoning`` ~ ``ReasoningEvent``, ``on_message`` ~
 ``TokenEvent``/``DoneEvent``.  Granularity here is the per-round assembled
 fragment the client loop has (after a full stream round), not per-token
@@ -113,7 +113,7 @@ class TurnObserver(Protocol):
         """End-of-turn report (used files + token-usage summary + accounting).
 
         Invoked by ``Client.run_turn`` at the end of the turn with the
-        client-built :class:`~janito.agent.usage.TokenStats` (every round's
+        client-built :class:`~janito.llm_adapters.usage.TokenStats` (every round's
         usage folded into it) and the turn's resolved
         :class:`~janito.llm_clients.api_config.APIConfig` (``api_config``);
         the report's provider / model / max tokens come from the config

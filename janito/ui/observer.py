@@ -1,6 +1,6 @@
 """The CLI's default Rich turn observer (and its end-of-turn accounting).
 
-Implements the :class:`~janito.agent.observer.TurnObserver` protocol by
+Implements the :class:`~janito.llm_adapters.observer.TurnObserver` protocol by
 delegating to this package's display helpers, so the rendered output is
 byte-for-byte today's behaviour while ``Client.run_turn`` itself stays
 UI-free.  The observer owns its ``Console``; tests can inject
@@ -12,8 +12,8 @@ from typing import Any
 
 from rich.console import Console
 
-from janito.agent.observer import NullObserver
-from janito.agent.usage import TokenStats
+from janito.llm_adapters.observer import NullObserver
+from janito.llm_adapters.usage import TokenStats
 from janito.providers.costing import get_provider_cost_value
 from janito.tooling.accounting import record_turn
 
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 class RichTurnObserver(NullObserver):
     """Render turn events to a Rich console (the CLI's default observer).
 
-    Implements the :class:`~janito.agent.observer.TurnObserver` protocol by
+    Implements the :class:`~janito.llm_adapters.observer.TurnObserver` protocol by
     delegating to this package's display helpers (``_display_reasoning``,
     ``_display_content``, the verbose printers, the error explainers and
     ``display_turn_usage``), so the rendered output is byte-for-byte today's
@@ -124,7 +124,7 @@ class RichTurnObserver(NullObserver):
 
         Invoked by ``Client.run_turn`` at the end of every turn that reported
         token usage, with the client-built
-        :class:`~janito.agent.usage.TokenStats` and the resolved
+        :class:`~janito.llm_adapters.usage.TokenStats` and the resolved
         :class:`~janito.llm_clients.api_config.APIConfig` for the turn
         (provider / model / max tokens come from the api_config).  The
         overall-use accounting row (:func:`_record_accounting`, best effort,
@@ -139,7 +139,7 @@ class RichTurnObserver(NullObserver):
 def _record_accounting(usage_out: TokenStats | None, api_config: APIConfig) -> None:
     """Append one overall-use accounting row for a completed turn (best effort).
 
-    Uses the turn-wide cumulative counters (:class:`~janito.agent.usage.TokenStats`
+    Uses the turn-wide cumulative counters (:class:`~janito.llm_adapters.usage.TokenStats`
     accumulates every round of the turn, tool-call rounds included) so the
     accounting log reflects the billed usage; falls back to the final round's
     counters when the turn-wide ones were not reported.  The provider / model

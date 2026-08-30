@@ -5,7 +5,7 @@ The client modules (``completions_api``, ``conversations_api``,
 small, API-domain helpers: MCP service loading, error classification for the
 observer and the ``RequestCancelled`` control-flow exception.  (The SDK
 response-object introspection used by the stream consumers for the verbose
-dumps lives in :mod:`janito.agent.sdk`, the shared adapter layer -- issue
+dumps lives in :mod:`janito.llm_adapters.sdk`, the shared adapter layer -- issue
 #90.)  This module centralizes them so each client stays focused on its own
 API's wire format.
 

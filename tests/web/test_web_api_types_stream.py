@@ -86,9 +86,9 @@ def test_stream_prompt_responses_round_trip(monkeypatch):
     OpenAI format, and re-sends the converted history after a tool round."""
     import asyncio
 
-    from janito.agent.events import DoneEvent, TokenEvent, WaitingEvent
     from janito.web.backend.agent import loop
     from janito.web.backend.config import WebServerConfig
+    from janito.web.backend.events import DoneEvent, TokenEvent, WaitingEvent
 
     monkeypatch.setattr(
         loop,
@@ -268,9 +268,9 @@ def test_stream_prompt_responses_emits_image_event(monkeypatch):
     import base64
     import os
 
-    from janito.agent.events import DoneEvent, ImageEvent, TokenEvent
     from janito.web.backend.agent import loop
     from janito.web.backend.config import WebServerConfig
+    from janito.web.backend.events import DoneEvent, ImageEvent, TokenEvent
 
     monkeypatch.setattr(
         loop,

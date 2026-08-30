@@ -1,18 +1,43 @@
-"""Agent event dataclasses emitted by the agentic loops.
+"""Agent event dataclasses emitted by the web agentic loop.
 
-Each event maps to one WebSocket message sent to the browser (web loop) or
-to a CLI output action (the CLI loop prints the same data through its Rich
-sink).  Every event carries its own ``to_dict()`` so the wire format lives
-right next to the data it serializes (adding a field is a one-file change).
+Each event maps to one WebSocket message sent to the browser.  Every event
+carries its own ``to_dict()`` so the wire format lives right next to the
+data it serializes (adding a field is a one-file change).
 :func:`event_to_dict` is a thin dispatcher kept for existing callers.
 
-This module used to live at ``janito.web.backend.events``; it moved into
-the shared ``janito.agent`` layer so both agent loops consume the same
-event types, and the historical web-path shim was removed.
+The CLI loop does not use these wire events: it prints through the
+``TurnObserver`` protocol (``janito.llm_adapters.observer``) instead.
+``UsageEvent`` + :func:`usage_event_from_usage` live here too -- the web
+backend is their only consumer; the shared adapter layer
+(``janito.llm_adapters``) exposes only the normalized ``TokenStats``.
 """
 
 from dataclasses import dataclass
 from typing import Any, ClassVar
+
+from janito.llm_adapters.usage import normalize_usage
+
+
+def usage_event_from_usage(usage: Any, max_tokens: int | None = None):
+    """Build a :class:`UsageEvent` from a usage object.
+
+    Handles every usage shape the supported API types report (see
+    :func:`janito.llm_adapters.usage.normalize_usage`).  Returns ``None``
+    when no usage was reported by the stream, or when the object carries no
+    usable counters (the former per-accumulator ``usage_event()`` guards).
+    """
+    if usage is None:
+        return None
+    stats = normalize_usage(usage)
+    if not any((stats["total"], stats["input"], stats["output"], stats["cached"])):
+        return None
+    return UsageEvent(
+        total=stats["total"] or 0,
+        last_input=stats["input"] or 0,
+        last_output=stats["output"] or 0,
+        last_cached=stats["cached"] or 0,
+        max_tokens=max_tokens,
+    )
 
 
 def _safe_result(result: Any) -> Any:

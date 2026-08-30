@@ -26,8 +26,6 @@ import tempfile
 
 from janito.providers.payloads import apply_thinking_to_extra_body
 
-from .usage import usage_event_from_usage
-
 logger = logging.getLogger(__name__)
 
 
@@ -261,7 +259,7 @@ class ResponsesTurnAccumulator:
     """Fold Responses API stream events into one turn's collected state.
 
     Implements the same interface as
-    :class:`~janito.agent.completions.CompletionsAccumulator` (``handle`` ->
+    :class:`~janito.llm_adapters.completions.CompletionsAccumulator` (``handle`` ->
     ``(reasoning_delta, content_delta)`` plus the end-of-turn accessors) so
     the orchestration loop treats every API type identically.  Tool calls
     carry a stable ``call_id`` per finished output item (the Responses API
@@ -422,9 +420,6 @@ class ResponsesTurnAccumulator:
             }
             for tc in self.tool_calls
         ]
-
-    def usage_event(self, max_tokens: int | None = None):
-        return usage_event_from_usage(self.usage, max_tokens)
 
     def usage_object(self):
         """The raw usage object of this round, or ``None`` when unreported.

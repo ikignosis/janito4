@@ -57,7 +57,7 @@ def _cfg(thinking=False):
 
 
 def test_dashscope_build_call_kwargs_passes_history_and_thinking():
-    from janito.agent import dashscope
+    from janito.llm_adapters import dashscope
 
     messages = [
         {"role": "system", "content": "Be helpful."},
@@ -81,7 +81,7 @@ def test_dashscope_build_call_kwargs_passes_builtin_tools():
     """The effective model's built-in tools are sent as request-body enable_*
     kwargs on the native DashScope API (e.g. enable_code_interpreter /
     enable_search)."""
-    from janito.agent import dashscope
+    from janito.llm_adapters import dashscope
 
     class _Cfg:
         effective_thinking = True
@@ -109,7 +109,7 @@ def test_dashscope_build_call_kwargs_passes_builtin_tools():
 
 def test_dashscope_build_call_kwargs_omits_builtin_tools_when_none():
     """Models without built-in tools send no enable_* tool kwargs."""
-    from janito.agent import dashscope
+    from janito.llm_adapters import dashscope
 
     kwargs = dashscope.build_call_kwargs(
         "qwen3.8-max",
@@ -125,7 +125,7 @@ def test_dashscope_build_call_kwargs_omits_builtin_tools_when_none():
 
 
 def test_dashscope_accumulator_folds_chunks():
-    from janito.agent.dashscope import DashScopeTurnAccumulator
+    from janito.llm_adapters.dashscope import DashScopeTurnAccumulator
 
     acc = DashScopeTurnAccumulator()
     chunks = [
@@ -190,7 +190,9 @@ def test_dashscope_accumulator_folds_chunks():
             "function": {"name": "ReadFile", "arguments": '{"filepath":"/tmp/x"}'},
         }
     ]
-    usage = acc.usage_event()
+    from janito.web.backend.events import usage_event_from_usage
+
+    usage = usage_event_from_usage(acc.usage_object())
     assert (usage.last_input, usage.last_output, usage.total) == (3, 7, 10)
     assert deltas[0] == ("think", None)
     assert deltas[1] == (None, "Hi")
@@ -206,10 +208,10 @@ def test_dashscope_stream_retries_on_endpoint_mismatch(monkeypatch):
     import dashscope as dashscope_mod
     from dashscope import Generation, MultiModalConversation
 
-    from janito.agent.dashscope import accumulator, build_call_kwargs
-    from janito.agent.events import TokenEvent
+    from janito.llm_adapters.dashscope import accumulator, build_call_kwargs
     from janito.llm_clients.dashscope.dashscope_stream import _ModelEndpointMismatch
     from janito.web.backend.agent import dashscope as ds
+    from janito.web.backend.events import TokenEvent
 
     calls = []
 

@@ -300,7 +300,7 @@ def test_run_turn_in_browser_prompt_round_trip(monkeypatch):
     receive-loop resolution wakes it, and the turn completes normally with
     the answer in the streamed tool result."""
     import janito.web.backend.routers.chat as chat_mod
-    from janito.agent.events import DoneEvent, ToolResultEvent
+    from janito.web.backend.events import DoneEvent, ToolResultEvent
     from janito.web.backend.prompts import PromptRegistry
     from janito.web.backend.routers.chat_helpers import _run_turn
     from janito.web.backend.session import ConversationSession

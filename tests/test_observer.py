@@ -2,9 +2,9 @@
 Tests for the pluggable TurnObserver protocol.
 
 The API clients route every user-visible event through a
-:class:`~janito.agent.observer.TurnObserver` so ``Client.run_turn`` itself stays
+:class:`~janito.llm_adapters.observer.TurnObserver` so ``Client.run_turn`` itself stays
 UI-free: the default resolves to the headless
-:class:`~janito.agent.observer.NullObserver`, and the CLI injects the Rich
+:class:`~janito.llm_adapters.observer.NullObserver`, and the CLI injects the Rich
 observer (:class:`~janito.ui.observer.RichTurnObserver`)
 through ``_make_turn_func``.  These tests pin the protocol surface,
 the headless default, the Rich observer's rendering and its error dispatch.
@@ -21,7 +21,7 @@ from io import StringIO  # noqa: E402
 
 from rich.console import Console  # noqa: E402
 
-from janito.agent.observer import NullObserver  # noqa: E402
+from janito.llm_adapters.observer import NullObserver  # noqa: E402
 from janito.llm_clients.base_client import Client  # noqa: E402
 from janito.ui.observer import RichTurnObserver  # noqa: E402
 
