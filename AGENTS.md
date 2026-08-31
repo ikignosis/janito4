@@ -11,4 +11,4 @@
 - Do not keep backwards compatibility unless explicitely asked by the user
 - Do not stage/commit changes unless explicitely asked by the user
 - When there is an associated github issue, before making a change, add the plan to the issue comments
-- Before commiting do NOT run all the tests
+- Before commiting do NOT run all the full tests suite
