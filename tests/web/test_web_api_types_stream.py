@@ -350,3 +350,139 @@ def test_stream_prompt_responses_emits_image_event(monkeypatch):
     assert fake_client.calls[0]["tools"][-1] == {"type": "image_generation"}
 
     os.remove(img_path)
+
+
+# ---------------------------------------------------------------------------
+# End-to-end: stream_prompt against a fake Chat Completions client
+# ---------------------------------------------------------------------------
+
+
+class _FakeCompletionsApi:
+    def __init__(self, owner):
+        self._owner = owner
+
+    async def create(self, **kwargs):
+        # Snapshot the conversation: the loop passes the caller-owned list by
+        # reference and mutates it after the call returns.
+        kwargs = dict(kwargs)
+        kwargs["messages"] = list(kwargs["messages"])
+        self._owner.calls.append(kwargs)
+        return _FakeStream(self._owner.streams.pop(0))
+
+
+class _FakeCompletionsClient:
+    """Fake OpenAI SDK client recording each call and replaying chunks."""
+
+    def __init__(self, streams):
+        self.streams = list(streams)
+        self.calls = []
+        self.chat = SimpleNamespace(completions=_FakeCompletionsApi(self))
+
+
+def test_stream_prompt_completions_round_trip(monkeypatch):
+    """Completions runs through its own runner module: the loop builds the
+    turn via ``janito.web.backend.agent.completions`` (messages + tools on
+    the shared adapter's kwargs) and streams reasoning/token events, ending
+    with a usage event and a DoneEvent -- same behaviour as before the
+    extraction from loop.py."""
+    import asyncio
+
+    from janito.web.backend.agent import loop
+    from janito.web.backend.config import WebServerConfig
+    from janito.web.backend.events import (
+        DoneEvent,
+        ReasoningEvent,
+        TokenEvent,
+        WaitingEvent,
+    )
+
+    monkeypatch.setattr(
+        loop,
+        "resolve_runtime_config",
+        lambda *a, **k: (None, "sk-test", "gpt-4"),
+    )
+
+    def _chunk(content=None, reasoning=None, usage=None):
+        return SimpleNamespace(
+            id="chatcmpl-1",
+            model="gpt-4",
+            choices=[
+                SimpleNamespace(
+                    index=0,
+                    delta=SimpleNamespace(
+                        content=content,
+                        reasoning_content=reasoning,
+                        tool_calls=None,
+                    ),
+                    finish_reason=None,
+                )
+            ],
+            usage=usage,
+        )
+
+    fake_client = _FakeCompletionsClient(
+        [
+            [
+                _chunk(reasoning="Let me think..."),
+                _chunk(content="Hi there!"),
+                _chunk(
+                    usage=SimpleNamespace(
+                        total_tokens=10,
+                        prompt_tokens=6,
+                        completion_tokens=4,
+                        prompt_tokens_details=SimpleNamespace(cached_tokens=2),
+                    )
+                ),
+            ]
+        ]
+    )
+    monkeypatch.setattr(
+        "janito.web.backend.agent.completions.create_client",
+        lambda base_url, api_key: fake_client,
+    )
+
+    config = WebServerConfig(
+        provider="openai", api_type="Completions", no_tools=True, verbose=False
+    )
+    messages: list[dict] = []
+
+    async def _run():
+        events = []
+        async for ev in loop.stream_prompt(
+            "hi", messages, config, tools=[], use_mcp=False
+        ):
+            events.append(ev)
+        return events
+
+    events = asyncio.run(_run())
+
+    # The chat.completions kwargs carry the conversation; with no_tools there
+    # are no function tools on the call.
+    call = fake_client.calls[0]
+    assert call["model"] == "gpt-4"
+    assert call["messages"] == [{"role": "user", "content": "hi"}]
+    assert "tools" not in call
+
+    # Reasoning + content deltas stream as events; usage and done follow.
+    assert isinstance(events[0], WaitingEvent)
+    assert (
+        isinstance(events[1], ReasoningEvent) and events[1].content == "Let me think..."
+    )
+    assert isinstance(events[2], TokenEvent) and events[2].content == "Hi there!"
+    usage = next(e for e in events if getattr(e, "type", "") == "usage")
+    assert (usage.last_input, usage.last_cached, usage.last_output, usage.total) == (
+        6,
+        2,
+        4,
+        10,
+    )
+    done = next(e for e in events if isinstance(e, DoneEvent))
+    assert done.full_content == "Hi there!"
+    assert done.message_count == len(messages)
+
+    # The assistant message keeps reasoning_content for follow-up turns.
+    assert messages[-1] == {
+        "role": "assistant",
+        "content": "Hi there!",
+        "reasoning_content": "Let me think...",
+    }

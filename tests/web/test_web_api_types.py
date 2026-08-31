@@ -4,22 +4,23 @@ The web agentic loop (``janito.web.backend.agent.loop.stream_prompt``) used
 to be hardcoded to the Chat Completions API.  It now resolves the API type
 for the *effective provider* (``--api-type`` > the provider's configured
 ``api-type`` written by the Settings drawer > the provider's built-in
-default) and dispatches to a per-type runner:
+default) and dispatches to a per-type runner module:
 
-* ``Completions`` -> the loop's built-in path (``janito.llm_adapters.completions``)
+* ``Completions`` -> ``janito.web.backend.agent.completions``
 * ``Responses``   -> ``janito.web.backend.agent.responses``
 * ``Anthropic``   -> ``janito.web.backend.agent.anthropic``
 * ``DashScope``   -> ``janito.web.backend.agent.dashscope``
+* ``Gemini``      -> ``janito.web.backend.agent.gemini``
 
-Each runner exposes the same interface (``create_client`` / stream driver),
-with the call-kwargs builder and accumulator coming straight from the
+Each runner exposes the same interface (``create_client`` / call-kwargs
+builder / stream driver), with the accumulator class coming straight from the
 shared ``janito.llm_adapters`` adapters, and keeps the session history in the
 portable OpenAI chat format -- each API type converts it to its own wire
 format when calling.
 
 These tests pin down:
 
-1. ``loop._runner_for`` dispatches each API type to its runner;
+1. ``loop._runner_for`` dispatches each API type to its runner module;
 2. ``WebServerConfig`` carries ``--api-type`` (and reports it in CLI args);
 3. the per-type call-kwargs builders (Responses input items + tool
    conversion, Anthropic system/tool conversion, DashScope passthrough);
@@ -77,6 +78,9 @@ def test_loop_dispatches_each_api_type_to_its_runner():
     from janito.llm_adapters.anthropic import (
         build_call_kwargs as anthropic_build_call_kwargs,
     )
+    from janito.llm_adapters.completions import (
+        CompletionsAccumulator as completions_accumulator,
+    )
     from janito.llm_adapters.dashscope import accumulator as dashscope_accumulator
     from janito.llm_adapters.dashscope import (
         build_call_kwargs as dashscope_build_call_kwargs,
@@ -88,6 +92,12 @@ def test_loop_dispatches_each_api_type_to_its_runner():
         build_call_kwargs as responses_build_call_kwargs,
     )
     from janito.web.backend.agent import loop
+
+    completions = loop._runner_for("Completions")
+    assert completions.build_call_kwargs is loop.completions_runner.build_call_kwargs
+    assert completions.accumulator is completions_accumulator
+    assert completions.create_client is loop.completions_runner.create_client
+    assert completions.stream_turn_events is loop.completions_runner.stream_turn_events
 
     responses = loop._runner_for("Responses")
     assert responses.build_call_kwargs is responses_build_call_kwargs
@@ -113,8 +123,10 @@ def test_loop_dispatches_each_api_type_to_its_runner():
     assert gemini.create_client is loop.gemini_runner.create_client
     assert gemini.stream_turn_events is loop.gemini_runner.stream_turn_events
 
-    # Completions is the built-in path -- no runner module.
-    assert loop._runner_for("Completions") is None
+    # Every API type (Completions included) resolves to its own runner module
+    # -- the loop never falls back to an inline path.
+    with pytest.raises(ValueError):
+        loop._runner_for("Bogus")
 
 
 def test_web_server_config_carries_api_type():

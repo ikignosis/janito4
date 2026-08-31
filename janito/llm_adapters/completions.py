@@ -2,8 +2,10 @@
 
 Used by both agent loops:
 
-- the web ``stream_prompt()`` loop imports ``CompletionsAccumulator`` and
-  ``build_call_kwargs`` directly from this module;
+- the web ``stream_prompt()`` loop reaches it through the per-API runner
+  ``janito.web.backend.agent.completions``, which wraps ``build_call_kwargs``
+  (adding ``messages`` + function ``tools``) and drives the stream with
+  ``CompletionsAccumulator``;
 - the CLI loop subclasses ``CompletionsAccumulator`` in
   ``janito.llm_clients.openai.completions_stream`` (``CompletionsStreamConsumer``)
   to add its synchronous Enter-to-cancel stream driver.

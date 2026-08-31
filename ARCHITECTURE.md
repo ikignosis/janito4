@@ -477,9 +477,10 @@ WRITE or EXEC skip the hint.
   conversations persisted to `.janito/sessions/` so they survive restarts.
 - **`security.py`** — optional bearer-token auth (`JANITO_WEB_TOKEN`) and CORS.
 - **`agent/`** — the async agent loop (`loop.py` orchestrates; `turn.py`
-  runs tool turns; `call.py` is the Completions runner; `responses.py`,
-  `anthropic.py`, `dashscope.py`, `gemini.py` are the other API runners;
-  `tooling.py` resolves tools and executes calls). Tool calls run
+  runs tool turns; `completions.py`, `responses.py`, `anthropic.py`,
+  `dashscope.py`, `gemini.py` are the per-API-type runners — one module
+  each, Completions included; `tooling.py` resolves tools and executes
+  calls). Tool calls run
   through the shared `run_tool` core in a worker thread
   (`asyncio.to_thread`).
 - **`events.py` / `prompts.py`** — structured SSE/WebSocket events and the

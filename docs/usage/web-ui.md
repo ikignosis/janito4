@@ -218,7 +218,7 @@ janito/web/backend/
    app.py        create_app(config) + run_web(args)  [FastAPI + uvicorn]
    templating.py Jinja2 environment for the page templates (base + partials)
    agent/        loop.py — async event generator (headless agentic loop);
-                 call.py/turn.py/responses.py/anthropic.py/dashscope.py/gemini.py
+                 completions.py/turn.py/responses.py/anthropic.py/dashscope.py/gemini.py
    events.py     TokenEvent, ToolCallEvent, ToolProgressEvent, …
    session.py    ConversationSession + SessionManager (TTL + persistence hooks)
    session_store.py  .janito/sessions/<id>.jsonl read/write (issue #36)

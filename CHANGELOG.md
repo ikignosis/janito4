@@ -26,6 +26,15 @@ Changes since `v4.33.0` (2026-08-29).
 
 ### Changed
 
+- The web agent loop's Chat Completions path is no longer inlined in
+  `janito/web/backend/agent/loop.py`: Completions now has its own runner
+  module `janito/web/backend/agent/completions.py` (`create_client`,
+  `build_call_kwargs` wrapping the shared `llm_adapters.completions`
+  builder with `messages` + function `tools`, and `stream_turn_events`),
+  so all five API types are dispatched uniformly through `_runner_for`
+  (which now raises on an unknown API type instead of silently falling
+  back to Completions). `ARCHITECTURE.md` and `docs/usage/web-ui.md` were
+  updated (the stale `call.py` reference is gone).
 - The execution-time privilege gate in `run_tool` now distinguishes a tool
   that does not exist at all from one that exists but was not offered in
   the current turn: an unknown name (e.g. a typo like `Grep`) is reported

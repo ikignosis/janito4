@@ -8,11 +8,12 @@ The loop is API-type agnostic.  The API type for the turn is resolved for the
 *effective provider* (the one selected for the session/provider combo) via
 ``resolve_api_type`` — ``--api-type`` first, then the provider's configured
 ``api-type`` (written by the web Settings drawer), then the provider's
-built-in default.  Each API type contributes a small runner (client factory,
-stream driver) exposing the same interface; the call-kwargs builder and
-accumulator class come straight from the shared ``janito.llm_adapters`` adapters:
+built-in default.  Each API type contributes a small runner module (client
+factory, call-kwargs builder, stream driver) exposing the same interface;
+the shared call-kwargs logic and accumulator classes come straight from the
+``janito.llm_adapters`` adapters:
 
-- Completions  -> the loop's built-in path (``janito.llm_adapters.completions``)
+- Completions  -> ``janito.web.backend.agent.completions``
 - Responses    -> ``janito.web.backend.agent.responses``
 - Anthropic    -> ``janito.web.backend.agent.anthropic``
 - DashScope    -> ``janito.web.backend.agent.dashscope``
@@ -24,15 +25,12 @@ from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass
 from typing import Any
 
-from openai import AsyncOpenAI
-
 from janito.config_loaders import load_max_output_tokens, load_reasoning_effort
 from janito.general_config import get_active_provider, resolve_api_type
 from janito.llm_adapters.anthropic import accumulator as anthropic_accumulator
 from janito.llm_adapters.anthropic import build_call_kwargs as build_anthropic_kwargs
-from janito.llm_adapters.completions import CompletionsAccumulator
 from janito.llm_adapters.completions import (
-    build_call_kwargs as build_completions_kwargs,
+    CompletionsAccumulator as completions_accumulator,
 )
 from janito.llm_adapters.dashscope import accumulator as dashscope_accumulator
 from janito.llm_adapters.dashscope import build_call_kwargs as build_dashscope_kwargs
@@ -52,12 +50,11 @@ from ..events import (
     AgentEvent,
     DoneEvent,
     ErrorEvent,
-    ReasoningEvent,
-    TokenEvent,
     WaitingEvent,
     usage_event_from_usage,
 )
 from . import anthropic as anthropic_runner
+from . import completions as completions_runner
 from . import dashscope as dashscope_runner
 from . import gemini as gemini_runner
 from . import responses as responses_runner
@@ -101,7 +98,7 @@ def _resolve_turn_config(config, effective_provider, model):
 
 @dataclass(frozen=True)
 class _Runner:
-    """Per-API runner for the web agent loop (non-Completions types).
+    """Per-API runner for the web agent loop.
 
     Bundles the web-only glue (client creation, event streaming) from the
     runner module with the shared call-kwargs builder and accumulator class
@@ -115,12 +112,20 @@ class _Runner:
     stream_turn_events: Callable[..., Any]
 
 
-def _runner_for(api_type: str) -> _Runner | None:
-    """Return the runner for a non-Completions API type.
+def _runner_for(api_type: str) -> _Runner:
+    """Return the runner for an API type.
 
-    ``None`` means the built-in Completions path (handled inline in the
-    loop below).
+    Every API type (Completions included) has its own runner module under
+    ``janito.web.backend.agent``, so this never falls back to a built-in
+    inline path.
     """
+    if api_type == "Completions":
+        return _Runner(
+            completions_runner.create_client,
+            completions_runner.build_call_kwargs,
+            completions_accumulator,
+            completions_runner.stream_turn_events,
+        )
     if api_type == "Responses":
         return _Runner(
             responses_runner.create_client,
@@ -149,31 +154,7 @@ def _runner_for(api_type: str) -> _Runner | None:
             gemini_accumulator,
             gemini_runner.stream_turn_events,
         )
-    return None
-
-
-def _build_turn_kwargs(
-    model,
-    config,
-    tools_schemas,
-    messages,
-    max_output_tokens,
-    preserve_thinking,
-    reasoning_effort,
-) -> dict:
-    """Build the ``chat.completions.create`` kwargs for one turn."""
-    call_kwargs = build_completions_kwargs(
-        model,
-        config,
-        max_output_tokens,
-        preserve_thinking,
-        reasoning_effort,
-    )
-    call_kwargs["messages"] = messages
-    if tools_schemas:
-        call_kwargs["tools"] = tools_schemas
-        call_kwargs["tool_choice"] = "auto"
-    return call_kwargs
+    raise ValueError(f"Unknown API type: {api_type}")
 
 
 def _build_assistant_message(acc: Any, full_content: str) -> dict:
@@ -203,9 +184,7 @@ def _build_assistant_message(acc: Any, full_content: str) -> dict:
 
 
 def _create_agent_client(runner, base_url, api_key):
-    """Create the SDK client for the API type (Completions is built-in)."""
-    if runner is None:
-        return AsyncOpenAI(api_key=api_key, base_url=base_url)
+    """Create the SDK client for the API type."""
     return runner.create_client(base_url, api_key)
 
 
@@ -220,17 +199,6 @@ def _turn_call_kwargs_and_acc(
     reasoning_effort,
 ):
     """Build the per-type call kwargs and a fresh accumulator for one turn."""
-    if runner is None:
-        call_kwargs = _build_turn_kwargs(
-            model,
-            config,
-            tools_schemas,
-            messages,
-            max_output_tokens,
-            preserve_thinking,
-            reasoning_effort,
-        )
-        return call_kwargs, CompletionsAccumulator()
     call_kwargs = runner.build_call_kwargs(
         model,
         messages,
@@ -249,15 +217,6 @@ async def _stream_turn(client, runner, call_kwargs, acc):
     The caller owns ``acc``; on completion it holds the full turn state for
     end-of-turn assembly.
     """
-    if runner is None:
-        stream = await client.chat.completions.create(**call_kwargs)
-        async for chunk in stream:
-            reasoning_delta, content_delta = acc.handle(chunk)
-            if reasoning_delta:
-                yield ReasoningEvent(content=reasoning_delta)
-            if content_delta:
-                yield TokenEvent(content=content_delta)
-        return
     async for ev in runner.stream_turn_events(client, call_kwargs, acc):
         yield ev
 
