@@ -14,3 +14,9 @@ Changes since `v4.35.0` (2026-08-31).
 - `--no-tasks` CLI flag: disables the tasks toolset (`StartTask`, `StopTask`,
   `WaitForTask`) while leaving every other toolset (files, system, net) and
   the skill tools enabled. Works in both the terminal CLI and `--web` mode.
+
+### Changed
+
+- Task manager: child task processes now always start with `--no-tasks` on
+  the command line, so a task sub-process cannot spawn further tasks itself
+  (prevents recursive task execution).

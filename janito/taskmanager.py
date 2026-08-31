@@ -16,9 +16,11 @@ blocks on and what :meth:`TaskManager.stop_task` terminates.
 The child command line is built by :func:`build_task_command`, which
 reproduces the parent's ``-c``/``--config-dir`` and ``-l``/``--local`` flags
 via :func:`janito.config_dir.config_cli_args` so sub-processes resolve the
-same configuration (issue #94), and maps the task's ``privileges`` string to
+same configuration (issue #94), maps the task's ``privileges`` string to
 the ``-r``/``-w``/``-x`` CLI flags (``None``/empty means the child starts
-read-only, matching the janito default, issue #85).
+read-only, matching the janito default, issue #85), and always passes
+``--no-tasks`` so a task sub-process can never spawn further tasks itself
+(no recursive task execution).
 
 Temp output files are created with ``delete=False`` (the LLM reads them, e.g.
 with the ReadFile tool) and removed at process exit by the atexit-registered
@@ -87,8 +89,10 @@ def build_task_command(privileges: str | None) -> list[str]:
 
     Uses ``sys.executable -m janito`` so the child runs in the same Python
     environment as the parent, inherits the parent's ``-c``/``-l`` config
-    flags via :func:`janito.config_dir.config_cli_args`, and maps
-    ``privileges`` to the ``-r``/``-w``/``-x`` flags.
+    flags via :func:`janito.config_dir.config_cli_args`, maps ``privileges``
+    to the ``-r``/``-w``/``-x`` flags, and always appends ``--no-tasks`` so
+    the child cannot spawn further tasks (preventing recursive task
+    execution).
 
     Args:
         privileges: Privileges for the child (``None``/``""`` = read-only).
@@ -99,6 +103,7 @@ def build_task_command(privileges: str | None) -> list[str]:
     cmd = [sys.executable, "-m", "janito"]
     cmd.extend(config_cli_args())
     cmd.extend(privilege_flags(privileges))
+    cmd.append("--no-tasks")
     return cmd
 
 

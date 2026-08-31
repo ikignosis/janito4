@@ -86,7 +86,7 @@ def test_build_task_command_uses_module_and_privileges(monkeypatch):
     assert cmd[0] == sys.executable
     assert cmd[1] == "-m"
     assert cmd[2] == "janito"
-    assert cmd[3:] == ["-r", "-w"]
+    assert cmd[3:] == ["-r", "-w", "--no-tasks"]
 
 
 def test_build_task_command_inherits_config_cli_args(monkeypatch):
@@ -95,6 +95,17 @@ def test_build_task_command_inherits_config_cli_args(monkeypatch):
     assert "-l" in cmd
     assert "-c" in cmd
     assert "/tmp/cfg" in cmd
+    # The child must always start with the tasks toolset disabled so a task
+    # sub-process cannot spawn further tasks (no recursive task execution).
+    assert "--no-tasks" in cmd
+
+
+def test_build_task_command_always_disables_tasks(monkeypatch):
+    """Regression: every child command line carries --no-tasks."""
+    monkeypatch.setattr(tm, "config_cli_args", lambda: ["-l"])
+    for privileges in (None, "", "rwx"):
+        cmd = build_task_command(privileges)
+        assert cmd[-1] == "--no-tasks", cmd
 
 
 def test_start_task_returns_working_dir(monkeypatch, tmp_path):
@@ -114,9 +125,7 @@ def test_start_task_returns_working_dir(monkeypatch, tmp_path):
     # The description is piped to the child's stdin (single prompt).
     assert calls["kwargs"]["stdin"] is not None
     assert calls["kwargs"]["cwd"] == str(tmp_path)
-    assert "".join(proc.stdin.written) == (
-        "Run: echo hello and report the output."
-    )
+    assert "".join(proc.stdin.written) == ("Run: echo hello and report the output.")
 
 
 def test_start_task_default_working_dir_is_cwd(monkeypatch):
@@ -194,6 +203,9 @@ def test_wait_for_task_reports_in_completion_order(monkeypatch):
     # task2 finishes first, task1 finishes second.
     procs[info2["pid"]].returncode = 0
     procs[info2["pid"]].release.set()
+    # Wait until task2's completion has been recorded before finishing task1,
+    # so the completion order is deterministic (thread wake-up order is not).
+    assert manager.get_task(info2["task_id"]).done.wait(5)
     procs[info1["pid"]].returncode = 0
     procs[info1["pid"]].release.set()
 
