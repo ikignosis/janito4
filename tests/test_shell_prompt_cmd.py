@@ -34,11 +34,13 @@ def _patch_no_skills(monkeypatch):
     monkeypatch.setattr(tools_registry_mod, "get_skills_section", lambda: "")
 
 
-def _patch_config_start(monkeypatch, start):
+def _patch_config_start(monkeypatch, start, label=None):
     """Pin load_system_prompt_start so tests never touch the real config."""
     import janito.config_loaders as config_loaders_mod
 
-    monkeypatch.setattr(config_loaders_mod, "load_system_prompt_start", lambda: start)
+    monkeypatch.setattr(
+        config_loaders_mod, "load_system_prompt_start", lambda: (start, label)
+    )
 
 
 def test_prompt_cmd_shows_section_table(monkeypatch, tmp_path, capfd):
@@ -57,7 +59,8 @@ def test_prompt_cmd_shows_section_table(monkeypatch, tmp_path, capfd):
 
     out = capfd.readouterr().out
     assert "System Prompt - Default (with Skills)" in out
-    assert "start" in out
+    # The default start section is labeled "built-in" (issue #86).
+    assert "built-in" in out
     assert "skills" in out
     assert "Available Skills" in out
     assert "(fake skills section)" in out
@@ -108,7 +111,7 @@ def test_prompt_cmd_includes_agents_md_section(monkeypatch, tmp_path, capfd):
 
 
 def test_prompt_cmd_custom_prompt_falls_back_to_plain(monkeypatch, tmp_path, capfd):
-    """A custom (-S) prompt is shown in full inside a single-column table."""
+    """A custom (-S) prompt is shown in full as a single section labeled -S."""
     _patch_skills_section(monkeypatch)
     _patch_config_start(monkeypatch, None)
     monkeypatch.chdir(tmp_path)
@@ -122,6 +125,8 @@ def test_prompt_cmd_custom_prompt_falls_back_to_plain(monkeypatch, tmp_path, cap
     out = capfd.readouterr().out
     assert "System Prompt" in out
     assert "custom system prompt" in out
+    # The section column shows the -S label (issue #86).
+    assert "-S" in out
     assert "----" not in out
 
 
@@ -137,7 +142,9 @@ def test_prompt_cmd_config_start_keeps_section_table(monkeypatch, tmp_path, capf
     from janito.session_setup import SessionSetup
 
     _patch_skills_section(monkeypatch)
-    _patch_config_start(monkeypatch, "configured start text")
+    _patch_config_start(
+        monkeypatch, "configured start text", label="(config) ~/base.md"
+    )
     monkeypatch.chdir(tmp_path)
 
     shell = InteractiveShell(model="test-model", no_history=True)
@@ -148,7 +155,8 @@ def test_prompt_cmd_config_start_keeps_section_table(monkeypatch, tmp_path, capf
 
     out = capfd.readouterr().out
     assert "System Prompt - Default (with Skills)" in out
-    assert "start" in out
+    # The start row shows the (config) label instead of the section name.
+    assert "(config) ~/base.md" in out
     assert "configured start text" in out
     assert "(fake skills section)" in out
     # The base prompt is gone from the display (replaced by the config start).

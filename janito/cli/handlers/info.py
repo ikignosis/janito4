@@ -290,21 +290,29 @@ def handle_show_system_prompt(args) -> int:
     from rich.console import Console
     from rich.table import Table
 
-    from ...system_prompt import SECTION_SKILLS, default_system_prompt_manager
+    from ...system_prompt import (
+        LABEL_CLI,
+        SECTION_SKILLS,
+        default_system_prompt_manager,
+    )
 
     console = Console(markup=False)
 
     if args.system_prompt:
         prompt = args.system_prompt
-        source = "CLI override (-S)"
+        # Custom -S prompt: show it as a single section labeled "-S" (issue
+        # #86), matching the default prompt's Section/Lines/Content layout.
         table = Table(
-            title=f"System prompt ({source})",
+            title="System prompt (CLI override (-S))",
             title_style="bold",
             header_style="bold cyan",
-            show_header=False,
         )
+        table.add_column("Section", style="green", no_wrap=True)
+        table.add_column("Lines", justify="right")
         table.add_column("Content", overflow="fold")
-        table.add_row(prompt.strip())
+        body = prompt.rstrip()
+        line_count = len(body.splitlines()) if body else 0
+        table.add_row(LABEL_CLI, str(line_count), body)
         console.print(table)
         return 0
 
@@ -321,7 +329,7 @@ def handle_show_system_prompt(args) -> int:
     # advertised).
     manager = default_system_prompt_manager()
     sections = list(manager.get_all_sections())
-    has_skills = any(name == SECTION_SKILLS for name, _ in sections)
+    has_skills = any(section.name == SECTION_SKILLS for section in sections)
     title = (
         "System prompt (default (with skills))"
         if has_skills
@@ -335,10 +343,12 @@ def handle_show_system_prompt(args) -> int:
     table.add_column("Section", style="green", no_wrap=True)
     table.add_column("Lines", justify="right")
     table.add_column("Content", overflow="fold")
-    for name, text in sections:
-        body = text.rstrip()
+    for section in sections:
+        body = section.text.rstrip()
         line_count = len(body.splitlines()) if body else 0
-        table.add_row(name, str(line_count), body)
+        # Show the section's label when set (e.g. "built-in" or
+        # "(config) ~/base.md"), falling back to the section name (issue #86).
+        table.add_row(section.label or section.name, str(line_count), body)
         # Empty row after each section for visual context split.
         table.add_row("", "", "")
     console.print(table)

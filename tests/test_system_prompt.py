@@ -3,9 +3,10 @@ Tests for the system prompt management in ``janito/system_prompt.py``.
 
 The system prompt is assembled from named sections via
 :class:`SysPromptManager`.  These tests cover the manager's section operations
-(add/update/delete), rendering, and the default prompt resolved by
-``default_system_prompt_manager`` (built-in base prompt read from the packaged
-``janito/system-prompt.txt`` resource + skills + optional ``AGENTS.md``).
+(add/update/delete, label handling), rendering, and the default prompt
+resolved by ``default_system_prompt_manager`` (built-in base prompt read from
+the packaged ``janito/system-prompt.txt`` resource + skills + optional
+``AGENTS.md``).
 """
 
 import sys
@@ -18,8 +19,10 @@ import pytest
 
 import janito.tooling.tools_registry as tools_registry_mod
 from janito.system_prompt import (
+    LABEL_BUILTIN,
     SECTION_START,
     SYSTEM_PROMPT_MANAGER,
+    Section,
     SysPromptManager,
     apply_start_section,
     default_system_prompt_manager,
@@ -43,7 +46,15 @@ def _patch_skills_section(monkeypatch):
 def test_init_seeds_start_section():
     """__init__ stores ('start', start_prompt) as the first section."""
     manager = SysPromptManager("start text")
-    assert list(manager.get_all_sections()) == [(SECTION_START, "start text")]
+    assert list(manager.get_all_sections()) == [Section(SECTION_START, "start text")]
+
+
+def test_init_accepts_start_label():
+    """__init__ stores the start section with its optional label."""
+    manager = SysPromptManager("start text", start_label=LABEL_BUILTIN)
+    assert list(manager.get_all_sections()) == [
+        Section(SECTION_START, "start text", LABEL_BUILTIN)
+    ]
 
 
 def test_add_section_appends():
@@ -51,9 +62,18 @@ def test_add_section_appends():
     manager = SysPromptManager("start text")
     manager.add_section("extra", "extra text")
     assert list(manager.get_all_sections()) == [
-        (SECTION_START, "start text"),
-        ("extra", "extra text"),
+        Section(SECTION_START, "start text"),
+        Section("extra", "extra text"),
     ]
+
+
+def test_add_section_with_label():
+    """add_section stores the optional label."""
+    manager = SysPromptManager("start text")
+    manager.add_section("extra", "extra text", label="(config) ~/base.md")
+    assert list(manager.get_all_sections())[1] == Section(
+        "extra", "extra text", "(config) ~/base.md"
+    )
 
 
 def test_add_section_duplicate_name_raises():
@@ -76,7 +96,17 @@ def test_update_section_replaces_text():
     manager = SysPromptManager("start text")
     manager.add_section("extra", "extra text")
     manager.update_section("extra", "updated text")
-    assert list(manager.get_all_sections())[1] == ("extra", "updated text")
+    assert list(manager.get_all_sections())[1] == Section("extra", "updated text")
+
+
+def test_update_section_preserves_label():
+    """update_section keeps the section's label unchanged."""
+    manager = SysPromptManager("start text")
+    manager.add_section("extra", "extra text", label="(config) ~/base.md")
+    manager.update_section("extra", "updated text")
+    assert list(manager.get_all_sections())[1] == Section(
+        "extra", "updated text", "(config) ~/base.md"
+    )
 
 
 def test_update_section_missing_raises():
@@ -86,12 +116,30 @@ def test_update_section_missing_raises():
         manager.update_section("missing", "text")
 
 
+def test_update_label_sets_and_clears():
+    """update_label sets the display label and None clears it (name fallback)."""
+    manager = SysPromptManager("start text")
+    manager.update_label(SECTION_START, LABEL_BUILTIN)
+    assert list(manager.get_all_sections()) == [
+        Section(SECTION_START, "start text", LABEL_BUILTIN)
+    ]
+    manager.update_label(SECTION_START, None)
+    assert list(manager.get_all_sections()) == [Section(SECTION_START, "start text")]
+
+
+def test_update_label_missing_raises():
+    """update_label raises ValueError for an unknown section."""
+    manager = SysPromptManager("start text")
+    with pytest.raises(ValueError):
+        manager.update_label("missing", "label")
+
+
 def test_del_section_removes():
     """del_section removes a non-start section."""
     manager = SysPromptManager("start text")
     manager.add_section("extra", "extra text")
     manager.del_section("extra")
-    assert list(manager.get_all_sections()) == [(SECTION_START, "start text")]
+    assert list(manager.get_all_sections()) == [Section(SECTION_START, "start text")]
 
 
 def test_del_start_section_raises():
@@ -122,11 +170,11 @@ def test_render_without_sections_beyond_start():
 
 
 def test_get_all_sections_returns_iterator():
-    """get_all_sections returns an iterator over (name, text) pairs."""
+    """get_all_sections returns an iterator over Section objects."""
     manager = SysPromptManager("start text")
     iterator = manager.get_all_sections()
     assert iter(iterator) is iterator
-    assert list(iterator) == [(SECTION_START, "start text")]
+    assert list(iterator) == [Section(SECTION_START, "start text")]
 
 
 # --- default prompt building -----------------------------------------------
@@ -225,9 +273,9 @@ def test_sections_without_agents_md(monkeypatch, tmp_path):
     manager = SysPromptManager(get_builtin_system_prompt())
     sections = list(sync_default_sections(manager).get_all_sections())
 
-    assert [name for name, _ in sections] == ["start", "skills"]
-    assert sections[0] == ("start", get_builtin_system_prompt())
-    assert sections[1] == ("skills", SKILLS_SECTION)
+    assert [section.name for section in sections] == ["start", "skills"]
+    assert sections[0] == Section("start", get_builtin_system_prompt())
+    assert sections[1] == Section("skills", SKILLS_SECTION)
 
 
 def test_sections_with_agents_md(monkeypatch, tmp_path):
@@ -241,9 +289,9 @@ def test_sections_with_agents_md(monkeypatch, tmp_path):
     manager = SysPromptManager(get_builtin_system_prompt())
     sections = list(sync_default_sections(manager).get_all_sections())
 
-    assert [name for name, _ in sections] == ["start", "skills", "agents.md"]
-    assert sections[2][0] == "agents.md"
-    assert agents_content in sections[2][1]
+    assert [section.name for section in sections] == ["start", "skills", "agents.md"]
+    assert sections[2].name == "agents.md"
+    assert agents_content in sections[2].text
 
 
 def test_sections_concatenation_reproduces_full_prompt(monkeypatch, tmp_path):
@@ -257,7 +305,7 @@ def test_sections_concatenation_reproduces_full_prompt(monkeypatch, tmp_path):
     manager = SysPromptManager(get_builtin_system_prompt())
     sections = list(sync_default_sections(manager).get_all_sections())
 
-    assert manager.render() == "".join(text + "\n" for _, text in sections)
+    assert manager.render() == "".join(section.text + "\n" for section in sections)
 
 
 def test_sync_removes_sections_that_no_longer_apply(monkeypatch, tmp_path):
@@ -267,27 +315,26 @@ def test_sync_removes_sections_that_no_longer_apply(monkeypatch, tmp_path):
 
     manager = SysPromptManager(get_builtin_system_prompt())
     (tmp_path / "AGENTS.md").write_text("agent line", encoding="utf-8")
-    assert [name for name, _ in sync_default_sections(manager).get_all_sections()] == [
-        "start",
-        "skills",
-        "agents.md",
-    ]
+    assert [
+        section.name for section in sync_default_sections(manager).get_all_sections()
+    ] == ["start", "skills", "agents.md"]
 
     (tmp_path / "AGENTS.md").unlink()
-    assert [name for name, _ in sync_default_sections(manager).get_all_sections()] == [
-        "start",
-        "skills",
-    ]
+    assert [
+        section.name for section in sync_default_sections(manager).get_all_sections()
+    ] == ["start", "skills"]
 
 
 # --- configured start section (system-prompt / system-prompt-file) ---------
 
 
-def _patch_config_start(monkeypatch, start):
+def _patch_config_start(monkeypatch, start, label=None):
     """Patch load_system_prompt_start so tests never touch the real config."""
     import janito.config_loaders as config_loaders_mod
 
-    monkeypatch.setattr(config_loaders_mod, "load_system_prompt_start", lambda: start)
+    monkeypatch.setattr(
+        config_loaders_mod, "load_system_prompt_start", lambda: (start, label)
+    )
 
 
 def test_apply_start_section_none_returns_same_manager():
@@ -306,14 +353,34 @@ def test_apply_start_section_replaces_start_without_mutating_original():
 
     assert copy is not manager
     assert list(copy.get_all_sections()) == [
-        (SECTION_START, "configured start"),
-        ("extra", "extra text"),
+        Section(SECTION_START, "configured start"),
+        Section("extra", "extra text"),
     ]
     # The original manager keeps its base start (the shared singleton must
     # never be mutated by the config application).
     assert list(manager.get_all_sections()) == [
-        (SECTION_START, "start text"),
-        ("extra", "extra text"),
+        Section(SECTION_START, "start text"),
+        Section("extra", "extra text"),
+    ]
+
+
+def test_apply_start_section_sets_start_label():
+    """apply_start_section sets the start section's display label."""
+    manager = SysPromptManager("start text")
+    copy = apply_start_section(manager, "configured start", start_label=LABEL_BUILTIN)
+    assert list(copy.get_all_sections()) == [
+        Section(SECTION_START, "configured start", LABEL_BUILTIN)
+    ]
+
+
+def test_apply_start_section_copies_section_labels():
+    """The fresh copy keeps the labels of the non-start sections."""
+    manager = SysPromptManager("start text")
+    manager.add_section("plugins:testplugin", "plugin text", label="plugins:testplugin")
+    copy = apply_start_section(manager, "configured start", start_label=LABEL_BUILTIN)
+    assert list(copy.get_all_sections()) == [
+        Section(SECTION_START, "configured start", LABEL_BUILTIN),
+        Section("plugins:testplugin", "plugin text", "plugins:testplugin"),
     ]
 
 
@@ -326,8 +393,8 @@ def test_default_system_prompt_manager_applies_config_start(monkeypatch, tmp_pat
     manager = default_system_prompt_manager()
     sections = list(manager.get_all_sections())
 
-    assert sections[0] == (SECTION_START, "configured start text")
-    assert [name for name, _ in sections] == ["start", "skills"]
+    assert sections[0] == Section(SECTION_START, "configured start text")
+    assert [section.name for section in sections] == ["start", "skills"]
     assert "configured start text" in manager.render()
     assert SKILLS_SECTION in manager.render()
     assert get_builtin_system_prompt() not in manager.render()
@@ -342,8 +409,26 @@ def test_default_system_prompt_manager_without_config_uses_base(monkeypatch, tmp
     manager = default_system_prompt_manager()
     sections = list(manager.get_all_sections())
 
-    assert sections[0] == (SECTION_START, get_builtin_system_prompt())
-    assert [name for name, _ in sections] == ["start", "skills"]
+    assert sections[0] == Section(
+        SECTION_START, get_builtin_system_prompt(), LABEL_BUILTIN
+    )
+    assert [section.name for section in sections] == ["start", "skills"]
+
+
+def test_default_system_prompt_manager_uses_config_label(monkeypatch, tmp_path):
+    """The configured start carries the loader's (config) ... label."""
+    _patch_skills_section(monkeypatch)
+    _patch_config_start(
+        monkeypatch, "configured start text", label="(config) ~/base-prompt.md"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    manager = default_system_prompt_manager()
+    sections = list(manager.get_all_sections())
+
+    assert sections[0] == Section(
+        SECTION_START, "configured start text", "(config) ~/base-prompt.md"
+    )
 
 
 def test_default_system_prompt_manager_preserves_plugin_sections(monkeypatch, tmp_path):
@@ -355,17 +440,99 @@ def test_default_system_prompt_manager_preserves_plugin_sections(monkeypatch, tm
     SYSTEM_PROMPT_MANAGER.add_section("plugins:testplugin", "plugin section text")
     try:
         manager = default_system_prompt_manager()
-        sections = dict(manager.get_all_sections())
-        assert sections["start"] == "configured start text"
-        assert sections["plugins:testplugin"] == "plugin section text"
+        sections = {section.name: section for section in manager.get_all_sections()}
+        assert sections["start"].text == "configured start text"
+        assert sections["plugins:testplugin"].text == "plugin section text"
         # The shared manager's start stays at its lazy empty seed: the
         # config application (and the built-in resource prompt) is only ever
         # applied to a per-call copy, never to the shared singleton.
-        shared_sections = dict(SYSTEM_PROMPT_MANAGER.get_all_sections())
-        assert shared_sections["start"] == ""
-        assert shared_sections["plugins:testplugin"] == "plugin section text"
+        shared_sections = {
+            section.name: section
+            for section in SYSTEM_PROMPT_MANAGER.get_all_sections()
+        }
+        assert shared_sections["start"].text == ""
+        assert shared_sections["plugins:testplugin"].text == "plugin section text"
     finally:
         SYSTEM_PROMPT_MANAGER.del_section("plugins:testplugin")
+
+
+# --- load_system_prompt_start labels (issue #86) ---------------------------
+
+
+def _patch_config_store(monkeypatch, getter, config_path=None):
+    """Patch config_store.get_config_value (and get_config_path) for the loader."""
+    import janito.config_store as config_store_mod
+
+    monkeypatch.setattr(config_store_mod, "get_config_value", getter)
+    if config_path is not None:
+        monkeypatch.setattr(config_store_mod, "get_config_path", lambda: config_path)
+
+
+def test_load_system_prompt_start_file_label(monkeypatch, tmp_path):
+    """system-prompt-file -> (content, '(config) <value>')."""
+    import janito.config_loaders as config_loaders_mod
+
+    prompt_file = tmp_path / "base.md"
+    prompt_file.write_text("start text", encoding="utf-8")
+
+    def getter(key):
+        return str(prompt_file) if key == "system-prompt-file" else None
+
+    _patch_config_store(monkeypatch, getter)
+    text, label = config_loaders_mod.load_system_prompt_start()
+    assert text == "start text"
+    assert label == f"(config) {prompt_file}"
+
+
+def test_load_system_prompt_start_empty_file_falls_back(monkeypatch, tmp_path):
+    """An empty system-prompt-file still yields the (config) label with None text."""
+    import janito.config_loaders as config_loaders_mod
+
+    prompt_file = tmp_path / "empty.md"
+    prompt_file.write_text("   \n", encoding="utf-8")
+
+    def getter(key):
+        return str(prompt_file) if key == "system-prompt-file" else None
+
+    _patch_config_store(monkeypatch, getter)
+    assert config_loaders_mod.load_system_prompt_start() == (
+        None,
+        f"(config) {prompt_file}",
+    )
+
+
+def test_load_system_prompt_start_literal_label(monkeypatch, tmp_path):
+    """system-prompt -> (literal, '(config) <config-file>:system-prompt')."""
+    import janito.config_loaders as config_loaders_mod
+
+    config_file = tmp_path / "config.json"
+
+    def getter(key):
+        return "my start" if key == "system-prompt" else None
+
+    _patch_config_store(monkeypatch, getter, config_path=config_file)
+    text, label = config_loaders_mod.load_system_prompt_start()
+    assert text == "my start"
+    assert label == f"(config) {config_file}:system-prompt"
+
+
+def test_load_system_prompt_start_none_when_unset(monkeypatch):
+    """Neither key set -> (None, None) (the built-in base prompt applies)."""
+    import janito.config_loaders as config_loaders_mod
+
+    _patch_config_store(monkeypatch, lambda key: None)
+    assert config_loaders_mod.load_system_prompt_start() == (None, None)
+
+
+def test_display_config_path_shortens_home(monkeypatch):
+    """A config file under home is displayed as ~/... (the form users write)."""
+    import janito.config_loaders as config_loaders_mod
+
+    home = Path.home()
+    assert (
+        config_loaders_mod._display_config_path(home / ".janito" / "config.json")
+        == "~/.janito/config.json"
+    )
 
 
 if __name__ == "__main__":  # pragma: no cover

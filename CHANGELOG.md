@@ -26,6 +26,18 @@ Changes since `v4.33.0` (2026-08-29).
 
 ### Changed
 
+- System prompt sections now carry a display `label` recording where they
+  came from (issue #86): the `start` section is labelled `built-in` for the
+  packaged base prompt, `-S` for a `--system-prompt` override, `(config)
+  <file>` for the `system-prompt-file` config key and `(config)
+  <config-file>:system-prompt` for the literal `system-prompt` key.
+  `/prompt` and `--show-system-prompt` show the label when set and fall back
+  to the section name otherwise. The section API changed (no backwards
+  compatibility): `SysPromptManager` now stores a `Section` dataclass
+  (`name`, `text`, `label`), `get_all_sections()` yields `Section` objects,
+  `add_section` accepts an optional `label`, and a new `update_label(name,
+  label)` sets/clears it; `load_system_prompt_start()` now returns
+  `(text, label)` instead of just the text.
 - `CompletionsAccumulator` is renamed to `CompletionsTurnAccumulator`
   (issue #91), matching the `XxxTurnAccumulator` name the Responses,
   Anthropic, DashScope and Gemini adapters already use. The Completions

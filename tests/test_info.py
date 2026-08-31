@@ -243,7 +243,7 @@ def test_show_config_no_default_model(capsys):
 
 
 def _run_show_system_prompt(
-    capsys, monkeypatch, tmp_path, skills_section, config_start=None
+    capsys, monkeypatch, tmp_path, skills_section, config_start=None, config_label=None
 ):
     """Run handle_show_system_prompt and return its captured output.
 
@@ -251,13 +251,15 @@ def _run_show_system_prompt(
     ``None`` to leave it unpatched (uses the real tool registry).
     ``config_start`` pins the configured system-prompt start (the
     ``system-prompt`` / ``system-prompt-file`` keys) so the tests never touch
-    the real config.
+    the real config; ``config_label`` pins the start section's display label.
     """
     import janito.config_loaders as config_loaders_mod
 
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
-        config_loaders_mod, "load_system_prompt_start", lambda: config_start
+        config_loaders_mod,
+        "load_system_prompt_start",
+        lambda: (config_start, config_label),
     )
     if skills_section is not None:
         monkeypatch.setattr(
@@ -272,7 +274,8 @@ def test_show_system_prompt_title_with_skills(capsys, monkeypatch, tmp_path):
     """A skills section present -> the title advertises (with skills)."""
     out = _run_show_system_prompt(capsys, monkeypatch, tmp_path, SKILLS_SECTION)
     assert "System prompt (default (with skills))" in out
-    assert "start" in out
+    # The default start section is labeled "built-in" (issue #86).
+    assert "built-in" in out
     assert "skills" in out
     assert "(fake skills section)" in out
     assert "Explore the current directory" in out
@@ -301,21 +304,25 @@ def test_show_system_prompt_config_start_shown_in_section_table(
         tmp_path,
         SKILLS_SECTION,
         config_start="configured start text",
+        config_label="(config) ~/base-prompt.md",
     )
     assert "System prompt (default (with skills))" in out
-    assert "start" in out
+    # The start row shows the (config) label instead of the section name.
+    assert "(config) ~/base-prompt.md" in out
     assert "configured start text" in out
     # The base prompt is replaced by the configured start.
     assert "Explore the current directory" not in out
 
 
 def test_show_system_prompt_override(capsys, monkeypatch, tmp_path):
-    """A custom -S prompt is shown as-is, without the default title."""
+    """A custom -S prompt is shown as a single section labeled -S (issue #86)."""
     monkeypatch.chdir(tmp_path)
     args = SimpleNamespace(system_prompt="custom system prompt", no_system_prompt=False)
     handle_show_system_prompt(args)
     out = capsys.readouterr().out
     assert "custom system prompt" in out
+    # The section column shows the -S label.
+    assert "-S" in out
     assert "(with skills)" not in out
 
 

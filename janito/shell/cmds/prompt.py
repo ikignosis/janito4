@@ -29,7 +29,11 @@ class PromptCmdHandler(CmdHandler):
         from rich.console import Console
         from rich.table import Table
 
-        from janito.system_prompt import SECTION_SKILLS, default_system_prompt_manager
+        from janito.system_prompt import (
+            LABEL_CLI,
+            SECTION_SKILLS,
+            default_system_prompt_manager,
+        )
 
         # Get the actual system prompt from the shell
         effective_prompt = shell.get_system_prompt()
@@ -53,7 +57,7 @@ class PromptCmdHandler(CmdHandler):
             # title when a "skills" section is actually present (skills
             # enabled and at least one skill advertised).
             sections = list(manager.get_all_sections())
-            has_skills = any(name == SECTION_SKILLS for name, _ in sections)
+            has_skills = any(section.name == SECTION_SKILLS for section in sections)
             title = (
                 "System Prompt - Default (with Skills)"
                 if has_skills
@@ -67,24 +71,31 @@ class PromptCmdHandler(CmdHandler):
             table.add_column("Section", style="green", no_wrap=True)
             table.add_column("Lines", justify="right")
             table.add_column("Content", overflow="fold")
-            for name, text in sections:
-                body = text.rstrip()
+            for section in sections:
+                body = section.text.rstrip()
                 line_count = len(body.splitlines()) if body else 0
-                table.add_row(name, str(line_count), body)
+                # Show the section's label when set (e.g. "built-in" or
+                # "(config) ~/base.md"), falling back to the section name
+                # (issue #86).
+                table.add_row(section.label or section.name, str(line_count), body)
                 # Empty row after each section for visual context split.
                 table.add_row("", "", "")
             Console(markup=False).print(table)
             return
 
-        # Custom prompt (-S): show it as-is.
+        # Custom prompt (-S): show it as a single section labeled "-S" (issue
+        # #86), matching the default prompt's Section/Lines/Content layout.
         table = Table(
             title="System Prompt",
             title_style="bold",
             header_style="bold cyan",
-            show_header=False,
         )
+        table.add_column("Section", style="green", no_wrap=True)
+        table.add_column("Lines", justify="right")
         table.add_column("Content", overflow="fold")
-        table.add_row(effective_prompt.strip())
+        body = effective_prompt.rstrip()
+        line_count = len(body.splitlines()) if body else 0
+        table.add_row(LABEL_CLI, str(line_count), body)
         Console(markup=False).print(table)
 
 

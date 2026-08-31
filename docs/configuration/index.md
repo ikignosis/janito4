@@ -63,6 +63,13 @@ overrides the config value for that run (without changing it), and
 and the shell `/prompt` command show the configured `start` section as part
 of the default section table.
 
+The `start` row of that table is labelled with its source so you can tell
+where the prompt came from: `built-in` for the packaged base prompt, `-S`
+for a `--system-prompt` override, `(config) <file>` when
+`system-prompt-file` is set, and `(config) <config-file>:system-prompt`
+when the literal `system-prompt` key is used. Sections without a label
+(`skills`, `agents.md`, `plugins:<name>`) keep showing their name.
+
 By default (neither key set) the `start` section is the built-in base prompt,
 shipped with janito as `janito/system-prompt.txt` — installed as package data
 and read from the resource location each time the default prompt is built, so

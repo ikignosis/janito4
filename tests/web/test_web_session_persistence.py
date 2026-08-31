@@ -51,7 +51,9 @@ def _patch_config_start(monkeypatch, start=None):
     """
     import janito.config_loaders as config_loaders_mod
 
-    monkeypatch.setattr(config_loaders_mod, "load_system_prompt_start", lambda: start)
+    monkeypatch.setattr(
+        config_loaders_mod, "load_system_prompt_start", lambda: (start, None)
+    )
 
 
 @pytest.fixture()

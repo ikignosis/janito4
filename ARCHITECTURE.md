@@ -585,11 +585,17 @@ any loaded plugins' `SYSTEM_PROMPT` sections. The base prompt is the packaged
 resource `janito/system-prompt.txt` (installed as package data), read lazily
 from the resource location when the default prompt is resolved. The
 composition is built from ordered sections (`start`, `skills`, `agents.md`,
-`plugins:<name>`) stored in a shared `SysPromptManager`; `sync_default_sections()`
-keeps the dynamic `skills`/`agents.md` sections in sync and `render()` joins
-every section with a trailing newline. The shell `/prompt` command and
-`janito --show-system-prompt` display each section as a row of a rich table
-(Section, Lines, Content) via `get_all_sections()`.
+`plugins:<name>`) stored in a shared `SysPromptManager`; each section is a
+`Section` dataclass carrying its name, text and an optional display `label`
+(issue #86) — `built-in` for the packaged base prompt, `-S` for a
+`--system-prompt` override, and `(config) ...` labels for the
+`system-prompt` / `system-prompt-file` config keys (resolved by
+`load_system_prompt_start`, which returns `(text, label)`).
+`sync_default_sections()` keeps the dynamic `skills`/`agents.md` sections in
+sync and `render()` joins every section with a trailing newline. The shell
+`/prompt` command and `janito --show-system-prompt` display each section as a
+row of a rich table (Section, Lines, Content) via `get_all_sections()`,
+showing the label when set and falling back to the section name.
 
 ---
 

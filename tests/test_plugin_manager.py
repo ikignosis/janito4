@@ -639,15 +639,14 @@ def test_codesearch_plugin_loads_and_creates_index(tmp_path, monkeypatch):
     # The plugin prompt is registered as its own ``plugins:codesearch``
     # section; render() provides the newline separation between sections.
     plugin_sections = [
-        (name, text)
-        for name, text in manager.get_all_sections()
-        if name == "plugins:codesearch"
+        section
+        for section in manager.get_all_sections()
+        if section.name == "plugins:codesearch"
     ]
     assert len(plugin_sections) == 1
-    _, plugin_text = plugin_sections[0]
     assert (
         "When searching text on files use the CodeSearch tool before the "
-        "other search tools" in plugin_text
+        "other search tools" in plugin_sections[0].text
     )
 
     _purge_module("janito-codesearch-plugin")

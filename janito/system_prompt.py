@@ -1,14 +1,15 @@
 """System prompt assembly.
 
-The system prompt is an ordered list of named ``(section_name, section_text)``
-pairs owned by a :class:`SysPromptManager`.  The shared manager
-(:data:`SYSTEM_PROMPT_MANAGER`) is seeded with an empty ``start`` section;
-the built-in base prompt is read lazily from the packaged resource
-``janito/system-prompt.txt`` by :func:`get_builtin_system_prompt` when the
-default prompt is resolved (:func:`default_system_prompt_manager`).
-:func:`sync_default_sections` keeps the ``skills`` and ``agents.md`` sections
-in sync with the tool registry and the cwd ``AGENTS.md``; plugins register
-``plugins:<name>`` sections at load time (see ``janito.plugin_manager``).
+The system prompt is an ordered list of named :class:`Section` objects
+(``name``, ``text`` and an optional ``label``) owned by a
+:class:`SysPromptManager`.  The shared manager (:data:`SYSTEM_PROMPT_MANAGER`)
+is seeded with an empty ``start`` section; the built-in base prompt is read
+lazily from the packaged resource ``janito/system-prompt.txt`` by
+:func:`get_builtin_system_prompt` when the default prompt is resolved
+(:func:`default_system_prompt_manager`).  :func:`sync_default_sections` keeps
+the ``skills`` and ``agents.md`` sections in sync with the tool registry and
+the cwd ``AGENTS.md``; plugins register ``plugins:<name>`` sections at load
+time (see ``janito.plugin_manager``).
 
 Every consumer (``janito.cli.session_setup.SessionSetup``, the shell ``/prompt``
 command, ``--show-system-prompt`` and the web backend) manipulates the prompt
@@ -18,12 +19,20 @@ applied **per call** through :func:`default_system_prompt_manager`, which
 builds a fresh manager via :func:`apply_start_section` so the shared
 singleton is never mutated (a config start would otherwise leak across
 sessions in web mode).
+
+Each section carries a ``label`` describing where it came from (issue #86):
+the ``start`` section is labelled :data:`LABEL_BUILTIN` for the built-in
+resource, :data:`LABEL_CLI` for a ``-S`` prompt, or a ``(config) ...`` label
+for the configured keys (see :func:`janito.config_loaders.load_system_prompt_start`).
+The display paths (``/prompt``, ``--show-system-prompt``) show the label when
+set and fall back to the section name otherwise.
 """
 
 from __future__ import annotations
 
 import os
 from collections.abc import Iterator
+from dataclasses import dataclass
 from importlib.resources import files
 
 # The packaged resource holding the built-in base prompt (the ``start``
@@ -57,34 +66,61 @@ SECTION_SKILLS = "skills"
 SECTION_AGENTS_MD = "agents.md"
 SECTION_PLUGINS = "plugins"
 
+# Labels describing where the ``start`` section came from (issue #86).
+# ``LABEL_BUILTIN`` marks the packaged base prompt, ``LABEL_CLI`` a ``-S``
+# override, and config-sourced starts carry a ``(config) ...`` label built by
+# :func:`janito.config_loaders.load_system_prompt_start`.
+LABEL_BUILTIN = "built-in"
+LABEL_CLI = "-S"
+LABEL_CONFIG_PREFIX = "(config) "
+
+
+@dataclass(frozen=True)
+class Section:
+    """A named system prompt section with an optional display label.
+
+    Attributes:
+        name: Unique section name (used by the manager API).
+        text: Section content.
+        label: Optional display label shown by ``/prompt`` and
+            ``--show-system-prompt``; ``None`` falls back to ``name``.
+    """
+
+    name: str
+    text: str
+    label: str | None = None
+
 
 class SysPromptManager:
     """Manage the system prompt as an ordered list of named sections.
 
-    A section is a ``(section_name, section_text)`` pair.  The ``start``
-    section is created in :meth:`__init__`, always stays first and cannot be
-    deleted; every other section name must be unique.
+    A section is a :class:`Section` (name, text, optional label).  The
+    ``start`` section is created in :meth:`__init__`, always stays first and
+    cannot be deleted; every other section name must be unique.
     """
 
-    def __init__(self, start_prompt: str) -> None:
-        self._sections: list[tuple[str, str]] = [(SECTION_START, start_prompt)]
+    def __init__(self, start_prompt: str, start_label: str | None = None) -> None:
+        self._sections: list[Section] = [
+            Section(SECTION_START, start_prompt, start_label)
+        ]
 
-    def add_section(self, name: str, prompt: str) -> None:
+    def add_section(self, name: str, prompt: str, label: str | None = None) -> None:
         """Append a new section.
 
         Args:
             name: Unique section name.
             prompt: Section text.
+            label: Optional display label (``None`` falls back to ``name``).
 
         Raises:
             ValueError: if a section named ``name`` already exists.
         """
         if self._find(name) is not None:
             raise ValueError(f"a section named {name!r} already exists")
-        self._sections.append((name, prompt))
+        self._sections.append(Section(name, prompt, label))
 
     def update_section(self, name: str, prompt: str) -> None:
-        """Replace the text of an existing section.
+        """Replace the text of an existing section, keeping its label.
 
         Args:
             name: Section name.
@@ -96,7 +132,24 @@ class SysPromptManager:
         index = self._find(name)
         if index is None:
             raise ValueError(f"no section named {name!r} to update")
-        self._sections[index] = (name, prompt)
+        existing = self._sections[index]
+        self._sections[index] = Section(existing.name, prompt, existing.label)
+
+    def update_label(self, name: str, label: str | None) -> None:
+        """Set (or clear, with ``None``) the display label of a section.
+
+        Args:
+            name: Section name.
+            label: New display label, or ``None`` to fall back to ``name``.
+
+        Raises:
+            ValueError: if no section named ``name`` exists.
+        """
+        index = self._find(name)
+        if index is None:
+            raise ValueError(f"no section named {name!r} to label")
+        existing = self._sections[index]
+        self._sections[index] = Section(existing.name, existing.text, label)
 
     def del_section(self, name: str) -> None:
         """Remove a section.
@@ -121,16 +174,16 @@ class SysPromptManager:
         A newline is appended at the end of every section to provide a visual
         context separation between sections.
         """
-        return "".join(text + "\n" for _, text in self._sections)
+        return "".join(section.text + "\n" for section in self._sections)
 
-    def get_all_sections(self) -> Iterator[tuple[str, str]]:
-        """Yield ``(section_name, section_text)`` for every section."""
+    def get_all_sections(self) -> Iterator[Section]:
+        """Yield every section as a :class:`Section` (name, text, label)."""
         return iter(self._sections)
 
     def _find(self, name: str) -> int | None:
         """Return the index of the section named ``name``, or ``None``."""
-        for index, (existing, _) in enumerate(self._sections):
-            if existing == name:
+        for index, section in enumerate(self._sections):
+            if section.name == name:
                 return index
         return None
 
@@ -195,23 +248,27 @@ def sync_default_sections(
 
 
 def apply_start_section(
-    manager: SysPromptManager, start_prompt: str | None
+    manager: SysPromptManager,
+    start_prompt: str | None,
+    start_label: str | None = None,
 ) -> SysPromptManager:
     """Return ``manager`` with the ``start`` section replaced by ``start_prompt``.
 
     The shared :data:`SYSTEM_PROMPT_MANAGER` is **never** mutated: when
     ``start_prompt`` is ``None`` the given manager is returned as-is;
-    otherwise a fresh manager is built with the same sections and the
-    ``start`` section replaced.  This keeps a config-provided start from
-    leaking across sessions (e.g. long-lived web mode, where
-    ``effective_system_prompt()`` is called once per session) while keeping
-    every other section (``skills``, ``agents.md``, ``plugins:...``)
-    unchanged.
+    otherwise a fresh manager is built with the same sections (labels
+    included) and the ``start`` section replaced.  This keeps a
+    config-provided start from leaking across sessions (e.g. long-lived web
+    mode, where ``effective_system_prompt()`` is called once per session)
+    while keeping every other section (``skills``, ``agents.md``,
+    ``plugins:...``) unchanged.
 
     Args:
         manager: The synced manager whose sections are reused.
         start_prompt: The text for the ``start`` section, or ``None`` to
             keep the manager unchanged.
+        start_label: The display label for the ``start`` section (e.g.
+            :data:`LABEL_BUILTIN` or a ``(config) ...`` label).
 
     Returns:
         The manager to render: ``manager`` itself when ``start_prompt`` is
@@ -219,11 +276,11 @@ def apply_start_section(
     """
     if start_prompt is None:
         return manager
-    copy = SysPromptManager(start_prompt)
-    for name, text in manager.get_all_sections():
-        if name == SECTION_START:
+    copy = SysPromptManager(start_prompt, start_label=start_label)
+    for section in manager.get_all_sections():
+        if section.name == SECTION_START:
             continue
-        copy.add_section(name, text)
+        copy.add_section(section.name, section.text, label=section.label)
     return copy
 
 
@@ -238,7 +295,10 @@ def default_system_prompt_manager() -> SysPromptManager:
     ``janito/system-prompt.txt`` resource via
     :func:`get_builtin_system_prompt` (one resource read per call, so the
     shipped file is always current and importing ``janito`` never reads it).
-    Never mutates the shared :data:`SYSTEM_PROMPT_MANAGER`.
+    The ``start`` section's display label records the source (issue #86):
+    :data:`LABEL_BUILTIN` for the built-in prompt, or the ``(config) ...``
+    label returned by the config loader.  Never mutates the shared
+    :data:`SYSTEM_PROMPT_MANAGER`.
 
     This is the single "default prompt" resolver shared by
     :class:`janito.cli.session_setup.SessionSetup` and the display paths
@@ -247,7 +307,8 @@ def default_system_prompt_manager() -> SysPromptManager:
     """
     from .config_loaders import load_system_prompt_start
 
-    start = load_system_prompt_start()
+    start, label = load_system_prompt_start()
     if start is None:
         start = get_builtin_system_prompt()
-    return apply_start_section(sync_default_sections(), start)
+        label = LABEL_BUILTIN
+    return apply_start_section(sync_default_sections(), start, start_label=label)

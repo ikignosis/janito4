@@ -20,7 +20,8 @@ delegate to a module-level loader instance.
 
 This module also hosts the flat-key resolvers:
 :func:`load_system_prompt_start` (the configured ``start`` section of the
-system prompt, ``system-prompt`` / ``system-prompt-file`` keys),
+system prompt as ``(text, label)``, from the ``system-prompt`` /
+``system-prompt-file`` keys),
 :func:`load_privileges_from_config` (the session default privileges,
 ``privileges`` key, issue #89) and :func:`load_used_files_enabled` (the
 ``used-files`` flag).
@@ -33,6 +34,7 @@ import graph acyclic regardless of which module is imported first.
 
 import logging
 import os
+from pathlib import Path
 
 from .privileges import Privileges, parse_privileges
 
@@ -465,10 +467,35 @@ def load_endpoint_from_config(cli_provider: str | None = None) -> str | None:
     return _loader.load_endpoint(cli_provider)
 
 
-def load_system_prompt_start() -> str | None:
-    """Resolve the configured ``start`` section text for the system prompt.
+def _display_config_path(path: Path) -> str:
+    """Render a config file path for display, shortening home to ``~``.
 
-    Reads the flat ``system-prompt-file`` / ``system-prompt`` config keys.
+    ``~/.janito/config.json`` is shown as ``~/.janito/config.json`` (the form
+    users write it in) instead of the expanded absolute path.
+    """
+    try:
+        home = Path.home()
+        relative = path.relative_to(home)
+        if not relative.parts:
+            return "~"
+        return "~/" + relative.as_posix()
+    except (OSError, RuntimeError, ValueError):
+        return str(path)
+
+
+def load_system_prompt_start() -> tuple[str | None, str | None]:
+    """Resolve the configured ``start`` section text and its display label.
+
+    Reads the flat ``system-prompt-file`` / ``system-prompt`` config keys and
+    returns ``(text, label)`` where the label records where the text came
+    from for the ``/prompt`` / ``--show-system-prompt`` display (issue #86):
+
+    - ``system-prompt-file`` -> ``(config) <value>`` (the key's value as
+      written, e.g. ``(config) ~/base-prompt.md``);
+    - ``system-prompt`` -> ``(config) <config-file>:system-prompt`` (e.g.
+      ``(config) ~/.janito/config.json:system-prompt``);
+    - neither key set -> ``(None, None)`` (the built-in base prompt applies).
+
     ``system-prompt-file`` wins when both are set (it is the more specific
     form): the value is a file path (``~`` is expanded; relative paths are
     resolved against the current working directory) whose content becomes
@@ -481,18 +508,22 @@ def load_system_prompt_start() -> str | None:
     call without a restart.
 
     Returns:
-        The configured start-section text, or ``None`` when neither key is
-        set (the built-in base prompt applies).
+        ``(text, label)``: the configured start-section text (``None`` when
+        neither key is set) and its display label (``None`` when no config
+        applies, so the caller uses
+        :data:`janito.system_prompt.LABEL_BUILTIN`).
 
     Raises:
         ValueError: If ``system-prompt-file`` is set but the file cannot be
             read, naming the key and path.
     """
-    from .config_store import get_config_value
+    from .config_store import get_config_path, get_config_value
+    from .system_prompt import LABEL_CONFIG_PREFIX
 
     file_value = get_config_value("system-prompt-file")
     if file_value:
-        path = os.path.expanduser(str(file_value).strip())
+        file_value_str = str(file_value).strip()
+        path = os.path.expanduser(file_value_str)
         try:
             with open(path, encoding="utf-8") as f:
                 content = f.read().strip()
@@ -500,12 +531,16 @@ def load_system_prompt_start() -> str | None:
             raise ValueError(
                 f"Cannot read config key 'system-prompt-file': " f"{file_value!r}: {e}"
             )
-        return content or None
+        return (content or None), f"{LABEL_CONFIG_PREFIX}{file_value_str}"
 
     literal = get_config_value("system-prompt")
     if literal is not None:
-        return str(literal)
-    return None
+        label = (
+            f"{LABEL_CONFIG_PREFIX}"
+            f"{_display_config_path(get_config_path())}:system-prompt"
+        )
+        return str(literal), label
+    return None, None
 
 
 def load_used_files_enabled() -> bool:

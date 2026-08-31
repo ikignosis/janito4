@@ -33,7 +33,9 @@ def _patch_config_start(monkeypatch, start):
     """Pin load_system_prompt_start so tests never touch the real config."""
     import janito.config_loaders as config_loaders_mod
 
-    monkeypatch.setattr(config_loaders_mod, "load_system_prompt_start", lambda: start)
+    monkeypatch.setattr(
+        config_loaders_mod, "load_system_prompt_start", lambda: (start, None)
+    )
 
 
 if pytest is not None:
@@ -76,11 +78,14 @@ if pytest is not None:
         _patch_config_start(monkeypatch, "configured start text")
         SessionSetup().effective_system_prompt()
         SessionSetup().effective_system_prompt()
-        sections = dict(SYSTEM_PROMPT_MANAGER.get_all_sections())
+        sections = {
+            section.name: section
+            for section in SYSTEM_PROMPT_MANAGER.get_all_sections()
+        }
         # The shared manager's start stays at its lazy empty seed: the
         # configured (or built-in resource) start is only applied to a
         # per-call copy.
-        assert sections["start"] == ""
+        assert sections["start"].text == ""
 
     def test_cli_system_prompt_wins_over_config(monkeypatch):
         """-S overrides the configured start without touching the config."""

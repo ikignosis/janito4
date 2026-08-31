@@ -156,14 +156,17 @@ if pytest is not None:
         _use_temp_config(monkeypatch, tmp_path)
         from janito.config_loaders import load_system_prompt_start
 
-        assert load_system_prompt_start() is None
+        assert load_system_prompt_start() == (None, None)
 
     def test_load_system_prompt_start_literal(monkeypatch, tmp_path):
-        _use_temp_config(monkeypatch, tmp_path)
-        from janito.config_loaders import load_system_prompt_start
+        config_path = _use_temp_config(monkeypatch, tmp_path)
+        from janito.config_loaders import _display_config_path, load_system_prompt_start
 
         set_config_from_cli("system-prompt=You are a cow")
-        assert load_system_prompt_start() == "You are a cow"
+        text, label = load_system_prompt_start()
+        assert text == "You are a cow"
+        # The literal key's label points at the config file:key (issue #86).
+        assert label == f"(config) {_display_config_path(config_path)}:system-prompt"
 
     def test_load_system_prompt_start_file(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
@@ -173,7 +176,7 @@ if pytest is not None:
         prompt_file.write_text("Be terse.", encoding="utf-8")
         config_path.parent.mkdir(parents=True, exist_ok=True)
         config_path.write_text(json.dumps({"system-prompt-file": str(prompt_file)}))
-        assert load_system_prompt_start() == "Be terse."
+        assert load_system_prompt_start() == ("Be terse.", f"(config) {prompt_file}")
 
     def test_load_system_prompt_start_file_wins_over_literal(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
@@ -191,7 +194,10 @@ if pytest is not None:
             )
         )
         # system-prompt-file is the more specific form and wins.
-        assert load_system_prompt_start() == "from the file"
+        assert load_system_prompt_start() == (
+            "from the file",
+            f"(config) {prompt_file}",
+        )
 
     def test_load_system_prompt_start_relative_path_resolved_against_cwd(
         monkeypatch, tmp_path
@@ -203,7 +209,8 @@ if pytest is not None:
         (tmp_path / "prompt.md").write_text("relative", encoding="utf-8")
         config_path.parent.mkdir(parents=True, exist_ok=True)
         config_path.write_text(json.dumps({"system-prompt-file": "prompt.md"}))
-        assert load_system_prompt_start() == "relative"
+        # The label keeps the key's value as written (issue #86).
+        assert load_system_prompt_start() == ("relative", "(config) prompt.md")
 
     def test_load_system_prompt_start_empty_file_falls_back_to_default(
         monkeypatch, tmp_path
@@ -215,8 +222,9 @@ if pytest is not None:
         prompt_file.write_text("   \n\n  ", encoding="utf-8")
         config_path.parent.mkdir(parents=True, exist_ok=True)
         config_path.write_text(json.dumps({"system-prompt-file": str(prompt_file)}))
-        # Empty (whitespace-only) file -> default start, like an empty AGENTS.md.
-        assert load_system_prompt_start() is None
+        # Empty (whitespace-only) file -> default start, like an empty
+        # AGENTS.md; the label still records the configured source.
+        assert load_system_prompt_start() == (None, f"(config) {prompt_file}")
 
     def test_load_system_prompt_start_missing_file_raises(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
