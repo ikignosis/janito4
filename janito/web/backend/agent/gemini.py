@@ -10,12 +10,12 @@ accumulators directly from the shared adapters in :mod:`janito.llm_adapters.gemi
 """
 
 import asyncio
-import importlib.util
 import logging
 
 from janito.llm_adapters.gemini import GeminiTurnAccumulator
+from janito.optional_packages import require_optional_package
 
-from ..events import ReasoningEvent, TokenEvent
+from .stream_utils import _next_or_none, emit_stream_events
 
 logger = logging.getLogger(__name__)
 
@@ -25,33 +25,17 @@ def create_client(base_url, api_key):
 
     The ``google-genai`` package is optional (see
     ``janito.providers.REQUIRES_BY_API_TYPE``), so its availability is checked
-    explicitly with ``importlib.util.find_spec`` and the import happens
-    lazily.  The resolved base URL (the provider's native-SDK base URL from
-    ``endpoint_by_api_type``, or a config endpoint override) is passed as the
-    SDK's ``http_options.base_url``; ``None`` uses the SDK default
+    explicitly and the import happens lazily.  The resolved base URL (the
+    provider's native-SDK base URL from ``endpoint_by_api_type``, or a config
+    endpoint override) is passed as the SDK's ``http_options.base_url``;
+    ``None`` uses the SDK default
     (``https://generativelanguage.googleapis.com``).
     """
-    try:
-        spec = importlib.util.find_spec("google.genai")
-    except ModuleNotFoundError:
-        spec = None
-    if spec is None:
-        raise RuntimeError(
-            "API type 'Gemini' requires the optional 'google-genai' package, "
-            "which is not installed. Install it with: pip install google-genai"
-        )
+    require_optional_package("google.genai", "Gemini", "google-genai")
     from google import genai
 
     http_options = {"base_url": base_url} if base_url else None
     return genai.Client(api_key=api_key, http_options=http_options)
-
-
-def _next_or_none(gen):
-    """``next(gen)`` that returns ``None`` at exhaustion (for ``to_thread``)."""
-    try:
-        return next(gen)
-    except StopIteration:
-        return None
 
 
 async def _gemini_chunks(client, call_kwargs: dict):
@@ -75,19 +59,14 @@ async def stream_turn_events(client, call_kwargs: dict, acc: GeminiTurnAccumulat
     The caller owns ``acc``; on completion it holds the full turn state for
     end-of-turn assembly (``run_tool_turn`` / ``DoneEvent``).
     """
-    async for chunk in _gemini_chunks(client, call_kwargs):
-        reasoning_delta, content_delta = acc.handle(chunk)
-        if reasoning_delta:
-            yield ReasoningEvent(content=reasoning_delta)
-        if content_delta:
-            yield TokenEvent(content=content_delta)
-        if acc.done:
-            break
+    async for ev in emit_stream_events(
+        _gemini_chunks(client, call_kwargs), acc, break_on_done=True
+    ):
+        yield ev
 
 
 __all__ = [
     "create_client",
     "stream_turn_events",
     "_gemini_chunks",
-    "_next_or_none",
 ]

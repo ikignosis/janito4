@@ -25,8 +25,14 @@ from typing import Any
 from rich.console import Console
 
 from ...llm_clients import RequestCancelled
+from ...llm_clients.openai.responses_items import message_item
+from ..conversation import (
+    effective_rows,
+    is_stateless_conversation,
+    items_to_rows,
+    messages_to_rows,
+)
 from .base import CmdHandler
-from .history import _responses_item_to_row
 from .registry import register_command
 
 #: System prompt for the dedicated compaction LLM call.  The model returns a
@@ -82,7 +88,7 @@ def _history_mode(shell) -> str:
       conversation (Completions / Anthropic / DashScope / Gemini).
     """
     conversation_items = getattr(shell, "conversation_items", None)
-    if conversation_items and conversation_items[0].get("role") == "system":
+    if is_stateless_conversation(shell):
         return "stateless"
     if conversation_items is not None:
         # Either a stateless full history without a system prompt (-Z mode)
@@ -182,13 +188,7 @@ class _CompletionsStrategy(_HistoryStrategy):
     mode = "completions"
 
     def effective_rows(self, shell) -> list[tuple[str, str]]:
-        rows: list[tuple[str, str]] = []
-        for msg in shell.messages_history:
-            if isinstance(msg, dict):
-                rows.append((msg.get("role", "unknown"), msg.get("content") or ""))
-            else:
-                rows.append((msg.role, msg.content or ""))
-        return rows
+        return messages_to_rows(shell.messages_history)
 
     def compact_zone(self, shell, skip: int, keep_start: int) -> list[dict[str, Any]]:
         return list(shell.messages_history[skip:keep_start])
@@ -216,9 +216,7 @@ class _StatelessStrategy(_HistoryStrategy):
     mode = "stateless"
 
     def effective_rows(self, shell) -> list[tuple[str, str]]:
-        return [
-            _responses_item_to_row(item) for item in (shell.conversation_items or [])
-        ]
+        return items_to_rows(shell.conversation_items or [])
 
     def compact_zone(self, shell, skip: int, keep_start: int) -> list[dict[str, Any]]:
         return list((shell.conversation_items or [])[skip:keep_start])
@@ -230,7 +228,7 @@ class _StatelessStrategy(_HistoryStrategy):
         self, compact_entries: list[dict[str, Any]]
     ) -> tuple[list[dict[str, Any]] | None, list[dict[str, Any]] | None]:
         compact_items = list(compact_entries)
-        compact_items.insert(0, _message_item("system", SYSTEM_COMPACT_PROMPT))
+        compact_items.insert(0, message_item("system", SYSTEM_COMPACT_PROMPT))
         return None, compact_items
 
     def _apply_conversation(self, shell, new_context, keep_zone_entries) -> None:
@@ -238,8 +236,8 @@ class _StatelessStrategy(_HistoryStrategy):
         new_items: list[dict[str, Any]] = []
         system_prompt = shell.get_system_prompt()
         if system_prompt:
-            new_items.append(_message_item("system", system_prompt))
-        new_items.append(_message_item("assistant", recap))
+            new_items.append(message_item("system", system_prompt))
+        new_items.append(message_item("assistant", recap))
         new_items.extend(keep_zone_entries)
         shell.conversation_items = new_items
         shell.conversation_turn = len(new_items)
@@ -251,19 +249,10 @@ class _ServerSideStrategy(_HistoryStrategy):
     mode = "server_side"
 
     def effective_rows(self, shell) -> list[tuple[str, str]]:
-        rows: list[tuple[str, str]] = []
-        for msg in shell.messages_history:
-            if isinstance(msg, dict):
-                rows.append((msg.get("role", "unknown"), msg.get("content") or ""))
-            else:
-                rows.append((msg.role, msg.content or ""))
-        rows.extend(
-            _responses_item_to_row(item) for item in (shell.mirrored_history or [])
-        )
-        rows.extend(
-            _responses_item_to_row(item) for item in (shell.conversation_items or [])
-        )
-        return rows
+        # Same composition as /history (see
+        # janito.shell.conversation.effective_rows): the stateless branch
+        # never applies in server-side mode.
+        return effective_rows(shell)
 
     def compact_zone(self, shell, skip: int, keep_start: int) -> list[dict[str, Any]]:
         # Display rows = messages_history + mirrored_history + pending
@@ -313,7 +302,7 @@ class _ServerSideStrategy(_HistoryStrategy):
         # The system prompt stays in messages_history / instructions; the
         # recap + keep zone seed the next fresh server turn as input items.
         recap = _find_recap(new_context)
-        new_items = [_message_item("assistant", recap)]
+        new_items = [message_item("assistant", recap)]
         new_items.extend(keep_zone_entries)
         shell.conversation_items = new_items
         shell.conversation_turn = len(new_items)
@@ -424,17 +413,6 @@ def _build_new_context(
     new_context.append({"role": "assistant", "content": recap})
     new_context.extend(keep_zone_entries)
     return new_context
-
-
-def _message_item(role: str, text: str) -> dict[str, Any]:
-    """Build a Responses ``message`` input item (system/user use input_text,
-    assistant uses output_text, matching how the client builds its items)."""
-    block_type = "output_text" if role == "assistant" else "input_text"
-    return {
-        "type": "message",
-        "role": role,
-        "content": [{"type": block_type, "text": text}],
-    }
 
 
 def _find_recap(new_context: list[dict[str, Any]]) -> str:

@@ -11,13 +11,13 @@ builds call kwargs and accumulators directly from the shared adapters in
 """
 
 import asyncio
-import importlib.util
 import logging
 from types import SimpleNamespace
 
 from janito.llm_adapters.dashscope import DashScopeTurnAccumulator
+from janito.optional_packages import require_optional_package
 
-from ..events import ReasoningEvent, TokenEvent
+from .stream_utils import _next_or_none, emit_stream_events
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +31,7 @@ def create_client(base_url, api_key):
     before the first call.  Returns a lightweight handle carrying the
     resolved ``base_url`` / ``api_key`` for the stream runner.
     """
-    if importlib.util.find_spec("dashscope") is None:
-        raise RuntimeError(
-            "API type 'DashScope' requires the optional 'dashscope' package, "
-            "which is not installed. Install it with: pip install dashscope"
-        )
+    require_optional_package("dashscope", "DashScope", "dashscope")
     import dashscope
 
     if base_url:
@@ -43,14 +39,6 @@ def create_client(base_url, api_key):
         logger.debug(f"DashScope base_http_api_url set to {base_url}")
 
     return SimpleNamespace(base_url=base_url, api_key=api_key)
-
-
-def _next_or_none(gen):
-    """``next(gen)`` that returns ``None`` at exhaustion (for ``to_thread``)."""
-    try:
-        return next(gen)
-    except StopIteration:
-        return None
 
 
 async def _dashscope_chunks(handle, call_kwargs: dict):
@@ -111,19 +99,14 @@ async def stream_turn_events(client, call_kwargs: dict, acc: DashScopeTurnAccumu
     The caller owns ``acc``; on completion it holds the full turn state for
     end-of-turn assembly (``run_tool_turn`` / ``DoneEvent``).
     """
-    async for chunk in _dashscope_chunks(client, call_kwargs):
-        reasoning_delta, content_delta = acc.handle(chunk)
-        if reasoning_delta:
-            yield ReasoningEvent(content=reasoning_delta)
-        if content_delta:
-            yield TokenEvent(content=content_delta)
-        if acc.done:
-            break
+    async for ev in emit_stream_events(
+        _dashscope_chunks(client, call_kwargs), acc, break_on_done=True
+    ):
+        yield ev
 
 
 __all__ = [
     "create_client",
     "stream_turn_events",
     "_dashscope_chunks",
-    "_next_or_none",
 ]

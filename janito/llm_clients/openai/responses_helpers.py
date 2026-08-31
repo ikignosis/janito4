@@ -21,6 +21,8 @@ from janito.tooling.executor import ToolExecutor
 # Import tools
 from janito.tooling.tools_registry import get_session_tool_schemas
 
+from .responses_items import message_item
+
 # Configure logger for this module
 logger = logging.getLogger(__name__)
 
@@ -44,13 +46,7 @@ def _pending_items_for_cancel(state: dict[str, Any]) -> list[dict[str, Any]] | N
         return [dict(item) for item in pending]
     input_items = state.get("input_items")
     if isinstance(input_items, str):
-        return [
-            {
-                "type": "message",
-                "role": "user",
-                "content": [{"type": "input_text", "text": input_items}],
-            }
-        ]
+        return [message_item("user", input_items)]
     return None
 
 
@@ -123,11 +119,7 @@ def _handle_tool_calls(
         targets.append(turn_items)
 
     if full_content:
-        assistant_item = {
-            "type": "message",
-            "role": "assistant",
-            "content": [{"type": "output_text", "text": full_content}],
-        }
+        assistant_item = message_item("assistant", full_content)
         for target in targets:
             target.append(dict(assistant_item))
     for tc in tool_calls:
@@ -184,11 +176,7 @@ def _finalize_conversation(
     # Record the final assistant text in the client-side history (stateless
     # providers) and in the /history display mirror (all providers).
     if full_content:
-        assistant_item = {
-            "type": "message",
-            "role": "assistant",
-            "content": [{"type": "output_text", "text": full_content}],
-        }
+        assistant_item = message_item("assistant", full_content)
         if conversation_items is not None:
             conversation_items.append(assistant_item)
         if turn_items is not None:

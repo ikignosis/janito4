@@ -75,6 +75,7 @@ from .responses_helpers import (
     _resolve_tools,
     _validate_stream_result,
 )
+from .responses_items import message_item
 from .responses_state import _build_call_kwargs, _init_conversation_state
 from .responses_stream import _stream_response
 
@@ -296,13 +297,7 @@ class ResponsesClient(Client):
             # as the turn progresses. Server-side providers keep the real
             # conversation on the server; this copy exists purely for
             # /history rendering.
-            "turn_items": [
-                {
-                    "type": "message",
-                    "role": "user",
-                    "content": [{"type": "input_text", "text": prompt}],
-                }
-            ],
+            "turn_items": [message_item("user", prompt)],
         }
 
     def _build_call_kwargs(

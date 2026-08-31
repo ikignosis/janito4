@@ -33,7 +33,6 @@ The Messages API stream handling lives in
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import logging
 from typing import Any
@@ -48,6 +47,8 @@ from janito.tooling.executor import ToolExecutor
 
 # Import tools
 from janito.tooling.tools_registry import get_session_tool_schemas
+
+from ...optional_packages import require_optional_package
 
 # Resolved, immutable per-session configuration (issue #70): the turn
 # pipeline consumes it instead of re-reading the config/auth stores.
@@ -73,9 +74,9 @@ def _create_client(base_url: str | None, api_key: str) -> Any:
 
     The ``anthropic`` package is optional (see
     ``janito.providers.REQUIRES_BY_API_TYPE``), so its availability is checked
-    explicitly with ``importlib.util.find_spec`` (mirroring the web-mode extra
-    check) and the import happens lazily -- importing ``janito`` never
-    requires ``anthropic``.
+    explicitly (via the shared :func:`janito.optional_packages
+    .require_optional_package` guard) and the import happens lazily --
+    importing ``janito`` never requires ``anthropic``.
 
     Args:
         base_url: The native-SDK base URL (from the provider's
@@ -89,11 +90,7 @@ def _create_client(base_url: str | None, api_key: str) -> Any:
         RuntimeError: If the ``anthropic`` package is not installed, with an
             actionable install message.
     """
-    if importlib.util.find_spec("anthropic") is None:
-        raise RuntimeError(
-            "API type 'Anthropic' requires the optional 'anthropic' package, "
-            "which is not installed. Install it with: pip install anthropic"
-        )
+    require_optional_package("anthropic", "Anthropic", "anthropic")
     from anthropic import Anthropic
 
     return Anthropic(api_key=api_key, base_url=base_url)
@@ -191,19 +188,6 @@ class AnthropicClient(Client):
 
     def _resolve_tools(self, tools, mcp_tools):
         return _resolve_tools(tools, mcp_tools)
-
-    def _resolve_model_settings(self, provider, model):
-        # All resolved at build time into the APIConfig (issue #70).  The
-        # Anthropic Messages API requires max_tokens, so the resolved value
-        # (config > built-in default > 100k) comes straight from the
-        # APIConfig; thinking / reasoning_effort are carried for signature
-        # parity but the native extended-thinking mode is not wired yet.
-        return (
-            self.api_config.thinking,
-            self.api_config.max_output_tokens,
-            self.api_config.max_input_tokens,
-            self.api_config.reasoning_effort,
-        )
 
     def _init_conversation_state(
         self,

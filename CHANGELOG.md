@@ -28,6 +28,23 @@ Changes since `v4.34.0` (2026-08-31).
   *display* (`/mcp list`, `--list-mcp`) service configs. It lives at the
   root level because the shell/CLI layers may not import `mcp_client` (the
   allowed-edge matrix in `tests/test_import_graph.py`).
+- `janito/optional_packages.py` (`require_optional_package`) centralizes the
+  optional-SDK install guards (Anthropic / DashScope / Gemini) shared by the
+  CLI clients and the web runners.
+- `janito/shell/conversation.py` centralizes where the conversation lives
+  per API mode and the `(role, content)` display rows: `/history`,
+  `/compact` and the interactive shell's `_history_row_count` all delegate
+  to it (was triplicated logic).
+- `janito/conversation_utils.py` (`rollback_to_last_turn` /
+  `truncate_to_last_turn`) centralizes the turn truncation shared by the
+  interactive shell rollback, `/rewind` and the web WebSocket rollback.
+- `janito/llm_clients/openai/responses_items.py` (`message_item`) is the
+  single builder for Responses `message` input items, replacing five inline
+  copies across the OpenAI clients and the shell.
+- `janito/web/backend/agent/stream_utils.py` (`_next_or_none`,
+  `emit_stream_events`) centralizes the stream-consumption loop shared by
+  the five web API runners (was duplicated in each runner; `_next_or_none`
+  was copy-pasted between the Gemini and DashScope runners).
 
 ### Changed
 
@@ -51,6 +68,10 @@ Changes since `v4.34.0` (2026-08-31).
   (`janito.llm_clients.openai.responses_state.responses_in_server`).
 - `_responses_item_to_row` in `janito/shell/cmds/history.py` dispatches
   through a per-item-type renderer registry (`_ITEM_TO_ROW`).
+- `Client._resolve_model_settings` now has a base default (reads the
+  resolved `APIConfig`), removing the identical overrides in the
+  Completions / Anthropic / Gemini clients; DashScope keeps its override
+  (it drops `reasoning_effort`).
 - Internal naming cleanup, no behaviour change: the turn observer's
   token-usage argument is `token_stats` everywhere (was `usage_out` /
   `turn_stats`), `TransportSpec.usage` became `usage_line`, and the

@@ -10,23 +10,19 @@ loop builds call kwargs and accumulators directly from the shared adapters
 in :mod:`janito.llm_adapters.anthropic`.
 """
 
-import importlib.util
 import logging
 
 from janito.llm_adapters.anthropic import AnthropicTurnAccumulator
+from janito.optional_packages import require_optional_package
 
-from ..events import ReasoningEvent, TokenEvent
+from .stream_utils import emit_stream_events
 
 logger = logging.getLogger(__name__)
 
 
 def create_client(base_url, api_key):
     """Create the async native Anthropic SDK client, guarding the optional package."""
-    if importlib.util.find_spec("anthropic") is None:
-        raise RuntimeError(
-            "API type 'Anthropic' requires the optional 'anthropic' package, "
-            "which is not installed. Install it with: pip install anthropic"
-        )
+    require_optional_package("anthropic", "Anthropic", "anthropic")
     from anthropic import AsyncAnthropic
 
     return AsyncAnthropic(api_key=api_key, base_url=base_url)
@@ -39,14 +35,8 @@ async def stream_turn_events(client, call_kwargs: dict, acc: AnthropicTurnAccumu
     end-of-turn assembly (``run_tool_turn`` / ``DoneEvent``).
     """
     stream = await client.messages.create(**call_kwargs)
-    async for event in stream:
-        reasoning_delta, content_delta = acc.handle(event)
-        if reasoning_delta:
-            yield ReasoningEvent(content=reasoning_delta)
-        if content_delta:
-            yield TokenEvent(content=content_delta)
-        if acc.done:
-            break
+    async for ev in emit_stream_events(stream, acc, break_on_done=True):
+        yield ev
 
 
 __all__ = [

@@ -115,19 +115,6 @@ class CompletionsClient(Client):
     def _resolve_tools(self, tools, mcp_tools):
         return _resolve_tools(tools, mcp_tools)
 
-    def _resolve_model_settings(self, provider, model):
-        # All resolved at build time into the APIConfig (issue #70): thinking
-        # (the --thinking / /thinking flag, or the model's built-in default:
-        # a True flag or a pass-through dict such as MiniMax-M3's
-        # {'type': 'adaptive'}) and the token limits / reasoning level.  The
-        # config store / provider registry is never read here.
-        return (
-            self.api_config.thinking,
-            self.api_config.max_output_tokens,
-            self.api_config.max_input_tokens,
-            self.api_config.reasoning_effort,
-        )
-
     def _init_conversation_state(
         self,
         prompt,

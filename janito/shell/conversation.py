@@ -1,0 +1,142 @@
+"""Shared conversation-history helpers for the shell layer.
+
+The ``/history`` command, the ``/compact`` command and the interactive shell
+each need to know where the conversation lives for the current API mode
+(client-side ``messages_history`` vs Responses ``conversation_items``) and
+how to flatten it into the ``(role, content)`` display rows /history
+renders.  This module is the single home for that logic; the three consumers
+delegate to it so a new API mode only needs to be taught once.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+
+def _content_text(content: Any) -> str:
+    """Extract the plain text of a Responses ``message`` content block.
+
+    Responses content is a list of typed blocks (``input_text`` /
+    ``output_text`` / ``refusal`` / ...).  ``str`` content is returned as-is
+    (defensive; the real items always use the block list form).
+    """
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return ""
+    parts = []
+    for block in content:
+        if isinstance(block, dict):
+            text = block.get("text")
+            if text:
+                parts.append(text)
+    return "".join(parts)
+
+
+def _message_row(item: dict[str, Any]) -> tuple[str, str]:
+    """Render a Responses ``message`` item as a ``(role, content)`` row."""
+    return item.get("role", "unknown"), _content_text(item.get("content"))
+
+
+def _function_call_row(item: dict[str, Any]) -> tuple[str, str]:
+    """Render a Responses ``function_call`` item as a row."""
+    arguments = item.get("arguments") or ""
+    return "function_call", f"{item.get('name', '')}({arguments})"
+
+
+def _function_call_output_row(item: dict[str, Any]) -> tuple[str, str]:
+    """Render a Responses ``function_call_output`` item as a row."""
+    return "function_call_output", str(item.get("output") or "")
+
+
+def _reasoning_row(item: dict[str, Any]) -> tuple[str, str]:
+    """Render a Responses ``reasoning`` item as a row."""
+    return "reasoning", str(item.get("summary") or item.get("text") or "")
+
+
+#: Per-item-type renderers for Responses input items (see
+#: :func:`_responses_item_to_row`); unknown item types fall back to a raw
+#: ``(item_type, str(item))`` row.
+_ITEM_TO_ROW = {
+    "message": _message_row,
+    "function_call": _function_call_row,
+    "function_call_output": _function_call_output_row,
+    "reasoning": _reasoning_row,
+}
+
+
+def _responses_item_to_row(item: dict[str, Any]) -> tuple[str, str]:
+    """Convert one Responses input item into a ``(role, content)`` display row.
+
+    Stateless Responses providers (e.g. DeepSeek) keep the full conversation
+    client-side as Responses input items: ``message`` items (system / user /
+    assistant) plus ``function_call`` / ``function_call_output`` items for the
+    tool-call rounds.  Each becomes a row so ``/history`` reads like the
+    Completions history table.
+    """
+    item_type = item.get("type", "unknown")
+    renderer = _ITEM_TO_ROW.get(item_type)
+    if renderer is None:
+        return item_type, str(item)
+    return renderer(item)
+
+
+def items_to_rows(items) -> list[tuple[str, str]]:
+    """Render Responses input items as ``(role, content)`` display rows."""
+    return [_responses_item_to_row(item) for item in items]
+
+
+def messages_to_rows(messages_history) -> list[tuple[str, str]]:
+    """Render Completions-style history messages as display rows.
+
+    Handles both dict messages and message objects (``.role`` / ``.content``
+    attributes).
+    """
+    rows: list[tuple[str, str]] = []
+    for msg in messages_history:
+        if isinstance(msg, dict):
+            rows.append((msg.get("role", "unknown"), msg.get("content") or ""))
+        else:
+            rows.append((msg.role, msg.content or ""))
+    return rows
+
+
+def is_stateless_conversation(shell) -> bool:
+    """Whether the shell's conversation lives in stateless Responses items.
+
+    Stateless Responses providers (e.g. DeepSeek) keep the full conversation
+    client-side as input items with the system prompt folded in on the first
+    turn, so ``conversation_items[0]`` is a ``system`` message.
+    """
+    conversation_items = getattr(shell, "conversation_items", None) or []
+    return bool(conversation_items and conversation_items[0].get("role") == "system")
+
+
+def effective_rows(shell) -> list[tuple[str, str]]:
+    """Return ``(role, content)`` rows for the shell's whole effective history.
+
+    Mirrors the source selection of the ``/history`` command so the recorded
+    ``history_turns`` values index directly into these rows in every API
+    mode:
+
+    - stateless Responses: ``conversation_items`` (the system prompt is
+      folded in on the first turn);
+    - otherwise: ``messages_history``, plus (server-side Responses) the
+      display-only ``mirrored_history`` of completed turns and any pending
+      (Enter-cancelled) ``conversation_items``.
+    """
+    conversation_items = getattr(shell, "conversation_items", None) or []
+    if is_stateless_conversation(shell):
+        return items_to_rows(conversation_items)
+    rows = messages_to_rows(getattr(shell, "messages_history", None) or [])
+    rows.extend(items_to_rows(getattr(shell, "mirrored_history", None) or []))
+    rows.extend(items_to_rows(conversation_items))
+    return rows
+
+
+__all__ = [
+    "effective_rows",
+    "is_stateless_conversation",
+    "items_to_rows",
+    "messages_to_rows",
+]

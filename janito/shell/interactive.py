@@ -14,7 +14,10 @@ from prompt_toolkit.formatted_text import HTML
 from rich.console import Console
 from rich.rule import Rule
 
+from ..conversation_utils import rollback_to_last_turn
 from ..llm_clients import RequestCancelled
+from ..llm_clients.openai.responses_items import message_item
+from .conversation import effective_rows
 from .session import _SessionMixin
 
 _rich_console = Console(markup=False)
@@ -405,13 +408,7 @@ class InteractiveShell(_SessionMixin):
                 # items (e.g. the abort happened before the client built
                 # them): persist the cancelled message so the next turn
                 # includes it.
-                self.conversation_items.append(
-                    {
-                        "type": "message",
-                        "role": "user",
-                        "content": [{"type": "input_text", "text": user_input}],
-                    }
-                )
+                self.conversation_items.append(message_item("user", user_input))
             print(
                 "Request cancelled (Enter). The prompt stays in the conversation history."
             )
@@ -435,20 +432,14 @@ class InteractiveShell(_SessionMixin):
     def _history_row_count(self) -> int:
         """Return how many rows /history would currently render.
 
-        Mirrors the row-building logic of the /history command (see
-        ``janito.shell.cmds.history._history_rows``) so the recorded value
-        at prompt-send time indexes directly into the displayed history:
-        Completions mode renders ``messages_history``, stateless
-        Responses renders ``conversation_items`` (which fold in the system
-        prompt), and server-side Responses renders ``messages_history`` +
-        ``mirrored_history`` + any pending items.
+        Delegates to :func:`janito.shell.conversation.effective_rows` -- the
+        single place that knows where the conversation lives per API mode
+        (Completions-style ``messages_history``, stateless Responses
+        ``conversation_items``, or the server-side Responses display mirror
+        plus any pending items) -- so the recorded value at prompt-send time
+        indexes directly into the displayed history.
         """
-        conversation_items = self.conversation_items or []
-        if conversation_items and conversation_items[0].get("role") == "system":
-            # Stateless Responses: the items are the whole /history display.
-            return len(conversation_items)
-        mirrored = self.mirrored_history or []
-        return len(self.messages_history) + len(mirrored) + len(conversation_items)
+        return len(effective_rows(self))
 
     def _rollback_history(self) -> None:
         """Roll the conversation history back to the most recent turn.
@@ -462,11 +453,7 @@ class InteractiveShell(_SessionMixin):
         pre-list behaviour, where the Responses rollback was handled
         elsewhere.
         """
-        if not self.history_turns:
-            return
-        start = self.history_turns[-1]
-        del self.messages_history[start:]
-        self.history_turns.pop()
+        rollback_to_last_turn(self.messages_history, self.history_turns)
 
     def _record_responses_result(self, result: Any) -> None:
         """Record the conversation state a Responses turn returns.

@@ -387,6 +387,26 @@ class Client:
             return self.stream_runner(func, *args, **kwargs)
         return func(*args, **kwargs)
 
+    def _resolve_model_settings(self, provider, model):
+        """Resolve ``(thinking, max_output_tokens, max_input_tokens, reasoning_effort)``.
+
+        All four come straight from the resolved ``self.api_config`` (issue #70):
+        ``thinking`` is resolved at build time by ``build_api_config`` (the
+        ``--thinking`` / ``/thinking`` flag against the provider's *static*
+        built-in default -- a ``True`` flag or a pass-through dict such as
+        MiniMax-M3's ``{'type': 'adaptive'}``), and the token limits /
+        reasoning level are the resolved config values.  The config store /
+        provider registry is never read here.  Subclasses override only when
+        their API drops or transforms one of the values (e.g. DashScope does
+        not use ``reasoning_effort``).
+        """
+        return (
+            self.api_config.thinking,
+            self.api_config.max_output_tokens,
+            self.api_config.max_input_tokens,
+            self.api_config.reasoning_effort,
+        )
+
     # ------------------------------------------------------------------
     # Hooks every subclass must implement (forwarding to its module globals)
     # ------------------------------------------------------------------
@@ -401,19 +421,6 @@ class Client:
 
     def _resolve_tools(self, tools, mcp_tools):
         """Resolve the tool schemas (built-in + MCP), API-specific format."""
-        raise NotImplementedError
-
-    def _resolve_model_settings(self, provider, model):
-        """Resolve ``(thinking, max_output_tokens, max_input_tokens, reasoning_effort)``.
-
-        All four come straight from the resolved ``self.api_config`` (issue #70):
-        ``thinking`` is resolved at build time by ``build_api_config`` (the
-        ``--thinking`` / ``/thinking`` flag against the provider's *static*
-        built-in default -- a ``True`` flag or a pass-through dict such as
-        MiniMax-M3's ``{'type': 'adaptive'}``), and the token limits /
-        reasoning level are the resolved config values.  The config store /
-        provider registry is never read here.
-        """
         raise NotImplementedError
 
     def _init_conversation_state(

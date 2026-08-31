@@ -2,6 +2,7 @@
 /rewind command handler - Rewind conversation to a previous message.
 """
 
+from ...conversation_utils import truncate_to_last_turn
 from .base import CmdHandler
 from .registry import register_command
 
@@ -42,12 +43,9 @@ class RewindCmdHandler(CmdHandler):
         messages_history) drop the same recorded start so /history markers
         stay in sync.
         """
-        turns = getattr(shell, "history_turns", None)
-        if turns and len(shell.messages_history) > turns[-1]:
-            start = turns[-1]
-            removed = len(shell.messages_history) - start
-            del shell.messages_history[start:]
-            turns.pop()
+        turns = getattr(shell, "history_turns", None) or []
+        removed = truncate_to_last_turn(shell.messages_history, turns)
+        if removed:
             print(
                 f"Rewound {removed} message(s). History now has {len(shell.messages_history)} message(s)."
             )

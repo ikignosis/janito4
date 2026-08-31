@@ -4,78 +4,9 @@
 
 from __future__ import annotations
 
-from typing import Any
-
+from ..conversation import effective_rows
 from .base import CmdHandler
 from .registry import register_command
-
-
-def _content_text(content: Any) -> str:
-    """Extract the plain text of a Responses ``message`` content block.
-
-    Responses content is a list of typed blocks (``input_text`` /
-    ``output_text`` / ``refusal`` / ...).  ``str`` content is returned as-is
-    (defensive; the real items always use the block list form).
-    """
-    if isinstance(content, str):
-        return content
-    if not isinstance(content, list):
-        return ""
-    parts = []
-    for block in content:
-        if isinstance(block, dict):
-            text = block.get("text")
-            if text:
-                parts.append(text)
-    return "".join(parts)
-
-
-def _message_row(item: dict[str, Any]) -> tuple[str, str]:
-    """Render a Responses ``message`` item as a ``(role, content)`` row."""
-    return item.get("role", "unknown"), _content_text(item.get("content"))
-
-
-def _function_call_row(item: dict[str, Any]) -> tuple[str, str]:
-    """Render a Responses ``function_call`` item as a row."""
-    arguments = item.get("arguments") or ""
-    return "function_call", f"{item.get('name', '')}({arguments})"
-
-
-def _function_call_output_row(item: dict[str, Any]) -> tuple[str, str]:
-    """Render a Responses ``function_call_output`` item as a row."""
-    return "function_call_output", str(item.get("output") or "")
-
-
-def _reasoning_row(item: dict[str, Any]) -> tuple[str, str]:
-    """Render a Responses ``reasoning`` item as a row."""
-    return "reasoning", str(item.get("summary") or item.get("text") or "")
-
-
-#: Per-item-type renderers for Responses input items (see
-#: :func:`_responses_item_to_row`); unknown item types fall back to a raw
-#: ``(item_type, str(item))`` row.
-_ITEM_TO_ROW = {
-    "message": _message_row,
-    "function_call": _function_call_row,
-    "function_call_output": _function_call_output_row,
-    "reasoning": _reasoning_row,
-}
-
-
-def _responses_item_to_row(item: dict[str, Any]) -> tuple[str, str]:
-    """Convert one Responses input item into a ``(role, content)`` display row.
-
-    Stateless Responses providers (e.g. DeepSeek) keep the full conversation
-    client-side as Responses input items: ``message`` items (system / user /
-    assistant) plus ``function_call`` / ``function_call_output`` items for the
-    tool-call rounds.  Each becomes a row so ``/history`` reads like the
-    Completions history table.
-    """
-    item_type = item.get("type", "unknown")
-    renderer = _ITEM_TO_ROW.get(item_type)
-    if renderer is None:
-        return item_type, str(item)
-    return renderer(item)
 
 
 class HistoryCmdHandler(CmdHandler):
@@ -99,14 +30,15 @@ class HistoryCmdHandler(CmdHandler):
     def _history_rows(self, shell) -> list[tuple[str, str]]:
         """Return ``(role, content)`` rows from the effective history source.
 
-        The history lives in different places depending on the API type:
+        Delegates to :func:`janito.shell.conversation.effective_rows`, the
+        single place that knows where the conversation lives per API mode:
 
         - Completions / Anthropic / DashScope: ``shell.messages_history`` holds
           the whole conversation (system + user + assistant).
         - Stateless Responses (e.g. DeepSeek): the full conversation is kept
           client-side in ``shell.conversation_items`` as Responses input items
           (with the system prompt folded in on the first turn); ``messages_history``
-          then only ever holds the system prompt, so prefer the items.
+          then only ever holds the system prompt, so the items win.
         - Server-side Responses (e.g. OpenAI): the history is stored on the
           server; the shell keeps a display-only mirror of the completed
           turns in ``shell.mirrored_history`` (Responses input items) purely
@@ -114,23 +46,7 @@ class HistoryCmdHandler(CmdHandler):
           (Enter-cancelled) messages in ``conversation_items`` that are not
           yet part of a completed server response.
         """
-        conversation_items = getattr(shell, "conversation_items", None) or []
-        if conversation_items and conversation_items[0].get("role") == "system":
-            # Stateless Responses: the items already include the system prompt.
-            return [_responses_item_to_row(item) for item in conversation_items]
-
-        rows: list[tuple[str, str]] = []
-        for msg in shell.messages_history:
-            if isinstance(msg, dict):
-                rows.append((msg.get("role", "unknown"), msg.get("content") or ""))
-            else:
-                rows.append((msg.role, msg.content or ""))
-        # Server-side Responses: the display-only mirror of completed turns,
-        # then any pending (Enter-cancelled) messages.
-        mirrored = getattr(shell, "mirrored_history", None) or []
-        rows.extend(_responses_item_to_row(item) for item in mirrored)
-        rows.extend(_responses_item_to_row(item) for item in conversation_items)
-        return rows
+        return effective_rows(shell)
 
     def _turn_markers(self, shell, num_rows: int) -> dict[int, list[int]]:
         """Map turn-start values to their ordinal numbers per display position.
@@ -145,9 +61,9 @@ class HistoryCmdHandler(CmdHandler):
         """
         turns = getattr(shell, "history_turns", None) or []
         markers: dict[int, list[int]] = {}
-        for ordinal, start_row in enumerate(turns, start=1):
-            if 0 <= start_row <= num_rows:
-                markers.setdefault(start_row, []).append(ordinal)
+        for ordinal, c in enumerate(turns, start=1):
+            if 0 <= c <= num_rows:
+                markers.setdefault(c, []).append(ordinal)
         return dict(sorted(markers.items()))
 
     def _print_history(self, shell) -> None:
@@ -175,7 +91,7 @@ class HistoryCmdHandler(CmdHandler):
             # Show one marker line per turn, before the item it
             # precedes, numbered by its order in the turn list.
             for ordinal in markers.get(i, []):
-                table.add_row("", f"◉ turn {ordinal}", "", style="bold yellow")
+                table.add_row("", f"\u25c9 turn {ordinal}", "", style="bold yellow")
 
             # Truncate long content for display
             if len(content) > 200:

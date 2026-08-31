@@ -47,6 +47,7 @@ point; the turn pipeline is a pure function of `(config, request)`.
 | `janito/tooling/` | Tool framework: discovery + privilege gating (`discovery.py`), registry, executor, skills, tracking |
 | `janito/tools/` | Built-in tool implementations, organized in toolsets (depends one-way on `tooling`) |
 | `janito/mcp_client/` + `mcp_manager.py` | MCP server connections and tool routing |
+| `janito/conversation_utils.py`, `janito/optional_packages.py` | Root-level helpers shared across domains: turn truncation/rollback (`truncate_to_last_turn`, `rollback_to_last_turn`) and the optional-SDK install guards (`require_optional_package`) |
 | `janito/web/` | FastAPI web backend + plain HTML/JS/CSS frontend |
 | `janito/session_setup.py` | Shared system-prompt/toolset selection for the CLI and web entry points (outside `cli/` so the web backend never imports from the CLI package) |
 | `janito/plugin_manager.py` | Plugin loader: contract validation, scoped `sys.path`, registration |
@@ -162,6 +163,11 @@ imports it from the package root instead of from `cli/`.
   (`janito/shell/cmds/`): `/rewind`, `/history`, `/priv`, `/mcp`, `/skills`,
   `/tools`, `/changes`, `/ask`, `/multi`, ... Commands are registered through
   a small registry (`cmds/registry.py`).
+- **`janito/shell/conversation.py`** — the single home for "where does the
+  conversation live" (Completions-style `messages_history` vs stateless /
+  server-side Responses items) and the `(role, content)` display rows
+  `/history` renders. `/history`, `/compact` and the interactive shell's
+  `_history_row_count` all delegate to it, so a new API mode is taught once.
 
 ### Web UI (alpha)
 
@@ -203,6 +209,11 @@ client constructor. The concrete client class is picked from the resolved
 module-level `run_turn(config, prompt, *, ...)`
 functions and `Client.run_turn` therefore make **no** config-store or auth-store
 reads — the turn pipeline is a pure function of `(config, request)`.
+The Responses `message` input-item shape is built by the shared
+`llm_clients/openai/responses_items.py` (`message_item`) used by the clients
+and the shell; `_resolve_model_settings` has a base default in `Client`
+(reading the resolved `APIConfig`), with per-API overrides only when an API
+drops a value (e.g. DashScope drops `reasoning_effort`).
 Thinking mode is resolved into `config.thinking` at build time too (the
 `--thinking` flag, or the provider's *static* built-in default — a `True`
 flag or a pass-through dict such as MiniMax-M3's `{'type': 'adaptive'}`);
@@ -495,7 +506,9 @@ WRITE or EXEC skip the hint.
 - **`agent/`** — the async agent loop (`loop.py` orchestrates; `turn.py`
   runs tool turns; `completions.py`, `responses.py`, `anthropic.py`,
   `dashscope.py`, `gemini.py` are the per-API-type runners — one module
-  each, Completions included; `tooling.py` resolves tools and executes
+  each, Completions included; `stream_utils.py` holds the shared stream
+  consumption helpers (`_next_or_none`, `emit_stream_events`) the runners
+  all delegate to; `tooling.py` resolves tools and executes
   calls). Tool calls run
   through the shared `run_tool` core in a worker thread
   (`asyncio.to_thread`).

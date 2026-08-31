@@ -13,7 +13,7 @@ import logging
 
 from janito.llm_adapters.responses import ResponsesTurnAccumulator
 
-from ..events import ImageEvent, ReasoningEvent, TokenEvent
+from .stream_utils import emit_stream_events
 
 logger = logging.getLogger(__name__)
 
@@ -32,23 +32,12 @@ async def stream_turn_events(client, call_kwargs: dict, acc: ResponsesTurnAccumu
     end-of-turn assembly (``run_tool_turn`` / ``DoneEvent``).  Images
     generated natively by the ``image_generation`` tool are saved to temp
     PNG files by the accumulator and surfaced here as ``ImageEvent``s the
-    moment their output item completes (``emitted_images`` tracks the ones
-    already yielded so each image is emitted exactly once).
+    moment their output item completes (``emit_stream_events`` tracks the
+    ones already yielded so each image is emitted exactly once).
     """
     stream = await client.responses.create(**call_kwargs)
-    emitted_images = 0
-    async for event in stream:
-        reasoning_delta, content_delta = acc.handle(event)
-        if reasoning_delta:
-            yield ReasoningEvent(content=reasoning_delta)
-        if content_delta:
-            yield TokenEvent(content=content_delta)
-        for img in acc.image_results[emitted_images:]:
-            yield ImageEvent(
-                path=img["path"],
-                revised_prompt=img.get("revised_prompt", ""),
-            )
-            emitted_images += 1
+    async for ev in emit_stream_events(stream, acc, emit_images=True):
+        yield ev
 
 
 __all__ = [

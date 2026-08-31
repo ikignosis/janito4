@@ -16,7 +16,7 @@ import logging
 from janito.llm_adapters.completions import CompletionsTurnAccumulator
 from janito.llm_adapters.completions import build_call_kwargs as _build_base_call_kwargs
 
-from ..events import ReasoningEvent, TokenEvent
+from .stream_utils import emit_stream_events
 
 logger = logging.getLogger(__name__)
 
@@ -66,12 +66,8 @@ async def stream_turn_events(
     end-of-turn assembly (``run_tool_turn`` / ``DoneEvent``).
     """
     stream = await client.chat.completions.create(**call_kwargs)
-    async for chunk in stream:
-        reasoning_delta, content_delta = acc.handle(chunk)
-        if reasoning_delta:
-            yield ReasoningEvent(content=reasoning_delta)
-        if content_delta:
-            yield TokenEvent(content=content_delta)
+    async for ev in emit_stream_events(stream, acc):
+        yield ev
 
 
 __all__ = [

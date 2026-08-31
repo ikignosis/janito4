@@ -39,7 +39,6 @@ and the wire-format helpers in :mod:`janito.llm_clients.gemini.gemini_helpers`.
 
 from __future__ import annotations
 
-import importlib.util
 import logging
 from typing import Any
 
@@ -48,6 +47,8 @@ from typing import Any
 # gemini_helpers.
 from janito.llm_adapters.gemini import _build_call_kwargs
 from janito.tooling.executor import ToolExecutor
+
+from ...optional_packages import require_optional_package
 
 # Shared agent-loop pipeline (see Client.run_turn) implemented by
 # GeminiClient; ``UIConfig`` is the structural UI-behaviour protocol the
@@ -76,9 +77,9 @@ def _create_client(base_url: str | None, api_key: str) -> Any:
 
     The ``google-genai`` package is optional (see
     ``janito.providers.REQUIRES_BY_API_TYPE``), so its availability is checked
-    explicitly with ``importlib.util.find_spec`` (mirroring the web-mode extra
-    check) and the import happens lazily -- importing ``janito`` never
-    requires ``google-genai``.
+    explicitly (via the shared :func:`janito.optional_packages
+    .require_optional_package` guard) and the import happens lazily --
+    importing ``janito`` never requires ``google-genai``.
 
     Args:
         base_url: The native-SDK base URL (from the provider's
@@ -94,15 +95,7 @@ def _create_client(base_url: str | None, api_key: str) -> Any:
         RuntimeError: If the ``google-genai`` package is not installed, with
             an actionable install message.
     """
-    try:
-        spec = importlib.util.find_spec("google.genai")
-    except ModuleNotFoundError:
-        spec = None
-    if spec is None:
-        raise RuntimeError(
-            "API type 'Gemini' requires the optional 'google-genai' package, "
-            "which is not installed. Install it with: pip install google-genai"
-        )
+    require_optional_package("google.genai", "Gemini", "google-genai")
     from google import genai
 
     http_options = {"base_url": base_url} if base_url else None
@@ -204,19 +197,6 @@ class GeminiClient(Client):
 
     def _resolve_tools(self, tools, mcp_tools):
         return _resolve_tools(tools, mcp_tools)
-
-    def _resolve_model_settings(self, provider, model):
-        # All resolved at build time into the APIConfig (issue #70): Gemini
-        # 3.x models reason by default, and the thinking flag itself is not
-        # sent on the native API (thinking depth is controlled through
-        # reasoning_effort -> thinking_level instead); the token limits and
-        # reasoning level come straight from the resolved APIConfig.
-        return (
-            self.api_config.thinking,
-            self.api_config.max_output_tokens,
-            self.api_config.max_input_tokens,
-            self.api_config.reasoning_effort,
-        )
 
     def _init_conversation_state(
         self,

@@ -12,6 +12,7 @@ import logging
 
 from fastapi import WebSocket, WebSocketDisconnect
 
+from janito.conversation_utils import rollback_to_last_turn
 from janito.tooling.prompting import set_prompt_handler
 
 from ..events import event_to_dict
@@ -108,11 +109,7 @@ def _rollback(session: ConversationSession) -> None:
     error behaviour.  The rolled-back turn's recorded start is dropped
     too, since the turn it marked is gone.
     """
-    if not session.history_turns:
-        return
-    start = session.history_turns[-1]
-    del session.messages[start:]
-    session.history_turns.pop()
+    rollback_to_last_turn(session.messages, session.history_turns)
 
 
 async def _stream_to_websocket(

@@ -15,6 +15,8 @@ from typing import Any
 from janito.providers.payloads import apply_thinking_to_extra_body
 from janito.providers.registry import get_provider
 
+from .responses_items import message_item
+
 
 def responses_in_server(provider: str, model: str | None) -> bool:
     """Whether the Responses API keeps the conversation on the server.
@@ -74,13 +76,7 @@ def _init_conversation_state(
         pending_items: list[dict[str, Any]] | None = []
         if previous_items:
             pending_items.extend(dict(item) for item in previous_items)
-        pending_items.append(
-            {
-                "type": "message",
-                "role": "user",
-                "content": [{"type": "input_text", "text": prompt}],
-            }
-        )
+        pending_items.append(message_item("user", prompt))
         if previous_items:
             # Pending messages exist: send them (plus the new prompt) as
             # explicit input items chained from the last completed response.
@@ -93,20 +89,8 @@ def _init_conversation_state(
         # Fold the system instructions into the history on the first turn so
         # the stateless server receives the full context on every request.
         if not conversation_items and instructions:
-            conversation_items.append(
-                {
-                    "type": "message",
-                    "role": "system",
-                    "content": [{"type": "input_text", "text": instructions}],
-                }
-            )
-        conversation_items.append(
-            {
-                "type": "message",
-                "role": "user",
-                "content": [{"type": "input_text", "text": prompt}],
-            }
-        )
+            conversation_items.append(message_item("system", instructions))
+        conversation_items.append(message_item("user", prompt))
         input_items = conversation_items
         pending_items = None
     return (

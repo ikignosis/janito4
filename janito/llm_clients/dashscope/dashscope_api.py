@@ -39,12 +39,13 @@ The DashScope stream handling lives in
 
 from __future__ import annotations
 
-import importlib.util
 import logging
 from types import SimpleNamespace
 from typing import Any
 
 from janito.tooling.executor import ToolExecutor
+
+from ...optional_packages import require_optional_package
 
 # Shared agent-loop pipeline (see Client.run_turn) implemented by
 # DashScopeClient; ``UIConfig`` is the structural UI-behaviour protocol the
@@ -74,9 +75,9 @@ def _create_client(base_url: str | None, api_key: str) -> SimpleNamespace:
 
     The ``dashscope`` package is optional (see
     ``janito.providers.REQUIRES_BY_API_TYPE``), so its availability is checked
-    explicitly with ``importlib.util.find_spec`` (mirroring the web-mode extra
-    check) and the import happens lazily -- importing ``janito`` never
-    requires ``dashscope``.
+    explicitly (via the shared :func:`janito.optional_packages
+    .require_optional_package` guard) and the import happens lazily --
+    importing ``janito`` never requires ``dashscope``.
 
     The DashScope SDK is stateless at the module level: the base URL is a
     module global (``dashscope.base_http_api_url``) and the API key is passed
@@ -96,11 +97,7 @@ def _create_client(base_url: str | None, api_key: str) -> SimpleNamespace:
         RuntimeError: If the ``dashscope`` package is not installed, with an
             actionable install message.
     """
-    if importlib.util.find_spec("dashscope") is None:
-        raise RuntimeError(
-            "API type 'DashScope' requires the optional 'dashscope' package, "
-            "which is not installed. Install it with: pip install dashscope"
-        )
+    require_optional_package("dashscope", "DashScope", "dashscope")
     import dashscope
 
     # The DashScope SDK routes requests through the module-level

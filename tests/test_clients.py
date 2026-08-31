@@ -36,11 +36,12 @@ if pytest is not None:
         c = Client(make_config())
         # (hook, args) -- each hook must raise NotImplementedError when the
         # base implementation is reached (before any argument validation).
+        # ``_resolve_model_settings`` has a base default (it reads the
+        # resolved APIConfig), so it is not in this list.
         hooks = {
             "_create_sdk_client": ("http://example.test", "dummy-key"),
             "_create_tool_executor": (None,),
             "_resolve_tools": (None, []),
-            "_resolve_model_settings": ("openai", "gpt-4"),
             "_init_conversation_state": ("hi", "openai", "gpt-4"),
             "_build_call_kwargs": ("m", {}, 1000, None, None, False),
             "_run_stream_round": (
@@ -67,6 +68,26 @@ if pytest is not None:
         for hook, args in hooks.items():
             with pytest.raises(NotImplementedError):
                 getattr(c, hook)(*args)
+
+    def test_base_model_settings_default():
+        """The base Client resolves the settings from the resolved APIConfig.
+
+        The four-value shape is the shared default; subclasses override only
+        when their API drops or transforms one of the values (e.g. DashScope
+        drops reasoning_effort).
+        """
+        c = Client(
+            make_config(
+                max_output_tokens=64000,
+                max_input_tokens=200000,
+                reasoning_effort="high",
+                thinking=True,
+            )
+        )
+        thinking, max_out, max_in, reasoning = c._resolve_model_settings(
+            "openai", "gpt-4"
+        )
+        assert (thinking, max_out, max_in, reasoning) == (True, 64000, 200000, "high")
 
     # ---- concrete subclasses: identity ----------------------------------
 
