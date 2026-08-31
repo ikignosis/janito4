@@ -212,3 +212,4 @@ config.yml
 # Local configuration files
 config.local
 settings.local
+.janito/

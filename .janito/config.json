@@ -1,8 +1,0 @@
-{
-  "provider": "alibaba",
-  "providers": {
-    "alibaba": {
-      "model": "qwen3.8-max-preview"
-    }
-  }
-}
