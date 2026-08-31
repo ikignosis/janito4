@@ -15,61 +15,18 @@ and drives the per-chunk handlers.  The module-level ``_consume_stream`` /
 """
 
 import logging
-import re
 from types import SimpleNamespace
 from typing import Any
 
-from janito.llm_adapters.dashscope import _ModelEndpointMismatch
+from janito.llm_adapters.dashscope import (
+    _is_multimodal_model,
+    _ModelEndpointMismatch,
+    _to_multimodal_messages,
+)
 from janito.llm_adapters.sdk import _extract_raw_attrs
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
-
-
-def _is_multimodal_model(model: str) -> bool:
-    """Return True when a DashScope model is served by the multimodal endpoint.
-
-    The DashScope native API serves plain-text models (``qwen-plus``,
-    ``qwen-flash``, ``qwen3-max``, ``qwen3.7-max``, ...) from the
-    ``text-generation`` endpoint (``Generation.call``) and multimodal models
-    (Qwen-VL / Qwen-Omni, the ``qwen3.x-plus`` generation, and the
-    ``qwen3.8-max`` flagship) from the ``multimodal-generation`` endpoint
-    (``MultiModalConversation.call``).  Calling a model on the wrong endpoint
-    fails with ``InvalidParameter: url error, please check url``.
-
-    This is a best-effort heuristic: when it misclassifies a model,
-    ``_stream_response`` retries once on the other endpoint.
-    """
-    name = (model or "").strip().lower()
-    if not name:
-        return False
-    # Vision / omni model families are multimodal by naming convention.
-    if "-vl" in name or "omni" in name:
-        return True
-    # The qwen3.x-plus generation and the qwen3.8-max flagship are served by
-    # the multimodal-generation endpoint, while the qwen3.x-max text models
-    # (e.g. qwen3.7-max) are not.
-    if re.match(r"^qwen3\.\d+-plus$", name) or name == "qwen3.8-max":
-        return True
-    return False
-
-
-def _to_multimodal_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Convert plain-string message content to DashScope multimodal form.
-
-    The multimodal-generation API expects every message ``content`` to be a
-    list of modality items (``[{"text": "..."}]``) instead of a plain string.
-    Returns a shallow copy with string contents wrapped; other fields
-    (``tool_calls``, ``tool_call_id``, ``reasoning_content``) are kept as-is.
-    """
-    converted = []
-    for message in messages:
-        message = dict(message)
-        content = message.get("content")
-        if isinstance(content, str):
-            message["content"] = [{"text": content}]
-        converted.append(message)
-    return converted
 
 
 def _get(obj: Any, key: str, default: Any = None) -> Any:

@@ -208,8 +208,11 @@ def test_dashscope_stream_retries_on_endpoint_mismatch(monkeypatch):
     import dashscope as dashscope_mod
     from dashscope import Generation, MultiModalConversation
 
-    from janito.llm_adapters.dashscope import accumulator, build_call_kwargs
-    from janito.llm_clients.dashscope.dashscope_stream import _ModelEndpointMismatch
+    from janito.llm_adapters.dashscope import (
+        _ModelEndpointMismatch,
+        accumulator,
+        build_call_kwargs,
+    )
     from janito.web.backend.agent import dashscope as ds
     from janito.web.backend.events import TokenEvent
 

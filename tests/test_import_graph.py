@@ -18,6 +18,10 @@ The matrix encodes the intended layering:
 - ``llm_adapters`` is the shared per-API adapter layer (depended-on by
   ``llm_clients``, ``ui`` and ``web``); it must never import from
   ``llm_clients``;
+- the **web** loop builds on the shared adapters only: like ``llm_adapters``
+  it must never import from ``llm_clients`` -- every per-API piece the web
+  needs (kwargs builders, accumulators, endpoint-routing helpers) lives in
+  ``llm_adapters``;
 - ``tooling`` is the tool framework, depended-on by ``tools`` (never the
   other way round);
 - ``providers`` and the root config stores are leaves.
@@ -64,7 +68,7 @@ ALLOWED_EDGES: dict[str, set[str]] = {
     "tools": {"providers", "root", "tooling"},
     "ui": {"llm_adapters", "llm_clients", "providers", "root", "tooling"},
     "cli": {"llm_clients", "providers", "root", "shell", "tooling", "tools", "ui"},
-    "web": {"llm_adapters", "llm_clients", "providers", "root", "tooling", "tools"},
+    "web": {"llm_adapters", "providers", "root", "tooling", "tools"},
 }
 
 

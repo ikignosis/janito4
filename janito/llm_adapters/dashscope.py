@@ -1,9 +1,12 @@
 """Shared native DashScope SDK adapter: kwargs + accumulation.
 
 The DashScope generation-API turn pipeline used to live in the web runner
-(``janito.web.backend.agent.dashscope``); the pure parts — call-kwargs
-building and stream accumulation — moved here so both agent loops share
-them.  The web shim keeps the async glue (:func:`create_client`,
+(``janito.web.backend.agent.dashscope``); the pure parts -- call-kwargs
+building, stream accumulation and the endpoint-routing helpers
+(:func:`_is_multimodal_model` / :func:`_to_multimodal_messages` /
+:class:`_ModelEndpointMismatch`) -- live here so both agent loops share
+them (the web loop must not import from ``llm_clients``, issue #90).  The
+web shim keeps the async glue (:func:`create_client`,
 :func:`_dashscope_chunks` and :func:`stream_turn_events`), which consumes
 the **sync** DashScope SDK stream chunk-by-chunk through
 ``asyncio.to_thread``.
@@ -21,7 +24,9 @@ stream opener (mirroring ``janito.llm_clients.dashscope.dashscope_stream``).
 """
 
 import logging
+import re
 from types import SimpleNamespace
+from typing import Any
 
 from janito.providers.payloads import builtin_tools_enable_flags
 
@@ -41,6 +46,59 @@ class _ModelEndpointMismatch(RuntimeError):
     Lives in the shared adapter layer (not ``llm_clients``) so both agent
     loops signal endpoint mismatches with the same exception (issue #90).
     """
+
+
+def _is_multimodal_model(model: str) -> bool:
+    """Return True when a DashScope model is served by the multimodal endpoint.
+
+    The DashScope native API serves plain-text models (``qwen-plus``,
+    ``qwen-flash``, ``qwen3-max``, ``qwen3.7-max``, ...) from the
+    ``text-generation`` endpoint (``Generation.call``) and multimodal models
+    (Qwen-VL / Qwen-Omni, the ``qwen3.x-plus`` generation, and the
+    ``qwen3.8-max`` flagship) from the ``multimodal-generation`` endpoint
+    (``MultiModalConversation.call``).  Calling a model on the wrong endpoint
+    fails with ``InvalidParameter: url error, please check url``.
+
+    This is a best-effort heuristic: when it misclassifies a model, both
+    stream openers (the CLI's ``dashscope_stream._stream_response`` and the
+    web runner's ``_dashscope_chunks``) retry once on the other endpoint.
+
+    Lives in the shared adapter layer (not ``llm_clients``) so the web loop
+    does not need to import from the CLI client packages (issue #90).
+    """
+    name = (model or "").strip().lower()
+    if not name:
+        return False
+    # Vision / omni model families are multimodal by naming convention.
+    if "-vl" in name or "omni" in name:
+        return True
+    # The qwen3.x-plus generation and the qwen3.8-max flagship are served by
+    # the multimodal-generation endpoint, while the qwen3.x-max text models
+    # (e.g. qwen3.7-max) are not.
+    if re.match(r"^qwen3\.\d+-plus$", name) or name == "qwen3.8-max":
+        return True
+    return False
+
+
+def _to_multimodal_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Convert plain-string message content to DashScope multimodal form.
+
+    The multimodal-generation API expects every message ``content`` to be a
+    list of modality items (``[{"text": "..."}]``) instead of a plain string.
+    Returns a shallow copy with string contents wrapped; other fields
+    (``tool_calls``, ``tool_call_id``, ``reasoning_content``) are kept as-is.
+
+    Lives in the shared adapter layer (not ``llm_clients``) so the web loop
+    does not need to import from the CLI client packages (issue #90).
+    """
+    converted = []
+    for message in messages:
+        message = dict(message)
+        content = message.get("content")
+        if isinstance(content, str):
+            message["content"] = [{"text": content}]
+        converted.append(message)
+    return converted
 
 
 def build_call_kwargs(
@@ -250,6 +308,8 @@ __all__ = [
     "DashScopeTurnAccumulator",
     "accumulator",
     "build_call_kwargs",
+    "_is_multimodal_model",
     "_ModelEndpointMismatch",
+    "_to_multimodal_messages",
     "_get",
 ]

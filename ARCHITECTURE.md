@@ -76,21 +76,26 @@ targets, same-domain imports always allowed) are:
 | **tools** | | | | | ✓ | ✓ | | ✓ | — | | |
 | **ui** | ✓ | | ✓ | | ✓ | ✓ | | ✓ | | — | |
 | **cli** | | — | ✓ | | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | |
-| **web** | ✓ | | ✓ | | ✓ | ✓ | | ✓ | ✓ | | — |
+| **web** | ✓ | | | | ✓ | ✓ | | ✓ | ✓ | | — |
 
 The intended layering:
 
 - **`ui` / `shell` / `cli` / `web` are the outer presentation / entry
   layers** — they may depend on anything below them, and nothing below may
   depend on them.  In particular `web` never imports from `cli` (the shared
-  `SessionSetup` lives at the package root), and the API clients never
-  import the concrete `UIConfig` (they depend on the structural protocol in
-  `llm_clients/base_client.py`; the frozen bundle is composed by the CLI in
-  `janito/ui/config.py`).
+  `SessionSetup` lives at the package root), and — like `llm_adapters` —
+  `web` never imports from `llm_clients` either: every per-API piece the
+  web loop needs (call-kwargs builders, accumulators, the DashScope
+  endpoint-routing helpers) lives in the shared `llm_adapters` layer, so
+  the web agent runners stay thin async glue.  The API clients likewise
+  never import the concrete `UIConfig` (they depend on the structural
+  protocol in `llm_clients/base_client.py`; the frozen bundle is composed
+  by the CLI in `janito/ui/config.py`).
 - **`llm_adapters` is the shared adapter layer** — both agent loops (CLI and web)
   build on it; `llm_clients`, `ui` and `web` depend on it, and it must
   **never** import from `llm_clients` (the stream converters /
-  `GeminiStreamConsumer` / `_ModelEndpointMismatch` / raw-attrs helpers moved
+  `GeminiStreamConsumer` / `_ModelEndpointMismatch` / `_is_multimodal_model`
+  / `_to_multimodal_messages` / raw-attrs helpers moved
   here for that reason).
 - **`llm_clients` depends one-way on `llm_adapters`**, `tooling`,
   `providers` and the root config layer.
@@ -327,10 +332,13 @@ the web loop bridges back into it at three seams, each one a thread hop:
    → thread round trip.
 
 **The payoff.** Because async is confined to `janito/web/`, everything the
-two loops share — `llm_clients`, `llm_adapters` (call-kwargs builders,
-accumulators, `TokenStats`), `tooling`, the `TurnObserver` protocol — is
+two loops share — `llm_adapters` (call-kwargs builders,
+accumulators, the DashScope endpoint-routing helpers, `TokenStats`),
+`tooling`, the `TurnObserver` protocol — is
 sync-pure and usable without an event loop anywhere in sight. That is what
-makes the adapter layer genuinely shared, and it mirrors the import matrix of
+makes the adapter layer genuinely shared — shared to the point that `web`
+depends only on `llm_adapters` for its per-API code, never on the CLI's
+`llm_clients` — and it mirrors the import matrix of
 [Domains & boundaries](#domains--boundaries) (issue #90): `web` is just
 another outer presentation layer depending inward, and its async-ness never
 propagates below it. For the user-visible consequences of the split see

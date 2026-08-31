@@ -163,6 +163,18 @@ Changes since `v4.33.0` (2026-08-29).
   deleted (its consumers read the raw dict via `get_provider(name).info`),
   and `ProviderRegistry._variant_base` was promoted to the public
   `variant_base` method (no compat shims).
+- The web backend no longer imports from `llm_clients` (issue #90 boundary
+  follow-up): the last per-API objects it needed from the CLI client
+  packages — the DashScope endpoint-routing helpers `_is_multimodal_model`
+  and `_to_multimodal_messages` (`_ModelEndpointMismatch` already lived
+  there) — moved to the shared `janito/llm_adapters/dashscope.py`, where the
+  web DashScope runner and the CLI `dashscope_stream` both pick them up. The
+  `llm_clients` target was removed from the `web` row of the
+  `ALLOWED_EDGES` matrix in `tests/test_import_graph.py` (so any future
+  `web -> llm_clients` import fails the suite) and the matrix + layering
+  notes in `ARCHITECTURE.md` updated: `web`'s per-API code now depends
+  exclusively on `llm_adapters`, keeping the web agent runners thin
+  async glue.
 
 ### Fixed
 

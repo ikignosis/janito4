@@ -16,14 +16,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
 
-from janito.llm_clients.dashscope import dashscope_api
-from janito.llm_clients.dashscope.dashscope_stream import (
-    _consume_stream,
-    _get,
+from janito.llm_adapters.dashscope import (
     _is_multimodal_model,
     _ModelEndpointMismatch,
     _to_multimodal_messages,
 )
+from janito.llm_clients.dashscope import dashscope_api
+from janito.llm_clients.dashscope.dashscope_stream import _consume_stream, _get
 
 
 def _chunk(
