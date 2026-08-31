@@ -40,11 +40,6 @@ def get_local_skills_dir() -> Path:
     return Path.cwd() / ".janito" / "skills"
 
 
-# Default skills directory (at import time). Retained for backward compatibility;
-# prefer :func:`get_default_skills_dir` which honors the -c/--config-dir override.
-DEFAULT_SKILLS_DIR = get_default_skills_dir()
-
-
 class Skill:
     """Represents a discovered skill.
 
@@ -292,69 +287,6 @@ class SkillsProvider:
             lines.append(f"- **{skill['name']}**: {skill['description']}")
 
         return "\n".join(lines)
-
-    def get_skill_tool_schemas(self) -> list[dict[str, Any]]:
-        """
-        Get tool schemas for skill operations.
-
-        Returns:
-            List of tool schemas for load_skill and read_skill_resource
-        """
-        return [
-            {
-                "type": "function",
-                "function": {
-                    "name": "load_skill",
-                    "description": (
-                        "Load the full content of a skill's SKILL.md file."
-                        " Call this when you need detailed instructions or"
-                        " guidance from a specific skill."
-                    ),
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "skill_name": {
-                                "type": "string",
-                                "description": (
-                                    "The name of the skill to load"
-                                    " (e.g., 'git-commit', 'code-review')"
-                                ),
-                            }
-                        },
-                        "required": ["skill_name"],
-                    },
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "read_skill_resource",
-                    "description": (
-                        "Read a supplementary resource file from a"
-                        " skill directory (e.g., templates, reference"
-                        " docs, examples)."
-                    ),
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "skill_name": {
-                                "type": "string",
-                                "description": "The name of the skill",
-                            },
-                            "resource_name": {
-                                "type": "string",
-                                "description": (
-                                    "The filename of the resource to read"
-                                    " (e.g., 'template.md', 'README.md',"
-                                    " 'rules.txt')"
-                                ),
-                            },
-                        },
-                        "required": ["skill_name", "resource_name"],
-                    },
-                },
-            },
-        ]
 
 
 # Global skills provider instance

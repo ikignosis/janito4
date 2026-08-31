@@ -339,16 +339,6 @@ You should load a skill when the user's request matches its description or you n
 _registry = ToolsRegistry()
 
 
-def _ensure_initialized() -> None:
-    """
-    Run tool discovery on first access (lazy initialization).
-
-    This ensures ``running_privileges`` is already set by the time
-    ``discover_toolsets`` applies its privilege-based filtering.
-    """
-    _registry.ensure_initialized()
-
-
 def add_toolset(toolset_name: str) -> bool:
     """
     Dynamically add a toolset to the available tools.

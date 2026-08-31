@@ -69,8 +69,6 @@ def _display_usage(
     max_output_tokens: int | None,
     console: Console,
     *,
-    input_attr: str = "prompt_tokens",
-    output_attr: str = "completion_tokens",
     provider: str | None = None,
     model: str | None = None,
 ) -> None:
@@ -84,8 +82,7 @@ def _display_usage(
     The shared :func:`normalize_usage` maps every shape onto one dict -- the
     ``cached`` counter is ``None`` for APIs that do not report cached-token
     details, so the cached part is shown only when the API actually reports
-    it.  ``input_attr`` / ``output_attr`` are retained for signature
-    compatibility.
+    it.
 
     ``Cost: <cost>`` is computed through
     :func:`janito.providers.costing.get_provider_cost` from the provider /

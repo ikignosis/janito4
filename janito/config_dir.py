@@ -111,18 +111,6 @@ def get_config_dirs() -> list[Path]:
     return dirs
 
 
-def get_config_file_path(name: str) -> Path:
-    """Get the primary (write) path for a configuration file by name.
-
-    Args:
-        name: The file name (e.g. ``"auth.json"``).
-
-    Returns:
-        Path: ``<write dir>/<name>``.
-    """
-    return get_config_dir() / name
-
-
 def get_config_file_paths(name: str) -> list[Path]:
     """Get all paths for a configuration file, in resolution priority order.
 

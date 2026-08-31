@@ -41,7 +41,6 @@ class HttpTransport(MCPTransport):
         self.url = url
         self.headers = headers or {}
         self._connected = False
-        self._error: str | None = None
         self._session_id: str | None = None
         self._request_id = 0
         self._lock = threading.Lock()
@@ -66,7 +65,6 @@ class HttpTransport(MCPTransport):
 
         except Exception as e:
             logger.error(f"Failed to connect to MCP server: {e}")
-            self._error = str(e)
             return False
 
     def disconnect(self) -> None:

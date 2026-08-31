@@ -9,9 +9,9 @@ response.
 
 The per-chunk folding lives in
 :class:`janito.llm_adapters.gemini.GeminiStreamConsumer` (the shared adapter layer,
-issue #90); the module-level ``_consume_stream`` / ``_consume_chunk``
-functions are thin delegators used by the module's own ``_stream_response``
-and by the client tests.
+issue #90); the module-level ``_consume_stream`` function is a thin
+delegator used by the module's own ``_stream_response`` and by the client
+tests.
 """
 
 import logging
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Module-level delegators (thin wrappers over GeminiStreamConsumer).
+# Module-level delegator (thin wrapper over GeminiStreamConsumer).
 # ---------------------------------------------------------------------------
 
 
@@ -34,13 +34,6 @@ def _consume_stream(stream, cancel_event=None):
     raw_attrs, thought_parts)``.  See :meth:`GeminiStreamConsumer.consume`.
     """
     return GeminiStreamConsumer().consume(stream, cancel_event=cancel_event)
-
-
-def _consume_chunk(chunk, consumer: GeminiStreamConsumer | None = None):
-    """Fold one Gemini stream chunk into a consumer (legacy bridge)."""
-    consumer = consumer or GeminiStreamConsumer()
-    consumer.handle(chunk)
-    return consumer
 
 
 def _stream_response(client, call_kwargs, tools_schemas, cancel_event=None):

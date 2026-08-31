@@ -44,11 +44,6 @@ def get_auth_file_paths() -> list[Path]:
     return _store.file_paths()
 
 
-def ensure_auth_directory() -> Path:
-    """Ensure the ~/.janito directory exists."""
-    return _store.ensure_directory()
-
-
 def load_auth_config() -> dict[str, str]:
     """Load the authentication configuration from file.
 

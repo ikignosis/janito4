@@ -10,9 +10,9 @@ Completions, which splits tool calls across chunks indexed by position).
 
 :class:`ResponsesStreamConsumer` is the real implementation: it holds the
 assembled response parts as instance attributes (no ``state`` dict plumbing)
-and drives the per-event handlers.  The module-level ``_consume_response_stream``
-/ ``_handle_*`` functions are thin delegators used by the module's own
-``_stream_response`` and by the client tests.
+and drives the per-event handlers.  The module-level
+``_consume_response_stream`` function is a thin delegator used by the
+module's own ``_stream_response`` and by the client tests.
 """
 
 import logging
@@ -204,39 +204,8 @@ def _raise_failed_error(event) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Module-level delegators (thin wrappers over ResponsesStreamConsumer).
-#
-# ``_consume_response_stream`` is the main entry point (exercised by the
-# tests).  The ``_handle_*`` functions bridge a caller-supplied ``state``
-# dict to a consumer instance.
+# Module-level delegator (thin wrapper over ResponsesStreamConsumer).
 # ---------------------------------------------------------------------------
-
-_STATE_KEYS = (
-    "content",
-    "reasoning",
-    "tool_calls",
-    "partial_arguments",
-    "usage_info",
-    "response_id",
-    "raw_attrs",
-)
-
-
-def _consumer_from_state(state: dict[str, Any]) -> ResponsesStreamConsumer:
-    """Build a consumer seeded from a legacy ``state`` dict."""
-    consumer = ResponsesStreamConsumer()
-    for key in _STATE_KEYS:
-        if key in state:
-            setattr(consumer, key, state[key])
-    return consumer
-
-
-def _state_from_consumer(
-    consumer: ResponsesStreamConsumer, state: dict[str, Any]
-) -> None:
-    """Write a consumer's parts back into a legacy ``state`` dict."""
-    for key in _STATE_KEYS:
-        state[key] = getattr(consumer, key)
 
 
 def _consume_response_stream(stream, cancel_event=None):
@@ -248,41 +217,6 @@ def _consume_response_stream(stream, cancel_event=None):
     :meth:`ResponsesStreamConsumer.consume`.
     """
     return ResponsesStreamConsumer().consume(stream, cancel_event=cancel_event)
-
-
-def _handle_stream_event(event, state: dict[str, Any]) -> None:
-    """Dispatch a single stream event to the matching handler (legacy bridge)."""
-    consumer = _consumer_from_state(state)
-    consumer.handle_event(event)
-    _state_from_consumer(consumer, state)
-
-
-def _handle_completion_event(event, state: dict[str, Any]) -> None:
-    """Record the response id / usage into a legacy state dict."""
-    consumer = _consumer_from_state(state)
-    consumer.handle_completion_event(event)
-    _state_from_consumer(consumer, state)
-
-
-def _handle_text_delta(event, state: dict[str, Any]) -> None:
-    """Collect assistant text / reasoning deltas into a legacy state dict."""
-    consumer = _consumer_from_state(state)
-    consumer.handle_text_delta(event)
-    _state_from_consumer(consumer, state)
-
-
-def _handle_call_arguments(event, state: dict[str, Any]) -> None:
-    """Assemble per-item function_call arguments into a legacy state dict."""
-    consumer = _consumer_from_state(state)
-    consumer.handle_call_arguments(event)
-    _state_from_consumer(consumer, state)
-
-
-def _handle_output_item(event, state: dict[str, Any]) -> None:
-    """Append a finished function_call output item to a legacy state dict."""
-    consumer = _consumer_from_state(state)
-    consumer.handle_output_item(event)
-    _state_from_consumer(consumer, state)
 
 
 def _stream_response(client, call_kwargs, tools_schemas, cancel_event=None):

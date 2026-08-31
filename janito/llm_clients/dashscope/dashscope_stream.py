@@ -9,9 +9,9 @@ across chunks.
 
 :class:`DashScopeStreamConsumer` is the real implementation: it holds the
 assembled response parts as instance attributes (no ``state`` dict plumbing)
-and drives the per-chunk handlers.  The module-level ``_consume_stream`` /
-``_consume_*`` functions are thin delegators used by the module's own
-``_stream_response`` and by the client tests.
+and drives the per-chunk handlers.  The module-level ``_consume_stream``
+function is a thin delegator used by the module's own ``_stream_response``
+and by the client tests.
 """
 
 import logging
@@ -270,36 +270,8 @@ def _build_usage_info(state: dict[str, Any]) -> Any:
 
 
 # ---------------------------------------------------------------------------
-# Module-level delegators (thin wrappers over DashScopeStreamConsumer).
+# Module-level delegator (thin wrapper over DashScopeStreamConsumer).
 # ---------------------------------------------------------------------------
-
-_STATE_KEYS = (
-    "content",
-    "reasoning",
-    "tool_calls",
-    "input_tokens",
-    "output_tokens",
-    "total_tokens",
-    "finish",
-    "raw_attrs",
-)
-
-
-def _consumer_from_state(state: dict[str, Any]) -> DashScopeStreamConsumer:
-    """Build a consumer seeded from a legacy ``state`` dict."""
-    consumer = DashScopeStreamConsumer()
-    for key in _STATE_KEYS:
-        if key in state:
-            setattr(consumer, key, state[key])
-    return consumer
-
-
-def _state_from_consumer(
-    consumer: DashScopeStreamConsumer, state: dict[str, Any]
-) -> None:
-    """Write a consumer's parts back into a legacy ``state`` dict."""
-    for key in _STATE_KEYS:
-        state[key] = getattr(consumer, key)
 
 
 def _consume_stream(stream, cancel_event=None):
@@ -308,34 +280,6 @@ def _consume_stream(stream, cancel_event=None):
     See :meth:`DashScopeStreamConsumer.consume` for the return shape.
     """
     return DashScopeStreamConsumer().consume(stream, cancel_event=cancel_event)
-
-
-def _consume_dashscope_chunk(chunk, state: dict[str, Any]) -> None:
-    """Process one stream chunk into a legacy state dict."""
-    consumer = _consumer_from_state(state)
-    consumer.handle_chunk(chunk)
-    _state_from_consumer(consumer, state)
-
-
-def _consume_message(message, state: dict[str, Any]) -> None:
-    """Accumulate one message's deltas into a legacy state dict."""
-    consumer = _consumer_from_state(state)
-    consumer.handle_message(message)
-    _state_from_consumer(consumer, state)
-
-
-def _consume_tool_call(tc, tool_calls_map: dict[int, dict[str, str]]) -> None:
-    """Merge one tool-call chunk into a legacy per-index map (in-place)."""
-    consumer = DashScopeStreamConsumer()
-    consumer.tool_calls = tool_calls_map
-    consumer.handle_tool_call(tc)
-
-
-def _consume_usage(chunk, state: dict[str, Any]) -> None:
-    """Keep the most recent usage in a legacy state dict."""
-    consumer = _consumer_from_state(state)
-    consumer.consume_usage(chunk)
-    _state_from_consumer(consumer, state)
 
 
 def _stream_response(client, call_kwargs, tools_schemas, cancel_event=None):

@@ -57,7 +57,6 @@ class StdioTransport(MCPTransport):
         self._response_queues: dict[int, queue.Queue] = {}
         self._notification_thread: threading.Thread | None = None
         self._running = False
-        self._error: str | None = None
 
     @property
     def is_connected(self) -> bool:
@@ -103,7 +102,6 @@ class StdioTransport(MCPTransport):
 
         except Exception as e:
             logger.error(f"Failed to connect to MCP server: {e}")
-            self._error = str(e)
             self.disconnect()
             return False
 

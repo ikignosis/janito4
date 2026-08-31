@@ -19,10 +19,6 @@ from ...tooling.skills_provider import get_default_skills_dir
 # Retained for backward compatibility; prefer the canonical name in new code.
 get_skills_dir = get_default_skills_dir
 
-# Path to store installed skills (default). Retained for backward compatibility;
-# prefer :func:`get_default_skills_dir` which honors the -c/--config-dir override.
-SKILLS_DIR = get_default_skills_dir()
-
 
 def _ensure_skills_dir() -> Path:
     """Ensure the skills directory exists."""

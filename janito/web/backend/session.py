@@ -84,9 +84,8 @@ class SessionManager:
     ``config.no_history`` is set (``--no-history``).
     """
 
-    def __init__(self, config: WebServerConfig, ttl_seconds: int = 3600):
+    def __init__(self, config: WebServerConfig):
         self.config = config
-        self.ttl_seconds = ttl_seconds
         self._sessions: dict[str, ConversationSession] = {}
         self._lock = threading.Lock()
 
@@ -190,15 +189,3 @@ class SessionManager:
         the on-disk jsonl always mirrors the in-memory conversation.
         """
         self._persist(session)
-
-    def cleanup_expired(self) -> int:
-        """Remove sessions idle longer than TTL. Returns count removed."""
-        now = time.time()
-        expired = []
-        with self._lock:
-            for sid, session in self._sessions.items():
-                if now - session.last_active > self.ttl_seconds:
-                    expired.append(sid)
-            for sid in expired:
-                del self._sessions[sid]
-        return len(expired)

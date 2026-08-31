@@ -11,8 +11,8 @@ The per-chunk folding lives in the shared
 the web loop); :class:`CompletionsStreamConsumer` adds
 the CLI-specific driver — :meth:`consume` walks a sync stream with
 Enter-to-cancel support and returns the response parts.  The module-level
-``_consume_stream`` / ``_consume_chunk`` / ``_consume_tool_call_delta``
-functions are thin delegators used by ``_stream_response`` and its tests.
+``_consume_stream`` function is a thin delegator used by
+``_stream_response`` and its tests.
 """
 
 import logging
@@ -115,7 +115,7 @@ class CompletionsStreamConsumer(CompletionsTurnAccumulator):
 
 
 # ---------------------------------------------------------------------------
-# Module-level delegators (thin wrappers over CompletionsStreamConsumer).
+# Module-level delegator (thin wrapper over CompletionsStreamConsumer).
 # ---------------------------------------------------------------------------
 
 
@@ -126,26 +126,6 @@ def _consume_stream(stream, cancel_event=None):
     raw_attrs)``.  See :meth:`CompletionsStreamConsumer.consume`.
     """
     return CompletionsStreamConsumer().consume(stream, cancel_event=cancel_event)
-
-
-def _consume_chunk(delta, collected_content, collected_reasoning, tool_calls_map):
-    """Accumulate content/reasoning/tool-call deltas from one chunk delta.
-
-    Legacy bridge: aliases the caller-supplied collections to a consumer,
-    applies the chunk, and relies on in-place mutation to propagate.
-    """
-    consumer = CompletionsStreamConsumer()
-    consumer.content = collected_content
-    consumer.reasoning = collected_reasoning
-    consumer.tool_calls = tool_calls_map
-    consumer.handle_chunk(delta)
-
-
-def _consume_tool_call_delta(tc_delta, tool_calls_map):
-    """Merge one tool-call delta into a per-index tool call map (legacy bridge)."""
-    consumer = CompletionsStreamConsumer()
-    consumer.tool_calls = tool_calls_map
-    consumer.handle_tool_call_delta(tc_delta)
 
 
 def _stream_response(client, call_kwargs, tools_schemas, cancel_event=None):

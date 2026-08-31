@@ -67,11 +67,9 @@ def get_report_handler() -> ReportHandler | None:
 # Rich style names (replaces raw ANSI escape codes)
 class Colors:
     CYAN = "cyan"
-    GREEN = "green"
     YELLOW = "yellow"
     RED = "red"
     WHITE = "white"
-    RESET = ""
 
 
 def report_start(

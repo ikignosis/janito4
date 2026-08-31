@@ -45,13 +45,3 @@ class CmdHandler(ABC):
         Returns:
             True if the command was handled, False otherwise
         """
-
-    def on_command(self, shell: "InteractiveShell", user_input: str) -> None:
-        """
-        Called when this command is invoked.
-        Override this to provide command-specific behavior.
-
-        Args:
-            shell: The interactive shell instance
-            user_input: The raw user input
-        """

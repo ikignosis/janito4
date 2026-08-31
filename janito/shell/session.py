@@ -161,21 +161,3 @@ class _SessionMixin:
             ),
             complete_while_typing=True,
         )
-
-    @staticmethod
-    def get_history_file_path() -> Path:
-        """Get the path to the history log file.
-
-        Returns:
-            Path: Path to ~/.janito/history.log
-        """
-        return HISTORY_FILE
-
-    @staticmethod
-    def clear_input_history() -> None:
-        """Clear the input history log file."""
-        if HISTORY_FILE.exists():
-            HISTORY_FILE.unlink()
-            print(f"Input history cleared from: {HISTORY_FILE}")
-        else:
-            print("No input history file found.")

@@ -3,7 +3,7 @@ Config storage: read/write primitives for ``~/.janito/config.json``.
 
 Provides :class:`ConfigStore` (load/save/get/set/unset with provider- and
 model-scoped key handling) plus the module-level delegating functions
-(``load_config``, ``save_config``, ``get_config_value``, ``set_config_value``,
+(``load_config``, ``get_config_value``, ``set_config_value``,
 ``unset_config_value``).  Extracted from :mod:`janito.general_config` so the
 core config module stays focused on resolution and provider helpers.
 """
@@ -410,18 +410,6 @@ def load_config() -> dict[str, Any]:
         Dict containing the config, or empty dict if no file exists or is invalid
     """
     return _store.load()
-
-
-def save_config(config: dict[str, Any]) -> None:
-    """Save the config dictionary to config.json.
-
-    Args:
-        config: Dictionary to save to config.json
-
-    Raises:
-        IOError: If unable to write to the config file
-    """
-    _store.save(config)
 
 
 def get_config_value(key: str) -> Any | None:

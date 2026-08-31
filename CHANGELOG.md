@@ -208,6 +208,24 @@ Changes since `v4.33.0` (2026-08-29).
   notes in `ARCHITECTURE.md` updated: `web`'s per-API code now depends
   exclusively on `llm_adapters`, keeping the web agent runners thin
   async glue.
+- Dead code sweep: removed unreferenced definitions found by an AST
+  cross-reference scan of the package against tests, scripts, docs and the
+  web frontend (all verified to have no callers, including via decorators,
+  `getattr`/importlib dispatch and frontend API calls): the orphaned
+  "legacy bridge" stream wrappers in `llm_clients` (`_handle_*`,
+  `_consume_chunk`/`_consume_tool_call*` plus their `_STATE_KEYS` /
+  `_consumer_from_state` / `_state_from_consumer` helpers, superseded by the
+  `*StreamConsumer` classes), `SkillsProvider.get_skill_tool_schemas`, the
+  unused `SKILLS_DIR`/`DEFAULT_SKILLS_DIR` constants, the uncalled
+  `auth_config`/`secrets_config` ensure/load/save wrappers,
+  `config_dir.get_config_file_path`, `config_store.save_config`,
+  `tools_registry._ensure_initialized`, the `shell/session.py` history
+  statics, `CmdHandler.on_command`, `_FALLBACK_VERSION_TUPLE`, the unused
+  `input_attr`/`output_attr` params of `_display_usage`, the write-only
+  `self._error` in the MCP clients, `Colors.GREEN`/`RESET` in `reporter.py`,
+  the never-scheduled `SessionManager.cleanup_expired` (the missing TTL
+  reaping it hid is now tracked as issue #93) and the orphan
+  `tooling/examples/path_utils_example.py` module.
 
 ### Fixed
 

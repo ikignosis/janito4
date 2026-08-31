@@ -10,9 +10,9 @@ triples, so each block is assembled per index and flushed when it stops, and
 
 :class:`AnthropicStreamConsumer` is the real implementation: it holds the
 assembled response parts as instance attributes (no ``state`` dict plumbing)
-and drives the per-event handlers.  The module-level ``_consume_stream`` /
-``_handle_*`` functions are thin delegators used by the module's own
-``_stream_response`` and by the client tests.
+and drives the per-event handlers.  The module-level ``_consume_stream``
+function is a thin delegator used by the module's own ``_stream_response``
+and by the client tests.
 """
 
 import json
@@ -238,35 +238,8 @@ def _raise_anthropic_error(event) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Module-level delegators (thin wrappers over AnthropicStreamConsumer).
+# Module-level delegator (thin wrapper over AnthropicStreamConsumer).
 # ---------------------------------------------------------------------------
-
-_STATE_KEYS = (
-    "content",
-    "reasoning",
-    "tool_use_blocks",
-    "blocks",
-    "input_tokens",
-    "output_tokens",
-    "raw_attrs",
-)
-
-
-def _consumer_from_state(state: dict[str, Any]) -> AnthropicStreamConsumer:
-    """Build a consumer seeded from a legacy ``state`` dict."""
-    consumer = AnthropicStreamConsumer()
-    for key in _STATE_KEYS:
-        if key in state:
-            setattr(consumer, key, state[key])
-    return consumer
-
-
-def _state_from_consumer(
-    consumer: AnthropicStreamConsumer, state: dict[str, Any]
-) -> None:
-    """Write a consumer's parts back into a legacy ``state`` dict."""
-    for key in _STATE_KEYS:
-        state[key] = getattr(consumer, key)
 
 
 def _consume_stream(stream, cancel_event=None):
@@ -276,49 +249,6 @@ def _consume_stream(stream, cancel_event=None):
     raw_attrs)``.  See :meth:`AnthropicStreamConsumer.consume`.
     """
     return AnthropicStreamConsumer().consume(stream, cancel_event=cancel_event)
-
-
-def _handle_anthropic_event(event, state: dict[str, Any]) -> bool:
-    """Dispatch one stream event into a legacy state dict; True when complete."""
-    consumer = _consumer_from_state(state)
-    complete = consumer.handle_event(event)
-    _state_from_consumer(consumer, state)
-    return complete
-
-
-def _handle_message_start(event, state: dict[str, Any]) -> None:
-    """Record the input tokens into a legacy state dict."""
-    consumer = _consumer_from_state(state)
-    consumer.handle_message_start(event)
-    _state_from_consumer(consumer, state)
-
-
-def _handle_content_block_start(event, state: dict[str, Any]) -> None:
-    """Open a new content block in a legacy state dict."""
-    consumer = _consumer_from_state(state)
-    consumer.handle_content_block_start(event)
-    _state_from_consumer(consumer, state)
-
-
-def _handle_content_block_delta(event, state: dict[str, Any]) -> None:
-    """Accumulate a content-block delta into a legacy state dict."""
-    consumer = _consumer_from_state(state)
-    consumer.handle_content_block_delta(event)
-    _state_from_consumer(consumer, state)
-
-
-def _handle_content_block_stop(event, state: dict[str, Any]) -> None:
-    """Flush a finished content block in a legacy state dict."""
-    consumer = _consumer_from_state(state)
-    consumer.handle_content_block_stop(event)
-    _state_from_consumer(consumer, state)
-
-
-def _handle_message_delta(event, state: dict[str, Any]) -> None:
-    """Record the output tokens into a legacy state dict."""
-    consumer = _consumer_from_state(state)
-    consumer.handle_message_delta(event)
-    _state_from_consumer(consumer, state)
 
 
 def _stream_response(client, call_kwargs, tools_schemas, cancel_event=None):

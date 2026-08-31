@@ -33,7 +33,6 @@ from pathlib import Path
 # Last-resort fallback: only used when neither git nor distribution
 # metadata can provide a version (should not happen in normal installs).
 _FALLBACK_VERSION = "0.2.0"
-_FALLBACK_VERSION_TUPLE = (0, 2, 0)
 
 # Repository root: the directory that contains the ``janito`` package.
 _REPO_ROOT = Path(__file__).resolve().parents[1]

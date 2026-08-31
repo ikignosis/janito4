@@ -45,36 +45,6 @@ def get_secrets_file_paths() -> list[Path]:
     return _store.file_paths()
 
 
-def ensure_secrets_directory() -> Path:
-    """Ensure the ~/.janito directory exists."""
-    return _store.ensure_directory()
-
-
-def load_secrets_config() -> dict[str, str]:
-    """Load the secrets configuration from file.
-
-    With ``-l`` / ``--local`` the project-local secrets.json (``./.janito``)
-    is merged over the base one (``~/.janito`` or the ``-c`` override) so local
-    entries take precedence; otherwise only the base file is read.
-
-    Returns:
-        Dict[str, str]: Dictionary of key-value secrets
-    """
-    return _store.load()
-
-
-def save_secrets_config(config: dict[str, str]) -> bool:
-    """Save the secrets configuration to file.
-
-    Args:
-        config: Dictionary of secrets to save
-
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    return _store.save(config)
-
-
 def set_secret(key: str, value: str) -> bool:
     """
     Set a secret value.
