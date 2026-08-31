@@ -45,6 +45,7 @@ Options:
   --list-mcp         List all MCP services and their tools
   -Z, --no-system-prompt  Do not set a system prompt or pass any tools to the CLI
   --no-tools              Do not load tools (skill tools stay enabled)
+  --no-tasks              Do not load the tasks toolset (StartTask/StopTask/WaitForTask)
 
 Examples:
   janito "What is the capital of France?"                    # Single prompt mode
@@ -93,6 +94,7 @@ Examples:
   /rwx <prompt> runs a single request with full privileges.
   janito -S "You are a cow"                                   # Override system prompt (tools stay enabled)
   janito --no-tools "Your prompt"                             # No tools loaded (skill tools stay enabled)
+  janito --no-tasks "Your prompt"                             # No tasks tools (other tools stay enabled)
   janito --no-plugins "Your prompt"                           # Do not autoload plugins from ~/.janito/plugins
   janito --install-skill https://github.com/user/repo/tree/main/skills/git-commit  # Install a skill
   janito --list-skills                                        # List installed skills
@@ -179,6 +181,13 @@ Note: --set and --set-api-key must be used in separate commands.
         "--no-tools",
         action="store_true",
         help="Do not load tools (skill tools stay enabled)",
+    )
+
+    parser.add_argument(
+        "--no-tasks",
+        action="store_true",
+        help="Do not load the tasks toolset (StartTask, StopTask, "
+        "WaitForTask). All other tools stay enabled.",
     )
 
     parser.add_argument(

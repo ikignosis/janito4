@@ -41,6 +41,7 @@ def _fresh_registry(monkeypatch, tools=None, skills_enabled=True):
     )
     monkeypatch.setattr(tools_registry, "_skills_enabled", skills_enabled)
     monkeypatch.setattr(tools_registry, "_tools_loading_enabled", True)
+    monkeypatch.setattr(tools_registry, "_disabled_toolsets", set())
     monkeypatch.setattr(tools_registry, "discover_toolsets", lambda names: {})
     monkeypatch.setattr(tools_registry, "get_skills_tools", lambda: {})
     monkeypatch.setattr(tools_registry, "get_skills_advertisement", lambda: "")
@@ -185,6 +186,81 @@ if pytest is not None:
         # toolsets either (the early return skips ensure_initialized).
         assert calls["n"] == 0
         assert "ExtraTool" not in registry.all_tools()
+
+    def test_disable_toolset_filters_autoload_discovery(monkeypatch):
+        """--no-tasks: the disabled toolset is left out of autoload discovery."""
+        skill_tools = {
+            "load_skill": _fake_tool("load_skill"),
+            "read_skill_resource": _fake_tool("read_skill_resource"),
+        }
+        discovered = {"names": []}
+        registry = _fresh_registry(monkeypatch, {}, skills_enabled=True)
+        monkeypatch.setattr(tools_registry, "get_skills_tools", lambda: skill_tools)
+        monkeypatch.setattr(tools_registry, "_disabled_toolsets", {"tasks"})
+
+        def fake_discover(names):
+            discovered["names"] = list(names)
+            tools = {"ReadFile": _fake_tool("ReadFile", "r")}
+            if "tasks" in names:
+                tools.update(
+                    {
+                        "StartTask": _fake_tool("StartTask", "x"),
+                        "StopTask": _fake_tool("StopTask", "x"),
+                        "WaitForTask": _fake_tool("WaitForTask", "x"),
+                    }
+                )
+            return tools
+
+        monkeypatch.setattr(tools_registry, "discover_toolsets", fake_discover)
+
+        registry.ensure_initialized()
+
+        # The disabled toolset was filtered out of the autoload list.
+        assert "tasks" not in discovered["names"]
+        assert discovered["names"] == ["files", "system", "net"]
+        # The other toolsets and the skill tools still loaded.
+        all_names = set(registry.all_tools())
+        assert "ReadFile" in all_names
+        assert {"load_skill", "read_skill_resource"} <= all_names
+        assert not {"StartTask", "StopTask", "WaitForTask"} & all_names
+
+    def test_disable_toolset_makes_add_toolset_noop(monkeypatch):
+        """--no-tasks: add_toolset() refuses the disabled toolset."""
+        calls = {"n": 0}
+        registry = _fresh_registry(monkeypatch, {}, skills_enabled=False)
+        # "tasks" is not in _loaded_toolsets (fresh state), so the disabled
+        # check -- not the already-loaded check -- must reject it.
+        monkeypatch.setattr(
+            tools_registry,
+            "_loaded_toolsets",
+            {"files", "system", "net"},
+        )
+        monkeypatch.setattr(tools_registry, "_disabled_toolsets", {"tasks"})
+
+        def fake_discover(names):
+            calls["n"] += 1
+            return {"ExtraTool": _fake_tool("ExtraTool", "r")}
+
+        monkeypatch.setattr(tools_registry, "discover_toolsets", fake_discover)
+
+        assert registry.add_toolset("tasks") is False
+        # The early return skips ensure_initialized -> no discovery at all.
+        assert calls["n"] == 0
+        assert "tasks" not in registry.all_tools()
+        # A non-disabled toolset still loads normally.
+        assert registry.add_toolset("extra") is True
+        assert "ExtraTool" in registry.all_tools()
+
+    def test_disable_toolset_and_disabled_toolsets_report(monkeypatch):
+        """disable_toolset() registers the name; disabled_toolsets() copies it."""
+        _fresh_registry(monkeypatch, {}, skills_enabled=False)
+        registry = ToolsRegistry()
+        assert registry.disabled_toolsets() == set()
+        registry.disable_toolset("tasks")
+        assert registry.disabled_toolsets() == {"tasks"}
+        # The returned set is a copy: mutating it must not affect the registry.
+        registry.disabled_toolsets().add("files")
+        assert registry.disabled_toolsets() == {"tasks"}
 
     def test_register_plugin_tools_not_gated_by_no_tools(monkeypatch):
         """Plugin tools are registered even with --no-tools."""

@@ -126,6 +126,7 @@ class WebServerConfig:
     system_prompt: str | None = None  # -S "custom prompt"
     no_system_prompt: bool = False  # -Z
     no_tools: bool = False  # implied by -Z
+    no_tasks: bool = False  # --no-tasks (tasks toolset disabled)
     no_plugins: bool = False  # --no-plugins (do not autoload ~/.janito/plugins)
 
     # --- Security ---
@@ -149,6 +150,7 @@ class WebServerConfig:
             verbose=getattr(args, "verbose", False),
             no_history=getattr(args, "no_history", False),
             session_ttl=getattr(args, "web_session_ttl", 0),
+            no_tasks=getattr(args, "no_tasks", False),
             no_plugins=getattr(args, "no_plugins", False),
             auth_token=os.getenv("JANITO_WEB_TOKEN"),
         )
@@ -169,6 +171,7 @@ class WebServerConfig:
                 "system_prompt",
                 "no_system_prompt",
                 "no_tools",
+                "no_tasks",
                 "no_plugins",
                 "log",
                 "web_host",
@@ -188,6 +191,15 @@ class WebServerConfig:
             from janito.tooling.tools_registry import disable_tools_loading
 
             disable_tools_loading()
+
+        # --no-tasks: stop loading the tasks toolset (StartTask/StopTask/
+        # WaitForTask).  Everything else -- and the skill tools -- stays
+        # enabled.  Applied like --no-tools so direct constructions are
+        # consistent with the CLI path.
+        if getattr(args, "no_tasks", False):
+            from janito.tooling.tools_registry import disable_toolset
+
+            disable_toolset("tasks")
 
         # System prompt resolution (mirrors cli/chat.py logic)
         if getattr(args, "system_prompt", None):

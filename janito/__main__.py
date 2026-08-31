@@ -93,6 +93,15 @@ def _setup_runtime(args) -> int | None:
 
         disable_tools_loading()
 
+    # --no-tasks: stop loading the tasks toolset (StartTask/StopTask/
+    # WaitForTask).  Everything else -- and the skill tools -- stays
+    # enabled.  Applied before any registry access so the lazy discovery
+    # filters "tasks" out of the autoload toolsets.
+    if getattr(args, "no_tasks", False):
+        from .tooling.tools_registry import disable_toolset
+
+        disable_toolset("tasks")
+
     # Whenever --provider <name> is used, verify it is a supported provider
     # (i.e. one that maps to a built-in provider config). Normalize it to
     # its canonical casing so every downstream consumer (config scoping,

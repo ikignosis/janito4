@@ -54,6 +54,7 @@ async def get_config(request: Request):
         # {'type': 'adaptive'}), which is truthy => thinking on.
         "thinking": bool(config.effective_thinking),
         "no_tools": config.no_tools,
+        "no_tasks": getattr(config, "no_tasks", False),
         "no_plugins": getattr(config, "no_plugins", False),
         "no_system_prompt": config.no_system_prompt,
         "verbose": config.verbose,

@@ -12,7 +12,7 @@ State location note
 -------------------
 The registry's state intentionally lives at **module level** (``AVAILABLE_TOOLS``,
 ``_tools_initialized``, ``_loaded_toolsets``, ``_skills_enabled``,
-``_tools_loading_enabled``): tests
+``_tools_loading_enabled``, ``_disabled_toolsets``): tests
 (``test_used_files.py``, ``test_tool_executor.py``) monkeypatch
 ``tools_registry.AVAILABLE_TOOLS`` and ``tools_registry._tools_initialized``
 directly to inject stub tools without triggering the slow filesystem
@@ -33,6 +33,13 @@ AUTOLOAD_TOOLSETS = ["files", "system", "net", "tasks"]
 
 # Track loaded toolsets to avoid duplicates
 _loaded_toolsets = set(AUTOLOAD_TOOLSETS.copy())
+
+# Toolsets that are individually disabled (``--no-tasks``).  Disabled
+# toolsets are skipped by the autoload discovery in ``ensure_initialized``
+# and ``add_toolset`` refuses to load them, so their tools never appear.
+# Unlike ``_tools_loading_enabled`` (``--no-tools``) this only affects the
+# named toolsets; everything else -- and the skill tools -- stays enabled.
+_disabled_toolsets: set[str] = set()
 
 # Flag to enable skills support
 _skills_enabled = True
@@ -61,7 +68,7 @@ class ToolsRegistry:
 
     The underlying state lives at module level (``AVAILABLE_TOOLS``,
     ``_tools_initialized``, ``_loaded_toolsets``, ``_skills_enabled``,
-    ``_tools_loading_enabled``) so the
+    ``_tools_loading_enabled``, ``_disabled_toolsets``) so the
     test monkeypatches of ``tools_registry.AVAILABLE_TOOLS`` /
     ``_tools_initialized`` keep working; methods read the module globals and
     declare ``global`` only where they rebind a name.
@@ -82,6 +89,9 @@ class ToolsRegistry:
         When tool loading is disabled (``--no-tools``), the autoload
         toolsets are skipped but the skill tools are still registered, so
         ``load_skill`` / ``read_skill_resource`` stay available.
+        Individually disabled toolsets (``--no-tasks`` via
+        :meth:`disable_toolset`) are filtered out of the autoload list
+        before discovery, so their tools never load either.
         """
         global _tools_initialized
         if _tools_initialized:
@@ -89,7 +99,10 @@ class ToolsRegistry:
         _tools_initialized = True
 
         if _tools_loading_enabled:
-            AVAILABLE_TOOLS.update(discover_toolsets(AUTOLOAD_TOOLSETS))
+            toolset_names = [
+                name for name in AUTOLOAD_TOOLSETS if name not in _disabled_toolsets
+            ]
+            AVAILABLE_TOOLS.update(discover_toolsets(toolset_names))
 
         # Add skill tools if enabled. Never gated by _tools_loading_enabled:
         # --no-tools disables the other tools but leaves skills enabled.
@@ -108,6 +121,10 @@ class ToolsRegistry:
         """
         # --no-tools: no toolset is loaded (skill tools stay available).
         if not _tools_loading_enabled:
+            return False
+        # Individually disabled toolsets (--no-tasks) can never be loaded,
+        # matching the --no-tools behavior of not being re-enableable.
+        if toolset_name in _disabled_toolsets:
             return False
 
         self.ensure_initialized()
@@ -334,6 +351,24 @@ You should load a skill when the user's request matches its description or you n
         """Whether non-skill tools are loaded (False after ``--no-tools``)."""
         return _tools_loading_enabled
 
+    def disable_toolset(self, toolset_name: str) -> None:
+        """Disable a single toolset (``--no-tasks``).
+
+        Must be called before the first :meth:`ensure_initialized` to take
+        effect: afterwards the toolset is filtered out of the autoload
+        discovery and :meth:`add_toolset` refuses to load it.  Every other
+        toolset -- and the skill tools -- stays enabled.
+
+        Args:
+            toolset_name: Name of the toolset to disable (e.g. ``"tasks"``).
+        """
+        global _disabled_toolsets
+        _disabled_toolsets = _disabled_toolsets | {toolset_name}
+
+    def disabled_toolsets(self) -> set[str]:
+        """Names of the toolsets disabled via :meth:`disable_toolset`."""
+        return set(_disabled_toolsets)
+
 
 # Module-level singleton backing the functions below.
 _registry = ToolsRegistry()
@@ -487,6 +522,19 @@ def register_plugin_tools(tools: dict[str, Callable]) -> None:
 def tools_loading_enabled() -> bool:
     """Whether non-skill tools are loaded (False after ``--no-tools``)."""
     return _registry.tools_loading_enabled()
+
+
+def disable_toolset(toolset_name: str) -> None:
+    """Disable a single toolset (``--no-tasks``).
+
+    Skill tools and every other toolset stay enabled.
+    """
+    _registry.disable_toolset(toolset_name)
+
+
+def disabled_toolsets() -> set[str]:
+    """Names of the toolsets disabled via :func:`disable_toolset`."""
+    return _registry.disabled_toolsets()
 
 
 if __name__ == "__main__":
