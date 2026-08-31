@@ -75,7 +75,7 @@ def run_turn(
     Note:
         The end-of-turn report (used files + token-usage summary) is
         delivered by the client itself to the injected observer's
-        ``on_turn_complete``; there is no ``usage_out`` out-param (issue #82).
+        ``on_turn_complete``; there is no caller-supplied out-param (issue #82).
 
     Note:
         Thinking mode is resolved into ``api_config.thinking`` at build time:

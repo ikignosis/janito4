@@ -75,7 +75,7 @@ def _make_observer():
             pass
 
         def on_turn_complete(  # pragma: no cover - protocol stub
-            self, usage_out, api_config
+            self, token_stats, api_config
         ):
             pass
 

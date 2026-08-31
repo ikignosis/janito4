@@ -99,10 +99,10 @@ class TestNormalizeUsageWithTokenStats:
 
 
 class TestDisplayTurnUsage:
-    def _render(self, usage_out, api_config=None):
+    def _render(self, token_stats, api_config=None):
         buf = StringIO()
         console = Console(file=buf, force_terminal=False, width=120)
-        display_turn_usage(usage_out, api_config or _config(), console=console)
+        display_turn_usage(token_stats, api_config or _config(), console=console)
         return buf.getvalue()
 
     def test_renders_usage_line_from_populated_turn_stats(self):
@@ -233,8 +233,8 @@ class TestRunTurnDeliversTurnReport:
             def on_message(self, content):
                 pass
 
-            def on_turn_complete(self, usage_out, api_config):
-                recorded.append((usage_out, api_config))
+            def on_turn_complete(self, token_stats, api_config):
+                recorded.append((token_stats, api_config))
 
         client = self._client(monkeypatch, Obs())
         result = client.run_turn("hi", tools=[])
@@ -262,8 +262,8 @@ class TestRunTurnDeliversTurnReport:
             def on_message(self, content):
                 pass
 
-            def on_turn_complete(self, usage_out, api_config):
-                called.append((usage_out, api_config))
+            def on_turn_complete(self, token_stats, api_config):
+                called.append((token_stats, api_config))
 
         client = self._client(monkeypatch, Obs())
         client.run_turn("hi", tools=[])

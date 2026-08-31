@@ -119,7 +119,7 @@ class RichTurnObserver(NullObserver):
             _handle_auth_error(e, provider, api_key, base_url, model, self.console)
         # else: unknown failure -- nothing to explain; the caller re-raises.
 
-    def on_turn_complete(self, usage_out, api_config) -> None:
+    def on_turn_complete(self, token_stats, api_config) -> None:
         """End-of-turn report: record accounting, then render the usage summary.
 
         Invoked by ``Client.run_turn`` at the end of every turn that reported
@@ -132,8 +132,8 @@ class RichTurnObserver(NullObserver):
         API clients nor the CLI carry it; the rendered report (used files +
         token-usage summary) is delegated to :func:`display_turn_usage`.
         """
-        _record_accounting(usage_out, api_config)
-        display_turn_usage(usage_out, api_config, console=self.console)
+        _record_accounting(token_stats, api_config)
+        display_turn_usage(token_stats, api_config, console=self.console)
 
 
 class SilentTurnObserver(NullObserver):
@@ -150,12 +150,12 @@ class SilentTurnObserver(NullObserver):
     is untouched, so the progress bar keeps working).
     """
 
-    def on_turn_complete(self, usage_out, api_config) -> None:
+    def on_turn_complete(self, token_stats, api_config) -> None:
         """Record the accounting row only; never render anything."""
-        _record_accounting(usage_out, api_config)
+        _record_accounting(token_stats, api_config)
 
 
-def _record_accounting(usage_out: TokenStats | None, api_config: APIConfig) -> None:
+def _record_accounting(token_stats: TokenStats | None, api_config: APIConfig) -> None:
     """Append one overall-use accounting row for a completed turn (best effort).
 
     Uses the turn-wide cumulative counters (:class:`~janito.llm_adapters.usage.TokenStats`
@@ -173,22 +173,22 @@ def _record_accounting(usage_out: TokenStats | None, api_config: APIConfig) -> N
     ``/ask``, ``/compact``, one-shot ``janito <prompt>``) feeds the
     ``accounting.db`` log, mirroring the web loop's own accounting.
     """
-    if usage_out is None:
+    if token_stats is None:
         return
     input_tokens = (
-        usage_out.turn_input
-        if usage_out.turn_input is not None
-        else usage_out.last_input
+        token_stats.turn_input
+        if token_stats.turn_input is not None
+        else token_stats.last_input
     )
     cached_tokens = (
-        usage_out.turn_cached
-        if usage_out.turn_cached is not None
-        else usage_out.last_cached
+        token_stats.turn_cached
+        if token_stats.turn_cached is not None
+        else token_stats.last_cached
     )
     output_tokens = (
-        usage_out.turn_output
-        if usage_out.turn_output is not None
-        else usage_out.last_output
+        token_stats.turn_output
+        if token_stats.turn_output is not None
+        else token_stats.last_output
     )
     cost = None
     if api_config.provider and api_config.model:

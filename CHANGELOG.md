@@ -51,3 +51,8 @@ Changes since `v4.34.0` (2026-08-31).
   (`janito.llm_clients.openai.responses_state.responses_in_server`).
 - `_responses_item_to_row` in `janito/shell/cmds/history.py` dispatches
   through a per-item-type renderer registry (`_ITEM_TO_ROW`).
+- Internal naming cleanup, no behaviour change: the turn observer's
+  token-usage argument is `token_stats` everywhere (was `usage_out` /
+  `turn_stats`), `TransportSpec.usage` became `usage_line`, and the
+  `/compact` history strategy's parameters are `new_context` /
+  `keep_zone_entries` (was `new_history` / `keep_zone_messages`).

@@ -231,8 +231,8 @@ class TestSilentTurnObserver:
         obs = SilentTurnObserver()
         calls = {}
 
-        def fake_record(usage_out, api_config):
-            calls["usage"] = usage_out
+        def fake_record(token_stats, api_config):
+            calls["usage"] = token_stats
             calls["config"] = api_config
 
         monkeypatch.setattr("janito.ui.observer._record_accounting", fake_record)

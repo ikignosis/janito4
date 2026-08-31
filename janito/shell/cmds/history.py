@@ -145,9 +145,9 @@ class HistoryCmdHandler(CmdHandler):
         """
         turns = getattr(shell, "history_turns", None) or []
         markers: dict[int, list[int]] = {}
-        for ordinal, c in enumerate(turns, start=1):
-            if 0 <= c <= num_rows:
-                markers.setdefault(c, []).append(ordinal)
+        for ordinal, start_row in enumerate(turns, start=1):
+            if 0 <= start_row <= num_rows:
+                markers.setdefault(start_row, []).append(ordinal)
         return dict(sorted(markers.items()))
 
     def _print_history(self, shell) -> None:

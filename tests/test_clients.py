@@ -378,7 +378,7 @@ if pytest is not None:
             def on_message(self, content):
                 pass
 
-            def on_turn_complete(self, usage_out, api_config):
+            def on_turn_complete(self, token_stats, api_config):
                 pass
 
         def fake_run(func, client, call_kwargs, tools_schemas):
@@ -428,7 +428,7 @@ if pytest is not None:
             def on_message(self, content):
                 pass
 
-            def on_turn_complete(self, usage_out, api_config):
+            def on_turn_complete(self, token_stats, api_config):
                 pass
 
         def fake_run(func, client, call_kwargs, tools_schemas):

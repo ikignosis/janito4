@@ -155,7 +155,7 @@ class _HistoryStrategy:
         """Return ``(compact_messages, compact_items)`` for the compaction call."""
         raise NotImplementedError
 
-    def apply(self, shell, new_history, keep_zone_messages) -> None:
+    def apply(self, shell, new_context, keep_zone_entries) -> None:
         """Reset the conversation state to the compacted context.
 
         Runs the mode-specific rebuild (:meth:`_apply_conversation`) and then
@@ -164,7 +164,7 @@ class _HistoryStrategy:
         turn starts a fresh server conversation (Responses modes) or uses the
         rebuilt client-side history (Completions modes).
         """
-        self._apply_conversation(shell, new_history, keep_zone_messages)
+        self._apply_conversation(shell, new_context, keep_zone_entries)
         shell.history_turns = []
         shell.previous_response_id = None
         shell.response_chain = []
@@ -172,7 +172,7 @@ class _HistoryStrategy:
         shell.mirrored_history = []
         shell.mirrored_turn = 0
 
-    def _apply_conversation(self, shell, new_history, keep_zone_messages) -> None:
+    def _apply_conversation(self, shell, new_context, keep_zone_entries) -> None:
         raise NotImplementedError
 
 
@@ -204,8 +204,8 @@ class _CompletionsStrategy(_HistoryStrategy):
             None,
         )
 
-    def _apply_conversation(self, shell, new_history, keep_zone_messages) -> None:
-        shell.messages_history = new_history
+    def _apply_conversation(self, shell, new_context, keep_zone_entries) -> None:
+        shell.messages_history = new_context
         shell.conversation_items = None
         shell.conversation_turn = 0
 
@@ -233,14 +233,14 @@ class _StatelessStrategy(_HistoryStrategy):
         compact_items.insert(0, _message_item("system", SYSTEM_COMPACT_PROMPT))
         return None, compact_items
 
-    def _apply_conversation(self, shell, new_history, keep_zone_messages) -> None:
-        recap = _find_recap(new_history)
+    def _apply_conversation(self, shell, new_context, keep_zone_entries) -> None:
+        recap = _find_recap(new_context)
         new_items: list[dict[str, Any]] = []
         system_prompt = shell.get_system_prompt()
         if system_prompt:
             new_items.append(_message_item("system", system_prompt))
         new_items.append(_message_item("assistant", recap))
-        new_items.extend(keep_zone_messages)
+        new_items.extend(keep_zone_entries)
         shell.conversation_items = new_items
         shell.conversation_turn = len(new_items)
 
@@ -309,12 +309,12 @@ class _ServerSideStrategy(_HistoryStrategy):
     ) -> tuple[list[dict[str, Any]] | None, list[dict[str, Any]] | None]:
         return None, list(compact_entries)
 
-    def _apply_conversation(self, shell, new_history, keep_zone_messages) -> None:
+    def _apply_conversation(self, shell, new_context, keep_zone_entries) -> None:
         # The system prompt stays in messages_history / instructions; the
         # recap + keep zone seed the next fresh server turn as input items.
-        recap = _find_recap(new_history)
+        recap = _find_recap(new_context)
         new_items = [_message_item("assistant", recap)]
-        new_items.extend(keep_zone_messages)
+        new_items.extend(keep_zone_entries)
         shell.conversation_items = new_items
         shell.conversation_turn = len(new_items)
 
@@ -404,26 +404,26 @@ def format_compacted_json_to_narrative(compacted: Any) -> str:
 def _build_new_context(
     system_prompt: str | None,
     compacted: Any,
-    keep_zone_messages: list[dict[str, Any]],
+    keep_zone_entries: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Build the post-compaction history (reference implementation).
 
     - The system prompt stays at the top.
     - The compaction result is injected as an assistant "[RECAP OF PRIOR
       WORK]" message.
-    - The untouched recent history (``keep_zone_messages``) is appended.
+    - The untouched recent history (``keep_zone_entries``) is appended.
 
     Returns Completions-style ``{"role": ..., "content": ...}`` messages;
     Responses modes convert them into input items when applying the context.
     """
-    new_history: list[dict[str, Any]] = []
+    new_context: list[dict[str, Any]] = []
     if system_prompt:
-        new_history.append({"role": "system", "content": system_prompt})
+        new_context.append({"role": "system", "content": system_prompt})
     narrative = format_compacted_json_to_narrative(compacted)
     recap = f"[RECAP OF PRIOR WORK] {narrative}".strip()
-    new_history.append({"role": "assistant", "content": recap})
-    new_history.extend(keep_zone_messages)
-    return new_history
+    new_context.append({"role": "assistant", "content": recap})
+    new_context.extend(keep_zone_entries)
+    return new_context
 
 
 def _message_item(role: str, text: str) -> dict[str, Any]:
@@ -437,10 +437,10 @@ def _message_item(role: str, text: str) -> dict[str, Any]:
     }
 
 
-def _find_recap(new_history: list[dict[str, Any]]) -> str:
+def _find_recap(new_context: list[dict[str, Any]]) -> str:
     """Return the recap content from a built new context (the first assistant
     message, which /compact always injects)."""
-    for msg in new_history:
+    for msg in new_context:
         if msg.get("role") == "assistant":
             return msg.get("content") or ""
     return ""
@@ -530,10 +530,10 @@ class CompactCmdHandler(CmdHandler):
             return
 
         keep_zone = strategy.keep_zone(shell, keep_start)
-        new_history = _build_new_context(
+        new_context = _build_new_context(
             shell.get_system_prompt(), compacted, keep_zone
         )
-        strategy.apply(shell, new_history, keep_zone)
+        strategy.apply(shell, new_context, keep_zone)
         _console.print(
             f"Compacted: {len(compact_rows)} message(s) replaced by a recap "
             f"(last {KEEP_TURNS} turns kept verbatim). "

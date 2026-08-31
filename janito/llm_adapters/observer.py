@@ -37,7 +37,10 @@ records the overall-use accounting row from that call.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    from janito.llm_adapters.usage import TokenStats
 
 
 class TurnObserver(Protocol):
@@ -113,13 +116,14 @@ class TurnObserver(Protocol):
         """
         ...
 
-    def on_turn_complete(self, usage_out: Any, api_config: Any) -> None:
+    def on_turn_complete(self, token_stats: TokenStats | None, api_config: Any) -> None:
         """End-of-turn report (used files + token-usage summary + accounting).
 
         Invoked by ``Client.run_turn`` at the end of the turn with the
-        client-built :class:`~janito.llm_adapters.usage.TokenStats` (every round's
-        usage folded into it) and the turn's resolved
-        :class:`~janito.llm_clients.api_config.APIConfig` (``api_config``);
+        client-built :class:`~janito.llm_adapters.usage.TokenStats`
+        (``token_stats``, every round's usage folded into it) and the turn's
+        resolved :class:`~janito.llm_clients.api_config.APIConfig`
+        (``api_config``);
         the report's provider / model / max tokens come from the config
         (issue #82: there is no caller-supplied out-param).  The CLI's
         ``RichTurnObserver`` (:mod:`janito.ui.observer`) renders the report
@@ -186,7 +190,7 @@ class NullObserver:
     ) -> None:
         pass
 
-    def on_turn_complete(self, usage_out: Any, api_config: Any) -> None:
+    def on_turn_complete(self, token_stats: Any, api_config: Any) -> None:
         pass
 
 

@@ -119,7 +119,7 @@ class McpCmdHandler(CmdHandler):
             )
         except ValueError as e:
             print(f"Error: {e}")
-            print(spec.usage)
+            print(spec.usage_line)
             return
         for warning in warnings:
             print(warning)

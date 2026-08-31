@@ -155,7 +155,7 @@ def _display_usage(
 
 
 def display_turn_usage(
-    usage_out: TokenStats | None,
+    token_stats: TokenStats | None,
     api_config: APIConfig,
     *,
     console: Console | None = None,
@@ -171,7 +171,7 @@ def display_turn_usage(
     feed the summary line.  Replaces the reports the per-client ``_finalize``
     helpers used to print inline: the tracked used files first, then the
     magenta token-usage summary line.  Nothing is printed when no usage was
-    reported (``usage_out`` is ``None``).
+    reported (``token_stats`` is ``None``).
     """
     console = console or Console()
 
@@ -184,11 +184,11 @@ def display_turn_usage(
         if used_files_report:
             console.print(used_files_report, highlight=False)
 
-    if usage_out is None:
+    if token_stats is None:
         return
 
     _display_usage(
-        usage_out,
+        token_stats,
         api_config.max_input_tokens,
         api_config.max_output_tokens,
         console,

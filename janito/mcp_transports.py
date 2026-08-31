@@ -28,7 +28,7 @@ class TransportSpec:
     """Config building + display for one MCP transport type.
 
     Attributes:
-        usage: The ``/mcp add`` usage line for this transport.
+        usage_line: The ``/mcp add`` usage line for this transport.
         build_config: Build the service config dict from the raw ``/mcp add``
             argument list.  ``(args, warnings) -> config dict``; appends
             human-readable warnings (e.g. ignored ``--header`` values) to
@@ -40,7 +40,7 @@ class TransportSpec:
             (kept byte-identical to the historic per-transport output).
     """
 
-    usage: str
+    usage_line: str
     build_config: Callable[[list[str], list[str]], dict[str, Any]]
     describe: Callable[[dict[str, Any]], str]
     confirm_lines: Callable[[dict[str, Any]], list[str]]
@@ -105,24 +105,24 @@ def _describe_http(config: dict[str, Any]) -> str:
 
 TRANSPORT_SPECS: dict[str, TransportSpec] = {
     "stdio": TransportSpec(
-        usage="Usage: /mcp add <name> stdio <command> [args...]",
+        usage_line="Usage: /mcp add <name> stdio <command> [args...]",
         build_config=_build_stdio_config,
         describe=_describe_stdio,
-        confirm_lines=lambda c: [
+        confirm_lines=lambda config: [
             "  Transport: stdio",
-            f"  Command:   {c.get('command', '')}",
+            f"  Command:   {config.get('command', '')}",
         ],
     ),
     "http": TransportSpec(
-        usage="Usage: /mcp add <name> http <url> [--header KEY:VALUE]",
+        usage_line="Usage: /mcp add <name> http <url> [--header KEY:VALUE]",
         build_config=_build_http_config,
         describe=_describe_http,
-        confirm_lines=lambda c: [
+        confirm_lines=lambda config: [
             "  Transport: http",
-            f"  URL:       {c.get('url', '')}",
+            f"  URL:       {config.get('url', '')}",
             *(
-                [f"  Headers:   {len(c.get('headers', {}))} header(s) set"]
-                if c.get("headers")
+                [f"  Headers:   {len(config.get('headers', {}))} header(s) set"]
+                if config.get("headers")
                 else []
             ),
         ],

@@ -18,10 +18,10 @@ import.
 from __future__ import annotations
 
 from .api_config import APIConfig
-from .base_client import Client
+from .base_client import Client, UIConfig
 
 
-def create_client(api_config: APIConfig, ui_config=None) -> Client:
+def create_client(api_config: APIConfig, ui_config: UIConfig | None = None) -> Client:
     """Create the :class:`Client` subclass for ``api_config.api_type``.
 
     Args:

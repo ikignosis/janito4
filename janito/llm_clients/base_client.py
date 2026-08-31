@@ -89,7 +89,7 @@ _DEFAULT_UI_CONFIG = _HeadlessUIConfig()
 
 
 def _fold_turn_usage(
-    turn_stats: TokenStats | None, usage_info: Any
+    token_stats: TokenStats | None, usage_info: Any
 ) -> TokenStats | None:
     """Fold one round's usage into the turn-level cumulative totals.
 
@@ -99,11 +99,11 @@ def _fold_turn_usage(
     (mirrors the web agent loop's ``_fold_turn_usage``).
     """
     if usage_info is None:
-        return turn_stats
-    if turn_stats is None:
+        return token_stats
+    if token_stats is None:
         return TokenStats.from_usage(usage_info)
-    turn_stats.add_round(usage_info)
-    return turn_stats
+    token_stats.add_round(usage_info)
+    return token_stats
 
 
 class Client:
@@ -269,7 +269,7 @@ class Client:
         # included) into a TokenStats for the end-of-turn report (issue #82).
         # The report's provider / model / max tokens come from self.api_config,
         # handed to the observer alongside the stats when the turn finishes.
-        turn_stats: TokenStats | None = None
+        token_stats: TokenStats | None = None
 
         while True:
             # Build the base call parameters for one round.
@@ -330,7 +330,7 @@ class Client:
             # Fold this round's usage into the turn totals (the round state
             # is discarded on tool-call rounds, so the usage would otherwise
             # be lost).
-            turn_stats = _fold_turn_usage(turn_stats, usage_info)
+            token_stats = _fold_turn_usage(token_stats, usage_info)
 
             # Display the assembled response (markdown in the CLI)
             self.observer.on_message(full_content)
@@ -350,9 +350,11 @@ class Client:
             # of the turn, like every other observer event: the observer's
             # ``on_turn_complete`` renders the usage summary and records the
             # overall-use accounting row (see RichTurnObserver).
-            return self._finish_turn(full_content, reasoning_content, state, turn_stats)
+            return self._finish_turn(
+                full_content, reasoning_content, state, token_stats
+            )
 
-    def _finish_turn(self, full_content, reasoning_content, state, turn_stats):
+    def _finish_turn(self, full_content, reasoning_content, state, token_stats):
         """Finalize the turn and deliver the end-of-turn report.
 
         Runs the concrete client's :meth:`_finalize` hook and then hands the
@@ -363,7 +365,7 @@ class Client:
         row).  The report is delivered on every turn.
         """
         result = self._finalize(full_content, reasoning_content, state)
-        self.observer.on_turn_complete(turn_stats, self.api_config)
+        self.observer.on_turn_complete(token_stats, self.api_config)
         return result
 
     # ------------------------------------------------------------------
