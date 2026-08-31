@@ -26,6 +26,14 @@ Changes since `v4.33.0` (2026-08-29).
 
 ### Changed
 
+- `ARCHITECTURE.md` now documents *why* the CLI is fully synchronous while
+  the web backend is fully asyncio (issue #83): a new "Two runtimes, one
+  engine" section explains the single-user-terminal vs.
+  many-sessions-event-loop drivers, the three `asyncio.to_thread` seams where
+  the web loop bridges back into the sync engine (native-SDK stream
+  pumping, tool execution, in-browser prompting), and why keeping
+  `async def` out of the shared layers is what lets both loops reuse the
+  same adapters.
 - `preserve_thinking` is no longer a configurable setting (a legacy
   `--set preserve_thinking=...` key in `config.json` is ignored). It is now
   a built-in model default in the provider config: the Alibaba/Qwen

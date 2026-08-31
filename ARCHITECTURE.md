@@ -273,6 +273,72 @@ stream accumulation and history conversion are implemented once.
 
 ---
 
+## Two runtimes, one engine: sync CLI, async web (issue #83)
+
+The CLI and the web UI drive the same turn pipeline on two different
+runtimes: the CLI is **fully synchronous**, the web backend is **fully
+asyncio**. The split is deliberate and visible in the code layout — there is
+no `async def` anywhere in the package except under `janito/web/` (the few
+`asyncio` mentions in `llm_adapters` / `tooling` docstrings all describe the
+web loop bridging back *into* that sync code, below).
+
+**Why the CLI stays sync.** A terminal session has one foreground user who
+submits one turn at a time — there is no second stream of work to interleave,
+so an event loop would buy nothing. The only concurrency the CLI needs is
+"keep the UI alive while the API stream blocks": the spinner and
+Enter-to-cancel, solved with one worker thread and a `cancel_event` in the
+injected per-round stream runner (`ui/stream_runner.py`). The whole CLI stack
+is synchronous by nature: Rich and prompt_toolkit drive the TTY with blocking
+reads, Enter-to-cancel polls stdin with `select` / `msvcrt` (only meaningful
+in blocking, canonical mode), and scripting use (piped prompts, exit codes)
+wants straight-line blocking semantics. The five API clients therefore wrap
+the **sync** SDK surfaces.
+
+**Why the web must be async.** `janito --web` serves many concurrent sessions
+from one process on uvicorn's event loop; a blocking LLM stream inside a
+request handler would stall every other session and every HTTP endpoint.
+Async lets N sessions interleave on a single thread, and it gives the router
+something the CLI never needs: the per-connection turn is a task it can
+*race* against cancellation. `_run_turn` (`web/backend/routers/chat_helpers.py`)
+runs `asyncio.wait(..., return_when=FIRST_COMPLETED)` over the stream task
+and the WebSocket receive loop (`_await_cancel`), rolls the conversation back
+to a known-good state on a client cancel or disconnect (`_rollback`), and
+collects prompts that arrive mid-turn into `pending_prompts` instead of
+dropping them. Output is `await websocket.send_json(...)` of the structured
+events in `web/backend/events.py` — the browser does the rendering a
+`RichTurnObserver` does in the CLI, so the web loop never needs a terminal
+observer at all.
+
+**Where the two worlds meet.** The shared engine below `web/` stays sync;
+the web loop bridges back into it at three seams, each one a thread hop:
+
+1. **Streams with no async API** — the DashScope and Gemini runners pump the
+   *sync* SDK stream chunk-by-chunk through
+   `chunk = await asyncio.to_thread(_next_or_none, stream)` so the event loop
+   stays responsive mid-stream.
+2. **Tool execution** — built-in and MCP tools are plain sync functions;
+   `web/backend/agent/tooling.py` runs `run_tool()` and MCP
+   `load_services()` via `asyncio.to_thread`, so tools (and their subprocess
+   instincts) never learn about asyncio.
+3. **User prompting** — `AskUser` blocks its worker thread on a
+   `threading.Event` while `WebPromptHandler` (`web/backend/prompts.py`)
+   posts the question to the browser with `run_coroutine_threadsafe` and the
+   WebSocket receive loop resolves it — a full thread → loop → browser → loop
+   → thread round trip.
+
+**The payoff.** Because async is confined to `janito/web/`, everything the
+two loops share — `llm_clients`, `llm_adapters` (call-kwargs builders,
+accumulators, `TokenStats`), `tooling`, the `TurnObserver` protocol — is
+sync-pure and usable without an event loop anywhere in sight. That is what
+makes the adapter layer genuinely shared, and it mirrors the import matrix of
+[Domains & boundaries](#domains--boundaries) (issue #90): `web` is just
+another outer presentation layer depending inward, and its async-ness never
+propagates below it. For the user-visible consequences of the split see
+`docs/usage/cli-vs-web.md` — that doc is the *what*, this section is the
+*why*.
+
+---
+
 ## Tooling system
 
 ### Discovery & registry (`janito/tooling/`)
