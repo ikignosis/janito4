@@ -11,6 +11,24 @@ Changes since `v4.34.0` (2026-08-31).
 
 ### Added
 
+- `StartTask`, `StopTask` and `WaitForTask` tools (new `tasks` toolset in
+  `janito/tools/tasks/`, issue #94): a parallel-task entry point. The LLM
+  calls `StartTask` when a request can be split into multiple tasks that can
+  run in parallel, passing a `description` of what needs to be done and an
+  optional `working_dir` / `privileges`; each task runs as a separate
+  `janito` sub-process (description piped to stdin, stdout/stderr streamed to
+  temp files). `StopTask` terminates a task and `WaitForTask` waits for a set
+  of tasks and reports their exit codes. When `StartTask` is given no
+  `privileges`, the child mirrors the running task's current (turn)
+  privileges -- the session's `-r`/`-w`/`-x` flags plus any `/read`
+  `/write` `/rx` `/rw` `/rwx` single-turn override (`janito/tooling/
+  turn_privileges.py`) -- so a task spawned from a `/rwx` turn inherits full
+  privileges instead of silently starting read-only.
+- `WaitForTask` gained an optional `timeout` (seconds): the total budget to
+  wait for the listed tasks. When it expires before every task has finished,
+  the results collected so far are returned with `timed_out=True` and
+  `pending_task_ids` (the tasks still running, which can then be stopped with
+  `StopTask`); `None` (the default) keeps waiting indefinitely.
 - `--web-session-ttl SECONDS` gives the web backend real TTL-based session
   expiry (issue #93): sessions idle longer than `SECONDS` are evicted from
   memory *lazily* (on access — no background task) and transparently
@@ -48,6 +66,19 @@ Changes since `v4.34.0` (2026-08-31).
 
 ### Changed
 
+- `WaitForTask` now animates its wait with a Rich spinner on an interactive
+  terminal (issue #94): the `Waiting for N tasks...` line shows a spinner and
+  an elapsed-time column, and the description counts down (`Waiting for 7
+  tasks...`) as tasks finish. Each `✅ task X complete` line still prints the
+  moment the task finishes (above the live spinner), followed by
+  `✅ all N tasks finished`. Piped/CI output and web mode keep the previous
+  plain progress lines (the browser already renders its own spinner on the
+  tool card).
+- Single-prompt runs (`janito "prompt"` or piped stdin) no longer print the
+  read-only startup hint (`Started read-only, use /rwx <prompt> ...`): the
+  `/rwx` command is an interactive-shell command, so the hint only appears
+  when an *interactive* session starts (issue #85). The version banner is
+  still printed (including the `--no-plugins` fallback path).
 - `/compact`'s compression LLM call now runs silently: the session turn
   factory is re-invoked with `silent=True`, swapping the Rich observer for
   the new `SilentTurnObserver` (`janito/ui/observer.py`) — the raw recap
@@ -77,3 +108,13 @@ Changes since `v4.34.0` (2026-08-31).
   `turn_stats`), `TransportSpec.usage` became `usage_line`, and the
   `/compact` history strategy's parameters are `new_context` /
   `keep_zone_entries` (was `new_history` / `keep_zone_messages`).
+
+### Fixed
+
+- The stdio MCP transport no longer deadlocks when the server writes more
+  to stderr than the OS pipe buffer can hold: an unread stderr pipe would
+  make the child block on its write and never answer requests. stderr is
+  now drained by a background thread into a bounded (200-line) debug buffer
+  (`_stderr_lines`) and logged at `DEBUG`, so diagnostics are preserved
+  (`janito/mcp_client/stdio.py`; regression test in
+  `tests/test_mcp_client.py`).

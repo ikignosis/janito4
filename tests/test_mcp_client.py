@@ -9,7 +9,10 @@ Covers the three bugs fixed around the transports:
 - ``MCPManager.get_all_tools`` reconnects a dead service *and* still lists
   its tools (previously the reconnect path skipped listing entirely);
 - the HTTP transport clears its connected flag when a request fails, so
-  callers can detect the loss and reconnect.
+  callers can detect the loss and reconnect;
+- a stdio server that floods stderr (beyond the OS pipe buffer) no longer
+  deadlocks the request/response cycle: stderr is drained in a background
+  thread into a bounded debug buffer, so diagnostics are preserved.
 
 Each test spins up a tiny fake MCP server (stdio subprocess or HTTP/SSE
 thread) and drives the real transport code end to end.
@@ -18,6 +21,7 @@ thread) and drives the real transport code end to end.
 import json
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -98,6 +102,63 @@ def main():
             else:
                 text = "unknown: %s" % name
             result = {"content": [{"type": "text", "text": text}]}
+        else:
+            result = {}
+
+        if msg_id is not None:
+            sys.stdout.write(
+                json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": result}) + "\\n"
+            )
+            sys.stdout.flush()
+
+
+if __name__ == "__main__":
+    main()
+"""
+
+
+FAKE_STDIO_SERVER_STDERR_FLOOD = """
+import json
+import sys
+
+CHUNK = "x" * 65536
+FLOOD_BYTES = 4 * 1024 * 1024  # 4 MiB of stderr, well past the ~64 KiB pipe buffer
+
+
+def flood_stderr():
+    written = 0
+    while written < FLOOD_BYTES:
+        sys.stderr.write(CHUNK + "\\n")
+        written += len(CHUNK) + 1
+    sys.stderr.flush()
+
+
+def main():
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            msg = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+
+        method = msg.get("method")
+        msg_id = msg.get("id")
+
+        if method == "initialize":
+            result = {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "fake-flood", "version": "1.0.0"},
+            }
+        elif method in ("initialized", "notifications/initialized"):
+            continue
+        elif method == "tools/call":
+            # Flood stderr *before* answering: with an unread stderr pipe the
+            # child blocks here on the write and the cycle deadlocks.
+            flood_stderr()
+            result = {"content": [{"type": "text", "text": "flooded-ok"}]}
         else:
             result = {}
 
@@ -221,6 +282,37 @@ def test_stdio_transport_end_to_end(tmp_path):
         transport.disconnect()
 
     assert not transport.is_connected
+
+
+def test_stdio_transport_drains_stderr_under_flood(tmp_path):
+    """A server flooding stderr must not deadlock requests; diagnostics are kept."""
+    server = tmp_path / "fake_mcp_server_flood.py"
+    server.write_text(FAKE_STDIO_SERVER_STDERR_FLOOD, encoding="utf-8")
+    transport = create_transport(
+        {"transport": "stdio", "command": f"{sys.executable} {server}"}
+    )
+
+    assert transport.connect()
+    try:
+        # Pre-fix this call raises RequestTimeoutError after 30s: the child
+        # blocks writing stderr and never answers on stdout.
+        result = transport.call_tool("flood", {})
+        assert result["content"][0]["text"] == "flooded-ok"
+
+        # The whole flood was drained into the bounded debug buffer (the
+        # drain thread may need a moment to consume the pipe).
+        expected = 4 * 1024 * 1024
+        deadline = time.monotonic() + 5
+        drained = 0
+        while time.monotonic() < deadline:
+            drained = sum(len(line) + 1 for line in transport._stderr_lines)
+            if drained >= expected:
+                break
+            time.sleep(0.05)
+        assert drained >= expected
+        assert all(len(line) == 65536 for line in transport._stderr_lines)
+    finally:
+        transport.disconnect()
 
 
 # ---------------------------------------------------------------------------

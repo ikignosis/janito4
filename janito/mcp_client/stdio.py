@@ -2,6 +2,7 @@
 MCP transport using stdio (local subprocess communication).
 """
 
+import collections
 import logging
 import queue
 import shlex
@@ -23,6 +24,9 @@ from .protocols import (
 )
 
 logger = logging.getLogger(__name__)
+
+# How many recent stderr lines to keep in the bounded debug buffer.
+STDERR_LOG_LINES = 200
 
 
 class StdioTransport(MCPTransport):
@@ -56,6 +60,13 @@ class StdioTransport(MCPTransport):
         self._lock = threading.Lock()
         self._response_queues: dict[int, queue.Queue] = {}
         self._notification_thread: threading.Thread | None = None
+        self._stderr_thread: threading.Thread | None = None
+        # Bounded buffer of the server's most recent stderr lines, drained by
+        # a background thread so an over-verbose server can never fill the OS
+        # pipe buffer and deadlock the request/response cycle.
+        self._stderr_lines: collections.deque[str] = collections.deque(
+            maxlen=STDERR_LOG_LINES
+        )
         self._running = False
 
     @property
@@ -85,6 +96,13 @@ class StdioTransport(MCPTransport):
             self._notification_thread = threading.Thread(target=self._read_loop)
             self._notification_thread.daemon = True
             self._notification_thread.start()
+
+            # Drain stderr in the background too: a server that writes more
+            # to stderr than the OS pipe buffer holds would otherwise block
+            # on the write and never answer requests (see _stderr_loop).
+            self._stderr_thread = threading.Thread(target=self._stderr_loop)
+            self._stderr_thread.daemon = True
+            self._stderr_thread.start()
 
             # Brief pause for thread startup
             time.sleep(0.1)
@@ -117,6 +135,11 @@ class StdioTransport(MCPTransport):
                 self.process.kill()
             except Exception as e:
                 logger.debug(f"Error during disconnect: {e}")
+            # Give the stderr drain thread a moment to hit EOF and exit;
+            # safe to skip if it is stuck on a non-terminating server.
+            if self._stderr_thread:
+                self._stderr_thread.join(timeout=1)
+                self._stderr_thread = None
             self.process = None
 
         self._response_queues.clear()
@@ -138,6 +161,29 @@ class StdioTransport(MCPTransport):
 
             except Exception as e:
                 logger.debug(f"Error reading from MCP server: {e}")
+
+    def _stderr_loop(self) -> None:
+        """Background thread to drain the server's stderr into a bounded buffer.
+
+        stderr is a pipe that nobody reads: if the server writes more than the
+        OS pipe buffer can hold (~64 KiB on Linux) it blocks on the write and
+        stops serving requests, deadlocking the transport. Draining in a
+        background thread keeps the server unblocked while preserving its
+        diagnostics - each line is appended to the bounded
+        ``_stderr_lines`` buffer and logged at DEBUG level.
+        """
+        while self._running and self.is_connected:
+            try:
+                line = self.process.stderr.readline()
+                if not line:
+                    break
+                line = line.rstrip("\n")
+                if line:
+                    self._stderr_lines.append(line)
+                    logger.debug("MCP server stderr: %s", line)
+            except Exception as e:
+                logger.debug(f"Error reading stderr from MCP server: {e}")
+                break
 
     def _dispatch_message(self, message: dict) -> None:
         """
