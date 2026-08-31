@@ -53,6 +53,12 @@ class WebServerConfig:
     verbose: bool = False  # -v / --verbose
     no_history: bool = False  # --no-history
 
+    # --- Session TTL (issue #93) ---
+    # Seconds a session may stay idle before it is evicted from memory
+    # (lazy reaping: dropped on access, transparently reloaded from disk).
+    # ``0`` disables TTL expiry (the default). Ignored with --no-history.
+    session_ttl: int = 0  # --web-session-ttl
+
     # Runtime thinking override set from the status-bar toggle (POST
     # /api/config/thinking). In-memory only — never written to
     # ~/.janito/config.json and lost on restart (like session_provider).
@@ -142,6 +148,7 @@ class WebServerConfig:
             thinking=getattr(args, "thinking", False),
             verbose=getattr(args, "verbose", False),
             no_history=getattr(args, "no_history", False),
+            session_ttl=getattr(args, "web_session_ttl", 0),
             no_plugins=getattr(args, "no_plugins", False),
             auth_token=os.getenv("JANITO_WEB_TOKEN"),
         )
@@ -167,6 +174,7 @@ class WebServerConfig:
                 "web_host",
                 "web_port",
                 "no_web_open",
+                "web_session_ttl",
                 "web",
             )
         }

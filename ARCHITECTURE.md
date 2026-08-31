@@ -472,8 +472,10 @@ WRITE or EXEC skip the hint.
   `/api/tools`, `/api/mcp`, `/api/images`, `/api/health`), session manager,
   token-auth middleware and CORS, and serves the frontend via Jinja2
   templates + static files.
-- **`session.py` / `session_store.py`** — TTL-based `SessionManager` with
-  conversations persisted to `.janito/sessions/` so they survive restarts.
+- **`session.py` / `session_store.py`** — `SessionManager` with optional
+  TTL-based expiry (`--web-session-ttl`, lazy reaping + disk reload; disabled
+  by default) and conversations persisted to `.janito/sessions/` so they
+  survive restarts.
 - **`security.py`** — optional bearer-token auth (`JANITO_WEB_TOKEN`) and CORS.
 - **`agent/`** — the async agent loop (`loop.py` orchestrates; `turn.py`
   runs tool turns; `completions.py`, `responses.py`, `anthropic.py`,

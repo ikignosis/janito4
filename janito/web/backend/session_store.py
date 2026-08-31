@@ -223,6 +223,29 @@ def load_sessions() -> list[dict[str, Any]]:
     return sessions
 
 
+def load_session(session_id: str) -> dict[str, Any] | None:
+    """Read a single session file (``<session_id>.jsonl``) from disk.
+
+    Used by the TTL lazy-reload path: a session evicted from memory because
+    it was idle past the TTL is restored on demand from its jsonl (or its
+    directory-sidecar metadata) instead of the frontend getting a 404.
+
+    Returns:
+        dict | None: ``{session_id, title, created_at, last_active,
+        system_prompt, messages, ...}`` for the session, or ``None`` when
+        the file is missing, malformed or unreadable. Never raises.
+    """
+    path = session_file_path(session_id)
+    if path.exists():
+        parsed = _read_session_file(path)
+        if parsed is not None:
+            return _merge_stored_provider_meta(parsed)
+    meta_path = metadata_file_path(session_id)
+    if meta_path.exists():
+        return _read_directory_session(meta_path)
+    return None
+
+
 __all__ = [
     "SESSIONS_DIR",
     "get_sessions_dir",
@@ -231,4 +254,5 @@ __all__ = [
     "save_session",
     "delete_session_file",
     "load_sessions",
+    "load_session",
 ]

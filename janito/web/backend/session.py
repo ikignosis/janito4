@@ -7,7 +7,12 @@ import uuid
 from dataclasses import dataclass, field
 
 from .config import WebServerConfig
-from .session_store import delete_session_file, load_sessions, save_session
+from .session_store import (
+    delete_session_file,
+    load_session,
+    load_sessions,
+    save_session,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -75,23 +80,71 @@ class ConversationSession:
 
 
 class SessionManager:
-    """Store of active sessions (TTL-based expiry), persisted to disk.
+    """Store of active sessions, persisted to disk.
 
     Each session's conversation history is mirrored to
     ``./.janito/sessions/<session_id>.jsonl`` (see
     :mod:`janito.web.backend.session_store`) so conversations survive a
     server restart. Persistence is skipped entirely when
     ``config.no_history`` is set (``--no-history``).
+
+    TTL expiry is optional (``config.session_ttl``, ``--web-session-ttl``;
+    ``0`` = disabled, the default). When enabled, a session idle longer
+    than the TTL is evicted from memory *lazily* (on ``get`` /
+    ``list_sessions``, no background task) and transparently restored from
+    disk on the next ``get()``, so the UI never sees a 404 and the
+    conversation is never lost. TTL is force-disabled under ``--no-history``
+    because there is no disk mirror to reload an evicted session from.
     """
 
-    def __init__(self, config: WebServerConfig):
+    def __init__(self, config: WebServerConfig, ttl_seconds: int | None = None):
         self.config = config
+        # TTL in seconds; ``0``/``None`` disables expiry. ``None`` follows
+        # the config value (default 0).
+        self.ttl_seconds = config.session_ttl if ttl_seconds is None else ttl_seconds
         self._sessions: dict[str, ConversationSession] = {}
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Persistence helpers
     # ------------------------------------------------------------------
+
+    def _effective_ttl(self) -> int:
+        """The TTL in seconds actually enforced, or ``0`` when disabled.
+
+        Disabled when the configured TTL is ``0`` (the default) or when
+        ``config.no_history`` is set: with no disk mirror, evicting a
+        session from memory would make it a hard 404 with nothing to
+        reload, so reaping is never attempted.
+        """
+        if self.config.no_history:
+            return 0
+        return self.ttl_seconds or 0
+
+    @staticmethod
+    def _session_from_meta(meta: dict) -> "ConversationSession":
+        """Build a ConversationSession from a persisted metadata dict."""
+        session = ConversationSession(
+            session_id=meta["session_id"],
+            messages=meta.get("messages", []),
+            system_prompt=meta.get("system_prompt"),
+            created_at=meta.get("created_at", time.time()),
+            last_active=meta.get("last_active", time.time()),
+            title=meta.get("title", "New conversation"),
+            provider=meta.get("provider"),
+            model=meta.get("model"),
+        )
+        # A fresh conversation has no recorded turns yet: they are recorded
+        # each time a user prompt is about to be sent (see _run_turn).
+        session.history_turns = []
+        return session
+
+    def _load_from_disk(self, session_id: str) -> "ConversationSession | None":
+        """Load a single session from disk (TTL lazy-reload path)."""
+        meta = load_session(session_id)
+        if meta is None:
+            return None
+        return self._session_from_meta(meta)
 
     def _persist(self, session: ConversationSession) -> None:
         """Write the session to disk unless ``--no-history`` was passed."""
@@ -109,19 +162,7 @@ class SessionManager:
             return 0
         loaded = 0
         for meta in load_sessions():
-            session = ConversationSession(
-                session_id=meta["session_id"],
-                messages=meta.get("messages", []),
-                system_prompt=meta.get("system_prompt"),
-                created_at=meta.get("created_at", time.time()),
-                last_active=meta.get("last_active", time.time()),
-                title=meta.get("title", "New conversation"),
-                provider=meta.get("provider"),
-                model=meta.get("model"),
-            )
-            # A fresh conversation has no recorded turns yet: they are
-            # each time a user prompt is about to be sent (see _run_turn).
-            session.history_turns = []
+            session = self._session_from_meta(meta)
             with self._lock:
                 self._sessions[session.session_id] = session
             loaded += 1
@@ -152,11 +193,37 @@ class SessionManager:
         return session
 
     def get(self, session_id: str) -> ConversationSession | None:
+        """Return a session, lazily evicting + reloading idle ones.
+
+        A session idle past the TTL is dropped from memory (lazy reaping —
+        no background task) and transparently restored from
+        ``.janito/sessions/`` so the caller still gets the conversation and
+        the frontend never sees a 404. Reloading counts as activity, so a
+        just-reopened session is not immediately reaped again. With TTL
+        disabled (or ``--no-history``) this is a plain dict lookup.
+        """
+        ttl = self._effective_ttl()
         with self._lock:
             session = self._sessions.get(session_id)
+            if session and ttl and (time.time() - session.last_active) > ttl:
+                # Idle past the TTL: drop it from memory and treat it as a
+                # miss so it is transparently reloaded from disk below.
+                del self._sessions[session_id]
+                session = None
         if session:
             session.touch()
-        return session
+            return session
+        if ttl:
+            # Only reload when TTL is enabled: with it disabled a miss is a
+            # genuine 404 (matches pre-TTL behaviour), and reloading on
+            # every unknown id would hide bugs behind disk I/O.
+            session = self._load_from_disk(session_id)
+            if session:
+                with self._lock:
+                    self._sessions[session_id] = session
+                session.touch()  # reopening a session is activity
+                return session
+        return None
 
     def delete(self, session_id: str) -> bool:
         with self._lock:
@@ -170,7 +237,23 @@ class SessionManager:
         return removed
 
     def list_sessions(self) -> list[ConversationSession]:
+        """List active sessions, reclaiming idle ones first.
+
+        With TTL enabled, sessions idle past the TTL are evicted from
+        memory here so the sidebar session list actually shrinks (they are
+        still on disk and come back on the next ``get()``).
+        """
+        ttl = self._effective_ttl()
+        now = time.time()
         with self._lock:
+            if ttl:
+                expired = [
+                    sid
+                    for sid, s in self._sessions.items()
+                    if (now - s.last_active) > ttl
+                ]
+                for sid in expired:
+                    del self._sessions[sid]
             return list(self._sessions.values())
 
     def set_title(self, session_id: str, title: str) -> bool:

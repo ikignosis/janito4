@@ -117,6 +117,7 @@ The server prints the URL it's listening on, then opens your default browser
 | `--web-port PORT` | Bind port (default `8080`) |
 | `--web-host HOST` | Bind address (default `127.0.0.1` — localhost only) |
 | `--no-web-open` | Don't auto-open the browser |
+| `--web-session-ttl SECONDS` | Evict sessions idle longer than `SECONDS` from memory (lazy TTL: dropped on access, reloaded from disk on demand; `0` disables — the default). Ignored with `--no-history` |
 | `-r` / `-w` / `-x` | Privileges (READ / WRITE / EXEC), enforced exactly like the CLI |
 | `--provider` | Provider name (resolved into env before dispatch) |
 | `-m`, `--model` | Model name (resolved into env before dispatch) |
@@ -150,7 +151,10 @@ The server prints the URL it's listening on, then opens your default browser
   the server starts, so conversations **survive a restart**. When the page
   loads, the frontend triggers the load of *all* sessions and replays their
   stored history into the UI, so switching tabs is instant. Pass `--no-history`
-  to disable disk persistence entirely (sessions stay in memory only).
+  to disable disk persistence entirely (sessions stay in memory only). With
+  `--web-session-ttl SECONDS`, sessions idle longer than that are dropped from
+  memory lazily (no background task) and transparently reloaded from disk when
+  reopened, so the sidebar list shrinks without ever losing a conversation.
 - **Provider switcher** — combo in the topbar lists the providers that have an
   API key set; picking one switches the provider for the **current browser /
   server session only** — it is applied to the running server (the very next
@@ -220,7 +224,7 @@ janito/web/backend/
    agent/        loop.py — async event generator (headless agentic loop);
                  completions.py/turn.py/responses.py/anthropic.py/dashscope.py/gemini.py
    events.py     TokenEvent, ToolCallEvent, ToolProgressEvent, …
-   session.py    ConversationSession + SessionManager (TTL + persistence hooks)
+   session.py    ConversationSession + SessionManager (optional lazy TTL + persistence hooks)
    session_store.py  .janito/sessions/<id>.jsonl read/write (issue #36)
    security.py   Token auth middleware + CORS
    routers/

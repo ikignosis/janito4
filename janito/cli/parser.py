@@ -499,6 +499,17 @@ Note: --set and --set-api-key must be used in separate commands.
         help="Don't automatically open the browser (used with --web)",
     )
 
+    parser.add_argument(
+        "--web-session-ttl",
+        type=int,
+        default=0,
+        metavar="SECONDS",
+        help="Evict web sessions idle longer than SECONDS from memory "
+        "(lazy TTL: dropped on access, transparently reloaded from "
+        ".janito/sessions/ on demand; 0 disables TTL expiry \u2014 the "
+        "default). Ignored with --no-history (nothing to reload from)",
+    )
+
     return parser
 
 

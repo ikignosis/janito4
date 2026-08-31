@@ -156,6 +156,11 @@ async def _process_prompt(
     processed once the current turn finishes, so a submission is never
     lost mid-stream.
     """
+    # Sending a prompt is activity: keep the session fresh for TTL reaping
+    # (get() touches on lookup, but a long-lived tab reuses the same
+    # session object, so without this an actively-used session could look
+    # idle and be evicted mid-conversation).
+    session.touch()
     # Pin provider/model before the first user message. Use a shallow config
     # copy so concurrent conversations cannot overwrite the global web config.
     if session.provider is None:
@@ -313,6 +318,7 @@ async def one_shot_prompt(request: Request):
     if not session:
         return JSONResponse({"detail": "Session not found"}, status_code=404)
 
+    session.touch()  # sending a prompt is activity (TTL reaping, issue #93)
     if session.provider is None:
         session.provider = config.effective_provider
         session.model = config.model or load_model_from_config(session.provider)
