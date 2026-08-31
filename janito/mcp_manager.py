@@ -345,6 +345,22 @@ class MCPManager:
 
         return f"returned {type(result).__name__}"
 
+    def get_cached_tool_names(self) -> list[str]:
+        """Prefixed names of every tool in the cached per-service sets.
+
+        Returns an empty list when no service has been listed yet (the cache
+        is populated by :meth:`get_all_tools`); error paths use this instead
+        of re-listing to avoid network I/O.
+
+        Returns:
+            List[str]: Prefixed tool names (e.g. ``["svc_read"]``), sorted.
+        """
+        return [
+            f"{service}_{name}"
+            for service, names in self._service_tool_names.items()
+            for name in sorted(names)
+        ]
+
     def get_service_for_tool(self, prefixed_name: str) -> str | None:
         """
         Find which service provides a given tool.

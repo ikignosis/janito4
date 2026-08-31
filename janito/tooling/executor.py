@@ -21,7 +21,7 @@ from typing import Any
 from ..mcp_manager import MCPManager, get_mcp_manager
 from .changes import record_change
 from .reporter import set_report_handler
-from .tools_registry import get_tool_by_name
+from .tools_registry import get_all_tools, get_tool_by_name
 from .tools_usage import record_tool_use
 from .used_files import record_used_file
 
@@ -74,6 +74,34 @@ def extract_tool_names(schemas: list[dict[str, Any]] | None) -> set[str]:
     return names
 
 
+def _tool_exists(tool_name: str) -> bool:
+    """Whether ``tool_name`` is a real tool, regardless of the turn's gate.
+
+    The registry holds every built-in/skill tool (privileges are applied by
+    the session selector, issue #87), so a name missing from it is not a
+    tool; MCP tools are resolved through the manager.  Used to tell "tool
+    not found" apart from "tool exists but was not offered this turn".
+    """
+    if tool_name in get_all_tools():
+        return True
+    return is_mcp_tool(tool_name)
+
+
+def _available_tool_names() -> list[str]:
+    """Sorted names of every tool the process can offer (registry + MCP).
+
+    Built-in names come from the full registry (loaded regardless of
+    ``-r``/``-w``/``-x``); MCP names come from the manager's cached
+    per-service sets so the error path never re-lists (or reconnects)
+    servers.
+    """
+    names: set[str] = set(get_all_tools())
+    mcp_manager = get_mcp_manager()
+    if mcp_manager is not None:
+        names.update(mcp_manager.get_cached_tool_names())
+    return sorted(names)
+
+
 def run_tool(
     tool_name: str,
     tool_args: dict[str, Any],
@@ -114,7 +142,11 @@ def run_tool(
             (the execution-time privilege gate, issue #87).  When given, a
             call to any other tool is rejected with a structured error
             before anything executes -- the model may only call the tools
-            that were offered in this turn.  ``None`` disables the gate.
+            that were offered in this turn.  The rejection message
+            distinguishes a tool that exists but was not offered ("is not
+            offered in this turn") from a name that does not exist at all
+            ("Tool 'X' not found.", with the result carrying an
+            ``available_tools`` list).  ``None`` disables the gate.
 
     Returns:
         A tuple ``(result, error, exec_time_ms)``: ``result`` is the raw
@@ -126,17 +158,30 @@ def run_tool(
         # Execution-time privilege gate: the registry is complete (every
         # tool loads regardless of -r/-w/-x), so the session restriction is
         # enforced here against the tools actually offered in this turn.
-        error_msg = (
-            f"Tool '{tool_name}' is not offered in this turn. "
-            "Only the tools passed to the current turn may be called "
-            "(the session privileges -r/-w/-x may have excluded it)."
-        )
+        if _tool_exists(tool_name):
+            # The tool exists but was not offered: the session privileges
+            # (-r/-w/-x) or the turn's explicit tool list excluded it.
+            error_msg = (
+                f"Tool '{tool_name}' is not offered in this turn. "
+                "Only the tools passed to the current turn may be called "
+                "(the session privileges -r/-w/-x may have excluded it)."
+            )
+            result = {
+                "success": False,
+                "error": f"Tool execution failed: {error_msg}",
+            }
+        else:
+            # The tool does not exist anywhere (e.g. a typo like "Grep"),
+            # not just outside the offered set: report that plainly and hand
+            # the model the list of tools it could have called instead.
+            error_msg = f"Tool '{tool_name}' not found."
+            result = {
+                "success": False,
+                "error": f"Tool execution failed: {error_msg}",
+                "available_tools": _available_tool_names(),
+            }
         logger.error(error_msg)
-        return (
-            {"success": False, "error": f"Tool execution failed: {error_msg}"},
-            error_msg,
-            0,
-        )
+        return result, error_msg, 0
     record_tool_use(tool_name)
     if progress is not None:
         set_report_handler(progress)

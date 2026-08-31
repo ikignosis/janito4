@@ -26,6 +26,12 @@ Changes since `v4.33.0` (2026-08-29).
 
 ### Changed
 
+- The execution-time privilege gate in `run_tool` now distinguishes a tool
+  that does not exist at all from one that exists but was not offered in
+  the current turn: an unknown name (e.g. a typo like `Grep`) is reported
+  as `Tool 'X' not found.` and the tool result carries an `available_tools`
+  list the model can pick from, instead of blaming the session privileges
+  (`-r`/`-w`/`-x`).
 - `ARCHITECTURE.md` now documents *why* the CLI is fully synchronous while
   the web backend is fully asyncio (issue #83): a new "Two runtimes, one
   engine" section explains the single-user-terminal vs.

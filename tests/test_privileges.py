@@ -197,13 +197,21 @@ def test_rx_cmd_excludes_write_tools(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_run_tool_rejects_tool_not_offered():
-    """A call to a tool outside the turn's offered set is rejected."""
+def test_run_tool_rejects_tool_not_offered(monkeypatch):
+    """A call to an existing tool outside the turn's offered set is rejected."""
+    _patch_registry(
+        monkeypatch,
+        {
+            "ReadFile": _fake_tool("ReadFile", "r"),
+            "CreateFile": _fake_tool("CreateFile", "w"),
+        },
+    )
     result, error, exec_ms = run_tool(
         "CreateFile", {"filepath": "/tmp/x"}, allowed_tools={"ReadFile"}
     )
     assert error is not None
     assert "not offered in this turn" in error
+    assert "not found" not in error
     assert result["success"] is False
     assert exec_ms == 0
 
@@ -246,6 +254,13 @@ def test_run_tool_no_gate_by_default(monkeypatch):
 
 def test_tool_executor_gates_calls(monkeypatch):
     """ToolExecutor forwards allowed_tools to the shared core."""
+    _patch_registry(
+        monkeypatch,
+        {
+            "ReadFile": _fake_tool("ReadFile", "r"),
+            "CreateFile": _fake_tool("CreateFile", "w"),
+        },
+    )
     ex = ToolExecutor(allowed_tools={"ReadFile"})
     call = {
         "id": "call_1",
@@ -256,6 +271,39 @@ def test_tool_executor_gates_calls(monkeypatch):
     result = json.loads(msg["content"])
     assert result["success"] is False
     assert "not offered in this turn" in result["error"]
+    assert "not found" not in result["error"]
+
+
+def test_run_tool_reports_not_found_with_available_tools(monkeypatch):
+    """An unknown tool name yields a minimal 'not found' error and the list
+    of available tools on the result, instead of blaming the privileges."""
+    _patch_registry(
+        monkeypatch,
+        {
+            "ReadFile": _fake_tool("ReadFile", "r"),
+            "CreateFile": _fake_tool("CreateFile", "w"),
+        },
+    )
+    result, error, exec_ms = run_tool(
+        "Grep", {"pattern": "x"}, allowed_tools={"ReadFile", "CreateFile"}
+    )
+    assert error == "Tool 'Grep' not found."
+    assert result["success"] is False
+    assert "not offered in this turn" not in result["error"]
+    assert result["available_tools"] == ["CreateFile", "ReadFile"]
+    assert exec_ms == 0
+
+
+def test_run_tool_mcp_tool_not_offered_is_not_not_found(monkeypatch):
+    """An MCP tool that exists but was not offered keeps the 'not offered'
+    message (it is a real tool, so 'not found' would be wrong)."""
+    _patch_registry(monkeypatch, {"ReadFile": _fake_tool("ReadFile", "r")})
+    monkeypatch.setattr(
+        "janito.tooling.executor.is_mcp_tool", lambda name: name == "svc_read"
+    )
+    result, error, _ = run_tool("svc_read", {"path": "x"}, allowed_tools={"ReadFile"})
+    assert "not offered in this turn" in error
+    assert result["success"] is False
 
 
 # ---------------------------------------------------------------------------
