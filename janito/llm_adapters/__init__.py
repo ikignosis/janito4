@@ -9,7 +9,7 @@ format lives in ``janito.web.backend.events``).  The per-API *adapters*
 (call-kwargs building, stream accumulation, history conversion, usage
 normalization) are the same in both, so they live here:
 
-- :mod:`~.completions` — Chat Completions call kwargs + ``CompletionsAccumulator``.
+- :mod:`~.completions` — Chat Completions call kwargs + ``CompletionsTurnAccumulator``.
 - :mod:`~.responses`   — Responses API kwargs, history conversion and accumulator.
 - :mod:`~.anthropic`   — native Anthropic SDK kwargs, conversion and accumulator.
 - :mod:`~.dashscope`   — native DashScope SDK kwargs and accumulator.

@@ -29,9 +29,7 @@ from janito.config_loaders import load_max_output_tokens, load_reasoning_effort
 from janito.general_config import get_active_provider, resolve_api_type
 from janito.llm_adapters.anthropic import accumulator as anthropic_accumulator
 from janito.llm_adapters.anthropic import build_call_kwargs as build_anthropic_kwargs
-from janito.llm_adapters.completions import (
-    CompletionsAccumulator as completions_accumulator,
-)
+from janito.llm_adapters.completions import accumulator as completions_accumulator
 from janito.llm_adapters.dashscope import accumulator as dashscope_accumulator
 from janito.llm_adapters.dashscope import build_call_kwargs as build_dashscope_kwargs
 from janito.llm_adapters.gemini import accumulator as gemini_accumulator

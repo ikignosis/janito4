@@ -11,7 +11,8 @@ These tests verify:
     value.
   - The web ``UsageEvent`` serialization includes ``max_tokens`` only when
     it is set.
-  - The web ``StreamAccumulator.usage_event()`` passes ``max_tokens`` through.
+  - The web ``usage_event_from_usage()`` passes ``max_tokens`` through
+    (``CompletionsTurnAccumulator`` as the usage source).
 """
 
 import sys
@@ -310,9 +311,7 @@ if pytest is not None:
     # ---- usage_event_from_usage with max_tokens ----------------------
 
     def test_stream_accumulator_usage_event_passes_max_tokens():
-        from janito.llm_adapters.completions import (
-            CompletionsAccumulator as StreamAccumulator,
-        )
+        from janito.llm_adapters.completions import CompletionsTurnAccumulator
         from janito.web.backend.events import usage_event_from_usage
 
         class FakeUsage:
@@ -321,16 +320,14 @@ if pytest is not None:
             completion_tokens = 50
             prompt_tokens_details = None
 
-        acc = StreamAccumulator(usage=FakeUsage())
+        acc = CompletionsTurnAccumulator(usage=FakeUsage())
         ev = usage_event_from_usage(acc.usage_object(), max_tokens=32768)
         assert ev is not None
         assert ev.max_tokens == 32768
         assert ev.to_dict()["max_tokens"] == 32768
 
     def test_stream_accumulator_usage_event_no_max():
-        from janito.llm_adapters.completions import (
-            CompletionsAccumulator as StreamAccumulator,
-        )
+        from janito.llm_adapters.completions import CompletionsTurnAccumulator
         from janito.web.backend.events import usage_event_from_usage
 
         class FakeUsage:
@@ -339,7 +336,7 @@ if pytest is not None:
             completion_tokens = 50
             prompt_tokens_details = None
 
-        acc = StreamAccumulator(usage=FakeUsage())
+        acc = CompletionsTurnAccumulator(usage=FakeUsage())
         ev = usage_event_from_usage(acc.usage_object())
         assert ev is not None
         assert ev.max_tokens is None

@@ -161,7 +161,7 @@ class DashScopeTurnAccumulator:
     """Fold DashScope generation stream chunks into one turn's collected state.
 
     Implements the same interface as
-    :class:`~janito.llm_adapters.completions.CompletionsAccumulator` (``handle`` ->
+    :class:`~janito.llm_adapters.completions.CompletionsTurnAccumulator` (``handle`` ->
     ``(reasoning_delta, content_delta)`` plus the end-of-turn accessors).
     With ``incremental_output=True`` each chunk carries only the newly
     generated text, so deltas are forwarded to the browser as they arrive;

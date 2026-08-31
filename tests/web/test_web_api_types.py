@@ -78,9 +78,7 @@ def test_loop_dispatches_each_api_type_to_its_runner():
     from janito.llm_adapters.anthropic import (
         build_call_kwargs as anthropic_build_call_kwargs,
     )
-    from janito.llm_adapters.completions import (
-        CompletionsAccumulator as completions_accumulator,
-    )
+    from janito.llm_adapters.completions import accumulator as completions_accumulator
     from janito.llm_adapters.dashscope import accumulator as dashscope_accumulator
     from janito.llm_adapters.dashscope import (
         build_call_kwargs as dashscope_build_call_kwargs,

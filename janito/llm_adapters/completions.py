@@ -5,8 +5,8 @@ Used by both agent loops:
 - the web ``stream_prompt()`` loop reaches it through the per-API runner
   ``janito.web.backend.agent.completions``, which wraps ``build_call_kwargs``
   (adding ``messages`` + function ``tools``) and drives the stream with
-  ``CompletionsAccumulator``;
-- the CLI loop subclasses ``CompletionsAccumulator`` in
+  ``CompletionsTurnAccumulator``;
+- the CLI loop subclasses ``CompletionsTurnAccumulator`` in
   ``janito.llm_clients.openai.completions_stream`` (``CompletionsStreamConsumer``)
   to add its synchronous Enter-to-cancel stream driver.
 
@@ -114,7 +114,7 @@ def _raise_chunk_error(chunk) -> None:
 
 
 @dataclass
-class CompletionsAccumulator:
+class CompletionsTurnAccumulator:
     """Fold streamed completion chunks into one turn's collected state.
 
     ``handle(chunk)`` returns the reasoning/text fragment carried by the
@@ -243,3 +243,8 @@ class CompletionsAccumulator:
     def usage_info(self) -> object | None:
         """Alias of ``usage`` (the CLI stream consumer's historical name)."""
         return self.usage
+
+
+# Uniform runner interface (used by loop.py): the accumulator class is
+# exposed as ``accumulator`` so every API-type runner has the same shape.
+accumulator = CompletionsTurnAccumulator

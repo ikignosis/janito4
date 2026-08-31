@@ -259,7 +259,7 @@ class ResponsesTurnAccumulator:
     """Fold Responses API stream events into one turn's collected state.
 
     Implements the same interface as
-    :class:`~janito.llm_adapters.completions.CompletionsAccumulator` (``handle`` ->
+    :class:`~janito.llm_adapters.completions.CompletionsTurnAccumulator` (``handle`` ->
     ``(reasoning_delta, content_delta)`` plus the end-of-turn accessors) so
     the orchestration loop treats every API type identically.  Tool calls
     carry a stable ``call_id`` per finished output item (the Responses API

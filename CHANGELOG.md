@@ -26,6 +26,12 @@ Changes since `v4.33.0` (2026-08-29).
 
 ### Changed
 
+- `CompletionsAccumulator` is renamed to `CompletionsTurnAccumulator`
+  (issue #91), matching the `XxxTurnAccumulator` name the Responses,
+  Anthropic, DashScope and Gemini adapters already use. The Completions
+  module also gains the uniform `accumulator = ...` alias the other four
+  export, so `janito/web/backend/agent/loop.py` now imports every API
+  type's accumulator identically.
 - The web agent loop's Chat Completions path is no longer inlined in
   `janito/web/backend/agent/loop.py`: Completions now has its own runner
   module `janito/web/backend/agent/completions.py` (`create_client`,

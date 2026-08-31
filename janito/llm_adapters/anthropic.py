@@ -180,7 +180,7 @@ class AnthropicTurnAccumulator:
     """Fold Anthropic Messages stream events into one turn's collected state.
 
     Implements the same interface as
-    :class:`~janito.llm_adapters.completions.CompletionsAccumulator` (``handle`` ->
+    :class:`~janito.llm_adapters.completions.CompletionsTurnAccumulator` (``handle`` ->
     ``(reasoning_delta, content_delta)`` plus the end-of-turn accessors).
     Text deltas are forwarded to the browser as they arrive; ``tool_use``
     blocks are assembled per index (the ``input_json_delta`` fragments

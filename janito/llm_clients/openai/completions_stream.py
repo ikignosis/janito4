@@ -7,7 +7,7 @@ streamed deltas (content, reasoning/thinking text and tool-call arguments,
 which arrive split across many chunks) into a single response.
 
 The per-chunk folding lives in the shared
-:class:`~janito.llm_adapters.completions.CompletionsAccumulator` (used directly by
+:class:`~janito.llm_adapters.completions.CompletionsTurnAccumulator` (used directly by
 the web loop); :class:`CompletionsStreamConsumer` adds
 the CLI-specific driver — :meth:`consume` walks a sync stream with
 Enter-to-cancel support and returns the response parts.  The module-level
@@ -17,14 +17,14 @@ functions are thin delegators used by ``_stream_response`` and its tests.
 
 import logging
 
-from janito.llm_adapters.completions import CompletionsAccumulator
+from janito.llm_adapters.completions import CompletionsTurnAccumulator
 from janito.llm_adapters.sdk import _extract_raw_attrs
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
 
 
-class CompletionsStreamConsumer(CompletionsAccumulator):
+class CompletionsStreamConsumer(CompletionsTurnAccumulator):
     """Assemble Chat Completions stream chunks into a single response (CLI).
 
     The consumer owns the accumulated content / reasoning text and the
@@ -36,7 +36,7 @@ class CompletionsStreamConsumer(CompletionsAccumulator):
 
     # The CLI historically exposed the single-delta folding under this name;
     # the shared base calls it ``_fold_tool_call_delta``.
-    handle_tool_call_delta = CompletionsAccumulator._fold_tool_call_delta
+    handle_tool_call_delta = CompletionsTurnAccumulator._fold_tool_call_delta
 
     def handle(self, chunk) -> tuple[str | None, str | None]:
         """Process one chunk, also capturing the raw response metadata.
