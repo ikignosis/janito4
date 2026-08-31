@@ -64,6 +64,17 @@ def get_report_handler() -> ReportHandler | None:
     return _report_handler.get()
 
 
+def get_console() -> Console:
+    """Return the shared stderr console used by the ``report_*`` functions.
+
+    UI helpers (e.g. Rich spinners) should drive their live regions through
+    this same console so they interoperate with ``report_*`` lines: Rich
+    ``Live`` renders concurrent console output above the live region, which
+    only works when everything shares one console instance.
+    """
+    return _console
+
+
 # Rich style names (replaces raw ANSI escape codes)
 class Colors:
     CYAN = "cyan"

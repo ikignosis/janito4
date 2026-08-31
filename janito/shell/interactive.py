@@ -17,6 +17,11 @@ from rich.rule import Rule
 from ..conversation_utils import rollback_to_last_turn
 from ..llm_clients import RequestCancelled
 from ..llm_clients.openai.responses_items import message_item
+from ..tooling.turn_privileges import (
+    reset_turn_privileges,
+    resolve_turn_privileges,
+    set_turn_privileges,
+)
 from .conversation import effective_rows
 from .session import _SessionMixin
 
@@ -360,6 +365,15 @@ class InteractiveShell(_SessionMixin):
         )
         self.response_turn = len(self.response_chain)
         self.mirrored_turn = len(self.mirrored_history)
+        # Track this turn's effective privileges so tools that spawn child
+        # processes (StartTask) mirror the running turn, not just the
+        # session's cmdline privileges: /read /write /rx /rw /rwx override
+        # the tool set for a single turn and that override must propagate to
+        # the children (issue #94).  Reset when the turn ends so a
+        # restricted turn never leaks into the next one.
+        turn_privileges_token = set_turn_privileges(
+            resolve_turn_privileges(tools_to_use)
+        )
         try:
             result = self.turn_func(
                 user_input,
@@ -425,6 +439,8 @@ class InteractiveShell(_SessionMixin):
             # Rollback on any other unexpected error as well
             self._rollback_history()
             print(f"Error: {e}")
+        finally:
+            reset_turn_privileges(turn_privileges_token)
         # Note: turn_func already appends user and assistant messages
         # to previous_messages (which is self.messages_history), so we don't
         # need to append them here.

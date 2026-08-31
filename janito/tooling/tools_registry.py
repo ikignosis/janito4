@@ -29,7 +29,7 @@ from .schema import get_function_schema
 from .skills_provider import get_skills_advertisement, get_skills_tools
 
 # Configuration for auto-loading toolsets
-AUTOLOAD_TOOLSETS = ["files", "system", "net"]
+AUTOLOAD_TOOLSETS = ["files", "system", "net", "tasks"]
 
 # Track loaded toolsets to avoid duplicates
 _loaded_toolsets = set(AUTOLOAD_TOOLSETS.copy())

@@ -515,7 +515,8 @@ janito/tools/<toolset_name>/
 ### Auto-loading vs. on-demand
 
 - **Auto-loaded** toolsets are listed in `AUTOLOAD_TOOLSETS` in
-  `janito/tooling/tools_registry.py` (currently `["files", "system", "net"]`).
+  `janito/tooling/tools_registry.py` (currently `["files", "system", "net",
+  "tasks"]`).
   They are discovered lazily on first registry access.
 - **On-demand** toolsets (e.g. `janitoweb`) are loaded
   by calling `add_toolset("janitoweb")` at runtime (`janitoweb` is enabled only

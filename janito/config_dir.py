@@ -126,3 +126,49 @@ def get_config_file_paths(name: str) -> list[Path]:
         List of paths, highest priority first.
     """
     return [d / name for d in get_config_dirs()]
+
+
+def get_base_config_dir() -> Path:
+    """Get the base configuration directory (the ``-c``/``--config-dir`` value).
+
+    Unlike :func:`get_config_dir`, this always returns the *base* directory
+    (``~/.janito`` or the ``-c`` override) and is not affected by
+    ``-l``/``--local`` mode.  Used by the task manager to reproduce the
+    parent's configuration in child processes (issue #94).
+
+    Returns:
+        The base configuration directory.
+    """
+    return _config_dir
+
+
+def is_local_config_mode() -> bool:
+    """Whether ``-l``/``--local`` mode is active (issue #94).
+
+    Returns:
+        ``True`` when ``set_local_config_mode(True)`` was called (i.e. the
+        user passed ``-l`` / ``--local``).
+    """
+    return _local_mode
+
+
+def config_cli_args() -> list[str]:
+    """Return the CLI flags that reproduce this process's config resolution.
+
+    The task manager appends these to the child ``janito`` command line so
+    sub-processes resolve the same configuration directory and local mode as
+    the parent (issue #94).
+
+    Returns:
+        A list of flags (e.g. ``["-l", "-c", "/path/to/dir"]``), or ``[]``
+        when neither ``-c`` nor ``-l`` was given.
+    """
+    args: list[str] = []
+    if _local_mode:
+        args.append("-l")
+    if _config_dir != DEFAULT_CONFIG_DIR:
+        args.append("-c")
+        # Resolve relative -c values against the parent's cwd so they stay
+        # correct even when the child runs in a different working directory.
+        args.append(str(_config_dir.absolute()))
+    return args

@@ -13,6 +13,7 @@ from .decorator import is_tool, tool
 from .path_utils import norm_path
 from .prompting import get_prompt_handler, set_prompt_handler
 from .reporter import (
+    get_console,
     get_report_handler,
     report_diff,
     report_error,
@@ -32,6 +33,7 @@ from .time_utils import format_duration_ms
 __all__ = [
     "BaseTool",
     "format_duration_ms",
+    "get_console",
     "get_prompt_handler",
     "get_report_handler",
     "is_tool",

@@ -374,7 +374,7 @@ propagates below it. For the user-visible consequences of the split see
 - **`tools_registry.py`** — lazy, module-level `ToolsRegistry` singleton:
   - `ensure_initialized()` runs discovery on first access so privilege flags
     are set before tools are filtered;
-  - autoloads the `files`, `system`, `net` toolsets;
+  - autoloads the `files`, `system`, `net`, `tasks` toolsets;
   - schema generation (`get_function_schema()` in `schema.py`) produces
     OpenAI-compatible JSON schemas from a tool's type hints and docstring;
   - `add_toolset()` enables on-demand toolsets (janitoweb);
@@ -410,7 +410,7 @@ propagates below it. For the user-visible consequences of the split see
 
 ### Toolsets (`janito/tools/`)
 
-Tools are grouped in directories (`files/`, `system/`, `net/`,
+Tools are grouped in directories (`files/`, `system/`, `net/`, `tasks/`,
 `janitoweb/`). `discover_toolsets()` in
 `janito/tools/__init__.py` scans each toolset for `@tool`-marked classes,
 runs their `should_load()` gate (missing binaries, credentials, platform)
@@ -464,10 +464,12 @@ tool selector* (`get_session_tool_schemas` / `get_session_tool_names` in
 `janito/tooling/tools_registry.py`) applies the privilege filter to what a
 normal prompt may offer, and the per-command tool modes (`/read` `/write`
 `/rx` `/rw` `/rwx`) can override it for a single turn. The
-CLI prints a startup hint (`Started read-only, use /rwx <prompt> for single
-request using full privileges`) after the version banner when running with
-read-only privileges (the default or an explicit `-r`); sessions that grant
-WRITE or EXEC skip the hint.
+interactive CLI prints a startup hint (`Started read-only, use /rwx
+<prompt> for single turn using full privileges`) after the version banner
+when running with read-only privileges (the default or an explicit `-r`);
+sessions that grant WRITE or EXEC skip the hint, and single-prompt runs
+(`janito "prompt"` or piped stdin) skip it too, since `/rwx` is an
+interactive-shell command.
 
 ---
 
