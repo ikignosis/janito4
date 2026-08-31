@@ -242,6 +242,10 @@ def _print_privileges_notice(args) -> None:
     (``-w``/``-x`` or any combination of them) skip the notice, since the
     read-only hint would be misleading there (``-r -w -x`` grants everything
     deliberately; ``-w`` alone grants write-only, ...).
+
+    Called only for interactive sessions (``run_interactive_chat``): the
+    ``/rwx`` command is an interactive-shell command, so single-prompt runs
+    (``run_single_prompt``) never print this hint.
     """
     if getattr(args, "write", False) or getattr(args, "exec", False):
         return
@@ -401,7 +405,11 @@ def run_single_prompt(args):
     """
     import sys
 
-    _print_privileges_notice(args)
+    # Single-prompt runs have no interactive shell, so the read-only hint
+    # (``/rwx <prompt>`` is an interactive-shell command, issue #85) does not
+    # apply; keep the version-banner fallback for the --no-plugins path.
+    if not _banner_printed:
+        print_version_banner()
     _enable_requested_toolsets(args)
 
     prompt = args.prompt

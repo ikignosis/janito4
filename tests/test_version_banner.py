@@ -2,8 +2,10 @@
 Tests for the CLI version banner printed on the shell.
 
 The banner is printed right before the default read-only notice (issue #85)
-and shows ``Janito x.y.z - Working at <cwd>`` with the version in cyan and the
-working directory in magenta.
+in interactive sessions and shows ``Janito x.y.z - Working at <cwd>`` with
+the version in cyan and the working directory in magenta. Single-prompt
+runs keep the banner but skip the read-only notice, since ``/rwx`` is an
+interactive-shell command.
 """
 
 import sys
@@ -30,8 +32,8 @@ if pytest is not None:
         out = capsys.readouterr().out.strip()
         assert out == f"Janito {__version__} - Working at {cwd}"
 
-    def test_banner_precedes_read_only_notice(monkeypatch, capsys):
-        """run_single_prompt prints the banner before the read-only notice."""
+    def test_single_prompt_prints_banner_without_read_only_notice(monkeypatch, capsys):
+        """run_single_prompt prints the banner but not the read-only notice."""
         from conftest import make_config
 
         import janito.cli.chat as chat_mod
@@ -72,9 +74,9 @@ if pytest is not None:
         chat_mod.run_single_prompt(_Args())
 
         out = capsys.readouterr().out
-        assert "Started read-only" in out
-        assert "/rwx" in out
-        assert out.index("Janito") < out.index("Started read-only")
+        assert "Janito" in out
+        assert "Started read-only" not in out
+        assert "/rwx" not in out
 
 else:  # pragma: no cover - fallback runner without pytest
 
