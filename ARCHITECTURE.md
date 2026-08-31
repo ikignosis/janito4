@@ -32,8 +32,7 @@ configuration — exists to feed or present this loop. The per-session
 configuration (provider, model, endpoint, api key, token limits, reasoning
 level) is resolved **once** into an immutable `APIConfig`
 (`llm_clients/api_config.py` → `build_api_config`) at the composition
-point; the turn pipeline is a pure function of `(config, request)` (issue
-#70).
+point; the turn pipeline is a pure function of `(config, request)`.
 
 ### Top-level layout
 
@@ -61,7 +60,7 @@ point; the turn pipeline is a pure function of `(config, request)` (issue
 
 The codebase is organized into **domains** (the root package plus the
 subpackages below), and the cross-domain import edges are a deliberate,
-enforced contract (issue #90).  The allowed directed edges (source ->
+enforced contract.  The allowed directed edges (source ->
 targets, same-domain imports always allowed) are:
 
 | source \ target | llm_adapters | cli | llm_clients | mcp_client | providers | root | shell | tooling | tools | ui | web |
@@ -105,8 +104,8 @@ The intended layering:
 - **`providers` and the root config stores are leaves.**
 - The one remaining cycle — **root <-> providers** (config-store /
   variant-name resolution vs. the provider registry) — is accepted and kept
-  contained with lazy imports on both sides; each site carries an
-  `issue #90` comment.  `tests/test_import_graph.py` statically enforces
+  contained with lazy imports on both sides; each site carries a
+  comment to that effect.  `tests/test_import_graph.py` statically enforces
   this matrix, so any new cycle or wrong-direction edge fails the suite.
 
 ## Entry point & CLI dispatch
@@ -118,7 +117,7 @@ the `janito` console script). Flow:
 2. **Setup runtime** (`_setup_runtime`): apply `-c/--config-dir`, `--local`,
    logging, normalize `--provider`, and apply `-r/-w/-x` privilege flags into
    the module-level `running_privileges` (used later by tool discovery). With
-   no `-r/-w/-x` flag the default is **read-only** (issue #85): READ is
+   no `-r/-w/-x` flag the default is **read-only**: READ is
    granted, WRITE/EXEC are not; explicit flags take priority.
 3. **Batch config ops** (`--set/--unset/--get/--set-secret/--delete-secret`)
    via `_handle_batch_config`.
@@ -148,7 +147,7 @@ type (Responses / Completions / Anthropic / DashScope / Gemini); it drives
 either the interactive shell or a single prompt.
 `janito/session_setup.py` (`SessionSetup`) decides the effective system
 prompt and which toolsets to enable — shared with the web backend, which
-imports it from the package root instead of from `cli/` (issue #90).
+imports it from the package root instead of from `cli/`.
 
 ---
 
@@ -184,7 +183,7 @@ The heart of the engine is a **template-method turn pipeline** defined in
 | DashScope | native `dashscope` SDK | `llm_clients/dashscope/dashscope_api.py` + `llm_clients/dashscope/dashscope_stream.py` |
 | Gemini | native `google-genai` SDK | `llm_clients/gemini/gemini_api.py` + `llm_clients/gemini/gemini_stream.py` |
 
-**Configuration is resolved once, not per turn** (issue #70). The immutable
+**Configuration is resolved once, not per turn**. The immutable
 `APIConfig` dataclass (`llm_clients/api_config.py`) carries everything a
 turn needs that can be decided before the call starts — provider, API type,
 model, base URL, api key, resolved max-output/input tokens, reasoning level,
@@ -193,7 +192,7 @@ thinking mode, `preserve_thinking`, `use_mcp`. The UI-side behaviour
 frozen `UIConfig` (`janito/ui/config.py`), injected at the same composition
 point.  The pipeline depends only on the structural `UIConfig` protocol in
 `llm_clients/base_client.py` (`stream_runner` + `observer`), so the API
-clients never import the UI package (issue #90).
+clients never import the UI package.
 `build_api_config` is the **single resolution point**: the only place that
 touches the config store / auth store / provider registry. It is called at
 the composition point (`cli/chat.py`'s `_make_turn_factory`, which rebuilds
@@ -226,7 +225,7 @@ The pipeline per turn:
    token-usage summary) to the injected observer's `on_turn_complete` when
    the turn finishes, passing the `TokenStats` together with the turn's
    resolved `APIConfig` (provider / model / max tokens come from the config)
-   -- there is no caller-supplied out-param (issue #82) -- so the `_finalize`
+   -- there is no caller-supplied out-param -- so the `_finalize`
    hooks stay display-free and every CLI entry point (interactive shell,
    `/ask`, `/compact`, one-shot prompt) gets the same reports.
 
@@ -278,7 +277,7 @@ stream accumulation and history conversion are implemented once.
 
 ---
 
-## Two runtimes, one engine: sync CLI, async web (issue #83)
+## Two runtimes, one engine: sync CLI, async web
 
 The CLI and the web UI drive the same turn pipeline on two different
 runtimes: the CLI is **fully synchronous**, the web backend is **fully
@@ -339,7 +338,7 @@ sync-pure and usable without an event loop anywhere in sight. That is what
 makes the adapter layer genuinely shared — shared to the point that `web`
 depends only on `llm_adapters` for its per-API code, never on the CLI's
 `llm_clients` — and it mirrors the import matrix of
-[Domains & boundaries](#domains--boundaries) (issue #90): `web` is just
+[Domains & boundaries](#domains--boundaries): `web` is just
 another outer presentation layer depending inward, and its async-ness never
 propagates below it. For the user-visible consequences of the split see
 `docs/usage/cli-vs-web.md` — that doc is the *what*, this section is the
@@ -396,7 +395,7 @@ Tools are grouped in directories (`files/`, `system/`, `net/`,
 runs their `should_load()` gate (missing binaries, credentials, platform)
 and wraps each class as a callable with the `run()` signature. Privilege
 restrictions are **not** applied at discovery time (everything is loaded so
-the per-command tool modes can override the session privileges, issue #87);
+the per-command tool modes can override the session privileges);
 the session tool selector applies them instead (see
 [Privileges](#privileges)). `wrap_tool_class()` / `discover_module_tools()`
 expose the same pipeline for arbitrary modules so the plugin manager can
@@ -427,12 +426,12 @@ form and a `Privileges` instance. `_setup_privileges` in
 
 1. explicit `-r`/`-w`/`-x` CLI flags (they override the configured default,
    so `-w` alone grants write-only, ...);
-2. the `privileges` config key (`--set privileges=rwx`, issue #89) -- the
+2. the `privileges` config key (`--set privileges=rwx`) -- the
    session default when no flag is given; validated/canonicalized at set
    time in `set_config_from_cli`, read at startup by
    `load_privileges_from_config` in `janito/config_loaders.py` (an invalid
    hand-written value is logged and ignored, falling back to read-only);
-3. the built-in default **read-only** (issue #85): READ granted, WRITE/EXEC
+3. the built-in default **read-only**: READ granted, WRITE/EXEC
    not.
 
 `running_privileges` is `None` only when no restrictions were configured
@@ -443,7 +442,7 @@ Discovery loads every tool whose `should_load()` gate passes; the *session
 tool selector* (`get_session_tool_schemas` / `get_session_tool_names` in
 `janito/tooling/tools_registry.py`) applies the privilege filter to what a
 normal prompt may offer, and the per-command tool modes (`/read` `/write`
-`/rx` `/rw` `/rwx`) can override it for a single turn (issue #87). The
+`/rx` `/rw` `/rwx`) can override it for a single turn. The
 CLI prints a startup hint (`Started read-only, use /rwx <prompt> for single
 request using full privileges`) after the version banner when running with
 read-only privileges (the default or an explicit `-r`); sessions that grant
