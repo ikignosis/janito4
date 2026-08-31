@@ -691,6 +691,84 @@ def test_compact_no_turn_func(capsys):
     assert "No prompt function available" in out
 
 
+def test_compact_uses_silent_factory_when_available(capsys):
+    """/compact builds the compaction call through the session's turn factory
+    with silent=True (silent observer, progress bar kept), re-resolving the
+    shell's current provider / model override / thinking flag."""
+    shell = _shell()
+    shell.initialize_history(system_prompt="sys")
+    shell.messages_history = [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": LONG},
+        {"role": "assistant", "content": LONG},
+        {"role": "user", "content": "u2"},
+        {"role": "assistant", "content": "a2"},
+        {"role": "user", "content": "u3"},
+        {"role": "assistant", "content": "a3"},
+        {"role": "user", "content": "u4"},
+        {"role": "assistant", "content": "a4"},
+    ]
+    shell.history_turns = [1, 3, 5, 7]
+    shell.provider = "openai"
+    shell.model_override = "gpt-x"
+    shell.thinking = True
+    seen = {}
+
+    def factory(provider, model_override=None, thinking_override=None, silent=False):
+        seen["provider"] = provider
+        seen["model_override"] = model_override
+        seen["thinking_override"] = thinking_override
+        seen["silent"] = silent
+
+        def turn_func(prompt, **kwargs):
+            return COMPACTION_JSON
+
+        return turn_func
+
+    shell.turn_factory = factory
+    _compact_handler()._do_compact(shell)
+
+    assert seen == {
+        "provider": "openai",
+        "model_override": "gpt-x",
+        "thinking_override": True,
+        "silent": True,
+    }
+    assert shell.messages_history[1]["content"].startswith("[RECAP OF PRIOR WORK]")
+    out = capsys.readouterr().out
+    assert "Compacting conversation history..." in out
+
+
+def test_compact_falls_back_when_factory_lacks_silent(capsys):
+    """A turn factory without the silent kwarg (older factory / test stub)
+    falls back to the plain session turn_func, so compaction still works."""
+    shell = _shell()
+    shell.initialize_history(system_prompt="sys")
+    shell.messages_history = [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": LONG},
+        {"role": "assistant", "content": LONG},
+        {"role": "user", "content": "u2"},
+        {"role": "assistant", "content": "a2"},
+        {"role": "user", "content": "u3"},
+        {"role": "assistant", "content": "a3"},
+        {"role": "user", "content": "u4"},
+        {"role": "assistant", "content": "a4"},
+    ]
+    shell.history_turns = [1, 3, 5, 7]
+    calls = {}
+
+    def factory(provider, model_override=None, thinking_override=None):
+        raise AssertionError("factory must not be used")
+
+    shell.turn_factory = factory
+    shell.turn_func, calls = _stub_send(COMPACTION_JSON)
+    _compact_handler()._do_compact(shell)
+
+    assert calls["n"] == 1
+    assert shell.messages_history[1]["content"].startswith("[RECAP OF PRIOR WORK]")
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

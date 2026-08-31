@@ -2,6 +2,7 @@
 
 from ...mcp_config import get_mcp_config_path, list_services
 from ...mcp_manager import get_mcp_manager
+from ...mcp_transports import get_transport_spec
 from ...tooling.tools_registry import get_all_tool_permissions, get_all_tool_schemas
 
 
@@ -124,14 +125,10 @@ def _mcp_service_rows(
     connected = name in manager.connected_services
     status = "[connected]" if connected else "[not connected]"
 
-    if transport == "stdio":
-        config_display = f"Command: {config.get('command', '')}"
-    elif transport == "http":
-        config_display = f"URL: {config.get('url', '')}"
-        headers = config.get("headers", {})
-        if headers:
-            config_display += f"; {len(headers)} header(s)"
-    else:
+    try:
+        spec = get_transport_spec(transport)
+        config_display = spec.describe(config)
+    except ValueError:
         import json
 
         config_display = json.dumps(config)

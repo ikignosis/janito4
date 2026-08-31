@@ -197,7 +197,10 @@ clients never import the UI package.
 touches the config store / auth store / provider registry. It is called at
 the composition point (`cli/chat.py`'s `_make_turn_factory`, which rebuilds
 it on every `/provider` / `/model` / `/thinking` switch) and handed to the
-client constructor. The five module-level `run_turn(config, prompt, *, ...)`
+client constructor. The concrete client class is picked from the resolved
+`APIConfig` by `llm_clients/factory.py` (`create_client`) — the single
+`api_type` → class mapping, mirroring `mcp_client/factory.py`. The five
+module-level `run_turn(config, prompt, *, ...)`
 functions and `Client.run_turn` therefore make **no** config-store or auth-store
 reads — the turn pipeline is a pure function of `(config, request)`.
 Thinking mode is resolved into `config.thinking` at build time too (the
@@ -227,7 +230,9 @@ The pipeline per turn:
    resolved `APIConfig` (provider / model / max tokens come from the config)
    -- there is no caller-supplied out-param -- so the `_finalize`
    hooks stay display-free and every CLI entry point (interactive shell,
-   `/ask`, `/compact`, one-shot prompt) gets the same reports.
+   `/ask`, `/compact`, one-shot prompt) gets the same reports (the `/compact`
+   compression call swaps in the silent observer -- see below -- so it
+   records the accounting row without rendering).
 
 The blocking work of each streaming round — thread creation, the Rich spinner
 and Enter-to-cancel detection — lives in a **per-round stream runner**
@@ -265,7 +270,12 @@ config through `_make_turn_factory`, keeping today's rendered output
 byte-for-byte. `verbose` is an explicit per-call emission gate on
 `Client.run_turn(verbose=...)` (used by `/ask` and `/compact`); the CLI's
 session default is captured in the turn closure built by `_make_turn_factory`,
-not on the config.
+not on the config. The `/compact` compression call re-invokes the session's
+turn factory with `silent=True` (see `compact.py`'s `_compaction_turn_func`),
+which swaps the observer for `SilentTurnObserver` (`janito/ui/observer.py`):
+every render is dropped -- the raw recap JSON is never echoed -- while the
+injected TUI stream runner keeps the spinner / Enter-to-cancel and
+`on_turn_complete` still records the accounting row.
 
 The web loop (`janito/web/backend/agent/loop.py`) drives the **same turn
 pipeline asynchronously**, yielding structured events instead of printing
@@ -458,6 +468,11 @@ WRITE or EXEC skip the hint.
 - **`janito/mcp_client/`** — transport layer: `stdio.py` (subprocess) and
   `http.py` (streamable HTTP), with a `factory.py` selecting the transport
   from `mcp_config.py` service definitions.
+- **`janito/mcp_transports.py`** — the transport-type registry the CLI
+  layers use to *build* (`/mcp add`) and *display* (`/mcp list`,
+  `--list-mcp`) service configs, so the `stdio`/`http` knowledge lives in
+  one root-level place (the shell/CLI layers may not import `mcp_client`;
+  see the dependency matrix).
 - Services are configured interactively via the `/mcp` shell command or
   `--list-mcp`, stored in the config store, and loaded at the start of every
   turn when MCP is enabled.

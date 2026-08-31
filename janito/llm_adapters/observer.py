@@ -14,9 +14,13 @@ of printing).  The CLI injects the Rich observer
 ``_make_turn_func`` in ``cli/chat.py`` -- the same composition point
 that injects the per-round ``stream_runner`` (both carried by the
 :class:`~janito.ui.config.UIConfig`) -- so every CLI entry point
-(interactive shell, ``/ask``, ``/compact``, one-shot prompt) keeps today's
-output.  Non-TUI consumers can implement the protocol to capture or forward
-the events.
+(interactive shell, ``/ask``, one-shot prompt) keeps today's output.  The
+``/compact`` compression call re-invokes the session's turn factory with
+``silent=True``, swapping in the silent variant
+(:class:`janito.ui.observer.SilentTurnObserver`) -- the raw recap JSON is
+not echoed to the terminal, while the injected stream runner keeps the
+spinner and the accounting row is still recorded.  Non-TUI consumers can
+implement the protocol to capture or forward the events.
 
 The event vocabulary mirrors :mod:`janito.web.backend.events` (the web loop's
 WebSocket events): ``on_reasoning`` ~ ``ReasoningEvent``, ``on_message`` ~

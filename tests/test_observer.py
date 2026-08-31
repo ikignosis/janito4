@@ -23,7 +23,7 @@ from rich.console import Console  # noqa: E402
 
 from janito.llm_adapters.observer import NullObserver  # noqa: E402
 from janito.llm_clients.base_client import Client  # noqa: E402
-from janito.ui.observer import RichTurnObserver  # noqa: E402
+from janito.ui.observer import RichTurnObserver, SilentTurnObserver  # noqa: E402
 
 _PROTOCOL_METHODS = (
     "on_reasoning",
@@ -201,3 +201,40 @@ class TestRichTurnObserver:
         e = Exception("Model not found: `gpt-4`")
         obs.on_error(e, base_url=None, model="gpt-4")
         assert buf.getvalue() == ""
+
+
+class TestSilentTurnObserver:
+    """The silent observer (used by the /compact compression call) drops every
+    render but still records the end-of-turn accounting row."""
+
+    def test_implements_full_surface(self):
+        obs = SilentTurnObserver()
+        for name in _PROTOCOL_METHODS:
+            assert callable(getattr(obs, name, None)), name
+
+    def test_drops_every_render(self):
+        """Reasoning, message content, verbose dumps and error explainers are
+        all dropped -- the silent observer has no console to write to."""
+        obs = SilentTurnObserver()
+        obs.on_reasoning("think")
+        obs.on_message("hello")
+        obs.on_verbose_info(
+            base_url=None, model="m", mcp_manager=None, backend_default="api.openai.com"
+        )
+        obs.on_verbose_call({}, [])
+        obs.on_verbose_response("hi", None, None, None, None)
+        obs.on_error(ValueError("boom"), error_kind="not_found")
+
+    def test_on_turn_complete_records_accounting_only(self, monkeypatch):
+        """on_turn_complete still feeds the accounting row (best-effort, no
+        render) -- the /compact turn keeps counting in accounting.db."""
+        obs = SilentTurnObserver()
+        calls = {}
+
+        def fake_record(usage_out, api_config):
+            calls["usage"] = usage_out
+            calls["config"] = api_config
+
+        monkeypatch.setattr("janito.ui.observer._record_accounting", fake_record)
+        obs.on_turn_complete("usage", "config")
+        assert calls == {"usage": "usage", "config": "config"}

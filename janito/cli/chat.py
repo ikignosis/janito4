@@ -8,12 +8,11 @@ from collections.abc import Callable
 from .. import __version__
 from ..general_config import load_provider_from_config, resolve_api_type
 from ..llm_clients import APIConfig, RequestCancelled, build_api_config
-from ..providers.registry import get_provider
 from ..runtime_config import resolve_runtime_config
 from ..shell import InteractiveShell
 from ..tooling.path_utils import display_path
 from ..ui.config import UIConfig
-from ..ui.observer import RichTurnObserver
+from ..ui.observer import RichTurnObserver, SilentTurnObserver
 from ..ui.stream_runner import _run_with_progress_bar
 
 # Whether the version banner has already been printed for this process, so it
@@ -30,9 +29,9 @@ def _make_turn_func(
     """Return a run-turn callable bound to a resolved APIConfig.
 
     One closure replaces the previous five per-API-type closures (issue #70):
-    the client class is picked from ``api_config.api_type`` and the union
-    signature is kept so the interactive shell can call it identically in all
-    modes:
+    the client class is picked by :func:`janito.llm_clients.create_client`
+    from ``api_config.api_type`` and the union signature is kept so the
+    interactive shell can call it identically in all modes:
 
       - Completions / Anthropic / DashScope / Gemini modes: the conversation
         history is owned client-side (``previous_messages`` mutated in place,
@@ -70,22 +69,9 @@ def _make_turn_func(
             default for the per-call ``verbose`` gate (``/ask`` and
             ``/compact`` still override it per call).
     """
-    from ..llm_clients.anthropic import anthropic_api
-    from ..llm_clients.dashscope import dashscope_api
-    from ..llm_clients.gemini import gemini_api
-    from ..llm_clients.openai import completions_api, conversations_api
+    from ..llm_clients import create_client
 
-    _CLIENTS = {
-        "Completions": completions_api.CompletionsClient,
-        "Responses": conversations_api.ResponsesClient,
-        "Anthropic": anthropic_api.AnthropicClient,
-        "DashScope": dashscope_api.DashScopeClient,
-        "Gemini": gemini_api.GeminiClient,
-    }
-    try:
-        client = _CLIENTS[api_config.api_type](api_config, ui_config)
-    except KeyError:
-        raise ValueError(f"Unsupported API type: {api_config.api_type}")
+    client = create_client(api_config, ui_config)
 
     def run_turn(
         prompt,
@@ -169,14 +155,19 @@ def _make_turn_factory(
             runtime ``/thinking`` toggle).
 
     Returns:
-        A callable ``factory(provider, model_override=None, thinking_override=None)
-        -> turn_func``.
+        A callable ``factory(provider, model_override=None, thinking_override=None,
+        silent=False) -> turn_func``.  ``silent=True`` swaps the injected
+        turn observer for the silent variant (see
+        :class:`janito.ui.observer.SilentTurnObserver`) while keeping the
+        TUI stream runner -- used by the /compact compression call so its
+        raw output is not echoed but the spinner still shows.
     """
 
     def turn_factory(
         provider: str | None,
         model_override: str | None = None,
         thinking_override: bool | None = None,
+        silent: bool = False,
     ) -> Callable:
         from janito.config_loaders import load_model_from_config
         from janito.providers.registry import get_provider
@@ -200,6 +191,12 @@ def _make_turn_factory(
         # rebuilding the config; otherwise the session's --thinking flag
         # applies.
         thinking = thinking_override if thinking_override is not None else cli_thinking
+        # ``silent`` swaps the turn observer for the headless silent variant
+        # (used by the /compact compression call, whose raw recap JSON must
+        # not be echoed) while keeping the injected TUI stream runner, so
+        # the spinner / Enter-to-cancel still work.  The default keeps the
+        # Rich observer.
+        observer = SilentTurnObserver() if silent else RichTurnObserver()
         return _make_turn_func(
             build_api_config(
                 api_type=resolve_api_type(cli_api_type, provider, model),
@@ -210,7 +207,7 @@ def _make_turn_factory(
             ),
             ui_config=UIConfig(
                 stream_runner=_run_with_progress_bar,
-                observer=RichTurnObserver(),
+                observer=observer,
             ),
             session_verbose=verbose,
         )
@@ -337,13 +334,12 @@ def run_interactive_chat(args):
     # it server-side (chained via previous_response_id) unless the
     # responses-in-server ("keep in server") config flips it to stateless,
     # in which case the client re-sends the full history; Completions and
-    # other API types always keep history client-side.
+    # other API types always keep history client-side.  The flag is resolved
+    # by the single helper the Responses client itself uses.
     if api_type == "Responses" and provider != "(not configured)":
-        found = get_provider(provider)
-        responses_in_server = (
-            found.responses_in_server(model) if found is not None else True
-        )
-        state = "server-side" if responses_in_server else "client-side"
+        from ..llm_clients.openai.responses_state import responses_in_server
+
+        state = "server-side" if responses_in_server(provider, model) else "client-side"
     else:
         state = "client-side"
     Console().print(

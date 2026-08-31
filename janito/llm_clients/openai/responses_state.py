@@ -16,6 +16,20 @@ from janito.providers.payloads import apply_thinking_to_extra_body
 from janito.providers.registry import get_provider
 
 
+def responses_in_server(provider: str, model: str | None) -> bool:
+    """Whether the Responses API keeps the conversation on the server.
+
+    Resolved for the effective ``model``: a per-provider/model config
+    override wins over the built-in default (``True`` for server-side
+    providers such as OpenAI; ``False`` for stateless endpoints such as
+    DeepSeek's ``/responses``).  The single resolution point for this
+    capability -- shared by the conversation-state setup below and the CLI
+    banner's ``(server-side / client-side)`` annotation.
+    """
+    found = get_provider(provider)
+    return found.responses_in_server(model) if found is not None else True
+
+
 def _init_conversation_state(
     provider: str,
     model: str | None,
@@ -43,11 +57,8 @@ def _init_conversation_state(
     The ``responses_in_server`` flag is resolved for the effective ``model``
     (a per-provider/model config override wins over the built-in default).
     """
-    found = get_provider(provider)
-    responses_in_server = (
-        found.responses_in_server(model) if found is not None else True
-    )
-    if responses_in_server:
+    responses_in_server_flag = responses_in_server(provider, model)
+    if responses_in_server_flag:
         response_id = previous_response_id
         conversation_items: list[dict[str, Any]] | None = None
         # The first round sends the raw prompt; tool-call rounds send the
@@ -99,7 +110,7 @@ def _init_conversation_state(
         input_items = conversation_items
         pending_items = None
     return (
-        responses_in_server,
+        responses_in_server_flag,
         response_id,
         conversation_items,
         input_items,

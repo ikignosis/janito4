@@ -111,9 +111,11 @@ janito --unset used-files      # back to the default (off)
 ```
 
 When enabled, the report is printed right before the token-usage summary at
-the end of every turn (interactive shell, one-shot prompts, `/ask`,
-`/compact`). The tracking itself always runs — the flag only controls whether
-the report is displayed.
+the end of every turn (interactive shell, one-shot prompts, `/ask`). The
+`/compact` compression call is the exception: it runs with the silent turn
+observer, so it records the accounting row without rendering the used-files
+report or the usage summary. The tracking itself always runs — the flag only
+controls whether the report is displayed.
 
 ## Configuration Priority
 

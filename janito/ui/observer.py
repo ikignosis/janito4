@@ -136,6 +136,25 @@ class RichTurnObserver(NullObserver):
         display_turn_usage(usage_out, api_config, console=self.console)
 
 
+class SilentTurnObserver(NullObserver):
+    """Turn observer for side calls that must stay silent (e.g. /compact).
+
+    Drops every render -- reasoning, message content, the verbose
+    call/response dumps, the error explainers and the end-of-turn usage
+    summary -- but still records the overall-use accounting row on
+    ``on_turn_complete`` (:func:`_record_accounting`), so the invisible
+    bookkeeping every CLI entry point feeds keeps happening without a single
+    line of output.  The /compact compression call uses this observer: its
+    raw JSON recap must not be echoed to the terminal, but the turn must
+    still count in ``accounting.db`` (the injected per-round stream runner
+    is untouched, so the progress bar keeps working).
+    """
+
+    def on_turn_complete(self, usage_out, api_config) -> None:
+        """Record the accounting row only; never render anything."""
+        _record_accounting(usage_out, api_config)
+
+
 def _record_accounting(usage_out: TokenStats | None, api_config: APIConfig) -> None:
     """Append one overall-use accounting row for a completed turn (best effort).
 

@@ -28,6 +28,7 @@ from janito.mcp_config import (
     remove_service,
     save_mcp_config,
 )
+from janito.mcp_transports import get_transport_spec
 
 from .base import CmdHandler
 from .registry import register_command
@@ -104,88 +105,27 @@ class McpCmdHandler(CmdHandler):
         name = args[0]
         transport = args[1].lower()
 
-        if transport == "stdio":
-            self._handle_add_stdio(name, args[2:] if len(args) > 2 else [])
-        elif transport == "http":
-            self._handle_add_http(name, args[2:] if len(args) > 2 else [])
-        else:
+        try:
+            spec = get_transport_spec(transport)
+        except ValueError:
             print(f"Error: Unknown transport type '{transport}'")
             print("Supported transports: stdio, http")
-
-    def _handle_add_stdio(self, name: str, args: list[str]) -> None:
-        """Add a stdio transport MCP service.
-
-        Args:
-            name: The service name
-            args: Command and arguments
-        """
-        if not args:
-            print("Error: stdio transport requires a command")
-            print("Usage: /mcp add <name> stdio <command> [args...]")
             return
 
-        # Build command string from args
-        command_parts = []
-        for arg in args:
-            if " " in arg or '"' in arg or "'" in arg:
-                command_parts.append(f'"{arg}"')
-            else:
-                command_parts.append(arg)
-
-        command = " ".join(command_parts)
+        warnings: list[str] = []
+        try:
+            service_config = spec.build_config(
+                args[2:] if len(args) > 2 else [], warnings
+            )
+        except ValueError as e:
+            print(f"Error: {e}")
+            print(spec.usage)
+            return
+        for warning in warnings:
+            print(warning)
 
         # Load current config
         config = load_mcp_config()
-
-        # Add the service
-        config["services"][name] = {"transport": "stdio", "command": command, "env": {}}
-
-        # Save config
-        save_mcp_config(config)
-
-        print(f"[OK] MCP service '{name}' added successfully")
-        print("  Transport: stdio")
-        print(f"  Command:   {command}")
-
-    def _handle_add_http(self, name: str, args: list[str]) -> None:
-        """Add an HTTP transport MCP service.
-
-        Args:
-            name: The service name
-            args: URL and optional headers
-        """
-        if not args:
-            print("Error: http transport requires a URL")
-            print("Usage: /mcp add <name> http <url> [--header KEY:VALUE]")
-            return
-
-        url = args[0]
-        headers = {}
-
-        # Parse --header flags
-        i = 1
-        while i < len(args):
-            if args[i] == "--header" and i + 1 < len(args):
-                header_value = args[i + 1]
-                if ":" in header_value:
-                    key, value = header_value.split(":", 1)
-                    headers[key.strip()] = value.strip()
-                else:
-                    print(f"Warning: Ignoring invalid header format: {header_value}")
-                    print("  Expected format: --header KEY:VALUE")
-                i += 2
-            else:
-                print(f"Warning: Ignoring unexpected argument: {args[i]}")
-                i += 1
-
-        # Load current config
-        config = load_mcp_config()
-
-        # Build service config
-        service_config = {"transport": "http", "url": url}
-
-        if headers:
-            service_config["headers"] = headers
 
         # Add the service
         config["services"][name] = service_config
@@ -194,10 +134,8 @@ class McpCmdHandler(CmdHandler):
         save_mcp_config(config)
 
         print(f"[OK] MCP service '{name}' added successfully")
-        print("  Transport: http")
-        print(f"  URL:       {url}")
-        if headers:
-            print(f"  Headers:   {len(headers)} header(s) set")
+        for line in spec.confirm_lines(service_config):
+            print(line)
 
     def _handle_list(self) -> None:
         """List all configured MCP services as a rich table."""
@@ -242,14 +180,10 @@ class McpCmdHandler(CmdHandler):
         for name, service_config in services.items():
             transport = service_config.get("transport", "unknown")
 
-            if transport == "stdio":
-                details = f"Command: {service_config.get('command', '')}"
-            elif transport == "http":
-                details = f"URL: {service_config.get('url', '')}"
-                headers = service_config.get("headers", {})
-                if headers:
-                    details += f"; {len(headers)} header(s)"
-            else:
+            try:
+                spec = get_transport_spec(transport)
+                details = spec.describe(service_config)
+            except ValueError:
                 details = json.dumps(service_config)
 
             table.add_row(name, transport, details)

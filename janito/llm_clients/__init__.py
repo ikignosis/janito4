@@ -11,9 +11,11 @@
 
 from .api_config import APIConfig, build_api_config
 from .client_support import RequestCancelled
+from .factory import create_client
 
 __all__ = [
     "APIConfig",
     "RequestCancelled",
     "build_api_config",
+    "create_client",
 ]

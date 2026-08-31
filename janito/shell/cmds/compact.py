@@ -110,89 +110,229 @@ def _history_mode(shell) -> str:
     return "completions"
 
 
-def _effective_rows(shell) -> list[tuple[str, str]]:
-    """Return ``(role, content)`` rows for the whole effective history.
+class _HistoryStrategy:
+    """Per-API-mode strategy for reading and rebuilding the conversation.
 
-    Mirrors the source selection of the ``/history`` command (see
-    ``janito.shell.cmds.history``) so the recorded values (from
-    ``_history_row_count``) index directly into these rows in every API mode.
+    Each mode (``completions`` / ``stateless`` / ``server_side``) owns where
+    the history lives and how /compact slices and rebuilds it, so the
+    handler stops switching on the mode string in six places (rows, compact
+    zone, keep zone, context application, compaction call args).
     """
-    mode = _history_mode(shell)
-    if mode == "stateless":
+
+    mode = ""
+
+    def effective_rows(self, shell) -> list[tuple[str, str]]:
+        """Return ``(role, content)`` rows for the whole effective history.
+
+        Mirrors the source selection of the ``/history`` command (see
+        ``janito.shell.cmds.history``) so the recorded values (from
+        ``_history_row_count``) index directly into these rows in every API
+        mode.
+        """
+        raise NotImplementedError
+
+    def compact_zone(self, shell, skip: int, keep_start: int) -> list[dict[str, Any]]:
+        """Return the raw storage entries of the zone to compact, API-native.
+
+        The compaction LLM call must re-send the history in the exact format
+        the provider expects, so the flattened ``(role, content)`` rows are
+        *not* used here -- the underlying entries are re-sliced from their
+        native storage (Completions message dicts / Responses input items).
+        ``skip`` is the row index where the compact zone starts (0 or 1,
+        after the optional system prompt) and ``keep_start`` the row index
+        where it ends (the ``history_turns`` value); both index into the
+        ``/history`` display rows.
+        """
+        raise NotImplementedError
+
+    def keep_zone(self, shell, keep_start: int) -> list[dict[str, Any]]:
+        """Return the storage entries of the untouched keep zone."""
+        raise NotImplementedError
+
+    def compaction_call_args(
+        self, compact_entries: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]] | None, list[dict[str, Any]] | None]:
+        """Return ``(compact_messages, compact_items)`` for the compaction call."""
+        raise NotImplementedError
+
+    def apply(self, shell, new_history, keep_zone_messages) -> None:
+        """Reset the conversation state to the compacted context.
+
+        Runs the mode-specific rebuild (:meth:`_apply_conversation`) and then
+        resets every turn/response tracker: the compacted baseline is the new
+        conversation start, so /rewind steps back from there and the next
+        turn starts a fresh server conversation (Responses modes) or uses the
+        rebuilt client-side history (Completions modes).
+        """
+        self._apply_conversation(shell, new_history, keep_zone_messages)
+        shell.history_turns = []
+        shell.previous_response_id = None
+        shell.response_chain = []
+        shell.response_turn = 0
+        shell.mirrored_history = []
+        shell.mirrored_turn = 0
+
+    def _apply_conversation(self, shell, new_history, keep_zone_messages) -> None:
+        raise NotImplementedError
+
+
+class _CompletionsStrategy(_HistoryStrategy):
+    """Completions / Anthropic / DashScope / Gemini: client-side messages."""
+
+    mode = "completions"
+
+    def effective_rows(self, shell) -> list[tuple[str, str]]:
+        rows: list[tuple[str, str]] = []
+        for msg in shell.messages_history:
+            if isinstance(msg, dict):
+                rows.append((msg.get("role", "unknown"), msg.get("content") or ""))
+            else:
+                rows.append((msg.role, msg.content or ""))
+        return rows
+
+    def compact_zone(self, shell, skip: int, keep_start: int) -> list[dict[str, Any]]:
+        return list(shell.messages_history[skip:keep_start])
+
+    def keep_zone(self, shell, keep_start: int) -> list[dict[str, Any]]:
+        return list(shell.messages_history[keep_start:])
+
+    def compaction_call_args(
+        self, compact_entries: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]] | None, list[dict[str, Any]] | None]:
+        return (
+            [{"role": "system", "content": SYSTEM_COMPACT_PROMPT}, *compact_entries],
+            None,
+        )
+
+    def _apply_conversation(self, shell, new_history, keep_zone_messages) -> None:
+        shell.messages_history = new_history
+        shell.conversation_items = None
+        shell.conversation_turn = 0
+
+
+class _StatelessStrategy(_HistoryStrategy):
+    """Stateless Responses: the full conversation lives in input items."""
+
+    mode = "stateless"
+
+    def effective_rows(self, shell) -> list[tuple[str, str]]:
         return [
             _responses_item_to_row(item) for item in (shell.conversation_items or [])
         ]
-    rows: list[tuple[str, str]] = []
-    for msg in shell.messages_history:
-        if isinstance(msg, dict):
-            rows.append((msg.get("role", "unknown"), msg.get("content") or ""))
-        else:
-            rows.append((msg.role, msg.content or ""))
-    if mode == "server_side":
+
+    def compact_zone(self, shell, skip: int, keep_start: int) -> list[dict[str, Any]]:
+        return list((shell.conversation_items or [])[skip:keep_start])
+
+    def keep_zone(self, shell, keep_start: int) -> list[dict[str, Any]]:
+        return list((shell.conversation_items or [])[keep_start:])
+
+    def compaction_call_args(
+        self, compact_entries: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]] | None, list[dict[str, Any]] | None]:
+        compact_items = list(compact_entries)
+        compact_items.insert(0, _message_item("system", SYSTEM_COMPACT_PROMPT))
+        return None, compact_items
+
+    def _apply_conversation(self, shell, new_history, keep_zone_messages) -> None:
+        recap = _find_recap(new_history)
+        new_items: list[dict[str, Any]] = []
+        system_prompt = shell.get_system_prompt()
+        if system_prompt:
+            new_items.append(_message_item("system", system_prompt))
+        new_items.append(_message_item("assistant", recap))
+        new_items.extend(keep_zone_messages)
+        shell.conversation_items = new_items
+        shell.conversation_turn = len(new_items)
+
+
+class _ServerSideStrategy(_HistoryStrategy):
+    """Server-side Responses: mirror of completed turns + pending items."""
+
+    mode = "server_side"
+
+    def effective_rows(self, shell) -> list[tuple[str, str]]:
+        rows: list[tuple[str, str]] = []
+        for msg in shell.messages_history:
+            if isinstance(msg, dict):
+                rows.append((msg.get("role", "unknown"), msg.get("content") or ""))
+            else:
+                rows.append((msg.role, msg.content or ""))
         rows.extend(
             _responses_item_to_row(item) for item in (shell.mirrored_history or [])
         )
         rows.extend(
             _responses_item_to_row(item) for item in (shell.conversation_items or [])
         )
-    return rows
+        return rows
+
+    def compact_zone(self, shell, skip: int, keep_start: int) -> list[dict[str, Any]]:
+        # Display rows = messages_history + mirrored_history + pending
+        # conversation_items, mapped back to their storage slices.
+        msgs_len = len(shell.messages_history)
+        mirrored = shell.mirrored_history or []
+        pending = shell.conversation_items or []
+        entries: list[dict[str, Any]] = []
+        # messages part (Completions-style dicts).  In practice server-side
+        # keeps only the system prompt here and skip=1 excludes it.
+        if skip < msgs_len:
+            entries.extend(shell.messages_history[skip : min(keep_start, msgs_len)])
+        # mirrored part
+        mir_start = msgs_len
+        mir_end = mir_start + len(mirrored)
+        if keep_start > mir_start:
+            lo = max(skip, mir_start) - mir_start
+            hi = min(keep_start, mir_end) - mir_start
+            if lo < hi:
+                entries.extend(mirrored[lo:hi])
+        # pending part
+        pend_start = mir_end
+        if keep_start > pend_start:
+            lo = max(skip, pend_start) - pend_start
+            hi = keep_start - pend_start
+            if lo < hi:
+                entries.extend(pending[lo:hi])
+        return entries
+
+    def keep_zone(self, shell, keep_start: int) -> list[dict[str, Any]]:
+        msgs_len = len(shell.messages_history)
+        mirrored = shell.mirrored_history or []
+        pending = shell.conversation_items or []
+        if keep_start <= msgs_len:
+            return list(mirrored) + list(pending)
+        offset = keep_start - msgs_len
+        if offset >= len(mirrored):
+            return list(pending[offset - len(mirrored) :])
+        return list(mirrored[offset:]) + list(pending)
+
+    def compaction_call_args(
+        self, compact_entries: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]] | None, list[dict[str, Any]] | None]:
+        return None, list(compact_entries)
+
+    def _apply_conversation(self, shell, new_history, keep_zone_messages) -> None:
+        # The system prompt stays in messages_history / instructions; the
+        # recap + keep zone seed the next fresh server turn as input items.
+        recap = _find_recap(new_history)
+        new_items = [_message_item("assistant", recap)]
+        new_items.extend(keep_zone_messages)
+        shell.conversation_items = new_items
+        shell.conversation_turn = len(new_items)
 
 
-def _compact_zone_entries(
-    shell, mode: str, skip: int, keep_start: int
-) -> list[dict[str, Any]]:
-    """Return the raw storage entries of the zone to compact, in API-native form.
+_STRATEGIES = {
+    "completions": _CompletionsStrategy(),
+    "stateless": _StatelessStrategy(),
+    "server_side": _ServerSideStrategy(),
+}
 
-    The compaction LLM call must re-send the history in the exact format the
-    provider expects, so the flattened ``(role, content)`` rows are *not* used
-    here -- the underlying entries are:
 
-    - ``completions`` mode: Completions-style message dicts from
-      ``messages_history``, including assistant messages with ``tool_calls``
-      and ``role: "tool"`` results from tool rounds.
-    - ``stateless`` Responses: Responses input items from
-      ``conversation_items``, including ``function_call`` /
-      ``function_call_output`` items.
-    - ``server_side`` Responses: the display-only ``mirrored_history`` items
-      plus any pending ``conversation_items`` (the system prompt lives in
-      ``messages_history`` and is excluded via ``skip``).
+def _history_strategy(shell) -> _HistoryStrategy:
+    """Return the history strategy for the shell's conversation mode.
 
-    ``skip`` is the row index where the compact zone starts (0 or 1, after the
-    optional system prompt) and ``keep_start`` the row index where it ends
-    (the ``history_turns`` value); both index into the ``/history``
-    display rows, so ``messages_history`` + ``mirrored_history`` +
-    ``conversation_items`` are mapped back to their storage slices.
+    The mode is detected by :func:`_history_mode`; the returned strategy
+    owns the mode-specific row/zone/apply behaviour for /compact.
     """
-    if mode == "completions":
-        return list(shell.messages_history[skip:keep_start])
-    if mode == "stateless":
-        return list((shell.conversation_items or [])[skip:keep_start])
-    # Server-side Responses: display rows = messages_history + mirrored_history
-    # + pending conversation_items.
-    msgs_len = len(shell.messages_history)
-    mirrored = shell.mirrored_history or []
-    pending = shell.conversation_items or []
-    entries: list[dict[str, Any]] = []
-    # messages part (Completions-style dicts).  In practice server-side keeps
-    # only the system prompt here and skip=1 excludes it, so this is empty.
-    if skip < msgs_len:
-        entries.extend(shell.messages_history[skip : min(keep_start, msgs_len)])
-    # mirrored part
-    mir_start = msgs_len
-    mir_end = mir_start + len(mirrored)
-    if keep_start > mir_start:
-        lo = max(skip, mir_start) - mir_start
-        hi = min(keep_start, mir_end) - mir_start
-        if lo < hi:
-            entries.extend(mirrored[lo:hi])
-    # pending part
-    pend_start = mir_end
-    if keep_start > pend_start:
-        lo = max(skip, pend_start) - pend_start
-        hi = keep_start - pend_start
-        if lo < hi:
-            entries.extend(pending[lo:hi])
-    return entries
+    return _STRATEGIES[_history_mode(shell)]
 
 
 def _estimate_tokens(rows: list[tuple[str, str]]) -> int:
@@ -306,69 +446,36 @@ def _find_recap(new_history: list[dict[str, Any]]) -> str:
     return ""
 
 
-def _keep_zone_messages(shell, mode: str, keep_start: int) -> list[dict[str, Any]]:
-    """Return the storage entries (dicts/items) of the untouched keep zone.
+def _compaction_turn_func(shell):
+    """Return a turn callable for the compaction call, silent observer included.
 
-    ``keep_start`` is a row index into the effective /history display (a
-    recorded turn-start value).  Completions mode returns ``messages_history`` dicts;
-    the Responses modes return Responses input items.
+    The compression call must not echo the model's raw recap output to the
+    terminal, but must keep the progress bar / Enter-to-cancel: it is built
+    through the session's turn factory with ``silent=True``, which swaps the
+    Rich observer for the silent variant (still recording the accounting
+    row) while keeping the injected TUI stream runner.  The factory is
+    re-invoked with the shell's current provider / model override / thinking
+    flag, exactly like ``/provider``, ``/model`` and ``/thinking`` rebind the
+    session send function.
+
+    Falls back to the plain ``shell.turn_func`` (the Rich observer variant)
+    only when the shell has no factory -- bare test shells, or a factory
+    stub without the ``silent`` kwarg -- so compaction still works there.
     """
-    if mode == "completions":
-        return list(shell.messages_history[keep_start:])
-    if mode == "stateless":
-        return list((shell.conversation_items or [])[keep_start:])
-    # Server-side Responses: rows are messages_history + mirrored_history +
-    # pending conversation_items; keep zone may span the last two.
-    msgs_len = len(shell.messages_history)
-    mirrored = shell.mirrored_history or []
-    pending = shell.conversation_items or []
-    if keep_start <= msgs_len:
-        return list(mirrored) + list(pending)
-    offset = keep_start - msgs_len
-    if offset >= len(mirrored):
-        return list(pending[offset - len(mirrored) :])
-    return list(mirrored[offset:]) + list(pending)
-
-
-def _apply_new_context(shell, mode: str, new_history, keep_zone_messages) -> None:
-    """Reset the conversation state to the compacted context.
-
-    Resets every turn/response tracker: the compacted baseline is the
-    new conversation start, so /rewind steps back from there and the next turn
-    starts a fresh server conversation (Responses modes) or uses the rebuilt
-    client-side history (Completions modes).
-    """
-    if mode == "completions":
-        shell.messages_history = new_history
-        shell.conversation_items = None
-        shell.conversation_turn = 0
-    else:
-        recap = _find_recap(new_history)
-        if mode == "stateless":
-            new_items: list[dict[str, Any]] = []
-            system_prompt = shell.get_system_prompt()
-            if system_prompt:
-                new_items.append(_message_item("system", system_prompt))
-            new_items.append(_message_item("assistant", recap))
-            new_items.extend(keep_zone_messages)
-            shell.conversation_items = new_items
-            shell.conversation_turn = len(new_items)
-        else:  # server_side: system prompt stays in messages_history /
-            # instructions; the recap + keep zone seed the next fresh server
-            # turn as input items.
-            new_items = [_message_item("assistant", recap)]
-            new_items.extend(keep_zone_messages)
-            shell.conversation_items = new_items
-            shell.conversation_turn = len(new_items)
-    # The compacted baseline is the new conversation start: every turn
-    # and server-conversation tracker is reset so /rewind steps back from
-    # here and the next turn starts fresh.
-    shell.history_turns = []
-    shell.previous_response_id = None
-    shell.response_chain = []
-    shell.response_turn = 0
-    shell.mirrored_history = []
-    shell.mirrored_turn = 0
+    factory = getattr(shell, "turn_factory", None)
+    if factory is not None:
+        try:
+            return factory(
+                getattr(shell, "provider", None),
+                model_override=getattr(shell, "model_override", None),
+                thinking_override=getattr(shell, "thinking", None),
+                silent=True,
+            )
+        except TypeError:
+            # A factory that predates the silent kwarg (or a test stub):
+            # fall back to the plain session turn function.
+            pass
+    return getattr(shell, "turn_func", None)
 
 
 class CompactCmdHandler(CmdHandler):
@@ -397,8 +504,8 @@ class CompactCmdHandler(CmdHandler):
             return
         keep_start = turns[-KEEP_TURNS]
 
-        mode = _history_mode(shell)
-        rows = _effective_rows(shell)
+        strategy = _history_strategy(shell)
+        rows = strategy.effective_rows(shell)
         # The system prompt (when present) is the first row and stays at the
         # top of the new context; everything before the keep zone after it is
         # compacted.
@@ -411,36 +518,44 @@ class CompactCmdHandler(CmdHandler):
         if _estimate_tokens(compact_rows) < MIN_COMPACT_TOKENS:
             _console.print("Conversation too short to compact effectively.")
             return
-        compact_entries = _compact_zone_entries(shell, mode, skip, keep_start)
+        compact_entries = strategy.compact_zone(shell, skip, keep_start)
         if not compact_entries:
             _console.print("Conversation too short to compact effectively.")
             return
 
         print()
         _console.print("Compacting conversation history...")
-        compacted = self._compact(shell, mode, compact_entries)
+        compacted = self._compact(shell, strategy, compact_entries)
         if compacted is None:
             return
 
-        keep_zone = _keep_zone_messages(shell, mode, keep_start)
+        keep_zone = strategy.keep_zone(shell, keep_start)
         new_history = _build_new_context(
             shell.get_system_prompt(), compacted, keep_zone
         )
-        _apply_new_context(shell, mode, new_history, keep_zone)
+        strategy.apply(shell, new_history, keep_zone)
         _console.print(
             f"Compacted: {len(compact_rows)} message(s) replaced by a recap "
             f"(last {KEEP_TURNS} turns kept verbatim). "
-            f"History now has {len(_effective_rows(shell))} message(s)."
+            f"History now has {len(strategy.effective_rows(shell))} message(s)."
         )
 
-    def _compact(self, shell, mode: str, compact_entries: list[dict[str, Any]]) -> Any:
+    def _compact(
+        self, shell, strategy: _HistoryStrategy, compact_entries: list[dict[str, Any]]
+    ) -> Any:
         """Run the compression-engine LLM call; return the parsed JSON.
 
         The call reuses the session's ``turn_func`` (so the current
         provider / model / API type apply) with a **local** conversation built
         from the compaction system prompt plus the raw history entries of the
         compact zone -- the main conversation is never touched by this side
-        call, and tool-call rounds are preserved in their native format:
+        call, and tool-call rounds are preserved in their native format.
+        The call is built through the session's turn factory with
+        ``silent=True`` (see :func:`_compaction_turn_func`), so it runs with
+        the silent turn observer -- the raw recap JSON is never echoed, only
+        the progress bar shows -- while the accounting row is still recorded.
+
+        The mode-specific argument shape comes from the strategy:
 
         - ``completions`` mode (Completions / Anthropic / DashScope / Gemini):
           the raw ``messages_history`` dicts (including ``tool_calls`` /
@@ -459,24 +574,14 @@ class CompactCmdHandler(CmdHandler):
 
         Returns ``None`` on cancellation/error (the history is left unchanged).
         """
-        turn_func = getattr(shell, "turn_func", None)
+        turn_func = _compaction_turn_func(shell)
         if turn_func is None:
             print(
                 "\nError: No prompt function available. Are you in an active session?\n"
             )
             return None
 
-        if mode == "completions":
-            compact_messages: list[dict[str, Any]] | None = [
-                {"role": "system", "content": SYSTEM_COMPACT_PROMPT},
-                *compact_entries,
-            ]
-            compact_items = None
-        else:
-            compact_messages = None
-            compact_items = list(compact_entries)
-            if mode == "stateless":
-                compact_items.insert(0, _message_item("system", SYSTEM_COMPACT_PROMPT))
+        compact_messages, compact_items = strategy.compaction_call_args(compact_entries)
 
         prompt = (
             "Compress the conversation above into the required JSON object. "

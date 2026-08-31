@@ -30,6 +30,38 @@ def _content_text(content: Any) -> str:
     return "".join(parts)
 
 
+def _message_row(item: dict[str, Any]) -> tuple[str, str]:
+    """Render a Responses ``message`` item as a ``(role, content)`` row."""
+    return item.get("role", "unknown"), _content_text(item.get("content"))
+
+
+def _function_call_row(item: dict[str, Any]) -> tuple[str, str]:
+    """Render a Responses ``function_call`` item as a row."""
+    arguments = item.get("arguments") or ""
+    return "function_call", f"{item.get('name', '')}({arguments})"
+
+
+def _function_call_output_row(item: dict[str, Any]) -> tuple[str, str]:
+    """Render a Responses ``function_call_output`` item as a row."""
+    return "function_call_output", str(item.get("output") or "")
+
+
+def _reasoning_row(item: dict[str, Any]) -> tuple[str, str]:
+    """Render a Responses ``reasoning`` item as a row."""
+    return "reasoning", str(item.get("summary") or item.get("text") or "")
+
+
+#: Per-item-type renderers for Responses input items (see
+#: :func:`_responses_item_to_row`); unknown item types fall back to a raw
+#: ``(item_type, str(item))`` row.
+_ITEM_TO_ROW = {
+    "message": _message_row,
+    "function_call": _function_call_row,
+    "function_call_output": _function_call_output_row,
+    "reasoning": _reasoning_row,
+}
+
+
 def _responses_item_to_row(item: dict[str, Any]) -> tuple[str, str]:
     """Convert one Responses input item into a ``(role, content)`` display row.
 
@@ -40,16 +72,10 @@ def _responses_item_to_row(item: dict[str, Any]) -> tuple[str, str]:
     Completions history table.
     """
     item_type = item.get("type", "unknown")
-    if item_type == "message":
-        return item.get("role", "unknown"), _content_text(item.get("content"))
-    if item_type == "function_call":
-        arguments = item.get("arguments") or ""
-        return "function_call", f"{item.get('name', '')}({arguments})"
-    if item_type == "function_call_output":
-        return "function_call_output", str(item.get("output") or "")
-    if item_type == "reasoning":
-        return "reasoning", str(item.get("summary") or item.get("text") or "")
-    return item_type, str(item)
+    renderer = _ITEM_TO_ROW.get(item_type)
+    if renderer is None:
+        return item_type, str(item)
+    return renderer(item)
 
 
 class HistoryCmdHandler(CmdHandler):
