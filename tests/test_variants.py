@@ -188,7 +188,6 @@ def test_validate_provider_name_accepts_registered_variant(monkeypatch, tmp_path
     assert pv.validate_provider_name("ALIBABA-TOKENPLAN") == "alibaba-tokenplan"
     assert pv.is_supported_provider("alibaba-tokenplan") is True
     assert pv.canonical_provider_name("ALIBABA-TOKENPLAN") == "alibaba-tokenplan"
-    assert pv.is_registered_provider_variant("alibaba-tokenplan") is True
     assert pv.list_variants() == ["alibaba-tokenplan"]
 
 
@@ -198,7 +197,6 @@ def test_validate_provider_name_rejects_unregistered_variant(monkeypatch, tmp_pa
     with pytest.raises(ValueError, match="--create-variant"):
         pv.validate_provider_name("alibaba-tokenplan")
     assert pv.is_supported_provider("alibaba-tokenplan") is False
-    assert pv.is_registered_provider_variant("alibaba-tokenplan") is False
 
 
 def test_variant_inherits_base_defaults(monkeypatch, tmp_path):

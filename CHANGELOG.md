@@ -35,9 +35,9 @@ Changes since `v4.33.0` (2026-08-29).
   to the section name otherwise. The section API changed (no backwards
   compatibility): `SysPromptManager` now stores a `Section` dataclass
   (`name`, `text`, `label`), `get_all_sections()` yields `Section` objects,
-  `add_section` accepts an optional `label`, and a new `update_label(name,
-  label)` sets/clears it; `load_system_prompt_start()` now returns
-  `(text, label)` instead of just the text.
+  and `add_section` accepts an optional `label`;
+  `load_system_prompt_start()` now returns `(text, label)` instead of just
+  the text.
 - `CompletionsAccumulator` is renamed to `CompletionsTurnAccumulator`
   (issue #91), matching the `XxxTurnAccumulator` name the Responses,
   Anthropic, DashScope and Gemini adapters already use. The Completions
@@ -217,15 +217,21 @@ Changes since `v4.33.0` (2026-08-29).
   `_consumer_from_state` / `_state_from_consumer` helpers, superseded by the
   `*StreamConsumer` classes), `SkillsProvider.get_skill_tool_schemas`, the
   unused `SKILLS_DIR`/`DEFAULT_SKILLS_DIR` constants, the uncalled
-  `auth_config`/`secrets_config` ensure/load/save wrappers,
+  `auth_config`/`secrets_config` ensure/load/save wrappers
+  (`load_auth_config`/`save_auth_config`),
   `config_dir.get_config_file_path`, `config_store.save_config`,
   `tools_registry._ensure_initialized`, the `shell/session.py` history
   statics, `CmdHandler.on_command`, `_FALLBACK_VERSION_TUPLE`, the unused
   `input_attr`/`output_attr` params of `_display_usage`, the write-only
   `self._error` in the MCP clients, `Colors.GREEN`/`RESET` in `reporter.py`,
   the never-scheduled `SessionManager.cleanup_expired` (the missing TTL
-  reaping it hid is now tracked as issue #93) and the orphan
-  `tooling/examples/path_utils_example.py` module.
+  reaping it hid is now tracked as issue #93), the orphan
+  `tooling/examples/path_utils_example.py` module, and (from the current
+  sweep) `providers.validation.is_registered_provider_variant`,
+  `SysPromptManager.update_label`,
+  `tools_registry.get_tool_schema_by_name`,
+  `web.backend.prompts.PromptRegistry.has_pending` and the legacy
+  `CompletionsStreamConsumer.handle_tool_call_delta` alias.
 
 ### Fixed
 

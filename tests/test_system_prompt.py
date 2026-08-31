@@ -116,24 +116,6 @@ def test_update_section_missing_raises():
         manager.update_section("missing", "text")
 
 
-def test_update_label_sets_and_clears():
-    """update_label sets the display label and None clears it (name fallback)."""
-    manager = SysPromptManager("start text")
-    manager.update_label(SECTION_START, LABEL_BUILTIN)
-    assert list(manager.get_all_sections()) == [
-        Section(SECTION_START, "start text", LABEL_BUILTIN)
-    ]
-    manager.update_label(SECTION_START, None)
-    assert list(manager.get_all_sections()) == [Section(SECTION_START, "start text")]
-
-
-def test_update_label_missing_raises():
-    """update_label raises ValueError for an unknown section."""
-    manager = SysPromptManager("start text")
-    with pytest.raises(ValueError):
-        manager.update_label("missing", "label")
-
-
 def test_del_section_removes():
     """del_section removes a non-start section."""
     manager = SysPromptManager("start text")

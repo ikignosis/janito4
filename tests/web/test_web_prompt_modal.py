@@ -55,14 +55,12 @@ def test_registry_register_resolve():
 
     registry = PromptRegistry()
     pending = registry.register("id1", "Question?")
-    assert registry.has_pending() is True
     assert pending.answer is None
     assert pending.wait(timeout=0) is False  # not resolved yet
 
     assert registry.resolve("id1", "Answer") is True
     assert pending.answer == "Answer"
     assert pending.wait(timeout=0) is True  # waiter was woken
-    assert registry.has_pending() is False
 
     # Resolving again is a no-op (the entry was consumed).
     assert registry.resolve("id1", "again") is False
@@ -89,7 +87,6 @@ def test_registry_cancel_all_wakes_workers():
     assert p1.wait(timeout=0) is True
     assert p2.wait(timeout=0) is True
     assert p1.answer is None
-    assert registry.has_pending() is False
     # A third cancel_all finds nothing.
     assert registry.cancel_all() == 0
 
@@ -133,7 +130,8 @@ def test_await_cancel_resolves_prompt_answer():
     assert result is True
     assert pending.answer == "42"
     assert pending.wait(timeout=0) is True
-    assert registry.has_pending() is False
+    # The resolved entry was consumed.
+    assert registry.resolve("abc123", "x") is False
 
 
 @requires_fastapi

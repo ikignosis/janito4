@@ -7,6 +7,7 @@ flag bypasses the prompt, and when stdin is not interactive the overwrite is
 refused unless ``--force`` is supplied.
 """
 
+import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -62,7 +63,7 @@ if pytest is not None:
         assert called["input"] is False
 
     def test_set_api_key_does_not_write_default_provider(monkeypatch, tmp_path):
-        _use_temp_config(monkeypatch, tmp_path)
+        config_dir = _use_temp_config(monkeypatch, tmp_path)
         monkeypatch.setattr(sys, "stdin", _FakeStdin(tty=True))
 
         rc = handle_set_api_key(_args(key="sk-first"))
@@ -70,7 +71,7 @@ if pytest is not None:
         # The default provider belongs in config.json; auth.json only holds
         # provider -> API key pairs, never a "provider" metadata key.
         assert ac.get_api_key("openai") == "sk-first"
-        config = ac.load_auth_config()
+        config = json.loads((config_dir / "auth.json").read_text())
         assert "provider" not in config
         assert config == {"openai": "sk-first"}
 

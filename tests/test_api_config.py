@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import pytest
 
 import janito.config_dir as config_dir_mod
-from janito.auth_config import save_auth_config
+from janito.auth_config import set_api_key
 from janito.config_store import set_config_value
 from janito.llm_adapters.observer import NullObserver
 from janito.llm_clients.api_config import APIConfig, build_api_config
@@ -43,14 +43,13 @@ def _isolate_config_dir(monkeypatch, tmp_path):
     """
     monkeypatch.setattr(config_dir_mod, "_config_dir", tmp_path)
     # A clean auth store per test: the providers used below need an API key.
-    save_auth_config(
-        {
-            "alibaba": "sk-test-alibaba",
-            "openai": "sk-test-openai",
-            "deepseek": "sk-test-deepseek",
-            "minimax": "sk-test-minimax",
-        }
-    )
+    for _provider, _key in {
+        "alibaba": "sk-test-alibaba",
+        "openai": "sk-test-openai",
+        "deepseek": "sk-test-deepseek",
+        "minimax": "sk-test-minimax",
+    }.items():
+        set_api_key(_provider, _key)
 
 
 def _make_observer():
@@ -123,13 +122,12 @@ def test_build_api_config_api_type_selects_native_endpoint():
 def test_build_api_config_gemini_api_type_selects_native_endpoint():
     """The Gemini API type resolves the native google-genai base URL (the
     OpenAI-compatibility layer URL would be wrong for the native SDK)."""
-    save_auth_config(
-        {
-            "alibaba": "sk-test-alibaba",
-            "openai": "sk-test-openai",
-            "google": "sk-test-google",
-        }
-    )
+    for _provider, _key in {
+        "alibaba": "sk-test-alibaba",
+        "openai": "sk-test-openai",
+        "google": "sk-test-google",
+    }.items():
+        set_api_key(_provider, _key)
     config = build_api_config(
         api_type="Gemini", cli_provider="google", cli_model="gemini-3.7-flash"
     )
@@ -232,7 +230,7 @@ def test_build_api_config_output_tokens_falls_back_to_100k():
     the registry, so the fallback chain (config > built-in > 100k) is
     exercised for real.
     """
-    save_auth_config({"unknown-provider": "sk-test-unknown"})
+    set_api_key("unknown-provider", "sk-test-unknown")
     config = build_api_config(
         api_type="Completions",
         cli_provider="unknown-provider",

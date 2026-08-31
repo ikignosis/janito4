@@ -19,7 +19,7 @@ from conftest import make_config, make_ui_config
 
 import janito.config_dir as config_dir_mod
 import janito.llm_clients.openai.completions_api as client_mod
-from janito.auth_config import save_auth_config
+from janito.auth_config import set_api_key
 from janito.llm_adapters.completions import build_call_kwargs
 
 
@@ -34,15 +34,14 @@ def _isolate_config_dir(monkeypatch, tmp_path):
     config, making them order- and environment-dependent.
     """
     monkeypatch.setattr(config_dir_mod, "_config_dir", tmp_path)
-    save_auth_config(
-        {
-            "alibaba": "sk-test-alibaba",
-            "openai": "sk-test-openai",
-            "deepseek": "sk-test-deepseek",
-            "minimax": "sk-test-minimax",
-            "google": "sk-test-google",
-        }
-    )
+    for _provider, _key in {
+        "alibaba": "sk-test-alibaba",
+        "openai": "sk-test-openai",
+        "deepseek": "sk-test-deepseek",
+        "minimax": "sk-test-minimax",
+        "google": "sk-test-google",
+    }.items():
+        set_api_key(_provider, _key)
 
 
 def _fake_run_returns(content, reasoning=None, tool_calls=None, usage=None):
@@ -96,7 +95,7 @@ if pytest is not None:
         from janito.config_cli import set_config_from_cli
         from janito.llm_clients.api_config import build_api_config
 
-        save_auth_config({"alibaba": "sk-test"})
+        set_api_key("alibaba", "sk-test")
         # Scope the value to qwen3.8-max: the config key is model-scoped
         # (both Qwen models declare reasoning levels).
         set_config_from_cli("reasoning-effort=medium", "alibaba", "qwen3.8-max")

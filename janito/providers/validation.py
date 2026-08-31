@@ -38,21 +38,6 @@ def is_supported_provider(provider: str) -> bool:
     return _registry.canonical_name(provider) is not None
 
 
-def is_registered_provider_variant(name: str) -> bool:
-    """Whether ``name`` is a registered provider variant (not a base provider).
-
-    Unlike :func:`is_supported_provider` (which also accepts built-in
-    providers), this only returns True for registered variants.
-
-    Args:
-        name: The provider name.
-
-    Returns:
-        True if the name is a registered variant.
-    """
-    return _registry.variant_base(name) is not None
-
-
 def list_variants() -> list:
     """List all registered provider variant names, sorted.
 

@@ -41,7 +41,7 @@ def is_variant_style_name(name: str) -> bool:
     """Whether ``name`` looks like a provider variant (``<provider>-<word>``).
 
     This only checks the shape; the variant need not be registered (use
-    :func:`is_registered_provider_variant` for that).
+    :func:`janito.providers.validation.validate_provider_name` for that).
 
     Args:
         name: The provider name.

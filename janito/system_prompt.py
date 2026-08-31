@@ -135,22 +135,6 @@ class SysPromptManager:
         existing = self._sections[index]
         self._sections[index] = Section(existing.name, prompt, existing.label)
 
-    def update_label(self, name: str, label: str | None) -> None:
-        """Set (or clear, with ``None``) the display label of a section.
-
-        Args:
-            name: Section name.
-            label: New display label, or ``None`` to fall back to ``name``.
-
-        Raises:
-            ValueError: if no section named ``name`` exists.
-        """
-        index = self._find(name)
-        if index is None:
-            raise ValueError(f"no section named {name!r} to label")
-        existing = self._sections[index]
-        self._sections[index] = Section(existing.name, existing.text, label)
-
     def del_section(self, name: str) -> None:
         """Remove a section.
 

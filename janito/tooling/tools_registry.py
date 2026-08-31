@@ -429,22 +429,6 @@ def get_tool_by_name(name: str) -> Callable:
     return _registry.get(name)
 
 
-def get_tool_schema_by_name(name: str) -> dict[str, Any]:
-    """
-    Get a specific tool schema by name.
-
-    Args:
-        name (str): Name of the tool
-
-    Returns:
-        Dict[str, Any]: The tool schema
-
-    Raises:
-        KeyError: If tool with given name doesn't exist
-    """
-    return _registry.schema(name)
-
-
 def get_tool_permissions(name: str) -> str:
     """
     Get the permissions required by a specific tool.

@@ -233,8 +233,8 @@ if pytest is not None:
             id = None
             function = _Fn2()
 
-        c.handle_tool_call_delta(_TC())
-        c.handle_tool_call_delta(_TC2())
+        c._fold_tool_call_delta(_TC())
+        c._fold_tool_call_delta(_TC2())
         assert c.tool_calls == {
             0: {
                 "id": "call_1",
@@ -268,7 +268,7 @@ if pytest is not None:
             function = _Fn()
             extra_content = extra
 
-        c.handle_tool_call_delta(_TC())
+        c._fold_tool_call_delta(_TC())
         assert c.tool_calls[2]["extra_content"] == extra
         assert c.tool_calls_list() == [
             {
@@ -296,7 +296,7 @@ if pytest is not None:
             id = "call_1"
             function = _Fn()
 
-        c.handle_tool_call_delta(_TC())
+        c._fold_tool_call_delta(_TC())
         assert c.tool_calls_list() == [
             {
                 "id": "call_1",

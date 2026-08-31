@@ -216,9 +216,6 @@ if pytest is not None:
         assert tools_registry.get_all_tool_schemas() == registry.all_schemas()
         assert tools_registry.get_all_tool_permissions() == registry.all_permissions()
         assert tools_registry.get_tool_by_name("ReadFile") == registry.get("ReadFile")
-        assert tools_registry.get_tool_schema_by_name("ReadFile") == registry.schema(
-            "ReadFile"
-        )
         assert tools_registry.get_tool_permissions("ReadFile") == registry.permissions(
             "ReadFile"
         )

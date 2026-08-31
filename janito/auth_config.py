@@ -44,24 +44,6 @@ def get_auth_file_paths() -> list[Path]:
     return _store.file_paths()
 
 
-def load_auth_config() -> dict[str, str]:
-    """Load the authentication configuration from file.
-
-    With ``-l`` / ``--local`` the project-local auth.json (``./.janito``) is
-    merged over the base one (``~/.janito`` or the ``-c`` override) so local
-    entries take precedence; otherwise only the base file is read.
-
-    Returns:
-        Dict of provider -> API key.
-    """
-    return _store.load()
-
-
-def save_auth_config(config: dict[str, str]) -> bool:
-    """Save the authentication configuration to file."""
-    return _store.save(config)
-
-
 def set_api_key(provider: str, api_key: str) -> bool:
     """
     Set an API key for a specific provider.

@@ -34,10 +34,6 @@ class CompletionsStreamConsumer(CompletionsTurnAccumulator):
     chunks/deltas.
     """
 
-    # The CLI historically exposed the single-delta folding under this name;
-    # the shared base calls it ``_fold_tool_call_delta``.
-    handle_tool_call_delta = CompletionsTurnAccumulator._fold_tool_call_delta
-
     def handle(self, chunk) -> tuple[str | None, str | None]:
         """Process one chunk, also capturing the raw response metadata.
 

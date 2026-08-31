@@ -88,11 +88,6 @@ class PromptRegistry:
             item.cancel()
         return len(pending)
 
-    def has_pending(self) -> bool:
-        """True when at least one question is still awaiting an answer."""
-        with self._lock:
-            return bool(self._pending)
-
 
 class WebPromptHandler:
     """Synchronous prompt callback that shows an inline browser question card.
