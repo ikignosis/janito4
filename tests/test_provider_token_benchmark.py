@@ -71,6 +71,7 @@ def test_parse_usage_log_single_round():
             "cached": None,
             "max": 128000,
             "count": 1,
+            "elapsed": None,
         }
     ]
 

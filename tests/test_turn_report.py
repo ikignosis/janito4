@@ -99,10 +99,15 @@ class TestNormalizeUsageWithTokenStats:
 
 
 class TestDisplayTurnUsage:
-    def _render(self, token_stats, api_config=None):
+    def _render(self, token_stats, api_config=None, elapsed_time=None):
         buf = StringIO()
         console = Console(file=buf, force_terminal=False, width=120)
-        display_turn_usage(token_stats, api_config or _config(), console=console)
+        display_turn_usage(
+            token_stats,
+            api_config or _config(),
+            console=console,
+            elapsed_time=elapsed_time,
+        )
         return buf.getvalue()
 
     def test_renders_usage_line_from_populated_turn_stats(self):
@@ -116,14 +121,26 @@ class TestDisplayTurnUsage:
                 max_input_tokens=65536,
                 max_output_tokens=8192,
             ),
+            elapsed_time=12.34,
         )
-        assert "Total: 100" in text
+        # "Total" was replaced by the turn's elapsed time (issue #99).
+        assert "Time: 12.3s" in text
+        assert "Total:" not in text
         assert "In: 60/65.5k" in text
         assert "Out: 40/8.2k" in text
         assert "Cached: 5" in text
         # The conversation turn number is no longer part of the summary
         # (it lives in the shell's pre-prompt rule instead).
         assert "Turn" not in text
+
+    def test_time_part_omitted_without_elapsed_time(self):
+        # Without an elapsed time (no measurement) the summary line keeps
+        # the historical shape minus the Total part.
+        u = _token_stats()
+        text = self._render(u)
+        assert "Time:" not in text
+        assert "Total:" not in text
+        assert "In: 60" in text
 
     def test_cached_omitted_when_stats_report_no_cached_tokens(self):
         # The cached part is driven by the normalized stats: APIs that do not
@@ -233,22 +250,25 @@ class TestRunTurnDeliversTurnReport:
             def on_message(self, content):
                 pass
 
-            def on_turn_complete(self, token_stats, api_config):
-                recorded.append((token_stats, api_config))
+            def on_turn_complete(self, token_stats, api_config, elapsed_time=None):
+                recorded.append((token_stats, api_config, elapsed_time))
 
         client = self._client(monkeypatch, Obs())
         result = client.run_turn("hi", tools=[])
         assert result == "final answer"
         # on_turn_complete was invoked exactly once, with the client-built
-        # TokenStats (usage folded from the stream round) and the client's
-        # resolved APIConfig (provider/model come from the config).
+        # TokenStats (usage folded from the stream round), the client's
+        # resolved APIConfig (provider/model come from the config) and the
+        # turn's elapsed wall-clock time (issue #99).
         assert len(recorded) == 1
-        u, api_config = recorded[0]
+        u, api_config, elapsed_time = recorded[0]
         assert isinstance(u, TokenStats)
         assert u.turn_input == 60
         assert u.turn_output == 40
         assert api_config.provider == "openai"
         assert api_config.model == "gpt-4"
+        assert isinstance(elapsed_time, float)
+        assert elapsed_time >= 0
 
     def test_run_turn_always_delivers_turn_report(self, monkeypatch):
         """The report is always delivered -- the client owns the TokenStats
@@ -262,13 +282,13 @@ class TestRunTurnDeliversTurnReport:
             def on_message(self, content):
                 pass
 
-            def on_turn_complete(self, token_stats, api_config):
-                called.append((token_stats, api_config))
+            def on_turn_complete(self, token_stats, api_config, elapsed_time=None):
+                called.append((token_stats, api_config, elapsed_time))
 
         client = self._client(monkeypatch, Obs())
         client.run_turn("hi", tools=[])
         assert len(called) == 1
-        u, api_config = called[0]
+        u, api_config, _elapsed = called[0]
         assert isinstance(u, TokenStats)
         assert api_config.model == "gpt-4"
         # The fake stream reported usage, so the report is populated.
@@ -292,9 +312,10 @@ class TestRunTurnDeliversTurnReport:
                 max_input_tokens=65536,
                 max_output_tokens=8192,
             ),
+            elapsed_time=12.34,
         )
         text = buf.getvalue()
-        assert "Total: 100" in text
+        assert "Time: 12.3s" in text
         assert "In: 60/65.5k" in text
 
     def test_rich_observer_on_turn_complete_records_accounting(self):

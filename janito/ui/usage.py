@@ -14,7 +14,12 @@ from rich.console import Console
 from rich.text import Text
 
 from janito.config_loaders import load_used_files_enabled
-from janito.llm_adapters.usage import TokenStats, format_tokens, normalize_usage
+from janito.llm_adapters.usage import (
+    TokenStats,
+    format_elapsed,
+    format_tokens,
+    normalize_usage,
+)
 from janito.providers.costing import get_provider_cost
 from janito.tooling.used_files import format_used_files
 
@@ -71,6 +76,7 @@ def _display_usage(
     *,
     provider: str | None = None,
     model: str | None = None,
+    elapsed_time: float | None = None,
 ) -> None:
     """Print the token usage summary line.
 
@@ -82,7 +88,10 @@ def _display_usage(
     The shared :func:`normalize_usage` maps every shape onto one dict -- the
     ``cached`` counter is ``None`` for APIs that do not report cached-token
     details, so the cached part is shown only when the API actually reports
-    it.
+    it.  The ``Total:`` part was dropped in favour of the turn's elapsed
+    wall-clock time (issue #99): ``elapsed_time`` is the duration
+    ``Client.run_turn`` measured from its entry until the end of the turn,
+    rendered first as ``Time:`` via :func:`format_elapsed`.
 
     ``Cost: <cost>`` is computed through
     :func:`janito.providers.costing.get_provider_cost` from the provider /
@@ -103,7 +112,6 @@ def _display_usage(
     stats = normalize_usage(usage_info)
     if stats is None:
         return
-    total_tokens = stats["total"]
     input_tokens = stats["input"]
     output_tokens = stats["output"]
     cached_tokens = stats["cached"]
@@ -112,8 +120,8 @@ def _display_usage(
     )
 
     parts = []
-    if total_tokens is not None:
-        parts.append(f"Total: {format_tokens(total_tokens)}")
+    if elapsed_time is not None:
+        parts.append(f"Time: {format_elapsed(elapsed_time)}")
     if input_tokens is not None:
         if max_input_tokens is not None:
             parts.append(
@@ -148,9 +156,10 @@ def _display_usage(
     token_text.stylize("bright_white on magenta")
     console.print(token_text, highlight=False)
     logger.info(
-        f"Request completed: total={total_tokens} tokens "
+        f"Request completed: total={stats['total']} tokens "
         f"(in={input_tokens}, out={output_tokens}, "
-        f"cached={cached_tokens}, max={max_output_tokens})"
+        f"cached={cached_tokens}, max={max_output_tokens}), "
+        f"elapsed={format_elapsed(elapsed_time)}"
     )
 
 
@@ -159,6 +168,7 @@ def display_turn_usage(
     api_config: APIConfig,
     *,
     console: Console | None = None,
+    elapsed_time: float | None = None,
 ) -> None:
     """Print the end-of-turn reports (used files + token usage summary).
 
@@ -168,10 +178,13 @@ def display_turn_usage(
     folded into it) and the turn's resolved
     :class:`~janito.llm_clients.api_config.APIConfig`, whose
     ``provider`` / ``model`` / ``max_input_tokens`` / ``max_output_tokens``
-    feed the summary line.  Replaces the reports the per-client ``_finalize``
-    helpers used to print inline: the tracked used files first, then the
-    magenta token-usage summary line.  Nothing is printed when no usage was
-    reported (``token_stats`` is ``None``).
+    feed the summary line.  ``elapsed_time`` is the turn's wall-clock
+    duration in seconds (measured by ``Client.run_turn`` from its entry
+    until the end of the turn, issue #99) and is rendered as the ``Time:``
+    part of the summary line.  Replaces the reports the per-client
+    ``_finalize`` helpers used to print inline: the tracked used files
+    first, then the magenta token-usage summary line.  Nothing is printed
+    when no usage was reported (``token_stats`` is ``None``).
     """
     console = console or Console()
 
@@ -194,4 +207,5 @@ def display_turn_usage(
         console,
         provider=api_config.provider,
         model=api_config.model,
+        elapsed_time=elapsed_time,
     )

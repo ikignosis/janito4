@@ -43,6 +43,7 @@ monkeypatching a module global.
 """
 
 import logging
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -210,6 +211,11 @@ class Client:
         clear_changes()
         reset_used_files()
 
+        # Wall-clock duration of the turn (issue #99): measured from the
+        # run_turn entry (MCP load and model-settings resolution included)
+        # until the end-of-turn report is delivered.
+        turn_started = time.monotonic()
+
         base_url, api_key, model = (
             self.api_config.base_url,
             self.api_config.api_key,
@@ -348,24 +354,34 @@ class Client:
             # No more tool calls, return the final response.  The end-of-turn
             # report is delivered to the injected observer here, at the end
             # of the turn, like every other observer event: the observer's
-            # ``on_turn_complete`` renders the usage summary and records the
-            # overall-use accounting row (see RichTurnObserver).
+            # ``on_turn_complete`` renders the usage summary (with the turn's
+            # elapsed wall-clock time, issue #99) and records the overall-use
+            # accounting row (see RichTurnObserver).
             return self._finish_turn(
-                full_content, reasoning_content, state, token_stats
+                full_content, reasoning_content, state, token_stats, turn_started
             )
 
-    def _finish_turn(self, full_content, reasoning_content, state, token_stats):
+    def _finish_turn(
+        self, full_content, reasoning_content, state, token_stats, turn_started=None
+    ):
         """Finalize the turn and deliver the end-of-turn report.
 
         Runs the concrete client's :meth:`_finalize` hook and then hands the
         populated client-owned :class:`~janito.llm_adapters.usage.TokenStats`,
         together with the turn's resolved ``self.api_config`` (provider / model /
-        max tokens), to the injected observer's ``on_turn_complete`` (which
-        renders the usage summary and records the overall-use accounting
-        row).  The report is delivered on every turn.
+        max tokens) and the turn's elapsed wall-clock time (seconds, from
+        ``turn_started`` -- the ``time.monotonic()`` stamp ``run_turn`` records
+        at its entry, issue #99), to the injected observer's
+        ``on_turn_complete`` (which renders the usage summary and records the
+        overall-use accounting row).  The report is delivered on every turn.
         """
         result = self._finalize(full_content, reasoning_content, state)
-        self.observer.on_turn_complete(token_stats, self.api_config)
+        elapsed_time = (
+            time.monotonic() - turn_started if turn_started is not None else None
+        )
+        self.observer.on_turn_complete(
+            token_stats, self.api_config, elapsed_time=elapsed_time
+        )
         return result
 
     # ------------------------------------------------------------------

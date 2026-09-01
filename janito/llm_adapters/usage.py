@@ -80,6 +80,27 @@ def format_tokens(count):
     return str(int(value))
 
 
+def format_elapsed(seconds: float | None) -> str | None:
+    """Convert an elapsed duration in seconds to a human-readable format.
+
+    Examples:
+        12.34 -> "12.3s"
+        125.0 -> "2m 05s"
+        3725.0 -> "1h 02m 05s"
+        0.0 -> "0.0s"
+    """
+    if seconds is None:
+        return None
+    total = max(0, int(seconds))
+    hours, remainder = divmod(total, 3600)
+    minutes, secs = divmod(remainder, 60)
+    if hours:
+        return f"{hours}h {minutes:02d}m {secs:02d}s"
+    if minutes:
+        return f"{minutes}m {secs:02d}s"
+    return f"{seconds:.1f}s"
+
+
 def _add(a: int | None, b: int | None) -> int | None:
     """None-aware sum: ``None`` means "not reported", not zero."""
     if a is None and b is None:

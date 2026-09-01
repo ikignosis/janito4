@@ -116,7 +116,12 @@ class TurnObserver(Protocol):
         """
         ...
 
-    def on_turn_complete(self, token_stats: TokenStats | None, api_config: Any) -> None:
+    def on_turn_complete(
+        self,
+        token_stats: TokenStats | None,
+        api_config: Any,
+        elapsed_time: float | None = None,
+    ) -> None:
         """End-of-turn report (used files + token-usage summary + accounting).
 
         Invoked by ``Client.run_turn`` at the end of the turn with the
@@ -125,7 +130,11 @@ class TurnObserver(Protocol):
         resolved :class:`~janito.llm_clients.api_config.APIConfig`
         (``api_config``);
         the report's provider / model / max tokens come from the config
-        (issue #82: there is no caller-supplied out-param).  The CLI's
+        (issue #82: there is no caller-supplied out-param).
+        ``elapsed_time`` is the wall-clock duration of the turn in seconds,
+        measured by ``Client.run_turn`` from its entry until the end of the
+        turn (issue #99); the CLI's usage line renders it as the ``Time:``
+        part.  The CLI's
         ``RichTurnObserver`` (:mod:`janito.ui.observer`) renders the report
         and records the overall-use accounting row from this call; the
         headless ``NullObserver`` drops it
@@ -190,7 +199,12 @@ class NullObserver:
     ) -> None:
         pass
 
-    def on_turn_complete(self, token_stats: Any, api_config: Any) -> None:
+    def on_turn_complete(
+        self,
+        token_stats: Any,
+        api_config: Any,
+        elapsed_time: float | None = None,
+    ) -> None:
         pass
 
 

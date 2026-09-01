@@ -119,21 +119,28 @@ class RichTurnObserver(NullObserver):
             _handle_auth_error(e, provider, api_key, base_url, model, self.console)
         # else: unknown failure -- nothing to explain; the caller re-raises.
 
-    def on_turn_complete(self, token_stats, api_config) -> None:
+    def on_turn_complete(
+        self, token_stats, api_config, elapsed_time: float | None = None
+    ) -> None:
         """End-of-turn report: record accounting, then render the usage summary.
 
         Invoked by ``Client.run_turn`` at the end of every turn that reported
         token usage, with the client-built
         :class:`~janito.llm_adapters.usage.TokenStats` and the resolved
         :class:`~janito.llm_clients.api_config.APIConfig` for the turn
-        (provider / model / max tokens come from the api_config).  The
+        (provider / model / max tokens come from the api_config).
+        ``elapsed_time`` is the turn's wall-clock duration in seconds
+        (measured by ``Client.run_turn`` from its entry, issue #99); it is
+        rendered as the ``Time:`` part of the usage summary line.  The
         overall-use accounting row (:func:`_record_accounting`, best effort,
         never raises) is written here -- from the observer -- so neither the
         API clients nor the CLI carry it; the rendered report (used files +
         token-usage summary) is delegated to :func:`display_turn_usage`.
         """
         _record_accounting(token_stats, api_config)
-        display_turn_usage(token_stats, api_config, console=self.console)
+        display_turn_usage(
+            token_stats, api_config, elapsed_time=elapsed_time, console=self.console
+        )
 
 
 class SilentTurnObserver(NullObserver):
@@ -150,7 +157,9 @@ class SilentTurnObserver(NullObserver):
     is untouched, so the progress bar keeps working).
     """
 
-    def on_turn_complete(self, token_stats, api_config) -> None:
+    def on_turn_complete(
+        self, token_stats, api_config, elapsed_time: float | None = None
+    ) -> None:
         """Record the accounting row only; never render anything."""
         _record_accounting(token_stats, api_config)
 

@@ -295,12 +295,13 @@ MODEL_RE = re.compile(
 
 # Exact per-round usage from the --log=info line emitted by
 # janito.ui.usage._display_usage, e.g.:
-#   INFO: Request completed: total=1234 tokens (in=1000, out=234, cached=None, max=128000), 1 messages
+#   INFO: Request completed: total=1234 tokens (in=1000, out=234, cached=None, max=128000), elapsed=12.3s
 USAGE_LOG_RE = re.compile(
     r"INFO: Request completed: total=(?P<total>\d+|None) tokens "
     r"\(in=(?P<in>\d+|None), out=(?P<out>\d+|None), "
-    r"cached=(?P<cached>\d+|None), max=(?P<max>\d+|None)\), "
-    r"(?P<count>\d+) (?:messages|responses)"
+    r"cached=(?P<cached>\d+|None), max=(?P<max>\d+|None)\)"
+    r"(?:, elapsed=(?P<elapsed>\S+))?"
+    r"(?:, (?P<count>\d+) (?:messages|responses))?"
 )
 
 # The human-readable summary line, e.g.:
@@ -361,6 +362,8 @@ def parse_usage_log(stderr: str) -> list[dict]:
         values = {
             name: match.group(name) for name in ("total", "in", "out", "cached", "max")
         }
+        count = match.group("count")
+        elapsed = match.group("elapsed")
         rounds.append(
             {
                 "total": int(values["total"]) if values["total"] != "None" else None,
@@ -368,7 +371,8 @@ def parse_usage_log(stderr: str) -> list[dict]:
                 "out": int(values["out"]) if values["out"] != "None" else None,
                 "cached": int(values["cached"]) if values["cached"] != "None" else None,
                 "max": int(values["max"]) if values["max"] != "None" else None,
-                "count": int(match.group("count")),
+                "count": int(count) if count else 1,
+                "elapsed": elapsed,
             }
         )
     return rounds

@@ -262,7 +262,7 @@ if pytest is not None:
         )
         lines = text.splitlines()
         assert "Reached 80% of input capacity" in lines[0]
-        assert lines[1].startswith("=== Total:")
+        assert lines[1].startswith("=== In:")
 
     def test_usage_no_warning_at_exactly_80_percent():
         """Exactly 80% of capacity does not trigger the warning."""
