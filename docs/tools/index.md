@@ -10,8 +10,26 @@ janito includes built-in tools for common tasks.
 | **Code Search** | Code search | Search a pre-built trigram index (codesearch plugin, `/codesearch`) |
 | **System** | Execution | Run Python code, execute PowerShell commands |
 | **Net** | Web access | Fetch URLs, search the web (Brave) |
+| **Interactive** | AskUser | Ask the user a question mid-turn (web UI and interactive shell only — see below) |
 | **Skills** | Extensions | Install and use task-specific skills |
 | **MCP** | Extensions | Connect to MCP servers for custom tools |
+
+## Interactive Tools
+
+`AskUser` lets the agent ask you a question mid-turn and use your answer.
+It is only loaded in **interactive runs**, where someone can actually
+answer:
+
+- **Web UI** (`janito --web`): the question appears as an inline card in
+  the chat, even when the server itself runs headless (no TTY stdin).
+- **Interactive shell** (no prompt argument, TTY stdin): the question is
+  rendered in the console and the answer is read from stdin.
+
+In single-prompt runs — `janito "..."` (positional or piped) — nobody is
+watching mid-run, so `AskUser` is **skipped**: it is never advertised to
+the model and the agent proceeds with its best judgement instead of
+stalling on a question nobody sees. The tool summary lists it as skipped
+with the reason.
 
 ## Enabling Tools
 

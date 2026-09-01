@@ -10,14 +10,20 @@ Verifies that:
 - Console markup in the question is not interpreted.
 - The tool handles EOF gracefully (empty answer).
 - The tool handles exceptions gracefully (success=False).
+- The should_load() gate skips the tool in single-prompt runs (positional
+  or piped) and loads it only when a question surface is declared
+  (web mode, interactive shell).
 """
 
+import sys
 from contextlib import redirect_stderr
 from io import StringIO
 from unittest.mock import patch
 
 import pytest
 
+from janito.tooling.prompting import browser_prompts
+from janito.tools import get_skipped_tools
 from janito.tools.system.ask_user import AskUser
 
 
@@ -119,3 +125,66 @@ class TestAskUser:
             result = AskUser().run(question="ok?")
 
         assert "success" in result
+
+
+class TestAskUserShouldLoad:
+    """The should_load() gate: interactive runs only (issue #98).
+
+    The browser-prompts flag is the sole criterion -- it is declared at
+    startup for web mode (in-browser question cards, even headless) and for
+    the interactive shell (stdin prompting; TTY stdin, no positional
+    prompt). Single-prompt runs -- positional or piped -- declare nothing:
+    nobody is watching mid-run, so the tool is skipped there and never
+    advertised to the model.
+    """
+
+    def test_skipped_when_no_surface_declared(self, monkeypatch):
+        """Single-prompt run: skipped, with a skip reason set."""
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+        assert AskUser.should_load() is False
+        assert "no mid-turn question surface" in AskUser._load_skip_reason
+
+    def test_skipped_even_with_tty_stdin(self, monkeypatch):
+        """A TTY alone is not enough: the run must declare a surface."""
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+        assert AskUser.should_load() is False
+
+    def test_loads_when_surface_declared(self, monkeypatch):
+        """Web mode / interactive shell: the surface is declared, tool loads."""
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+        with browser_prompts():
+            assert AskUser.should_load() is True
+
+    def test_skip_reason_untouched_when_loaded(self, monkeypatch):
+        """A successful gate does not set a skip reason."""
+        with browser_prompts():
+            AskUser._load_skip_reason = ""
+            AskUser.should_load()
+        assert AskUser._load_skip_reason == ""
+
+
+class TestAskUserDiscoveryGate:
+    """Discovery excludes AskUser in single-prompt runs (issue #98)."""
+
+    def test_discovery_skips_ask_user_without_surface(self, monkeypatch):
+        """discover_toolsets(['system']) drops AskUser when nothing is declared."""
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+
+        from janito.tooling.discovery import discover_toolsets
+
+        tools = discover_toolsets(["system"])
+
+        assert "AskUser" not in tools
+        # The skip is surfaced for the tool summary / /tools command.
+        assert "no mid-turn question surface" in get_skipped_tools()["AskUser"]
+
+    def test_discovery_includes_ask_user_with_surface(self, monkeypatch):
+        """Interactive runs (surface declared) keep AskUser registered."""
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+
+        from janito.tooling.discovery import discover_toolsets
+
+        with browser_prompts():
+            tools = discover_toolsets(["system"])
+
+        assert "AskUser" in tools

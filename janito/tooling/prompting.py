@@ -23,6 +23,50 @@ from contextvars import ContextVar
 # BaseTool.prompt_user applies.
 PromptHandler = Callable[[str], str]
 
+# Whether the run has a mid-turn question surface (the web UI's in-browser
+# question cards, or the interactive shell's stdin prompting). The AskUser
+# tool consults this in its ``should_load()`` gate: the flag is declared at
+# startup (``janito.__main__._declare_prompt_surface``) for web mode
+# (including headless deployments with no TTY stdin) and for the interactive
+# shell, and stays off for single-prompt runs (positional or piped), where
+# nobody can answer a question raised mid-turn -- the tool is then skipped
+# during discovery and never advertised to the model.
+_browser_prompts_enabled: bool = False
+
+
+def enable_browser_prompts() -> None:
+    """Declare that questions can be answered in this run.
+
+    Called at startup before tool discovery (and again, idempotently, in
+    ``create_app``): the AskUser tool's ``should_load()`` gate then loads it.
+    """
+    global _browser_prompts_enabled
+    _browser_prompts_enabled = True
+
+
+def browser_prompts_enabled() -> bool:
+    """Whether the run has a surface that can answer mid-turn questions."""
+    return _browser_prompts_enabled
+
+
+class browser_prompts:
+    """Context manager temporarily declaring browser prompts available.
+
+    Test convenience: scopes the flag to a block and restores the previous
+    value afterwards (production code calls :func:`enable_browser_prompts`
+    once at startup instead).
+    """
+
+    def __enter__(self) -> None:
+        global _browser_prompts_enabled
+        self._previous = _browser_prompts_enabled
+        _browser_prompts_enabled = True
+
+    def __exit__(self, *exc_info) -> None:
+        global _browser_prompts_enabled
+        _browser_prompts_enabled = self._previous
+
+
 _prompt_handler: ContextVar[PromptHandler | None] = ContextVar(
     "_prompt_handler", default=None
 )

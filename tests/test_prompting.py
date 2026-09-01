@@ -12,12 +12,46 @@ Verifies that:
 - ``AskUser`` delegates to the installed handler instead of stdin.
 - The handler's answer is whitespace-stripped, like the stdin path.
 - A handler exception surfaces as a failed tool result (never crashes).
+- The browser-prompts flag starts off, can be enabled and is restored by
+  the ``browser_prompts`` context manager (issue #98).
 """
 
 from unittest.mock import patch
 
-from janito.tooling.prompting import get_prompt_handler, set_prompt_handler
+from janito.tooling.prompting import (
+    browser_prompts,
+    browser_prompts_enabled,
+    enable_browser_prompts,
+    get_prompt_handler,
+    set_prompt_handler,
+)
 from janito.tools.system.ask_user import AskUser
+
+
+class TestBrowserPromptsFlag:
+    """The process-level browser-prompts flag (issue #98)."""
+
+    def test_default_is_off(self, monkeypatch):
+        """CLI runs start with the flag off (stdin-only answering)."""
+        import janito.tooling.prompting as prompting
+
+        monkeypatch.setattr(prompting, "_browser_prompts_enabled", False)
+        assert browser_prompts_enabled() is False
+
+    def test_enable_sets_flag(self, monkeypatch):
+        import janito.tooling.prompting as prompting
+
+        monkeypatch.setattr(prompting, "_browser_prompts_enabled", False)
+        enable_browser_prompts()
+        assert browser_prompts_enabled() is True
+
+    def test_context_manager_scopes_and_restores(self, monkeypatch):
+        import janito.tooling.prompting as prompting
+
+        monkeypatch.setattr(prompting, "_browser_prompts_enabled", False)
+        with browser_prompts():
+            assert browser_prompts_enabled() is True
+        assert browser_prompts_enabled() is False
 
 
 class TestPromptHandlerContextVar:

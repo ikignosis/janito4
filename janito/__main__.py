@@ -266,6 +266,41 @@ def _run_web(args) -> int:
     return 0
 
 
+def _declare_prompt_surface(args) -> None:
+    """Declare the process's mid-turn question surface for AskUser.
+
+    The AskUser tool's ``should_load()`` gate loads only when a surface can
+    answer a question raised mid-turn:
+
+    - web mode (``--web``): in-browser question cards, including headless
+      deployments with no TTY stdin;
+    - the interactive shell: stdin prompting (Rich table + ``input()``),
+      where the user is at the keyboard -- detected as *no positional
+      prompt* and *stdin is a TTY*, evaluated before
+      :func:`read_stdin_prompt` so piped input cannot flip it.
+
+    Single-prompt runs (positional or piped) declare nothing: nobody is
+    watching mid-run, so the tool stays skipped and the model is never
+    invited to ask questions. Declared before plugin loading -- the earliest
+    point that can trigger tool registry access
+    (``register_plugin_tools`` -> ``ensure_initialized``) -- and again in
+    ``create_app()`` (idempotent), so plugins and the routers both see it.
+    """
+    if getattr(args, "web", False):
+        from .tooling.prompting import enable_browser_prompts
+
+        enable_browser_prompts()
+        return
+
+    if getattr(args, "prompt", None) is None:
+        import sys
+
+        if sys.stdin.isatty():
+            from .tooling.prompting import enable_browser_prompts
+
+            enable_browser_prompts()
+
+
 def main():
     """Main entry point."""
     parser = create_parser()
@@ -289,6 +324,8 @@ def main():
     exit_code = _handle_batch_config(args)
     if exit_code is not None:
         return exit_code
+
+    _declare_prompt_surface(args)
 
     # Load plugins before any registry/shell access so plugin tools,
     # commands and system-prompt sections are registered for the session.

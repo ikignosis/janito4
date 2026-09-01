@@ -26,6 +26,10 @@ echo "Explain this code" | janito
     (echo "Summarize this:"; cat readme.md) | janito
     ```
 
+    Because stdin is consumed by the prompt, nobody can answer interactive
+    questions: the `AskUser` tool is skipped in pipe mode, so the agent
+    proceeds with its best judgement instead of stalling on a question.
+
 !!! warning "Do not combine `--set` with a prompt"
     Batch configuration operations (`--set`, `--unset`, `--get`,
     `--set-secret`, `--delete-secret`) are handled first and janito exits

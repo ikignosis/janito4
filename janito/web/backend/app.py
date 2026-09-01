@@ -50,6 +50,16 @@ def _cache_bust_assets(html: str, frontend_dir: Path) -> str:
 
 def create_app(config: WebServerConfig) -> FastAPI:
     """Build the FastAPI application."""
+    # Building the web app declares the web UI as a question-answering
+    # surface: the AskUser tool's should_load() gate loads it even when
+    # stdin is not an interactive terminal (headless/service deployments),
+    # because questions are answered through the in-browser question cards.
+    # Must precede any tool discovery triggered below (the routers read the
+    # tools registry).
+    from janito.tooling.prompting import enable_browser_prompts
+
+    enable_browser_prompts()
+
     from .routers import chat as chat_router
     from .routers import config as config_router
     from .routers import images as images_router

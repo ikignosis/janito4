@@ -11,6 +11,14 @@ Changes since `v4.35.0` (2026-08-31).
 
 ### Added
 
+- `AskUser` is now limited to interactive runs (issue #98): it loads in
+  web mode (in-browser question cards, even when the server runs headless)
+  and in the interactive shell (stdin prompting, where the user is at the
+  keyboard mid-turn). In single-prompt runs -- positional (`janito "..."`)
+  or piped (`echo "..." | janito`) -- nobody is watching mid-run, so the
+  tool is excluded from discovery and never advertised to the model: the
+  run cannot stall on a question nobody sees, and the tool summary reports
+  the skip reason.
 - `--no-tasks` CLI flag: disables the tasks toolset (`StartTask`, `StopTask`,
   `WaitForTask`) while leaving every other toolset (files, system, net) and
   the skill tools enabled. Works in both the terminal CLI and `--web` mode.
