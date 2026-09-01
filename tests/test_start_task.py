@@ -23,14 +23,15 @@ class _FakeTaskManager:
     def __init__(self):
         self.calls = []
 
-    def start_task(self, description, working_dir=None, privileges=None):
-        self.calls.append((description, working_dir, privileges))
+    def start_task(self, description, working_dir=None, privileges=None, summary=None):
+        self.calls.append((description, working_dir, privileges, summary))
         return {
             "task_id": "task-1",
             "pid": 4242,
             "stdout_filename": "/tmp/janito-task-1.out",
             "stderr_filename": "/tmp/janito-task-1.err",
             "working_dir": working_dir or "/cwd",
+            "summary": summary,
         }
 
 
@@ -41,23 +42,25 @@ def _install_fake_manager(monkeypatch):
 
 
 def test_run_delegates_to_task_manager(monkeypatch):
-    """The tool forwards description/working_dir/privileges to the manager."""
+    """The tool forwards summary/description/working_dir/privileges to the manager."""
     fake = _install_fake_manager(monkeypatch)
 
     result = start_task_module.StartTask().run(
+        summary="Fix the login page",
         description="Fix the login page",
         working_dir="/tmp/project",
         privileges="rwx",
     )
 
     assert fake.calls == [
-        ("Fix the login page", "/tmp/project", "rwx")
+        ("Fix the login page", "/tmp/project", "rwx", "Fix the login page")
     ]
     assert result["success"] is True
     assert result["task_id"] == "task-1"
     assert result["pid"] == 4242
     assert result["stdout_filename"] == "/tmp/janito-task-1.out"
     assert result["stderr_filename"] == "/tmp/janito-task-1.err"
+    assert result["summary"] == "Fix the login page"
     assert result["description"] == "Fix the login page"
     assert result["working_dir"] == "/tmp/project"
     assert result["privileges"] == "rwx"
@@ -66,15 +69,20 @@ def test_run_delegates_to_task_manager(monkeypatch):
 def test_run_defaults_to_current_turn_privileges(monkeypatch):
     """Without an explicit privileges arg, StartTask mirrors the current turn."""
     fake = _install_fake_manager(monkeypatch)
-    from janito.tooling.turn_privileges import reset_turn_privileges, set_turn_privileges
+    from janito.tooling.turn_privileges import (
+        reset_turn_privileges,
+        set_turn_privileges,
+    )
 
     token = set_turn_privileges("rx")  # e.g. a /rx turn
     try:
-        result = start_task_module.StartTask().run(description="Write docs")
+        result = start_task_module.StartTask().run(
+            summary="Write docs", description="Write docs"
+        )
     finally:
         reset_turn_privileges(token)
 
-    assert fake.calls == [("Write docs", None, "rx")]
+    assert fake.calls == [("Write docs", None, "rx", "Write docs")]
     assert result["success"] is True
     assert result["working_dir"] == "/cwd"
     assert result["privileges"] == "rx"
@@ -92,26 +100,31 @@ def test_run_defaults_to_session_privileges(monkeypatch):
         Privileges(READ=True, WRITE=True),
     )
 
-    result = start_task_module.StartTask().run(description="Write docs")
+    result = start_task_module.StartTask().run(
+        summary="Write docs", description="Write docs"
+    )
 
-    assert fake.calls == [("Write docs", None, "rw")]
+    assert fake.calls == [("Write docs", None, "rw", "Write docs")]
     assert result["privileges"] == "rw"
 
 
 def test_run_explicit_privileges_override_turn(monkeypatch):
     """An explicit privileges argument beats the current turn's privileges."""
     fake = _install_fake_manager(monkeypatch)
-    from janito.tooling.turn_privileges import reset_turn_privileges, set_turn_privileges
+    from janito.tooling.turn_privileges import (
+        reset_turn_privileges,
+        set_turn_privileges,
+    )
 
     token = set_turn_privileges("r")
     try:
         result = start_task_module.StartTask().run(
-            description="Write docs", privileges="rwx"
+            summary="Write docs", description="Write docs", privileges="rwx"
         )
     finally:
         reset_turn_privileges(token)
 
-    assert fake.calls == [("Write docs", None, "rwx")]
+    assert fake.calls == [("Write docs", None, "rwx", "Write docs")]
     assert result["privileges"] == "rwx"
 
 
@@ -119,23 +132,26 @@ def test_run_returns_error_on_failure(monkeypatch):
     """Manager failures surface as success=False with the error message."""
 
     class _BoomManager:
-        def start_task(self, description, working_dir=None, privileges=None):
+        def start_task(
+            self, description, working_dir=None, privileges=None, summary=None
+        ):
             raise ValueError("working_dir is not a directory: /nope")
 
     monkeypatch.setattr(start_task_module, "task_manager", _BoomManager())
 
     result = start_task_module.StartTask().run(
-        description="Do something", working_dir="/nope"
+        summary="Do something", description="Do something", working_dir="/nope"
     )
 
     assert result["success"] is False
     assert "working_dir is not a directory" in result["error"]
+    assert result["summary"] == "Do something"
     assert result["description"] == "Do something"
     assert result["working_dir"] == "/nope"
 
 
 def test_schema_exposes_parameters():
-    """description is required; working_dir and privileges are optional."""
+    """summary and description are required; working_dir/privileges are optional."""
     from janito.tooling.schema import get_function_schema
     from janito.tools import discover_toolsets
 
@@ -144,10 +160,11 @@ def test_schema_exposes_parameters():
 
     params = schema["function"]["parameters"]
     props = params["properties"]
+    assert props["summary"]["type"] == "string"
     assert props["description"]["type"] == "string"
     assert props["working_dir"]["type"] == "string"
     assert props["privileges"]["type"] == "string"
-    assert params["required"] == ["description"]
+    assert sorted(params["required"]) == ["description", "summary"]
 
 
 def test_discovery_registers_start_task():

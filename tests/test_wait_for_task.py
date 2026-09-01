@@ -22,11 +22,15 @@ class _FakeTaskManager:
         self.calls = []
         self.callbacks = []
         self.timeouts = []
+        self.max_output_lines = []
 
-    def wait_for_task(self, task_ids, on_task_complete=None, timeout=None):
+    def wait_for_task(
+        self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None
+    ):
         self.calls.append(task_ids)
         self.callbacks.append(on_task_complete)
         self.timeouts.append(timeout)
+        self.max_output_lines.append(max_output_lines)
         tasks = [
             {
                 "task_id": task_id,
@@ -34,6 +38,10 @@ class _FakeTaskManager:
                 "returncode": 0,
                 "stdout_filename": f"/tmp/janito-{task_id}.out",
                 "stderr_filename": f"/tmp/janito-{task_id}.err",
+                "stdout": f"output of {task_id}",
+                "stderr": "",
+                "stdout_truncated": False,
+                "stderr_truncated": False,
                 "error": None,
             }
             for task_id in task_ids
@@ -53,9 +61,7 @@ def test_run_delegates_to_task_manager(monkeypatch):
     fake = _FakeTaskManager()
     monkeypatch.setattr(wait_for_task_module, "task_manager", fake)
 
-    result = wait_for_task_module.WaitForTask().run(
-        task_ids=["task-1", "task-2"]
-    )
+    result = wait_for_task_module.WaitForTask().run(task_ids=["task-1", "task-2"])
 
     assert fake.calls == [["task-1", "task-2"]]
     assert result["success"] is True
@@ -84,11 +90,47 @@ def test_run_forwards_timeout(monkeypatch):
     assert fake.timeouts == [12.5]
 
 
+def test_run_forwards_max_lines(monkeypatch):
+    """The tool forwards max_lines to the manager as max_output_lines."""
+    fake = _FakeTaskManager()
+    monkeypatch.setattr(wait_for_task_module, "task_manager", fake)
+
+    wait_for_task_module.WaitForTask().run(task_ids=["task-1"], max_lines=50)
+
+    assert fake.max_output_lines == [50]
+
+
+def test_run_default_max_lines_is_none(monkeypatch):
+    """Without max_lines, the manager's default cap is used (None)."""
+    fake = _FakeTaskManager()
+    monkeypatch.setattr(wait_for_task_module, "task_manager", fake)
+
+    wait_for_task_module.WaitForTask().run(task_ids=["task-1"])
+
+    assert fake.max_output_lines == [None]
+
+
+def test_run_surfaces_inline_output(monkeypatch):
+    """Each finished task's stdout/stderr content is returned inline."""
+    fake = _FakeTaskManager()
+    monkeypatch.setattr(wait_for_task_module, "task_manager", fake)
+
+    result = wait_for_task_module.WaitForTask().run(task_ids=["task-1"])
+
+    entry = result["tasks"][0]
+    assert entry["stdout"] == "output of task-1"
+    assert entry["stderr"] == ""
+    assert entry["stdout_truncated"] is False
+    assert entry["stderr_truncated"] is False
+
+
 def test_run_surfaces_timed_out_results(monkeypatch):
     """A timed-out manager result surfaces timed_out and pending ids."""
 
     class _TimeoutManager:
-        def wait_for_task(self, task_ids, on_task_complete=None, timeout=None):
+        def wait_for_task(
+            self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None
+        ):
             return {
                 "tasks": [],
                 "timed_out": True,
@@ -110,7 +152,9 @@ def test_run_returns_error_on_unknown_task(monkeypatch):
     """An unknown task id surfaces as success=False with the error message."""
 
     class _BoomManager:
-        def wait_for_task(self, task_ids, on_task_complete=None, timeout=None):
+        def wait_for_task(
+            self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None
+        ):
             raise KeyError(f"Unknown task id: {task_ids[0]}")
 
     monkeypatch.setattr(wait_for_task_module, "task_manager", _BoomManager())
@@ -173,7 +217,7 @@ def test_should_show_spinner_true_on_tty_without_handler(monkeypatch):
 
 
 def test_spinner_path_reports_per_task_completions(monkeypatch):
-    """With the spinner active, each task completion is still reported."""
+    """With the spinner active, each task is announced and completion reported."""
     monkeypatch.setattr(sys.stderr, "isatty", lambda: True)
     fake = _FakeTaskManager()
     monkeypatch.setattr(wait_for_task_module, "task_manager", fake)
@@ -188,14 +232,19 @@ def test_spinner_path_reports_per_task_completions(monkeypatch):
 
     assert result["success"] is True
     assert len(result["tasks"]) == 2
-    # Per-task completions print as tasks finish, then the final summary;
-    # the static "Waiting for N tasks" line is replaced by the spinner.
+    # Per-task completion lines print as tasks finish, then the final
+    # summary; the static "Waiting for N tasks" line is replaced by the
+    # spinner, but each task is still announced up front with its summary
+    # (the fake manager has no summaries, so the task ids are shown).
     assert messages == [
         "task task-1 complete",
         "task task-2 complete",
         "all tasks finished",
     ]
-    assert starts == []
+    assert starts == [
+        "Waiting for task 1/2 : task-1",
+        "Waiting for task 2/2 : task-2",
+    ]
 
 
 def test_spinner_path_surfaces_manager_errors(monkeypatch):
@@ -203,7 +252,9 @@ def test_spinner_path_surfaces_manager_errors(monkeypatch):
     monkeypatch.setattr(sys.stderr, "isatty", lambda: True)
 
     class _BoomManager:
-        def wait_for_task(self, task_ids, on_task_complete=None, timeout=None):
+        def wait_for_task(
+            self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None
+        ):
             raise KeyError(f"Unknown task id: {task_ids[0]}")
 
     monkeypatch.setattr(wait_for_task_module, "task_manager", _BoomManager())
@@ -218,7 +269,7 @@ def test_spinner_path_surfaces_manager_errors(monkeypatch):
 
 
 def test_fallback_path_keeps_start_line_on_non_tty(monkeypatch):
-    """Piped output keeps the plain 'Waiting for N tasks' start line."""
+    """Piped output keeps the per-task 'Waiting for task n/total' start lines."""
     monkeypatch.setattr(sys.stderr, "isatty", lambda: False)
     fake = _FakeTaskManager()
     monkeypatch.setattr(wait_for_task_module, "task_manager", fake)
@@ -229,4 +280,55 @@ def test_fallback_path_keeps_start_line_on_non_tty(monkeypatch):
 
     tool.run(task_ids=["task-1"])
 
-    assert starts == [("Waiting for 1 task(s)", "")]
+    assert starts == [("Waiting for task 1/1 : task-1", "\n")]
+
+
+def test_start_lines_use_task_summary(monkeypatch):
+    """When the manager exposes task summaries, they appear in the start lines."""
+    monkeypatch.setattr(sys.stderr, "isatty", lambda: False)
+
+    class _Task:
+        def __init__(self, summary):
+            self.summary = summary
+
+    class _ManagerWithSummaries(_FakeTaskManager):
+        def get_task(self, task_id):
+            return _Task(summary=f"summary of {task_id}")
+
+    monkeypatch.setattr(wait_for_task_module, "task_manager", _ManagerWithSummaries())
+
+    tool = wait_for_task_module.WaitForTask()
+    starts = []
+    tool.report_start = lambda msg, end="\n": starts.append(msg)
+
+    tool.run(task_ids=["task-1", "task-2"])
+
+    assert starts == [
+        "Waiting for task 1/2 : summary of task-1",
+        "Waiting for task 2/2 : summary of task-2",
+    ]
+
+
+def test_start_lines_fall_back_to_id_for_unknown_task(monkeypatch):
+    """An unknown task id falls back to the id in the start line."""
+    monkeypatch.setattr(sys.stderr, "isatty", lambda: False)
+
+    class _ManagerWithoutTask:
+        def wait_for_task(
+            self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None
+        ):
+            return {
+                "tasks": [],
+                "timed_out": False,
+                "pending_task_ids": [],
+            }
+
+    monkeypatch.setattr(wait_for_task_module, "task_manager", _ManagerWithoutTask())
+
+    tool = wait_for_task_module.WaitForTask()
+    starts = []
+    tool.report_start = lambda msg, end="\n": starts.append(msg)
+
+    tool.run(task_ids=["task-1"])
+
+    assert starts == ["Waiting for task 1/1 : task-1"]

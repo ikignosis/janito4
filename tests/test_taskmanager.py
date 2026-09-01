@@ -8,6 +8,7 @@ KeyError in StartTask: ``start_task()`` must return the resolved working
 directory (issue #94).
 """
 
+import os
 import sys
 import threading
 import time
@@ -135,6 +136,33 @@ def test_start_task_default_working_dir_is_cwd(monkeypatch):
 
     assert info["working_dir"] == str(Path.cwd())
     assert calls["kwargs"]["cwd"] == str(Path.cwd())
+
+
+def test_start_task_stores_summary(monkeypatch):
+    """The summary is stored on the Task and returned by start/wait."""
+    manager, _, _ = _manager_with_fake_popen(monkeypatch)
+
+    info = manager.start_task(
+        description="Fix the login page",
+        summary="Fix the login page",
+    )
+
+    assert info["summary"] == "Fix the login page"
+    task = manager.get_task(info["task_id"])
+    assert task.summary == "Fix the login page"
+
+    result = manager.wait_for_task([info["task_id"]])
+    assert result["tasks"][0]["summary"] == "Fix the login page"
+
+
+def test_start_task_summary_defaults_to_none(monkeypatch):
+    """Without a summary, the Task stores None and results omit it as None."""
+    manager, _, _ = _manager_with_fake_popen(monkeypatch)
+
+    info = manager.start_task(description="no summary here")
+
+    assert info["summary"] is None
+    assert manager.get_task(info["task_id"]).summary is None
 
 
 def test_wait_for_task_includes_working_dir(monkeypatch):
@@ -371,6 +399,80 @@ def test_wait_for_task_timeout_returns_partial_results(monkeypatch):
     assert result["timed_out"] is True
     assert result["pending_task_ids"] == [info2["task_id"]]
     assert [t["task_id"] for t in result["tasks"]] == [info1["task_id"]]
+
+
+def test_wait_for_task_includes_output_content(monkeypatch):
+    """Finished tasks' stdout/stderr content is returned inline."""
+    manager, _, _ = _manager_with_fake_popen(monkeypatch)
+
+    info = manager.start_task(description="task one")
+    task = manager.get_task(info["task_id"])
+    with open(task.stdout_filename, "w", encoding="utf-8") as fh:
+        fh.write("hello stdout\nline two\n")
+    with open(task.stderr_filename, "w", encoding="utf-8") as fh:
+        fh.write("warning on stderr\n")
+
+    result = manager.wait_for_task([info["task_id"]])
+
+    entry = result["tasks"][0]
+    assert entry["stdout"] == "hello stdout\nline two\n"
+    assert entry["stderr"] == "warning on stderr\n"
+    assert entry["stdout_truncated"] is False
+    assert entry["stderr_truncated"] is False
+
+
+def test_wait_for_task_output_truncated_by_max_lines(monkeypatch):
+    """max_output_lines caps each stream and sets the truncated flag."""
+    manager, _, _ = _manager_with_fake_popen(monkeypatch)
+
+    info = manager.start_task(description="task one")
+    task = manager.get_task(info["task_id"])
+    with open(task.stdout_filename, "w", encoding="utf-8") as fh:
+        fh.write("line 1\nline 2\nline 3\n")
+
+    result = manager.wait_for_task([info["task_id"]], max_output_lines=2)
+
+    entry = result["tasks"][0]
+    assert entry["stdout"] == "line 1\nline 2\n... [truncated]"
+    assert entry["stdout_truncated"] is True
+    # The (empty) stderr stream is not truncated.
+    assert entry["stderr"] == ""
+    assert entry["stderr_truncated"] is False
+
+
+def test_wait_for_task_output_unlimited(monkeypatch):
+    """max_output_lines=None returns the full content of each stream."""
+    manager, _, _ = _manager_with_fake_popen(monkeypatch)
+
+    info = manager.start_task(description="task one")
+    task = manager.get_task(info["task_id"])
+    content = "\n".join(f"line {i}" for i in range(500))
+    with open(task.stdout_filename, "w", encoding="utf-8") as fh:
+        fh.write(content)
+
+    result = manager.wait_for_task([info["task_id"]], max_output_lines=None)
+
+    entry = result["tasks"][0]
+    assert entry["stdout"] == content
+    assert entry["stdout_truncated"] is False
+
+
+def test_wait_for_task_unreadable_output_is_none(monkeypatch):
+    """A stream whose temp file is gone reports None without raising."""
+    manager, _, _ = _manager_with_fake_popen(monkeypatch)
+
+    info = manager.start_task(description="task one")
+    task = manager.get_task(info["task_id"])
+    os.unlink(task.stdout_filename)  # simulate cleanup / missing file
+
+    result = manager.wait_for_task([info["task_id"]])
+
+    entry = result["tasks"][0]
+    assert entry["stdout"] is None
+    assert entry["stdout_truncated"] is False
+    # The still-present stderr stream is returned normally.
+    assert entry["stderr"] == ""
+    assert entry["stderr_truncated"] is False
 
 
 def test_wait_for_task_timeout_not_exceeded(monkeypatch):

@@ -25,6 +25,12 @@ read-only, matching the janito default, issue #85), and always passes
 Temp output files are created with ``delete=False`` (the LLM reads them, e.g.
 with the ReadFile tool) and removed at process exit by the atexit-registered
 :meth:`TaskManager.cleanup`.
+
+:meth:`TaskManager.wait_for_task` also returns the finished tasks' output
+content inline (``stdout`` / ``stderr`` in each result dict, capped at
+``max_output_lines`` lines) so the LLM can check a task's results directly
+without having to read the temp files -- the files stay available for the
+full, untruncated content.
 """
 
 import atexit
@@ -48,6 +54,51 @@ __all__ = [
     "privilege_flags",
     "task_manager",
 ]
+
+# How many lines of a task's stdout/stderr wait_for_task() returns inline per
+# stream by default (mirrors GetUrl's default max_lines).  None = no limit.
+DEFAULT_MAX_OUTPUT_LINES = 200
+
+# Marker appended to stdout/stderr content when the requested line cap cuts
+# it short (same marker GetUrl uses), so callers can see the output was
+# truncated and read the temp file if they need the rest.
+_TRUNCATED_MARKER = "\n... [truncated]"
+
+
+def _read_output_file(filename: str, max_lines: int | None) -> tuple[str | None, bool]:
+    """Read a task's captured stdout/stderr temp file, capped at ``max_lines``.
+
+    Reads the file incrementally (line by line) so a huge output file is
+    never slurped into memory just to enforce the line cap.  Returns the
+    content and a ``truncated`` flag; when the cap cuts the content short,
+    a ``\\n... [truncated]`` marker is appended (same marker GetUrl uses) so
+    callers can see the output was cut and read the temp file for the rest.
+
+    Args:
+        filename: The temp output file to read.
+        max_lines: Maximum number of lines to return.  ``None`` returns the
+            full content.
+
+    Returns:
+        tuple[str | None, bool]: ``(content, truncated)``.  ``content`` is
+        ``None`` when the file could not be read (e.g. it was already
+        removed) -- the caller then reports ``None`` rather than failing the
+        whole wait.  ``truncated`` is True when the cap cut the content
+        short.
+    """
+    try:
+        with open(filename, encoding="utf-8", errors="replace") as fh:
+            if max_lines is None:
+                return fh.read(), False
+            lines: list[str] = []
+            for line in fh:
+                if len(lines) >= max_lines:
+                    content = "".join(lines).rstrip("\n")
+                    return content + _TRUNCATED_MARKER, True
+                lines.append(line)
+            return "".join(lines), False
+    except OSError:
+        return None, False
 
 
 def privilege_flags(privileges: str | None) -> list[str]:
@@ -112,6 +163,7 @@ class Task:
     """A running (or finished) parallel task."""
 
     task_id: str
+    summary: str | None
     description: str
     working_dir: str
     privileges: str | None
@@ -146,6 +198,7 @@ class TaskManager:
         description: str,
         working_dir: str | None = None,
         privileges: str | None = None,
+        summary: str | None = None,
     ) -> dict[str, Any]:
         """Start a new parallel task.
 
@@ -160,10 +213,13 @@ class TaskManager:
                 (default: the parent's current directory).
             privileges: Privileges for the child (``None``/``""`` =
                 read-only).
+            summary: Optional one-line, human-readable summary of the task
+                (stored on the :class:`Task` so WaitForTask can present it to
+                the user; default ``None``).
 
         Returns:
             Dict with ``task_id``, ``pid``, ``working_dir`` (the resolved
-            child working directory), ``stdout_filename`` and
+            child working directory), ``summary``, ``stdout_filename`` and
             ``stderr_filename``.
 
         Raises:
@@ -238,6 +294,7 @@ class TaskManager:
 
         task = Task(
             task_id=task_id,
+            summary=summary,
             description=description,
             working_dir=cwd,
             privileges=privileges,
@@ -258,6 +315,7 @@ class TaskManager:
             "task_id": task_id,
             "pid": proc.pid,
             "working_dir": cwd,
+            "summary": summary,
             "stdout_filename": stdout_filename,
             "stderr_filename": stderr_filename,
         }
@@ -321,6 +379,7 @@ class TaskManager:
         task_ids: list[str],
         on_task_complete: Callable[[dict[str, Any]], None] | None = None,
         timeout: float | None = None,
+        max_output_lines: int | None = DEFAULT_MAX_OUTPUT_LINES,
     ) -> dict[str, Any]:
         """Block until every listed task has finished.
 
@@ -330,26 +389,41 @@ class TaskManager:
         so the caller can report ``"<task id> complete"`` the moment each task
         finishes, without waiting for the slowest one.
 
+        Each finished task's result dict also carries its captured
+        ``stdout`` and ``stderr`` content inline (capped at
+        ``max_output_lines`` lines), so the caller can check the task's
+        results directly without reading the temp files.  ``*_truncated``
+        flags say whether the cap cut the content short; the temp files
+        (``stdout_filename`` / ``stderr_filename``) always hold the full
+        output.  A stream that could not be read (e.g. its temp file was
+        already removed) is reported as ``None`` with ``truncated=False``.
+
         Args:
             task_ids: The ids returned by :meth:`start_task`.
             on_task_complete: Optional callback invoked (in the waiting
                 thread) with each task's result dict as soon as that task
                 finishes.  The result dict is the same shape as the entries
-                in the returned ``tasks`` list.
+                in the returned ``tasks`` list (including the inline output).
             timeout: Optional total wait budget in seconds.  ``None`` (the
                 default) waits indefinitely.  When the budget expires before
                 every listed task has exited, the results collected so far
                 are returned with ``timed_out=True`` and ``pending_task_ids``
                 listing the tasks still running (the caller can then stop
                 them with :meth:`stop_task`).
+            max_output_lines: Maximum number of lines of ``stdout`` /
+                ``stderr`` to return per task (default
+                :data:`DEFAULT_MAX_OUTPUT_LINES`).  ``None`` returns the
+                full content of each stream.
 
         Returns:
             Dict with a ``tasks`` list, one entry per task: ``task_id``,
-            ``pid``, ``working_dir``, ``returncode``, ``stdout_filename``,
-            ``stderr_filename`` and ``error`` (None when the child exited
-            normally); plus ``timed_out`` (bool, True when ``timeout``
-            expired before all tasks finished) and ``pending_task_ids``
-            (the ids of the tasks still running when the call returned).
+            ``pid``, ``working_dir``, ``summary``, ``returncode``,
+            ``stdout_filename``, ``stderr_filename``, ``stdout``, ``stderr``,
+            ``stdout_truncated``, ``stderr_truncated`` and ``error`` (None
+            when the child exited normally); plus ``timed_out`` (bool, True
+            when ``timeout`` expired before all tasks finished) and
+            ``pending_task_ids`` (the ids of the tasks still running when
+            the call returned).
 
         Raises:
             KeyError: If any task id is unknown.
@@ -383,13 +457,24 @@ class TaskManager:
 
             pending.remove(task_id)
             task = self.get_task(task_id)
+            stdout, stdout_truncated = _read_output_file(
+                task.stdout_filename, max_output_lines
+            )
+            stderr, stderr_truncated = _read_output_file(
+                task.stderr_filename, max_output_lines
+            )
             result = {
                 "task_id": task.task_id,
                 "pid": task.pid,
                 "working_dir": task.working_dir,
+                "summary": task.summary,
                 "returncode": task.returncode,
                 "stdout_filename": task.stdout_filename,
                 "stderr_filename": task.stderr_filename,
+                "stdout": stdout,
+                "stderr": stderr,
+                "stdout_truncated": stdout_truncated,
+                "stderr_truncated": stderr_truncated,
                 "error": task.error,
             }
             results.append(result)

@@ -32,6 +32,9 @@ class StartTask(BaseTool):
     wait for the tasks to finish.
 
     Args:
+        summary (str): One-line, human-readable summary of the task, shown
+            to the user (e.g. in StartTask's progress line and in
+            WaitForTask's "Waiting for task n/total : <summary>" lines).
         description (str): What needs to be done in this task (sent to the
             task process's stdin as a single prompt).
         working_dir (str, optional): Working directory for the task process
@@ -46,6 +49,7 @@ class StartTask(BaseTool):
 
     def run(
         self,
+        summary: str,
         description: str,
         working_dir: str | None = None,
         privileges: str | None = None,
@@ -54,6 +58,8 @@ class StartTask(BaseTool):
         Start a new parallel task.
 
         Args:
+            summary (str): One-line summary of the task, presented to the
+                user.
             description (str): What needs to be done in this task.
             working_dir (Optional[str]): Working directory for the task
                 (default: current directory).
@@ -68,13 +74,14 @@ class StartTask(BaseTool):
                 - 'pid': the pid of the task process
                 - 'stdout_filename': temp file with the task's stdout
                 - 'stderr_filename': temp file with the task's stderr
+                - 'summary': the one-line task summary
                 - 'description': what needs to be done
                 - 'working_dir': the resolved task working directory
                 - 'privileges': the privileges the task was started with
                 - 'error': error message (only present if success is False)
         """
         try:
-            self.report_start(f"Starting task: {description}", end="")
+            self.report_start(f"Starting task: {summary}")
 
             # Mirror the running task's current (turn) privileges by default:
             # the child starts with the same -r/-w/-x flags the current turn
@@ -89,14 +96,14 @@ class StartTask(BaseTool):
                 description=description,
                 working_dir=working_dir,
                 privileges=privileges,
+                summary=summary,
             )
 
-            self.report_result(
-                f"task {info['task_id']} started (pid {info['pid']})"
-            )
+            self.report_result(f"task {info['task_id']} started (pid {info['pid']})")
             return {
                 "success": True,
                 **info,
+                "summary": summary,
                 "description": description,
                 "working_dir": info["working_dir"],
                 "privileges": privileges,
@@ -107,6 +114,7 @@ class StartTask(BaseTool):
             return {
                 "success": False,
                 "error": str(e),
+                "summary": summary,
                 "description": description,
                 "working_dir": working_dir,
                 "privileges": privileges,
@@ -123,6 +131,14 @@ def main():
     )
     parser.add_argument("description", help="What needs to be done in this task")
     parser.add_argument(
+        "--summary",
+        default=None,
+        help=(
+            "One-line summary of the task, presented to the user "
+            "(default: the description)"
+        ),
+    )
+    parser.add_argument(
         "--working-dir",
         default=None,
         help="Working directory for the task (default: current directory)",
@@ -136,11 +152,13 @@ def main():
             "/read /write /rx /rw /rwx override)"
         ),
     )
-    parser.add_argument("--json", "-j", action="store_true",
-                        help="Output in JSON format")
+    parser.add_argument(
+        "--json", "-j", action="store_true", help="Output in JSON format"
+    )
     args = parser.parse_args()
 
     result = StartTask().run(
+        summary=args.summary or args.description,
         description=args.description,
         working_dir=args.working_dir,
         privileges=args.privileges,
