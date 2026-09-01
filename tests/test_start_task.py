@@ -23,8 +23,31 @@ class _FakeTaskManager:
     def __init__(self):
         self.calls = []
 
-    def start_task(self, description, working_dir=None, privileges=None, summary=None):
-        self.calls.append((description, working_dir, privileges, summary))
+    def start_task(
+        self,
+        description,
+        working_dir=None,
+        privileges=None,
+        summary=None,
+        timeout=None,
+    ):
+        # Mirror the real manager's contract so the tool's error path can be
+        # exercised without spawning a subprocess.
+        if timeout is not None and timeout <= 0:
+            raise ValueError(
+                f"timeout must be a positive number of seconds, got {timeout:g}"
+            )
+        # Records kwargs (not a positional tuple) so adding a manager argument
+        # does not churn every assertion in this file.
+        self.calls.append(
+            {
+                "description": description,
+                "working_dir": working_dir,
+                "privileges": privileges,
+                "summary": summary,
+                "timeout": timeout,
+            }
+        )
         return {
             "task_id": "task-1",
             "pid": 4242,
@@ -32,6 +55,7 @@ class _FakeTaskManager:
             "stderr_filename": "/tmp/janito-task-1.err",
             "working_dir": working_dir or "/cwd",
             "summary": summary,
+            "timeout": timeout,
         }
 
 
@@ -53,7 +77,13 @@ def test_run_delegates_to_task_manager(monkeypatch):
     )
 
     assert fake.calls == [
-        ("Fix the login page", "/tmp/project", "rwx", "Fix the login page")
+        {
+            "description": "Fix the login page",
+            "working_dir": "/tmp/project",
+            "privileges": "rwx",
+            "summary": "Fix the login page",
+            "timeout": None,
+        }
     ]
     assert result["success"] is True
     assert result["task_id"] == "task-1"
@@ -82,7 +112,15 @@ def test_run_defaults_to_current_turn_privileges(monkeypatch):
     finally:
         reset_turn_privileges(token)
 
-    assert fake.calls == [("Write docs", None, "rx", "Write docs")]
+    assert fake.calls == [
+        {
+            "description": "Write docs",
+            "working_dir": None,
+            "privileges": "rx",
+            "summary": "Write docs",
+            "timeout": None,
+        }
+    ]
     assert result["success"] is True
     assert result["working_dir"] == "/cwd"
     assert result["privileges"] == "rx"
@@ -104,7 +142,15 @@ def test_run_defaults_to_session_privileges(monkeypatch):
         summary="Write docs", description="Write docs"
     )
 
-    assert fake.calls == [("Write docs", None, "rw", "Write docs")]
+    assert fake.calls == [
+        {
+            "description": "Write docs",
+            "working_dir": None,
+            "privileges": "rw",
+            "summary": "Write docs",
+            "timeout": None,
+        }
+    ]
     assert result["privileges"] == "rw"
 
 
@@ -124,7 +170,15 @@ def test_run_explicit_privileges_override_turn(monkeypatch):
     finally:
         reset_turn_privileges(token)
 
-    assert fake.calls == [("Write docs", None, "rwx", "Write docs")]
+    assert fake.calls == [
+        {
+            "description": "Write docs",
+            "working_dir": None,
+            "privileges": "rwx",
+            "summary": "Write docs",
+            "timeout": None,
+        }
+    ]
     assert result["privileges"] == "rwx"
 
 
@@ -133,7 +187,12 @@ def test_run_returns_error_on_failure(monkeypatch):
 
     class _BoomManager:
         def start_task(
-            self, description, working_dir=None, privileges=None, summary=None
+            self,
+            description,
+            working_dir=None,
+            privileges=None,
+            summary=None,
+            timeout=None,
         ):
             raise ValueError("working_dir is not a directory: /nope")
 
@@ -150,6 +209,42 @@ def test_run_returns_error_on_failure(monkeypatch):
     assert result["working_dir"] == "/nope"
 
 
+def test_run_forwards_timeout(monkeypatch):
+    """The lifetime cap is forwarded to the manager and echoed back."""
+    fake = _install_fake_manager(monkeypatch)
+
+    result = start_task_module.StartTask().run(
+        summary="Index the repo", description="Index the repo", timeout=120
+    )
+
+    assert fake.calls[0]["timeout"] == 120
+    assert result["success"] is True
+    assert result["timeout"] == 120
+
+
+def test_run_timeout_defaults_to_none(monkeypatch):
+    """Without a timeout the manager gets None (no cap) and results echo it."""
+    fake = _install_fake_manager(monkeypatch)
+
+    result = start_task_module.StartTask().run(summary="No cap", description="No cap")
+
+    assert fake.calls[0]["timeout"] is None
+    assert result["timeout"] is None
+
+
+def test_run_rejects_non_positive_timeout(monkeypatch):
+    """A bad cap surfaces as success=False (the manager validates it)."""
+    _install_fake_manager(monkeypatch)
+
+    result = start_task_module.StartTask().run(
+        summary="Bad cap", description="Bad cap", timeout=0
+    )
+
+    assert result["success"] is False
+    assert "timeout must be a positive number" in result["error"]
+    assert result["timeout"] == 0
+
+
 def test_schema_exposes_parameters():
     """summary and description are required; working_dir/privileges are optional."""
     from janito.tooling.schema import get_function_schema
@@ -164,6 +259,8 @@ def test_schema_exposes_parameters():
     assert props["description"]["type"] == "string"
     assert props["working_dir"]["type"] == "string"
     assert props["privileges"]["type"] == "string"
+    # The timeout is an optional number: tasks run uncapped unless asked for.
+    assert props["timeout"]["type"] == "number"
     assert sorted(params["required"]) == ["description", "summary"]
 
 

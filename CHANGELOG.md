@@ -25,6 +25,22 @@ Changes since `v4.35.0` (2026-08-31).
   `stdout_truncated`/`stderr_truncated`), so the task's results can be checked
   directly without reading the temp output files.  The temp files still hold
   the complete, untruncated output.
+- `StartTask` gained an optional `timeout` argument (seconds): a per-task
+  lifetime cap armed at spawn.  When the deadline passes the task's child
+  process is terminated (SIGTERM, then SIGKILL) by its own wait thread -- even
+  if nobody is waiting on it -- and the task is recorded as having
+  `exit_reason` `"timeout"`.  This is distinct from `WaitForTask`'s own
+  `timeout`, which only bounds how long that call blocks and kills nothing.
+- `WaitForTask` now reports each task's *exit status* rather than a bare
+  return code: every result carries `exit_reason` (`"finished"`, `"timeout"`,
+  `"stopped"`, `"killed"` or `"error"`), `exit_code` (the child's own status,
+  or `None` when it was killed and produced none), `timeout` and
+  `duration_seconds`, and the top-level result adds `terminated_task_ids`.  A
+  task's completion line and the final summary now reflect this (e.g.
+  `"task abc finished (exit 0, 41.2s)"` vs. `"task def TIMED OUT after 120s
+  (killed, no exit code)"`).  Callers should read `exit_reason`, not
+  `returncode`, to tell success from termination -- a child that traps SIGTERM
+  can exit cleanly (even `0`) during the termination grace period.
 
 ### Changed
 

@@ -9,6 +9,7 @@ directory (issue #94).
 """
 
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -485,3 +486,310 @@ def test_wait_for_task_timeout_not_exceeded(monkeypatch):
     assert result["timed_out"] is False
     assert result["pending_task_ids"] == []
     assert result["tasks"][0]["task_id"] == info["task_id"]
+
+
+# --- lifetime caps (StartTask's timeout) -----------------------------------
+
+
+class _CappedProc:
+    """Popen stand-in modelling a lifetime cap, signals and a cached status.
+
+    Mirrors the real :class:`subprocess.Popen` semantics the manager relies on:
+
+    * ``wait(timeout=...)`` raises :class:`subprocess.TimeoutExpired` when the
+      child is still alive when the budget expires (the existing fakes ignore
+      ``timeout`` entirely, which would let a timeout test "pass" without ever
+      killing anything);
+    * ``terminate()`` / ``kill()`` kill the child, so a blocked ``wait()``
+      returns; a child with ``ignores_term`` shrugs off SIGTERM and only dies
+      to SIGKILL;
+    * the exit status is *cached* on the process object once observed, so a
+      second ``wait()``/``poll()`` returns the same value instead of clobbering
+      it with ``None`` (what a real reaped child does).
+    """
+
+    def __init__(
+        self, pid, *, term_exit_code=-15, kill_exit_code=-9, ignores_term=False
+    ):
+        self.pid = pid
+        self.stdin = _FakeStdin()
+        self.returncode = None
+        self.term_exit_code = term_exit_code
+        self.kill_exit_code = kill_exit_code
+        self.ignores_term = ignores_term
+        self.release = threading.Event()
+        self.terminated = False
+        self.killed = False
+        self.wait_timeouts = []
+
+    def poll(self):
+        return self.returncode
+
+    def wait(self, timeout=None):
+        self.wait_timeouts.append(timeout)
+        if not self.release.wait(timeout):
+            raise subprocess.TimeoutExpired(self.pid, timeout)
+        return self.returncode
+
+    def _die(self, code):
+        self.returncode = code
+        self.release.set()
+
+    def terminate(self):
+        self.terminated = True
+        if not self.ignores_term:
+            self._die(self.term_exit_code)
+
+    def kill(self):
+        self.killed = True
+        self._die(self.kill_exit_code)
+
+
+def _manager_with_capped_procs(monkeypatch, **proc_kwargs):
+    """Return (manager, procs-by-pid) for a manager spawning _CappedProcs."""
+    manager = TaskManager()
+    procs = {}
+
+    def fake_popen(cmd, **kwargs):
+        proc = _CappedProc(len(procs) + 5000, **proc_kwargs)
+        procs[proc.pid] = proc
+        return proc
+
+    monkeypatch.setattr(tm.subprocess, "Popen", fake_popen)
+    return manager, procs
+
+
+def _join_task_thread(manager, task_id, timeout=5):
+    """Wait for a task's daemon wait-thread to finish recording the outcome."""
+    task = manager.get_task(task_id)
+    task.thread.join(timeout)
+    assert not task.thread.is_alive(), "the wait thread did not finish"
+    return task
+
+
+def test_start_task_timeout_kills_a_stuck_child(monkeypatch):
+    """The deadline fires, SIGTERM is ignored and the child ends up SIGKILLed."""
+    # Keep the SIGTERM grace period short so the test does not sleep 10s.
+    monkeypatch.setattr(tm, "TERM_GRACE_SECONDS", 0.05)
+    manager, procs = _manager_with_capped_procs(monkeypatch, ignores_term=True)
+
+    info = manager.start_task(description="never finishes", timeout=0.1)
+    result = manager.wait_for_task([info["task_id"]])
+
+    entry = result["tasks"][0]
+    assert entry["exit_reason"] == "timeout"
+    # Killed without producing an exit status of its own: no misleading code.
+    assert entry["exit_code"] is None
+    assert entry["returncode"] == -9
+    assert entry["timeout"] == 0.1
+    assert entry["duration_seconds"] >= 0.1
+    assert entry["stdout"] == ""
+    assert entry["error"] and "timeout of 0.1s" in entry["error"]
+
+    # The wait budget expired but *nothing is pending*: the manager killed the
+    # child, so wait_for_task must not report it as still running.
+    assert result["timed_out"] is False
+    assert result["pending_task_ids"] == []
+    assert result["terminated_task_ids"] == [info["task_id"]]
+
+    proc = procs[info["pid"]]
+    assert proc.terminated and proc.killed
+    # The grace period was applied: TERM first, and only then KILL.
+    assert manager.get_task(info["task_id"]).terminated is True
+
+
+def test_start_task_timeout_child_exiting_during_grace_keeps_its_code(
+    monkeypatch,
+):
+    """A child that traps SIGTERM can still report exit 0 -- but the reason is
+    'timeout', which is what tells a caller it did not actually finish."""
+    manager, procs = _manager_with_capped_procs(monkeypatch, term_exit_code=0)
+
+    info = manager.start_task(description="shuts down cleanly", timeout=0.1)
+    result = manager.wait_for_task([info["task_id"]])
+
+    entry = result["tasks"][0]
+    assert entry["exit_reason"] == "timeout"
+    assert entry["exit_code"] == 0
+    assert entry["returncode"] == 0
+    assert entry["error"] and "exited with code 0 during shutdown" in entry["error"]
+    assert result["terminated_task_ids"] == [info["task_id"]]
+    assert procs[info["pid"]].killed is False
+
+
+def test_start_task_kills_a_stuck_child_even_if_nobody_waits(monkeypatch):
+    """The cap is enforced by the task's own thread, not by a waiter."""
+    manager, procs = _manager_with_capped_procs(monkeypatch, ignores_term=True)
+    monkeypatch.setattr(tm, "TERM_GRACE_SECONDS", 0.05)
+
+    info = manager.start_task(description="runs forever", timeout=0.1)
+    # No wait_for_task() call at all.
+    task = _join_task_thread(manager, info["task_id"])
+
+    assert task.exit_reason == "timeout"
+    assert task.exit_code is None
+    assert task.returncode == -9
+    assert procs[info["pid"]].killed is True
+
+
+def test_start_task_natural_exit_before_the_deadline(monkeypatch):
+    """A task that exits in time is 'finished' with its own exit code."""
+    manager, procs = _manager_with_capped_procs(monkeypatch)
+
+    info = manager.start_task(description="quick task", timeout=30)
+    proc = procs[info["pid"]]
+    proc._die(1)  # the child exits on its own with a failure status
+
+    result = manager.wait_for_task([info["task_id"]])
+
+    entry = result["tasks"][0]
+    assert entry["exit_reason"] == "finished"
+    assert entry["exit_code"] == 1
+    assert entry["returncode"] == 1
+    assert entry["error"] is None
+    assert result["terminated_task_ids"] == []
+    assert proc.terminated is False and proc.killed is False
+
+
+def test_start_task_without_timeout_never_kills(monkeypatch):
+    """Back-compat: no cap means wait() blocks indefinitely and nothing dies."""
+    manager, procs = _manager_with_capped_procs(monkeypatch)
+
+    info = manager.start_task(description="uncapped")
+    proc = procs[info["pid"]]
+    proc._die(0)
+    result = manager.wait_for_task([info["task_id"]])
+
+    # The child was waited on with no budget (the pre-existing behaviour).
+    assert proc.wait_timeouts == [None]
+    assert result["tasks"][0]["exit_reason"] == "finished"
+    assert result["tasks"][0]["exit_code"] == 0
+    assert proc.terminated is False and proc.killed is False
+
+
+def test_wait_for_task_callback_carries_exit_status(monkeypatch):
+    """The per-task callback sees the reason and the exit code, not just a code."""
+    manager, procs = _manager_with_capped_procs(monkeypatch)
+
+    done_info = manager.start_task(description="will finish", timeout=30)
+    stuck_info = manager.start_task(description="will hang", timeout=0.1)
+    procs[done_info["pid"]]._die(0)
+
+    seen = {}
+    # stuck_info is killed mid-wait; the callback still fires with its reason.
+    result = manager.wait_for_task(
+        [done_info["task_id"], stuck_info["task_id"]],
+        on_task_complete=lambda r: seen.__setitem__(r["task_id"], r),
+    )
+
+    assert seen[done_info["task_id"]]["exit_reason"] == "finished"
+    assert seen[done_info["task_id"]]["exit_code"] == 0
+    assert seen[stuck_info["task_id"]]["exit_reason"] == "timeout"
+    assert seen[stuck_info["task_id"]]["exit_code"] is None
+    assert result["terminated_task_ids"] == [stuck_info["task_id"]]
+
+
+def test_stop_task_labels_stopped_not_finished(monkeypatch):
+    """StopTask claims the outcome before signalling, even with a cap armed."""
+    manager, procs = _manager_with_capped_procs(monkeypatch, term_exit_code=0)
+
+    info = manager.start_task(description="running", timeout=30)
+    result = manager.stop_task(info["task_id"])
+
+    assert result["exit_reason"] == "stopped"
+    # It exited cleanly during the grace period, so it does have a code...
+    assert result["exit_code"] == 0
+    assert result["timeout"] == 30
+    assert result["returncode"] == 0
+
+    # ...and the wait thread must not relabel the task as "finished".
+    task = _join_task_thread(manager, info["task_id"])
+    assert task.exit_reason == "stopped"
+    assert task.exit_code == 0
+    assert task.error and "stopped" in task.error
+
+
+def test_stop_task_killed_child_has_no_exit_code(monkeypatch):
+    """A SIGTERM death reports no exit code but keeps the raw return code."""
+    manager, _ = _manager_with_capped_procs(monkeypatch)
+
+    info = manager.start_task(description="running")
+    result = manager.stop_task(info["task_id"])
+
+    assert result["exit_reason"] == "stopped"
+    assert result["exit_code"] is None
+    assert result["returncode"] == -15
+
+    task = _join_task_thread(manager, info["task_id"])
+    wait_result = manager.wait_for_task([info["task_id"]])
+    assert wait_result["tasks"][0]["exit_reason"] == "stopped"
+    assert wait_result["terminated_task_ids"] == [info["task_id"]]
+    assert task.exit_code is None
+
+
+def test_stop_task_after_natural_exit_reports_finished(monkeypatch):
+    """Stopping an already-exited task keeps its real outcome, not 'stopped'."""
+    manager, procs = _manager_with_capped_procs(monkeypatch)
+
+    info = manager.start_task(description="short lived", timeout=30)
+    procs[info["pid"]]._die(3)
+    _join_task_thread(manager, info["task_id"])
+
+    result = manager.stop_task(info["task_id"])
+
+    assert result["exit_reason"] == "finished"
+    assert result["exit_code"] == 3
+
+
+def test_start_task_rejects_non_positive_timeout(monkeypatch):
+    """A cap must be a positive number of seconds."""
+    manager, _ = _manager_with_capped_procs(monkeypatch)
+
+    for bad in (0, -5):
+        try:
+            manager.start_task(description="task", timeout=bad)
+        except ValueError as e:
+            assert "timeout must be a positive number" in str(e)
+        else:  # pragma: no cover - the ValueError must be raised
+            raise AssertionError(f"start_task(timeout={bad}) should raise ValueError")
+
+
+def test_start_task_echoes_timeout(monkeypatch):
+    """The cap is reported back so the caller knows what it agreed to."""
+    manager, _ = _manager_with_capped_procs(monkeypatch)
+
+    assert manager.start_task(description="capped", timeout=90)["timeout"] == 90
+    assert manager.start_task(description="uncapped")["timeout"] is None
+
+
+def test_start_task_accepts_positional_summary(monkeypatch):
+    """Back-compat: timeout is appended last, so positional calls still work."""
+    manager, _ = _manager_with_capped_procs(monkeypatch)
+
+    info = manager.start_task("do the thing", None, "r", "the summary")
+
+    assert info["summary"] == "the summary"
+    assert info["timeout"] is None
+
+
+def test_external_signal_death_is_not_reported_as_finished(monkeypatch):
+    """A child killed behind our back has no exit code and is not 'finished'."""
+    manager, procs = _manager_with_capped_procs(monkeypatch)
+
+    info = manager.start_task(description="oom victim", timeout=30)
+    procs[info["pid"]]._die(-11)  # e.g. SIGSEGV
+
+    entry = manager.wait_for_task([info["task_id"]])["tasks"][0]
+
+    assert entry["exit_reason"] == "killed"
+    assert entry["exit_code"] is None
+    assert entry["returncode"] == -11
+    assert manager.get_task(info["task_id"]).terminated is True
+
+
+def test_own_exit_code_mapping():
+    assert tm._own_exit_code(0) == 0
+    assert tm._own_exit_code(2) == 2
+    # Signal deaths (POSIX) and unreaped children produce no exit status.
+    assert tm._own_exit_code(-15) is None
+    assert tm._own_exit_code(None) is None

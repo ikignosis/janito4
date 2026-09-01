@@ -45,6 +45,14 @@ class StartTask(BaseTool):
             task (the session's -r/-w/-x flags plus any /read /write /rx
             /rw /rwx override), so a task spawned from a /rwx turn inherits
             full privileges instead of silently starting read-only.
+        timeout (float, optional): Lifetime cap for the task process in
+            seconds.  None (the default) lets it run until it exits or is
+            stopped with StopTask.  When the cap is reached the process is
+            terminated (SIGTERM, then SIGKILL) even if nobody is waiting, and
+            WaitForTask reports the task with exit_reason 'timeout' and no
+            exit code.  This is the task's own budget, distinct from
+            WaitForTask's 'timeout' (which only bounds how long that call
+            blocks and kills nothing).
     """
 
     def run(
@@ -53,6 +61,7 @@ class StartTask(BaseTool):
         description: str,
         working_dir: str | None = None,
         privileges: str | None = None,
+        timeout: float | None = None,
     ) -> dict[str, Any]:
         """
         Start a new parallel task.
@@ -66,6 +75,8 @@ class StartTask(BaseTool):
             privileges (Optional[str]): Privileges for the task process
                 (default: the privileges of the current turn, mirroring the
                 running task).
+            timeout (Optional[float]): Lifetime cap in seconds for the task
+                process (default: no cap).  See the class docstring.
 
         Returns:
             Dict[str, Any]: A dictionary containing:
@@ -78,10 +89,14 @@ class StartTask(BaseTool):
                 - 'description': what needs to be done
                 - 'working_dir': the resolved task working directory
                 - 'privileges': the privileges the task was started with
+                - 'timeout': the lifetime cap in seconds (None = no cap)
                 - 'error': error message (only present if success is False)
         """
         try:
-            self.report_start(f"Starting task: {summary}")
+            self.report_start(
+                f"Starting task: {summary}"
+                + (f" (timeout {timeout:g}s)" if timeout else "")
+            )
 
             # Mirror the running task's current (turn) privileges by default:
             # the child starts with the same -r/-w/-x flags the current turn
@@ -97,9 +112,11 @@ class StartTask(BaseTool):
                 working_dir=working_dir,
                 privileges=privileges,
                 summary=summary,
+                timeout=timeout,
             )
 
             self.report_result(f"task {info['task_id']} started (pid {info['pid']})")
+            # info already carries 'timeout' as the manager recorded it.
             return {
                 "success": True,
                 **info,
@@ -118,6 +135,7 @@ class StartTask(BaseTool):
                 "description": description,
                 "working_dir": working_dir,
                 "privileges": privileges,
+                "timeout": timeout,
             }
 
 
@@ -153,6 +171,15 @@ def main():
         ),
     )
     parser.add_argument(
+        "--timeout",
+        type=float,
+        default=None,
+        help=(
+            "Lifetime cap for the task process in seconds; the process is "
+            "terminated when it is exceeded (default: no cap)"
+        ),
+    )
+    parser.add_argument(
         "--json", "-j", action="store_true", help="Output in JSON format"
     )
     args = parser.parse_args()
@@ -162,6 +189,7 @@ def main():
         description=args.description,
         working_dir=args.working_dir,
         privileges=args.privileges,
+        timeout=args.timeout,
     )
 
     if args.json:
@@ -169,6 +197,8 @@ def main():
     else:
         if result["success"]:
             print(f"  ✅ task {result['task_id']} started (pid {result['pid']})")
+            if result.get("timeout"):
+                print(f"  timeout: {result['timeout']:g}s")
             print(f"  stdout: {result['stdout_filename']}")
             print(f"  stderr: {result['stderr_filename']}")
         else:
