@@ -72,7 +72,7 @@ Additional slash commands available in the terminal shell:
 | `/history` | Show the conversation history as rendered rows, marking where each turn started |
 | `/prompt` | Show the current system prompt |
 | `/priv` | Show the current running privileges (READ / WRITE / EXEC) |
-| `/price` | Show a per-model pricing table for every built-in model (estimated cost per 1M input + cached + output tokens) |
+| `/price` | Show a per-model pricing table for every built-in model: estimated cost of 1M input (cache miss) + 1M cached input + 1M output tokens, as separate `1M in` / `1M cache` / `1M output` columns plus their `Total` |
 | `/multi` | Enable multiline input for the **next prompt only** (submit with `ESC` then `Enter`) |
 | `/rewind` | Undo the most recent turn, stepping back one exchange at a time (truncates the history to the last turn) |
 | `/provider` | Show the current provider and the available providers |

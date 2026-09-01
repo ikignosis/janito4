@@ -35,3 +35,7 @@ Changes since `v4.35.0` (2026-08-31).
   summary ("Waiting for task n/total : <summary>") instead of a single
   "Waiting for N task(s)" line; `StartTask`'s start line now ends with a
   newline instead of `end=""`.
+- `/price` table: split the combined cost column into per-type columns
+  (`1M in` | `1M cache` | `1M output` | `Total`).  Each component is computed
+  separately and `Total` is the exact dollar sum of the three (no longer the
+  old combined 1M cache-hit + 1M output estimate).

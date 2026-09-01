@@ -2,12 +2,14 @@
 Tests for the shell /price command handler.
 
 ``/price`` renders a table with one row per built-in model: the provider,
-the model name and the estimated cost of a notional request of **1M input
-tokens (cache miss) + 1M cached input tokens + 1M output tokens**.  The
-cost column is computed by the provider's cost module via
+the model name and four cost columns for a notional request of **1M input
+tokens (cache miss) + 1M cached input tokens + 1M output tokens** --
+``1M in``, ``1M cache``, ``1M output`` and their ``Total``.  Each component
+column is computed by the provider's cost module via
 :func:`janito.providers.costing.get_provider_cost` with
 ``is_reference=True`` (so reference/peak rates apply and the string carries
-no rate-band suffix); providers/models without a cost module show ``N/A``.
+no rate-band suffix); the ``Total`` column is the exact dollar sum of the
+three components.  Providers/models without a cost module show ``N/A``.
 The command must not match non-``/price`` input (e.g. ``/prices``).
 """
 
@@ -18,7 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import janito.config_dir as config_dir_mod
-from janito.providers.costing import get_provider_cost
+from janito.providers.costing import format_cost, get_provider_cost
 from janito.providers.registry import get_provider
 from janito.providers.validation import list_supported_providers
 from janito.shell import InteractiveShell
@@ -95,8 +97,8 @@ def test_price_lists_providers_and_models(monkeypatch, tmp_path, capsys):
             assert model in out
 
 
-def test_price_cost_column_matches_provider_cost(monkeypatch, tmp_path, capsys):
-    """The cost column equals get_provider_cost(..., is_reference=True)."""
+def test_price_cost_columns_match_provider_cost(monkeypatch, tmp_path, capsys):
+    """The per-type columns equal get_provider_cost(..., is_reference=True)."""
     _use_temp_config(monkeypatch, tmp_path)
     shell = _shell()
     assert _price_handler().handle(shell, "/price") is True
@@ -105,10 +107,34 @@ def test_price_cost_column_matches_provider_cost(monkeypatch, tmp_path, capsys):
     for provider in list_supported_providers():
         found = get_provider(provider)
         for model in found.model_names():
-            expected = get_provider_cost(
-                provider, model, 1_000_000, 1_000_000, 1_000_000, is_reference=True
+            cost_in = get_provider_cost(
+                provider, model, 1_000_000, 0, 0, is_reference=True
             )
-            assert expected in out
+            cost_cache = get_provider_cost(
+                provider, model, 1_000_000, 0, 1_000_000, is_reference=True
+            )
+            cost_output = get_provider_cost(
+                provider, model, 0, 1_000_000, 0, is_reference=True
+            )
+            assert cost_in in out
+            assert cost_cache in out
+            assert cost_output in out
+            # Total equals the exact sum of the three components.
+            from janito.providers.costing import get_provider_cost_value
+
+            values = [
+                get_provider_cost_value(
+                    provider, model, 1_000_000, 0, 0, is_reference=True
+                ),
+                get_provider_cost_value(
+                    provider, model, 1_000_000, 0, 1_000_000, is_reference=True
+                ),
+                get_provider_cost_value(
+                    provider, model, 0, 1_000_000, 0, is_reference=True
+                ),
+            ]
+            if all(value is not None for value in values):
+                assert format_cost(sum(values)) in out
 
 
 def test_price_shows_na_for_models_without_cost_module(monkeypatch, tmp_path, capsys):
@@ -119,14 +145,23 @@ def test_price_shows_na_for_models_without_cost_module(monkeypatch, tmp_path, ca
 
     out = capsys.readouterr().out
     # The anthropic provider now ships a cost module, so its models show a
-    # real cost, not N/A.  /price bills 1M cache-hit input + 1M output:
-    # claude-sonnet-5 -> $0.20 + $10 = 10.200000$.
+    # real cost, not N/A.  /price bills 1M cache-miss input + 1M cache-hit
+    # input + 1M output: claude-sonnet-5 -> $2 + $0.20 + $10 = 12.200000$.
     assert "anthropic" in out
     assert "claude-sonnet-5" in out
-    assert "10.2$" in out
+    assert "2.0$" in out  # 1M in
+    assert "20.0\u00a2" in out  # 1M cache
+    assert "10.0$" in out  # 1M output
+    assert "12.2$" in out  # Total
     # OpenAI ships a cost module, so its model shows a real cost, not N/A.
+    # gpt-5.6-luna 1M input exceeds the 272K high-context threshold, so the
+    # in/cache columns bill at 2x the input rate: $0.40 + $0.04 + $1.20 =
+    # 1.640000$.
     assert "gpt-5.6-luna" in out
-    assert "1.8$" in out
+    assert "40.0\u00a2" in out  # 1M in (2x high-context)
+    assert "4.0\u00a2" in out  # 1M cache (2x high-context)
+    assert "1.2$" in out  # 1M output
+    assert "1.6$" in out  # Total
 
     # A provider without a cost module is reported as N/A.
     restore = _inject_fake_no_cost_provider()
@@ -152,9 +187,9 @@ def test_parse_cost_helper():
     from janito.shell.cmds.price import _parse_cost
 
     assert _parse_cost("6.3$") == 6.3
-    assert _parse_cost("88.0¢ (off-peak)") == 0.88
+    assert _parse_cost("88.0\u00a2 (off-peak)") == 0.88
     assert _parse_cost("  3.9$ ") == 3.9
-    assert _parse_cost("0.012¢") == 0.00012
+    assert _parse_cost("0.012\u00a2") == 0.00012
     assert _parse_cost("123$") == 123.0
     assert _parse_cost("N/A") == float("-inf")
     assert _parse_cost("") == float("-inf")
