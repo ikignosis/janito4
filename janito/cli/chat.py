@@ -255,7 +255,7 @@ def _print_privileges_notice(args) -> None:
     if not _banner_printed:
         print_version_banner()
     Console().print(
-        "Started read-only, use /rwx <prompt> for single turn using full privileges",
+        "Started read-only, use /rwx <prompt>...with full privileges..",
         style="yellow",
     )
 

@@ -522,7 +522,7 @@ def test_print_privileges_notice_with_no_flags(capsys, monkeypatch):
 
     out = capsys.readouterr().out
     assert "Started read-only" in out
-    assert "/rwx <prompt> for single turn using full privileges" in out
+    assert "/rwx <prompt>...with full privileges.." in out
     assert out.index("Janito") < out.index("Started read-only")
 
 
@@ -535,7 +535,7 @@ def test_print_privileges_notice_with_read_flag(capsys, monkeypatch):
 
     out = capsys.readouterr().out
     assert "Started read-only" in out
-    assert "/rwx <prompt> for single turn using full privileges" in out
+    assert "/rwx <prompt>...with full privileges.." in out
     assert out.index("Janito") < out.index("Started read-only")
 
 

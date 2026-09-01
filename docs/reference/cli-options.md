@@ -114,7 +114,7 @@ default, which wins over the built-in read-only default. If none of
 the version banner when an *interactive* session starts:
 
 ```
-Started read-only, use /rwx <prompt> for single turn using full privileges
+Started read-only, use /rwx <prompt>...with full privileges..
 ```
 
 Explicit `-r` alone also leaves the session read-only, so the same hint is

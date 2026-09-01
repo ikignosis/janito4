@@ -465,7 +465,7 @@ tool selector* (`get_session_tool_schemas` / `get_session_tool_names` in
 normal prompt may offer, and the per-command tool modes (`/read` `/write`
 `/rx` `/rw` `/rwx`) can override it for a single turn. The
 interactive CLI prints a startup hint (`Started read-only, use /rwx
-<prompt> for single turn using full privileges`) after the version banner
+<prompt>...with full privileges..`) after the version banner
 when running with read-only privileges (the default or an explicit `-r`);
 sessions that grant WRITE or EXEC skip the hint, and single-prompt runs
 (`janito "prompt"` or piped stdin) skip it too, since `/rwx` is an
