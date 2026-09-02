@@ -126,7 +126,7 @@ The server prints the URL it's listening on, then opens your default browser
 | `-S "prompt"` | Override system prompt (tools stay enabled) |
 | `-Z, --no-system-prompt` | No system prompt, no tools |
 | `--no-tools` | Do not load tools (skill tools stay enabled) |
-| `--no-tasks` | Do not load the tasks toolset (`StartTask`, `StopTask`, `WaitForTask`); all other tools stay enabled |
+| `--no-tasks` | Do not load the tasks toolset (`StartTask`, `StopTask`, `WaitForTask`, `ListTasks`); all other tools stay enabled |
 | `-v, --verbose` | Verbose backend logging |
 | `--no-history` | Don't persist session history to disk (`./.janito/sessions/` is neither written nor read) |
 

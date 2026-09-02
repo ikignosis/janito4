@@ -94,7 +94,7 @@ def _setup_runtime(args) -> int | None:
         disable_tools_loading()
 
     # --no-tasks: stop loading the tasks toolset (StartTask/StopTask/
-    # WaitForTask).  Everything else -- and the skill tools -- stays
+    # WaitForTask/ListTasks).  Everything else -- and the skill tools -- stays
     # enabled.  Applied before any registry access so the lazy discovery
     # filters "tasks" out of the autoload toolsets.
     if getattr(args, "no_tasks", False):

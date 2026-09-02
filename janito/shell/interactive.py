@@ -203,20 +203,52 @@ class InteractiveShell(_SessionMixin):
                 return ""
             return result
         except KeyboardInterrupt:
-            # User pressed Ctrl+C - ask to confirm quit
+            # User pressed Ctrl+C - ask to confirm quit.  When parallel tasks
+            # are still running (issue #101), surface them first and ask about
+            # terminating them, so the user cannot accidentally orphan
+            # background children (and so they know the atexit hook will kill
+            # them whatever exit path they take).
+            running = self._running_tasks()
+            if running:
+                self._print_running_tasks_notice()
+                question = "\nDo you want to exit and terminate all tasks? (y/n): "
+            else:
+                question = "\nDo you want to quit the conversation? (y/n): "
             try:
-                confirm = self.session.prompt(
-                    "\nDo you want to quit the conversation? (y/n): "
-                )
+                confirm = self.session.prompt(question)
                 if confirm and confirm.lower().strip() in ["y", "yes"]:
+                    if running:
+                        # Immediate SIGKILL of every live child (no grace);
+                        # the atexit cleanup stays the safety net for every
+                        # other exit path.
+                        self._kill_all_tasks()
                     return None  # User wants to quit
                 return ""  # User doesn't want to quit, continue to next iteration
             except (KeyboardInterrupt, EOFError):
                 # User pressed Ctrl+C or Ctrl+D again during confirmation
+                if running:
+                    self._kill_all_tasks()
                 return None  # Quit
         except EOFError:
             # User pressed Ctrl+D at main prompt
             return None
+
+    def _kill_all_tasks(self) -> None:
+        """Terminate all live background tasks immediately (issue #101).
+
+        Delegates to :meth:`TaskManager.kill_all` (SIGKILL, no grace).  Best
+        effort: the atexit ``cleanup`` hook is the fallback safety net, so a
+        failure here (e.g. the tasks toolset is not loaded) must not block the
+        quit.  Prints a short confirmation of what was stopped.
+        """
+        try:
+            from ..taskmanager import task_manager
+
+            killed = task_manager.kill_all()
+        except Exception:  # noqa: BLE001 - atexit cleanup is the safety net
+            return
+        if killed:
+            _rich_console.print(f"Terminated {len(killed)} running task(s).")
 
     def _handle_restart_request(self) -> bool:
         """Handle the F2 restart keybinding; True when the loop continues."""
@@ -444,6 +476,45 @@ class InteractiveShell(_SessionMixin):
         # Note: turn_func already appends user and assistant messages
         # to previous_messages (which is self.messages_history), so we don't
         # need to append them here.
+
+        # End-of-turn notice (issue #101): if the turn left any parallel
+        # tasks running (started via StartTask), tell the user they are still
+        # in flight.  This fires on every path through _run_turn -- success
+        # and rollback alike -- because none of the except clauses re-raise.
+        self._print_running_tasks_notice()
+
+    def _running_tasks(self) -> list[dict[str, Any]]:
+        """Snapshot of tasks still running, best-effort (issue #101).
+
+        Returns ``[]`` when no tasks are known, the manager exposes no such
+        view, or the tasks toolset is disabled (``--no-tasks`` imports nothing
+        task-related).  Never raises: a notice must not break a turn.
+        """
+        try:
+            from ..taskmanager import task_manager
+
+            return task_manager.running_tasks()
+        except Exception:  # noqa: BLE001 - purely advisory
+            return []
+
+    def _print_running_tasks_notice(self) -> None:
+        """Print 'N tasks are still running' + a Task ID | Summary table.
+
+        Plain text only: ``_rich_console`` is a ``Console(markup=False)``, so
+        Rich markup tags would print literally rather than being styled.
+        """
+        running = self._running_tasks()
+        if not running:
+            return
+        _rich_console.print(f"The following ({len(running)}) tasks are still running:")
+        _rich_console.print("  Task ID  Summary")
+        for task in running:
+            summary = task.get("summary") or task["task_id"]
+            _rich_console.print(f"  {task['task_id']}  {summary}")
+        _rich_console.print(
+            "You can ask about these tasks at any time (e.g list all "
+            "task, wait all tasks, kill all tasks)."
+        )
 
     def _history_row_count(self) -> int:
         """Return how many rows /history would currently render.

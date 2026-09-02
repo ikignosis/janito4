@@ -193,8 +193,8 @@ class WebServerConfig:
             disable_tools_loading()
 
         # --no-tasks: stop loading the tasks toolset (StartTask/StopTask/
-        # WaitForTask).  Everything else -- and the skill tools -- stays
-        # enabled.  Applied like --no-tools so direct constructions are
+        # WaitForTask/ListTasks).  Everything else -- and the skill tools --
+        # stays enabled.  Applied like --no-tools so direct constructions are
         # consistent with the CLI path.
         if getattr(args, "no_tasks", False):
             from janito.tooling.tools_registry import disable_toolset

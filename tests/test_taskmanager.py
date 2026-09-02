@@ -793,3 +793,187 @@ def test_own_exit_code_mapping():
     # Signal deaths (POSIX) and unreaped children produce no exit status.
     assert tm._own_exit_code(-15) is None
     assert tm._own_exit_code(None) is None
+
+
+# --- list_tasks / kill_all / cleanup (issue #101) ---------------------------
+
+
+def test_list_tasks_running_first_then_finished_in_start_order(monkeypatch):
+    """Running tasks come first (start order); finished follow (start order)."""
+    manager, procs = _manager_with_capped_procs(monkeypatch)
+
+    info1 = manager.start_task(description="task one", summary="one")
+    info2 = manager.start_task(description="task two", summary="two")
+    info3 = manager.start_task(description="task three", summary="three")
+
+    # Finish task3, then task1: task2 stays running.
+    procs[info3["pid"]]._die(0)
+    _join_task_thread(manager, info3["task_id"])
+    procs[info1["pid"]]._die(0)
+    _join_task_thread(manager, info1["task_id"])
+
+    entries = manager.list_tasks()
+
+    # task2 (running) first, then task1 and task3 in *start* order, even
+    # though task3 finished first.
+    assert [e["task_id"] for e in entries] == [
+        info2["task_id"],
+        info1["task_id"],
+        info3["task_id"],
+    ]
+    assert [e["running"] for e in entries] == [True, False, False]
+    assert [e["state"] for e in entries] == ["running", "finished", "finished"]
+
+
+def test_list_tasks_entry_fields(monkeypatch):
+    """Each snapshot entry carries the documented fields."""
+    manager, procs = _manager_with_capped_procs(monkeypatch)
+
+    info = manager.start_task(description="task one", summary="the summary")
+    entry = manager.list_tasks()[0]
+
+    assert entry["task_id"] == info["task_id"]
+    assert entry["summary"] == "the summary"
+    assert entry["state"] == "running"
+    assert entry["running"] is True
+    assert entry["pid"] == info["pid"]
+    assert entry["working_dir"] == info["working_dir"]
+    # A live child's duration is the elapsed wall time so far.
+    assert entry["duration_seconds"] >= 0
+
+    procs[info["pid"]]._die(0)
+    _join_task_thread(manager, info["task_id"])
+    entry = manager.list_tasks()[0]
+    assert entry["state"] == "finished"
+    assert entry["running"] is False
+    assert entry["duration_seconds"] is not None and entry["duration_seconds"] >= 0
+
+
+def test_running_tasks_filters_running_only(monkeypatch):
+    """running_tasks() is the running==True view of list_tasks()."""
+    manager, procs = _manager_with_capped_procs(monkeypatch)
+
+    info1 = manager.start_task(description="task one")
+    info2 = manager.start_task(description="task two")
+    procs[info1["pid"]]._die(0)
+    _join_task_thread(manager, info1["task_id"])
+
+    running = manager.running_tasks()
+
+    assert [e["task_id"] for e in running] == [info2["task_id"]]
+    assert all(e["running"] for e in running)
+
+
+def test_kill_all_kills_via_kill_not_terminate(monkeypatch):
+    """kill_all() SIGKILLs immediately -- no SIGTERM grace (issue #101)."""
+    manager, procs = _manager_with_capped_procs(monkeypatch, ignores_term=True)
+
+    info = manager.start_task(description="never finishes")
+    proc = procs[info["pid"]]
+
+    killed = manager.kill_all()
+
+    assert len(killed) == 1
+    result = killed[0]
+    assert result["task_id"] == info["task_id"]
+    assert result["pid"] == info["pid"]
+    assert result["stopped"] is True
+    assert result["exit_reason"] == "stopped"
+    # A SIGKILL never lets the child report a status of its own.
+    assert result["exit_code"] is None
+    assert result["returncode"] == -9
+    # Immediate SIGKILL: kill() was called, terminate() was not.
+    assert proc.killed is True
+    assert proc.terminated is False
+
+    task = manager.get_task(info["task_id"])
+    assert task.exit_reason == "stopped"
+    assert task.exit_code is None
+
+
+def test_kill_all_leaves_finished_tasks_untouched(monkeypatch):
+    """Tasks that already exited on their own keep their real outcome."""
+    manager, procs = _manager_with_capped_procs(monkeypatch)
+
+    done_info = manager.start_task(description="task one", timeout=30)
+    live_info = manager.start_task(description="task two", timeout=30)
+    procs[done_info["pid"]]._die(3)
+    _join_task_thread(manager, done_info["task_id"])
+
+    killed = manager.kill_all()
+
+    assert [k["task_id"] for k in killed] == [live_info["task_id"]]
+    # The finished task keeps its own label and exit code.
+    done_task = manager.get_task(done_info["task_id"])
+    assert done_task.exit_reason == "finished"
+    assert done_task.exit_code == 3
+    assert procs[done_info["pid"]].killed is False
+    assert procs[done_info["pid"]].terminated is False
+
+
+def test_wait_for_task_after_kill_all_does_not_hang(monkeypatch):
+    """A task killed by kill_all() is already 'done' for wait_for_task()."""
+    manager, procs = _manager_with_capped_procs(monkeypatch)
+
+    info1 = manager.start_task(description="task one")
+    info2 = manager.start_task(description="task two")
+    procs[info1["pid"]]._die(0)
+    _join_task_thread(manager, info1["task_id"])
+
+    manager.kill_all()
+
+    # Both tasks must be reported without hanging (kill_all records
+    # completion idempotently, so the second record never double-appends).
+    result = manager.wait_for_task([info1["task_id"], info2["task_id"]])
+
+    assert result["timed_out"] is False
+    assert result["pending_task_ids"] == []
+    assert [t["task_id"] for t in result["tasks"]] == [
+        info1["task_id"],
+        info2["task_id"],
+    ]
+    assert result["tasks"][0]["exit_reason"] == "finished"
+    assert result["tasks"][1]["exit_reason"] == "stopped"
+    assert result["terminated_task_ids"] == [info2["task_id"]]
+
+
+def test_record_completion_is_idempotent(monkeypatch):
+    """Recording completion twice must not duplicate the completion order."""
+    manager, procs = _manager_with_capped_procs(monkeypatch)
+
+    info = manager.start_task(description="task one")
+    proc = procs[info["pid"]]
+    proc._die(0)
+    _join_task_thread(manager, info["task_id"])
+
+    task = manager.get_task(info["task_id"])
+    # The wait thread recorded it; a second record (e.g. kill_all's path)
+    # must be a no-op.
+    duration_before = task.duration_seconds
+    manager._record_completion(task)
+
+    assert manager._completion_order.count(info["task_id"]) == 1
+    assert task.duration_seconds == duration_before
+    assert task.done.is_set()
+
+
+def test_cleanup_kills_children_and_removes_temp_files(monkeypatch):
+    """The atexit hook kills live children and deletes their temp output."""
+    manager, procs = _manager_with_capped_procs(monkeypatch)
+
+    info = manager.start_task(description="task one")
+    task = manager.get_task(info["task_id"])
+    assert os.path.exists(task.stdout_filename)
+    assert os.path.exists(task.stderr_filename)
+
+    manager.cleanup()
+
+    proc = procs[info["pid"]]
+    assert proc.killed is True
+    assert proc.terminated is False
+    assert task.exit_reason == "stopped"
+    assert not os.path.exists(task.stdout_filename)
+    assert not os.path.exists(task.stderr_filename)
+
+    # Idempotent: a second call must not raise (files already gone).
+    manager.cleanup()

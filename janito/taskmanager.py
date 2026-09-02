@@ -578,14 +578,151 @@ class TaskManager:
             task.error = str(e)
             task.exit_reason = EXIT_ERROR
         finally:
-            task.duration_seconds = time.monotonic() - task.started_at
             # Record the true completion order before signalling done, so
             # wait_for_task() can drain tasks in the order they finished.
-            with self._completion_lock:
+            self._record_completion(task)
+
+    def _record_completion(self, task: Task) -> None:
+        """Mark a task's completion idempotently (order + ``done`` event).
+
+        Stamps ``duration_seconds`` (only if not already set, so a value
+        recorded by :meth:`stop_task` / :meth:`kill_all` is kept), appends the
+        task to :attr:`_completion_order` unless it is already there, and sets
+        its ``done`` event.  Idempotency matters because both the wait thread's
+        ``finally`` and :meth:`kill_all` (issue #101) record completion: the
+        second caller must not double-append (which would otherwise leave a
+        phantom id in the drain list), yet a task killed via :meth:`kill_all`
+        still needs its ``done`` event set so a later :meth:`wait_for_task`
+        cannot hang waiting for a thread that may never have been scheduled.
+        """
+        if task.duration_seconds is None:
+            task.duration_seconds = time.monotonic() - task.started_at
+        with self._completion_lock:
+            if task.task_id not in self._completion_order:
                 self._completion_order.append(task.task_id)
-            task.done.set()
+        task.done.set()
 
     # -- queries -------------------------------------------------------------
+
+    def _task_snapshot(self, task: Task) -> dict[str, Any]:
+        """Snapshot of one task for :meth:`list_tasks` (issue #101).
+
+        ``state`` is the task's ``exit_reason`` (``running`` while the child is
+        still alive, then ``finished`` / ``timeout`` / ``stopped`` / ``killed``
+        / ``error``).  A live child's duration is the elapsed wall time so far;
+        a finished child's duration is the value recorded at completion.
+        """
+        if task.exit_reason == EXIT_RUNNING:
+            duration = time.monotonic() - task.started_at
+        else:
+            duration = task.duration_seconds
+        return {
+            "task_id": task.task_id,
+            "summary": task.summary,
+            "state": task.exit_reason,
+            "running": task.exit_reason == EXIT_RUNNING,
+            "pid": task.pid,
+            "working_dir": task.working_dir,
+            "duration_seconds": duration,
+        }
+
+    def list_tasks(self) -> list[dict[str, Any]]:
+        """Snapshot of every task (running and finished), issue #101.
+
+        Running tasks come first (in start order), then finished/stopped
+        tasks (also in start order).  Use this -- or the ``ListTasks`` tool --
+        to see what the manager knows about without waiting on anything.
+
+        Returns:
+            List of dicts, one per task, each with ``task_id``, ``summary``,
+            ``state`` (the ``exit_reason``: ``running`` while alive, then
+            ``finished`` / ``timeout`` / ``stopped`` / ``killed`` / ``error``),
+            ``running`` (bool), ``pid``, ``working_dir`` and
+            ``duration_seconds``.
+        """
+        with self._lock:
+            tasks = list(self._tasks.values())
+        tasks.sort(
+            key=lambda t: (0 if t.exit_reason == EXIT_RUNNING else 1, t.started_at)
+        )
+        return [self._task_snapshot(task) for task in tasks]
+
+    def running_tasks(self) -> list[dict[str, Any]]:
+        """Snapshot of the currently-running tasks only (issue #101).
+
+        Filtered view used by the shell's end-of-turn notice and
+        confirm-quit prompt; same ordering and dict shape as
+        :meth:`list_tasks` (all entries carry ``running`` = True).
+        """
+        return [entry for entry in self.list_tasks() if entry["running"]]
+
+    def kill_all(self) -> list[dict[str, Any]]:
+        """Immediately SIGKILL every live child and reap it (issue #101).
+
+        Unlike :meth:`stop_task` (and the ``timeout`` path), there is **no
+        SIGTERM grace period**: each child that is still running is killed
+        outright.  Each such task's ``exit_reason`` is set to
+        :data:`EXIT_STOPPED` *before* the signal is sent -- first-writer-wins,
+        the same convention :meth:`stop_task` uses -- so its wait thread can
+        never relabel a child that dies right away as having "finished".
+        Completion is recorded idempotently (via :meth:`_record_completion`)
+        so a later :meth:`wait_for_task` sees each killed task as already done
+        (and drained) instead of hanging on it.
+
+        This is what the interactive shell's confirm-quit path calls, and what
+        the atexit :meth:`cleanup` hook delegates to, so tasks are terminated
+        whether the user quits from the shell or the process exits any other
+        way.
+
+        Returns:
+            List of result dicts (one per *previously running* task that was
+            killed here), each with ``task_id``, ``pid``, ``stopped``,
+            ``exit_reason``, ``exit_code``, ``timeout`` and ``returncode`` --
+            the same shape :meth:`stop_task` returns.  ``exit_code`` is
+            ``None`` (a SIGKILL never lets the child report a status).  Tasks
+            that had already finished on their own are not touched or listed.
+        """
+        with self._lock:
+            tasks = list(self._tasks.values())
+        killed: list[dict[str, Any]] = []
+        for task in tasks:
+            if task.process.poll() is not None:
+                # Already exited on its own: keep its real outcome, don't
+                # relabel it as stopped.
+                continue
+            # Claim the outcome first (see docstring), then SIGKILL -- no
+            # SIGTERM grace, unlike _terminate_process / stop_task.
+            task.exit_reason = EXIT_STOPPED
+            try:
+                task.process.kill()
+                try:
+                    returncode = task.process.wait(timeout=KILL_GRACE_SECONDS)
+                except subprocess.TimeoutExpired:  # pragma: no cover - wedged child
+                    returncode = task.process.returncode
+            except OSError:  # pragma: no cover - child already gone
+                returncode = task.process.poll()
+            task.returncode = returncode
+            task.exit_code = _own_exit_code(returncode)
+            task.error = (
+                "task was stopped before it finished"
+                if task.exit_code is None
+                else f"task was stopped; it exited with code {task.exit_code} "
+                "during shutdown"
+            )
+            task.duration_seconds = time.monotonic() - task.started_at
+            self._record_completion(task)
+            killed.append(
+                {
+                    "task_id": task.task_id,
+                    "pid": task.pid,
+                    "stopped": True,
+                    "exit_reason": task.exit_reason,
+                    "exit_code": task.exit_code,
+                    "timeout": task.timeout,
+                    "returncode": returncode,
+                }
+            )
+        return killed
 
     def get_task(self, task_id: str) -> Task:
         """Return the :class:`Task` registered under ``task_id``.
@@ -804,16 +941,23 @@ class TaskManager:
     # -- shutdown ------------------------------------------------------------
 
     def cleanup(self) -> None:
-        """Terminate running children and remove their temp output files.
+        """Terminate every live child and remove their temp output files.
 
         Registered with ``atexit`` at construction time; also safe to call
         manually (idempotent).
+
+        Contract change (issue #101): killing now delegates to
+        :meth:`kill_all`, which sends **SIGKILL immediately** rather than the
+        previous SIGTERM.  The grace period SIGTERM afforded a child was of no
+        practical use at interpreter exit -- there is no event loop left to
+        service a clean shutdown, and the process is going away regardless --
+        so a stuck child that ignored SIGTERM could only be force-killed after
+        burning the full grace window.  SIGKILL reaps it at once.  Temp-file
+        removal (unchanged) follows.
         """
+        self.kill_all()
         with self._lock:
             tasks = list(self._tasks.values())
-        for task in tasks:
-            if task.process.poll() is None:
-                task.process.terminate()
         for task in tasks:
             for filename in (task.stdout_filename, task.stderr_filename):
                 try:
