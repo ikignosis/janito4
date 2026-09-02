@@ -55,3 +55,6 @@ Changes since `v4.36.0` (2026-09-01).
   no event loop left to service a clean shutdown, so the SIGTERM grace period
   only delayed the inevitable force-kill. The same `kill_all()` backs the
   shell's confirm-quit path, so tasks are terminated on every exit path.
+- Builtin system prompt: the planner guidance now asks the model to produce
+  a **concise** plan (instead of "create one") before implementing, keeping
+  the requirement to get the user's approval or feedback first.
