@@ -1,352 +1,40 @@
-"""
-Task manager for parallel janito sub-processes (issue #94).
+"""The :class:`TaskManager` registry for the task manager package.
 
-:class:`TaskManager` runs each task as a separate ``janito`` process: the
-task's *description* is piped to the child's stdin (single-prompt mode, which
-never writes the interactive input history by design -- ``--no-history`` is
-not needed) and the child's stdout/stderr are redirected straight into temp
-files, so the OS writes them live as the process flows.  No extra thread is
-needed for the file updates: the child inherits the file descriptors and
-writes to them directly.
-
-One daemon thread per task is used only to wait for the child to exit and
-record its exit status -- that is what :meth:`TaskManager.wait_for_task`
-blocks on and what :meth:`TaskManager.stop_task` terminates.  The same thread
-also arms the task's optional lifetime cap (``StartTask``'s ``timeout``): when
-the deadline passes the child is terminated, so a task can never outlive its
-budget just because nobody waited on it.
-
-The child command line is built by :func:`build_task_command`, which
-reproduces the parent's ``-c``/``--config-dir`` and ``-l``/``--local`` flags
-via :func:`janito.config_dir.config_cli_args` so sub-processes resolve the
-same configuration (issue #94), maps the task's ``privileges`` string to
-the ``-r``/``-w``/``-x`` CLI flags (``None``/empty means the child starts
-read-only, matching the janito default, issue #85), and always passes
-``--no-tasks`` so a task sub-process can never spawn further tasks itself
-(no recursive task execution).
-
-Temp output files are created with ``delete=False`` (the LLM reads them, e.g.
-with the ReadFile tool) and removed at process exit by the atexit-registered
-:meth:`TaskManager.cleanup`.
-
-:meth:`TaskManager.wait_for_task` also returns the finished tasks' output
-content inline (``stdout`` / ``stderr`` in each result dict, capped at
-``max_output_lines`` lines) so the LLM can check a task's results directly
-without having to read the temp files -- the files stay available for the
-full, untruncated content.
-
-Exit status reporting
----------------------
-
-Each finished task reports *why* it ended and *what it exited with*, as two
-orthogonal fields (see :class:`Task`):
-
-``exit_reason``
-    ``"finished"`` (the child exited on its own), ``"timeout"`` (killed because
-    it exceeded its ``timeout``), ``"stopped"`` (killed by :meth:`stop_task`)
-    or ``"error"`` (the wait itself failed).
-
-``exit_code``
-    The child's own exit status, or ``None`` when it never produced one.
-
-A terminated task may still carry a non-``None`` ``exit_code``: the grace
-period lets a child that traps SIGTERM shut down and exit by itself, so
-``exit_code == 0`` with ``exit_reason == "timeout"`` is a real (and
-meaningful) combination.  Callers must therefore read ``exit_reason`` to tell
-success from termination, and never infer it from ``returncode`` -- which is
-kept as the raw :attr:`subprocess.Popen.returncode` for forensics and is
-negative for signal deaths on POSIX but ``1`` for ``kill()`` on Windows.
+Spawns each task as a separate ``janito`` process, tracks its exit status,
+and provides the wait / stop / list / kill-all operations used by the
+StartTask / StopTask / WaitForTask / ListTasks tools (see the package
+docstring for the full contract).
 """
 
 import atexit
 import os
 import subprocess
-import sys
 import tempfile
 import threading
 import time
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, field
 from typing import Any
 
-from .config_dir import config_cli_args
-
-__all__ = [
-    "Task",
-    "TaskManager",
-    "build_task_command",
-    "privilege_flags",
-    "task_manager",
-]
-
-# How many lines of a task's stdout/stderr wait_for_task() returns inline per
-# stream by default (mirrors GetUrl's default max_lines).  None = no limit.
-DEFAULT_MAX_OUTPUT_LINES = 200
-
-# Marker appended to stdout/stderr content when the requested line cap cuts
-# it short (same marker GetUrl uses), so callers can see the output was
-# truncated and read the temp file if they need the rest.
-_TRUNCATED_MARKER = "\n... [truncated]"
-
-# Grace periods used when terminating a task's child process (both the
-# StartTask timeout path and StopTask): SIGTERM first, giving the child this
-# many seconds to shut down cleanly -- and still report its own exit code --
-# before escalating to SIGKILL and waiting this many seconds to reap it.
-TERM_GRACE_SECONDS = 10
-KILL_GRACE_SECONDS = 5
-
-# Why a task's child process ended.  ``EXIT_RUNNING`` is the initial value;
-# the first writer wins, so a StopTask landing microseconds before the wait
-# thread reaps the child can never be relabelled "finished" (and vice versa).
-EXIT_RUNNING = "running"
-#: The child exited on its own and reported an exit status.
-EXIT_FINISHED = "finished"
-#: Killed by janito because it exceeded its ``timeout``.
-EXIT_TIMEOUT = "timeout"
-#: Killed by janito through :meth:`TaskManager.stop_task`.
-EXIT_STOPPED = "stopped"
-#: Killed by a signal nobody in janito sent (e.g. the OOM killer) -- it has no
-#: exit status of its own, so it is not reported as "finished".
-EXIT_KILLED = "killed"
-#: Waiting for the child itself failed; ``error`` holds the reason.
-EXIT_ERROR = "error"
-
-#: Reasons meaning the task never ran to completion on its own (and therefore
-#: has no meaningful exit status of its own).
-TERMINATED_REASONS = (EXIT_TIMEOUT, EXIT_STOPPED, EXIT_KILLED)
-
-
-def _read_output_file(filename: str, max_lines: int | None) -> tuple[str | None, bool]:
-    """Read a task's captured stdout/stderr temp file, capped at ``max_lines``.
-
-    Reads the file incrementally (line by line) so a huge output file is
-    never slurped into memory just to enforce the line cap.  Returns the
-    content and a ``truncated`` flag; when the cap cuts the content short,
-    a ``\\n... [truncated]`` marker is appended (same marker GetUrl uses) so
-    callers can see the output was cut and read the temp file for the rest.
-
-    Args:
-        filename: The temp output file to read.
-        max_lines: Maximum number of lines to return.  ``None`` returns the
-            full content.
-
-    Returns:
-        tuple[str | None, bool]: ``(content, truncated)``.  ``content`` is
-        ``None`` when the file could not be read (e.g. it was already
-        removed) -- the caller then reports ``None`` rather than failing the
-        whole wait.  ``truncated`` is True when the cap cut the content
-        short.
-    """
-    try:
-        with open(filename, encoding="utf-8", errors="replace") as fh:
-            if max_lines is None:
-                return fh.read(), False
-            lines: list[str] = []
-            for line in fh:
-                if len(lines) >= max_lines:
-                    content = "".join(lines).rstrip("\n")
-                    return content + _TRUNCATED_MARKER, True
-                lines.append(line)
-            return "".join(lines), False
-    except OSError:
-        return None, False
-
-
-def _normalise_timeout(timeout: float | None) -> float | None:
-    """Validate and coerce a task lifetime cap to a positive float seconds.
-
-    Args:
-        timeout: The requested cap (``None`` = no cap); anything numeric is
-            accepted so a JSON-supplied int works.
-
-    Returns:
-        The cap as a float, or ``None`` when uncapped.
-
-    Raises:
-        ValueError: If the cap is not a positive number of seconds.
-    """
-    if timeout is None:
-        return None
-    try:
-        seconds = float(timeout)
-    except (TypeError, ValueError) as e:
-        raise ValueError(f"timeout must be a number of seconds, got {timeout!r}") from e
-    if seconds <= 0:
-        raise ValueError(
-            f"timeout must be a positive number of seconds, got {seconds:g}"
-        )
-    return seconds
-
-
-def _own_exit_code(returncode: int | None) -> int | None:
-    """Map a raw ``returncode`` to the child's own exit status (or ``None``).
-
-    On POSIX a process killed by a signal reports a negative return code and
-    never produced an exit status of its own, so the exit code is ``None``.
-    ``None`` (no status observed) is likewise reported as ``None``.
-
-    Caveat: on Windows ``kill()`` surfaces as return code ``1``, which this
-    helper cannot tell apart from a real ``exit(1)`` -- which is why
-    ``exit_reason`` (set explicitly by the code that sent the signal) is the
-    authoritative field, never ``exit_code``.
-
-    Args:
-        returncode: The raw :attr:`subprocess.Popen.returncode`.
-
-    Returns:
-        The exit status, or ``None`` when the child never produced one.
-    """
-    if returncode is None or returncode < 0:
-        return None
-    return returncode
-
-
-def _terminate_process(proc: subprocess.Popen) -> int | None:
-    """Terminate a task's child process (SIGTERM, then SIGKILL) and reap it.
-
-    Shared by :meth:`TaskManager.stop_task` and the timeout path in
-    :meth:`TaskManager._wait_for_exit` so both give the child the same grace to
-    shut down cleanly (and, in doing so, still produce its own exit code).
-
-    Args:
-        proc: The child process to terminate.  Already-exited children are
-            left untouched: their status is reported unchanged.
-
-    Returns:
-        The final :attr:`~subprocess.Popen.returncode` (negative for signal
-        deaths on POSIX), or ``None`` if it could not be reaped.  Never
-        raises: an uninterruptible child (e.g. stuck in an uninterruptible
-        syscall) must not turn a successful kill into a failed tool call, so
-        a :class:`subprocess.TimeoutExpired` from the reaping wait is swallowed
-        and the return code observed so far is returned.
-    """
-    if proc.poll() is not None:
-        return proc.returncode
-    try:
-        proc.terminate()
-        try:
-            return proc.wait(timeout=TERM_GRACE_SECONDS)
-        except subprocess.TimeoutExpired:
-            # Still alive after the grace period: force it and reap.
-            proc.kill()
-            try:
-                return proc.wait(timeout=KILL_GRACE_SECONDS)
-            except subprocess.TimeoutExpired:  # pragma: no cover - wedged child
-                return proc.returncode
-    except OSError:  # pragma: no cover - child already gone / no permission
-        # A process that vanished between poll() and the signal is fine:
-        # report whatever return code is observable now.
-        return proc.poll()
-
-
-def privilege_flags(privileges: str | None) -> list[str]:
-    """Map a privileges string (``"rwx"``) to CLI flags (``["-r", "-w", "-x"]``).
-
-    ``None`` or an empty string yields ``[]`` -- the child then starts with
-    the janito default privileges (read-only, issue #85).
-
-    Args:
-        privileges: A combination of ``r`` / ``w`` / ``x`` (any order/case).
-
-    Returns:
-        The corresponding ``-r`` / ``-w`` / ``-x`` flags.
-
-    Raises:
-        ValueError: If ``privileges`` contains any character other than
-            ``r`` / ``w`` / ``x``.
-    """
-    if not privileges:
-        return []
-    flags: list[str] = []
-    for char in str(privileges).strip().lower():
-        if char == "r":
-            flags.append("-r")
-        elif char == "w":
-            flags.append("-w")
-        elif char == "x":
-            flags.append("-x")
-        else:
-            raise ValueError(
-                f"Invalid privilege character {char!r} in {privileges!r}: "
-                "expected a combination of 'r', 'w' and 'x'"
-            )
-    return flags
-
-
-def build_task_command(privileges: str | None) -> list[str]:
-    """Build the child ``janito`` command line (issue #94).
-
-    Uses ``sys.executable -m janito`` so the child runs in the same Python
-    environment as the parent, inherits the parent's ``-c``/``-l`` config
-    flags via :func:`janito.config_dir.config_cli_args`, maps ``privileges``
-    to the ``-r``/``-w``/``-x`` flags, and always appends ``--no-tasks`` so
-    the child cannot spawn further tasks (preventing recursive task
-    execution).
-
-    Args:
-        privileges: Privileges for the child (``None``/``""`` = read-only).
-
-    Returns:
-        The command line (as a list of argv strings).
-    """
-    cmd = [sys.executable, "-m", "janito"]
-    cmd.extend(config_cli_args())
-    cmd.extend(privilege_flags(privileges))
-    cmd.append("--no-tasks")
-    return cmd
-
-
-@dataclass
-class Task:
-    """A running (or finished) parallel task.
-
-    Attributes:
-        exit_reason: Why the child process ended -- :data:`EXIT_RUNNING` while
-            it is still alive, then :data:`EXIT_FINISHED` (it exited on its
-            own), :data:`EXIT_TIMEOUT` (killed for exceeding ``timeout``),
-            :data:`EXIT_STOPPED` (killed by :meth:`TaskManager.stop_task`) or
-            :data:`EXIT_ERROR` (the wait itself failed).  The first writer
-            wins, so a stop landing right as the child exits cannot be
-            mislabelled ``"finished"``.
-        exit_code: The child's own exit status, or ``None`` when it never
-            produced one (killed without a clean shutdown, still running, or
-            the wait failed).  A *terminated* task can still have an exit code
-            when it exited during the SIGTERM grace period, so ``exit_reason``
-            -- not this field -- is what distinguishes success from
-            termination.
-        returncode: Raw :attr:`subprocess.Popen.returncode` (kept for
-            back-compat and forensics: negative for signal deaths on POSIX,
-            ``1`` for ``kill()`` on Windows).  Prefer ``exit_reason`` /
-            ``exit_code``.
-        started_at: ``time.monotonic()`` stamp taken when the child was
-            spawned, used to report ``duration_seconds``.
-    """
-
-    task_id: str
-    summary: str | None
-    description: str
-    working_dir: str
-    privileges: str | None
-    pid: int
-    stdout_filename: str
-    stderr_filename: str
-    process: subprocess.Popen
-    thread: threading.Thread
-    timeout: float | None = None
-    returncode: int | None = None
-    error: str | None = None
-    exit_reason: str = EXIT_RUNNING
-    exit_code: int | None = None
-    started_at: float = field(default_factory=time.monotonic)
-    duration_seconds: float | None = None
-    done: threading.Event = field(default_factory=threading.Event)
-
-    @property
-    def terminated(self) -> bool:
-        """Whether the child was killed by janito (timeout or stop) rather
-        than exiting on its own."""
-        return self.exit_reason in TERMINATED_REASONS
+from .command import build_task_command
+from .constants import (
+    DEFAULT_MAX_OUTPUT_LINES,
+    EXIT_ERROR,
+    EXIT_FINISHED,
+    EXIT_KILLED,
+    EXIT_RUNNING,
+    EXIT_STOPPED,
+    EXIT_TIMEOUT,
+    KILL_GRACE_SECONDS,
+    TERMINATED_REASONS,
+)
+from .process import (
+    _normalise_timeout,
+    _own_exit_code,
+    _read_output_file,
+    _terminate_process,
+)
+from .task import Task
 
 
 class TaskManager:

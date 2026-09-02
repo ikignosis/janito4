@@ -47,6 +47,7 @@ point; the turn pipeline is a pure function of `(config, request)`.
 | `janito/tooling/` | Tool framework: discovery + privilege gating (`discovery.py`), registry, executor, skills, tracking |
 | `janito/tools/` | Built-in tool implementations, organized in toolsets (depends one-way on `tooling`) |
 | `janito/mcp_client/` + `mcp_manager.py` | MCP server connections and tool routing |
+| `janito/taskmanager/` | Parallel-task manager (issue #94): spawns each task as a child `janito` process and tracks its exit status (`constants`/`process`/`command`/`task`/`manager` modules, re-exported from `janito.taskmanager`) |
 | `janito/conversation_utils.py`, `janito/optional_packages.py` | Root-level helpers shared across domains: turn truncation/rollback (`truncate_to_last_turn`, `rollback_to_last_turn`) and the optional-SDK install guards (`require_optional_package`) |
 | `janito/web/` | FastAPI web backend + plain HTML/JS/CSS frontend |
 | `janito/session_setup.py` | Shared system-prompt/toolset selection for the CLI and web entry points (outside `cli/` so the web backend never imports from the CLI package) |

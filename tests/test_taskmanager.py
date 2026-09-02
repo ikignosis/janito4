@@ -64,7 +64,7 @@ def _manager_with_fake_popen(monkeypatch):
         calls["kwargs"] = kwargs
         return proc
 
-    monkeypatch.setattr(tm.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
     return TaskManager(), calls, proc
 
 
@@ -83,7 +83,7 @@ def test_privilege_flags():
 
 
 def test_build_task_command_uses_module_and_privileges(monkeypatch):
-    monkeypatch.setattr(tm, "config_cli_args", lambda: [])
+    monkeypatch.setattr(tm.command, "config_cli_args", lambda: [])
     cmd = build_task_command("rw")
     assert cmd[0] == sys.executable
     assert cmd[1] == "-m"
@@ -92,7 +92,7 @@ def test_build_task_command_uses_module_and_privileges(monkeypatch):
 
 
 def test_build_task_command_inherits_config_cli_args(monkeypatch):
-    monkeypatch.setattr(tm, "config_cli_args", lambda: ["-l", "-c", "/tmp/cfg"])
+    monkeypatch.setattr(tm.command, "config_cli_args", lambda: ["-l", "-c", "/tmp/cfg"])
     cmd = build_task_command(None)
     assert "-l" in cmd
     assert "-c" in cmd
@@ -104,7 +104,7 @@ def test_build_task_command_inherits_config_cli_args(monkeypatch):
 
 def test_build_task_command_always_disables_tasks(monkeypatch):
     """Regression: every child command line carries --no-tasks."""
-    monkeypatch.setattr(tm, "config_cli_args", lambda: ["-l"])
+    monkeypatch.setattr(tm.command, "config_cli_args", lambda: ["-l"])
     for privileges in (None, "", "rwx"):
         cmd = build_task_command(privileges)
         assert cmd[-1] == "--no-tasks", cmd
@@ -224,7 +224,7 @@ def test_wait_for_task_reports_in_completion_order(monkeypatch):
         procs[proc.pid] = proc
         return proc
 
-    monkeypatch.setattr(tm.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
 
     info1 = manager.start_task(description="task one")
     info2 = manager.start_task(description="task two")
@@ -277,7 +277,7 @@ def test_wait_for_task_callback_fires_in_completion_order(monkeypatch):
         procs[proc.pid] = proc
         return proc
 
-    monkeypatch.setattr(tm.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
 
     info1 = manager.start_task(description="task one")
     info2 = manager.start_task(description="task two")
@@ -347,7 +347,7 @@ def _manager_with_blocking_procs(monkeypatch):
         procs[proc.pid] = proc
         return proc
 
-    monkeypatch.setattr(tm.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
     return manager, procs
 
 
@@ -555,7 +555,7 @@ def _manager_with_capped_procs(monkeypatch, **proc_kwargs):
         procs[proc.pid] = proc
         return proc
 
-    monkeypatch.setattr(tm.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
     return manager, procs
 
 
@@ -570,7 +570,7 @@ def _join_task_thread(manager, task_id, timeout=5):
 def test_start_task_timeout_kills_a_stuck_child(monkeypatch):
     """The deadline fires, SIGTERM is ignored and the child ends up SIGKILLed."""
     # Keep the SIGTERM grace period short so the test does not sleep 10s.
-    monkeypatch.setattr(tm, "TERM_GRACE_SECONDS", 0.05)
+    monkeypatch.setattr(tm.process, "TERM_GRACE_SECONDS", 0.05)
     manager, procs = _manager_with_capped_procs(monkeypatch, ignores_term=True)
 
     info = manager.start_task(description="never finishes", timeout=0.1)
@@ -620,7 +620,7 @@ def test_start_task_timeout_child_exiting_during_grace_keeps_its_code(
 def test_start_task_kills_a_stuck_child_even_if_nobody_waits(monkeypatch):
     """The cap is enforced by the task's own thread, not by a waiter."""
     manager, procs = _manager_with_capped_procs(monkeypatch, ignores_term=True)
-    monkeypatch.setattr(tm, "TERM_GRACE_SECONDS", 0.05)
+    monkeypatch.setattr(tm.process, "TERM_GRACE_SECONDS", 0.05)
 
     info = manager.start_task(description="runs forever", timeout=0.1)
     # No wait_for_task() call at all.
@@ -788,11 +788,11 @@ def test_external_signal_death_is_not_reported_as_finished(monkeypatch):
 
 
 def test_own_exit_code_mapping():
-    assert tm._own_exit_code(0) == 0
-    assert tm._own_exit_code(2) == 2
+    assert tm.process._own_exit_code(0) == 0
+    assert tm.process._own_exit_code(2) == 2
     # Signal deaths (POSIX) and unreaped children produce no exit status.
-    assert tm._own_exit_code(-15) is None
-    assert tm._own_exit_code(None) is None
+    assert tm.process._own_exit_code(-15) is None
+    assert tm.process._own_exit_code(None) is None
 
 
 # --- list_tasks / kill_all / cleanup (issue #101) ---------------------------

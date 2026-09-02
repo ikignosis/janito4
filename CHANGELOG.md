@@ -44,6 +44,16 @@ Changes since `v4.36.0` (2026-09-01).
 
 ### Changed
 
+- `janito/taskmanager.py` split into the `janito/taskmanager/` package
+  (issue #104): `constants` (exit-reason vocabulary, grace periods),
+  `process` (output reading, timeout validation, exit-code mapping and
+  termination), `command` (child command-line construction), `task` (the
+  `Task` dataclass) and `manager` (`TaskManager` + the `task_manager`
+  singleton). The package `__init__` re-exports the full public surface, so
+  the `janito.tools.tasks.*` tools, the interactive shell and every other
+  consumer keep importing `janito.taskmanager` unchanged. Test patch targets
+  moved to the defining modules (`tm.command.config_cli_args`,
+  `tm.process.TERM_GRACE_SECONDS`).
 - Token-usage summary line style (issue #105): the end-of-turn
   ``=== Time | In | Out | Cached | Cost ===`` line is now rendered with a
   **dark green** background (``bright_white on dark_green``, xterm-256 color
