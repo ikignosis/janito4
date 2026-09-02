@@ -31,6 +31,17 @@ Changes since `v4.36.0` (2026-09-01).
   Ctrl+C again at the prompt) kills them immediately. Without running tasks
   the original "Do you want to quit the conversation?" prompt is shown.
 
+### Fixed
+
+- Privilege-override note in the interactive shell (issue #109): the
+  ``/read`` ``/write`` ``/rx`` ``/rw`` ``/rwx`` commands printed a hardcoded
+  ``Note: this turn runs with privileges (-r/-w/-x)`` regardless of the
+  command used -- e.g. ``/rx`` (read + execute only) wrongly claimed write
+  privileges. The note now renders the flags the command actually grants:
+  ``/rx`` prints ``(-r/-x)``, ``/read`` ``(-r)``, ``/write`` ``(-w)``,
+  ``/rw`` ``(-r/-w)`` and ``/rwx`` ``(-r/-w/-x)``. Covered by new cases in
+  ``tests/test_privileges.py``.
+
 ### Changed
 
 - Token-usage summary line style (issue #105): the end-of-turn

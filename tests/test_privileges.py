@@ -320,12 +320,45 @@ def test_warn_if_privilege_override_prints_warning(monkeypatch, capsys):
         lambda: {"ReadFile"},
     )
 
-    warn_if_privilege_override([_fake_schema("CreateFile", "w")])
+    warn_if_privilege_override([_fake_schema("CreateFile", "w")], "w")
     out = capsys.readouterr().out
     assert "runs with privileges" in out
     assert "this turn" in out
+    assert "(-w)" in out
     # The tool names are intentionally not listed in the note.
     assert "CreateFile" not in out
+
+
+def test_warn_if_privilege_override_rx_grants_no_write(monkeypatch, capsys):
+    """/rx renders (-r/-x), never -w (issue #109)."""
+    from janito.shell.cmds._tool_filters import warn_if_privilege_override
+
+    _privileges_mod.running_privileges = Privileges(READ=True, WRITE=False, EXEC=False)
+    monkeypatch.setattr(
+        "janito.tooling.tools_registry.get_session_tool_names",
+        lambda: {"ReadFile"},
+    )
+
+    warn_if_privilege_override([_fake_schema("RunBashCode", "x")], "rx")
+    out = capsys.readouterr().out
+    assert "(-r/-x)" in out
+    assert "-w" not in out
+    assert "-r/-w/-x" not in out
+
+
+def test_warn_if_privilege_override_rwx_lists_all(monkeypatch, capsys):
+    """/rwx keeps listing all three flags (-r/-w/-x)."""
+    from janito.shell.cmds._tool_filters import warn_if_privilege_override
+
+    _privileges_mod.running_privileges = Privileges(READ=True, WRITE=False, EXEC=False)
+    monkeypatch.setattr(
+        "janito.tooling.tools_registry.get_session_tool_names",
+        lambda: {"ReadFile"},
+    )
+
+    warn_if_privilege_override([_fake_schema("CreateFile", "w")], "rwx")
+    out = capsys.readouterr().out
+    assert "(-r/-w/-x)" in out
 
 
 def test_warn_if_privilege_override_silent_within_privileges(monkeypatch, capsys):
@@ -337,7 +370,7 @@ def test_warn_if_privilege_override_silent_within_privileges(monkeypatch, capsys
         lambda: {"ReadFile"},
     )
 
-    warn_if_privilege_override([_fake_schema("ReadFile", "r")])
+    warn_if_privilege_override([_fake_schema("ReadFile", "r")], "r")
     assert capsys.readouterr().out == ""
 
 
@@ -345,7 +378,7 @@ def test_warn_if_privilege_override_silent_with_full_privileges(capsys):
     from janito.shell.cmds._tool_filters import warn_if_privilege_override
 
     _privileges_mod.running_privileges = None
-    warn_if_privilege_override([_fake_schema("CreateFile", "w")])
+    warn_if_privilege_override([_fake_schema("CreateFile", "w")], "w")
     assert capsys.readouterr().out == ""
 
 
