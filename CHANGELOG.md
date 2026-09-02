@@ -33,6 +33,11 @@ Changes since `v4.36.0` (2026-09-01).
 
 ### Changed
 
+- Token-usage summary line style (issue #105): the end-of-turn
+  ``=== Time | In | Out | Cached | Cost ===`` line is now rendered with a
+  **dark green** background (``bright_white on dark_green``, xterm-256 color
+  22) instead of magenta. Also pinned by a new ``tests/test_usage_line_style.py``
+  covering both render paths (``_display_usage`` and ``display_turn_usage``).
 - `TaskManager.cleanup()` (the `atexit` hook, issue #101) now delegates
   killing to the new `TaskManager.kill_all()`, which sends **SIGKILL
   immediately** instead of the previous SIGTERM: at interpreter exit there is

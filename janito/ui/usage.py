@@ -153,7 +153,7 @@ def _display_usage(
     _print_input_capacity_warning(max_input_tokens, input_tokens, console)
 
     token_text = Text(f"=== {' | '.join(parts)} ===")
-    token_text.stylize("bright_white on magenta")
+    token_text.stylize("bright_white on dark_green")
     console.print(token_text, highlight=False)
     logger.info(
         f"Request completed: total={stats['total']} tokens "
@@ -183,7 +183,7 @@ def display_turn_usage(
     until the end of the turn, issue #99) and is rendered as the ``Time:``
     part of the summary line.  Replaces the reports the per-client
     ``_finalize`` helpers used to print inline: the tracked used files
-    first, then the magenta token-usage summary line.  Nothing is printed
+    first, then the dark-green token-usage summary line.  Nothing is printed
     when no usage was reported (``token_stats`` is ``None``).
     """
     console = console or Console()
