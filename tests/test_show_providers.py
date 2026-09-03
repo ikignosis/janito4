@@ -100,7 +100,7 @@ def test_google_shows_thinking_na(monkeypatch, tmp_path, capsys):
     assert "gemini-3.7-flash (default) thinking" in out
     assert "N/A (controlled via Reasoning Effort)" in out
     assert "gemini-3.7-flash (default) reasoning" in out
-    assert "medium (default)" in out
+    assert "low (default)" in out
 
 
 # ---------------------------------------------------------------------------

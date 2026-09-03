@@ -16,6 +16,7 @@ relying on them.
 #: There is no peak-hour surcharge.
 _MODEL_RATES: dict[str, tuple[float, float, float]] = {
     "gemini-3.7-flash": (0.75, 0.1875, 3.75),
+    "gemini-3.8-flash": (0.75, 0.1875, 3.75),
 }
 
 

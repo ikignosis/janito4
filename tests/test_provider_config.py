@@ -409,12 +409,12 @@ if pytest is not None:
         assert get_default_max_input_tokens_from_provider("google") == 1048576
         assert get_default_max_output_tokens_from_provider("google") == 65536
         # Gemini 3.x models reason by default; reasoning_effort maps to the
-        # model's thinking_level (low/medium/high, default medium).
-        assert get_default_reasoning_effort_from_provider("google") == "medium"
+        # model's thinking_level (low/medium/high, default low).
+        assert get_default_reasoning_effort_from_provider("google") == "low"
         # The built-in default lives under the single
         # "default_reasoning_effort" key (the old "reasoning_level" alias is
         # not supported).
-        assert model_entry["default_reasoning_effort"] == "medium"
+        assert model_entry["default_reasoning_effort"] == "low"
         assert "reasoning_level" not in model_entry
         supported = get_supported_reasoning_efforts_from_provider("google")
         assert supported is not None
