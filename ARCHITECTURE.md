@@ -270,6 +270,8 @@ explicit `error_kind` -- `"not_found"` / `"auth"` -- passed by the OpenAI
 SDK clients' typed `except` blocks or derived for the native-SDK clients by
 `_classify_error` in `llm_clients/client_support.py`; the exception is always
 re-raised)
+and the rate-limit wait (`on_limits`, issue #116 -- `Client.run_turn`
+retries a 429 round after the observer's wait instead of failing the turn)
 and the end-of-turn report (`on_turn_complete`, invoked by
 `Client.run_turn` when the turn finishes -- the CLI's `RichTurnObserver`
 renders the usage summary *and* records the overall-use accounting row from

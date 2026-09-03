@@ -78,6 +78,67 @@ def _load_mcp(use_mcp: bool) -> tuple[Any, list[dict[str, Any]]]:
     return mcp_manager, mcp_tools
 
 
+def _is_rate_limit(e: Exception) -> bool:
+    """Return True when *e* is an HTTP 429 rate-limit failure (issue #116).
+
+    Matches the OpenAI SDK ``RateLimitError`` by class name (no SDK import
+    here), a ``status_code``/``status``/``code`` of 429, or ``429`` /
+    ``rate limit`` / ``too many requests`` in the message.
+    """
+    name = type(e).__name__.lower()
+    if "ratelimit" in name or "rate_limit" in name or "too many requests" in name:
+        return True
+    for attr in ("status_code", "status", "code"):
+        try:
+            if getattr(e, attr, None) == 429:
+                return True
+        except Exception:
+            pass
+    message = str(e).lower()
+    return (
+        "429" in message
+        or "rate limit" in message
+        or "rate_limit" in message
+        or "too many requests" in message
+    )
+
+
+def _retry_after_seconds(e: Exception) -> float | None:
+    """Extract a ``Retry-After`` delay (seconds) from a 429 error, if present.
+
+    Checks a ``retry_after`` attribute, then the response headers
+    (``response.headers`` mapping or ``headers`` mapping). Returns None when
+    absent or unparsable so the caller falls back to exponential backoff.
+    """
+    direct = getattr(e, "retry_after", None)
+    if isinstance(direct, (int, float)) and direct >= 0:
+        return float(direct)
+    for holder in (getattr(e, "response", None), e):
+        value = _headers_retry_after(getattr(holder, "headers", None))
+        if value is not None:
+            return value
+    return None
+
+
+def _headers_retry_after(headers: Any) -> float | None:
+    """Return the ``Retry-After`` header value as seconds, or None."""
+    if headers is None:
+        return None
+    try:
+        if isinstance(headers, dict):
+            value = headers.get("retry-after", headers.get("Retry-After"))
+        else:
+            value = headers.get("retry-after", headers.get("Retry-After"))
+    except Exception:
+        return None
+    if value is None:
+        return None
+    try:
+        return max(0.0, float(value))
+    except (TypeError, ValueError):
+        return None
+
+
 def _classify_error(e: Exception) -> str:
     """Classify an exception for the error explainers: "not_found", "auth" or "unknown".
 

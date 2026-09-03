@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Changes since `v4.37.0` (2026-09-03).
 
+### Added
+
+- HTTP 429 rate-limit retry (issue #116): `Client.run_turn` retries the
+  streaming round after a 429 instead of failing the turn, with exponential
+  backoff from 1s (plus jitter) and `Retry-After` honored when present. The
+  wait is delivered through a new `TurnObserver.on_limits` event; the Rich
+  observer shows a spinner (`Requests`/`Tokens`/`Rate` limit was reached,
+  retrying in (n)s.) while waiting. Gives up after 5 minutes of consecutive
+  429 waits and re-raises the last error.
+
 ## [v4.37.0](https://github.com/joaompinto/janito/compare/v4.36.0...v4.37.0) - 2026-09-03
 
 Changes since `v4.36.0` (2026-09-01).

@@ -43,6 +43,7 @@ monkeypatching a module global.
 """
 
 import logging
+import random
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -55,7 +56,7 @@ from janito.tooling.executor import extract_tool_names
 from janito.tooling.used_files import reset_used_files
 
 from .api_config import APIConfig
-from .client_support import _load_mcp
+from .client_support import _is_rate_limit, _load_mcp, _retry_after_seconds
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -296,14 +297,16 @@ class Client:
             # Consume the full stream through the injected per-round stream
             # runner (the CLI's TUI runner runs the blocking work in a worker
             # thread while the main thread drives the spinner; the default
-            # ``None`` calls it directly -- no thread, no UI).
+            # ``None`` calls it directly -- no thread, no UI). A 429
+            # rate-limit error retries after the observer's on_limits wait
+            # instead of failing the turn (issue #116).
             (
                 full_content,
                 reasoning_content,
                 tool_calls,
                 usage_info,
                 raw_attrs,
-            ) = self._run_stream_round(
+            ) = self._run_stream_round_with_retry(
                 client,
                 call_kwargs,
                 tools_schemas,
@@ -387,6 +390,44 @@ class Client:
     # ------------------------------------------------------------------
     # Shared helpers (base implementation; not monkeypatched by tests)
     # ------------------------------------------------------------------
+
+    def _run_stream_round_with_retry(
+        self, client, call_kwargs, tools_schemas, state, *, base_url, api_key, model
+    ):
+        """Run one streaming round, retrying HTTP 429 rate limits (issue #116).
+
+        Starts at a 1s interval, doubles after each consecutive 429 (capped
+        at 60s) with up to 0.5s jitter, and honors the ``Retry-After``
+        delay when the error carries one. Each wait is delivered to the
+        observer's ``on_limits`` (which blocks for the interval) before the
+        round is retried; non-429 errors propagate unchanged. Gives up
+        after 5 minutes of consecutive 429 waits and re-raises the last
+        error.
+        """
+        retry_interval = 1.0
+        waited = 0.0
+        while True:
+            try:
+                return self._run_stream_round(
+                    client,
+                    call_kwargs,
+                    tools_schemas,
+                    state,
+                    base_url=base_url,
+                    api_key=api_key,
+                    model=model,
+                )
+            except Exception as e:
+                if not _is_rate_limit(e):
+                    raise
+                wait = _retry_after_seconds(e)
+                if wait is None:
+                    wait = retry_interval + random.uniform(0, 0.5)
+                    retry_interval = min(retry_interval * 2, 60.0)
+                if waited + wait > 300.0:
+                    raise
+                self.observer.on_limits(str(e), wait)
+                waited += wait
 
     def _invoke_stream_runner(self, func: Callable, *args: Any, **kwargs: Any) -> Any:
         """Run the per-round worker through the injected stream runner.

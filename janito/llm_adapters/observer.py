@@ -37,6 +37,7 @@ records the overall-use accounting row from that call.
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
@@ -114,6 +115,10 @@ class TurnObserver(Protocol):
         client always re-raises the exception after the call, so error
         handling flow is unchanged.
         """
+        ...
+
+    def on_limits(self, http_error_msg: str, retry_interval: float) -> None:
+        """Rate-limit wait (issue #116): render, wait, return to retry."""
         ...
 
     def on_turn_complete(
@@ -198,6 +203,9 @@ class NullObserver:
         error_kind: str | None = None,
     ) -> None:
         pass
+
+    def on_limits(self, http_error_msg: str, retry_interval: float) -> None:
+        time.sleep(retry_interval)
 
     def on_turn_complete(
         self,

@@ -8,9 +8,11 @@ UI-free.  The observer owns its ``Console``; tests can inject
 """
 
 import logging
+import time
 from typing import Any
 
 from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from janito.llm_adapters.observer import NullObserver
 from janito.llm_adapters.usage import TokenStats
@@ -119,6 +121,32 @@ class RichTurnObserver(NullObserver):
             _handle_auth_error(e, provider, api_key, base_url, model, self.console)
         # else: unknown failure -- nothing to explain; the caller re-raises.
 
+    def on_limits(self, http_error_msg: str, retry_interval: float) -> None:
+        """Rate-limit wait (issue #116): spinner, sleep, return to retry.
+
+        The limit dimension comes from the error text: ``"requests"`` ->
+        Requests limit, ``"tokens"`` -> Tokens limit, else a generic
+        rate-limit message. Shows ``<Kind> limit was reached, retrying in
+        (n)s.`` with a spinner, then blocks for ``retry_interval`` so the
+        caller retries afterwards.
+        """
+        lowered = (http_error_msg or "").lower()
+        if "requests" in lowered:
+            kind = "Requests"
+        elif "tokens" in lowered:
+            kind = "Tokens"
+        else:
+            kind = "Rate"
+        message = f"{kind} limit was reached, retrying in ({retry_interval:g})s."
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            transient=True,
+            console=self.console,
+        ) as progress:
+            progress.add_task(message, total=None)
+            time.sleep(retry_interval)
+
     def on_turn_complete(
         self, token_stats, api_config, elapsed_time: float | None = None
     ) -> None:
@@ -162,6 +190,10 @@ class SilentTurnObserver(NullObserver):
     ) -> None:
         """Record the accounting row only; never render anything."""
         _record_accounting(token_stats, api_config)
+
+    def on_limits(self, http_error_msg: str, retry_interval: float) -> None:
+        """Wait silently for the retry interval (no output)."""
+        time.sleep(retry_interval)
 
 
 def _record_accounting(token_stats: TokenStats | None, api_config: APIConfig) -> None:
