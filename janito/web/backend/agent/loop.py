@@ -333,13 +333,13 @@ async def stream_prompt(
             cli_provider=effective_provider,
             cli_api_type=api_type,
         )
-    except Exception as e:
+    except (ValueError, OSError, RuntimeError) as e:
         yield ErrorEvent(message=str(e))
         return
 
     try:
         client = _create_agent_client(runner, base_url, api_key)
-    except Exception as e:
+    except (ValueError, TypeError, RuntimeError, OSError) as e:
         yield ErrorEvent(message=str(e))
         return
 
@@ -386,7 +386,7 @@ async def stream_prompt(
         try:
             async for ev in _stream_turn(client, runner, call_kwargs, acc):
                 yield ev
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - arbitrary SDK errors
             logger.error(f"API streaming error: {e}")
             yield ErrorEvent(message=f"API error: {e!s}")
             return
