@@ -143,7 +143,7 @@ class SearchRunner(_SearchWalker, BaseTool):
 
             return result
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - tool boundary returns error dict
             self.report_error(f"Error during {self.error_label}: {e!s}")
             return {
                 "success": False,

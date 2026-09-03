@@ -45,7 +45,7 @@ def _capture_metadata(abs_source: str) -> dict | None:
             metadata["st_uid"] = os.stat(abs_source).st_uid
             metadata["st_gid"] = os.stat(abs_source).st_gid
         return metadata
-    except Exception:
+    except OSError:
         return None
 
 
@@ -60,7 +60,7 @@ def _restore_metadata(abs_destination: str, metadata: dict) -> None:
         # Restore permissions on Unix
         if platform.system() != "Windows" and "st_mode" in metadata:
             os.chmod(abs_destination, metadata["st_mode"])
-    except Exception:
+    except OSError:
         pass  # Metadata preservation is best effort
 
 
@@ -273,7 +273,7 @@ class MoveFile(BaseTool):
                 "source": source,
                 "destination": destination,
             }
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - tool boundary returns error dict
             self.report_error(f"Error moving file: {e!s}")
             return {
                 "success": False,

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Changes since `v4.37.0` (2026-09-03).
 
+### Changed
+
+- Narrowed blind `except Exception` handlers to specific types (`OSError`,
+  `UnicodeError`, `ValueError`, ...) and enabled ruff `BLE001`.
+
 ### Added
 
 - `/clear` shows running tasks count (issue #112): after clearing the

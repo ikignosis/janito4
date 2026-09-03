@@ -129,7 +129,7 @@ class SearchText(SearchRunner):
                         break
 
                 return matches
-        except Exception:
+        except (OSError, UnicodeError):
             # Skip files that can't be read (binary files, permission issues, etc.)
             return []
 
@@ -145,7 +145,7 @@ class SearchText(SearchRunner):
                     if self._line_matches(query, line_content, case_sensitive):
                         count += 1
                 return count
-        except Exception:
+        except (OSError, UnicodeError):
             # Skip files that can't be read
             return 0
 

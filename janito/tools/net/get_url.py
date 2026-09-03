@@ -89,7 +89,7 @@ def _head_ok(url: str, timeout: int | None, follow_redirects: bool) -> bool:
         req.add_header("User-Agent", USER_AGENT)
         with _build_opener(follow_redirects).open(req, timeout=timeout) as response:
             return response.getcode() == 200
-    except Exception:
+    except (urllib.error.URLError, OSError, ValueError):
         return False
 
 
@@ -239,7 +239,11 @@ class GetUrl(BaseTool):
                 "error": f"URL Error: {e.reason}",
                 "url": url,
             }
-        except Exception as e:
+        except (
+            OSError,
+            ValueError,
+            RuntimeError,
+        ) as e:  # narrowed from blind Exception
             self.report_error(f"Execution error: {e!s}")
             return {
                 "success": False,
