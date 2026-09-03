@@ -312,6 +312,8 @@ class TaskManager:
             "pid": task.pid,
             "working_dir": task.working_dir,
             "duration_seconds": duration,
+            "exit_code": task.exit_code,
+            "error": task.error,
         }
 
     def list_tasks(self) -> list[dict[str, Any]]:
