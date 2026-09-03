@@ -127,7 +127,7 @@ class TestDisplayTurnUsage:
         assert "Time: 12.3s" in text
         assert "Total:" not in text
         assert "In: 60/65.5k" in text
-        assert "Out: 40/8.2k" in text
+        assert "Out: 40" in text
         assert "Cached: 5" in text
         # The conversation turn number is no longer part of the summary
         # (it lives in the shell's pre-prompt rule instead).

@@ -96,7 +96,7 @@ def test_parse_usage_summary():
     stdout = (
         "=== Total: 1.2k | In: 1k | Out: 234 | Cost: N/A ===\n"
         "some answer text\n"
-        "=== Total: 2k | In: 1.5k | Out: 1.5k/128k | Cached: 100 | Cost: N/A ===\n"
+        "=== Total: 2k | In: 1.5k | Out: 1.5k | Cached: 100 | Cost: N/A ===\n"
     )
     assert pbm.parse_usage_summary(stdout) == ["234", "1.5k"]
 

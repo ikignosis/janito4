@@ -66,12 +66,7 @@ if pytest is not None:
             else:
                 parts.append(f"In: {format_tokens(input_tokens)}")
         if output_tokens is not None:
-            if max_output_tokens is not None:
-                parts.append(
-                    f"Out: {format_tokens(output_tokens)}/{format_tokens(max_output_tokens)}"
-                )
-            else:
-                parts.append(f"Out: {format_tokens(output_tokens)}")
+            parts.append(f"Out: {format_tokens(output_tokens)}")
         if cached_tokens is not None:
             parts.append(f"Cached: {format_tokens(cached_tokens)}")
         return parts
@@ -79,7 +74,7 @@ if pytest is not None:
     def test_input_with_max_tokens():
         parts = _build_parts(1200, 65536, max_input_tokens=128000)
         assert "In: 1.2k/128k" in parts
-        assert "Out: 50/65.5k" in parts
+        assert "Out: 50" in parts
 
     def test_input_without_max_tokens():
         parts = _build_parts(1200, None)
@@ -91,17 +86,17 @@ if pytest is not None:
     def test_input_with_max_exact_values():
         parts = _build_parts(500, 1000, max_input_tokens=1000)
         assert "In: 500/1k" in parts
-        assert "Out: 50/1k" in parts
+        assert "Out: 50" in parts
 
     def test_input_zero_with_max():
         parts = _build_parts(0, 65536, max_input_tokens=128000)
         assert "In: 0/128k" in parts
-        assert "Out: 50/65.5k" in parts
+        assert "Out: 50" in parts
 
     def test_input_without_input_max_but_with_output_max():
         parts = _build_parts(1200, 65536)
         assert "In: 1.2k" in parts
-        assert "Out: 50/65.5k" in parts
+        assert "Out: 50" in parts
 
     # ---- Cost in the CLI usage line ----------------------------------
 

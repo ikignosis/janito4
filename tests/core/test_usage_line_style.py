@@ -83,7 +83,7 @@ def test_usage_line_shape_kept():
     text = _render_display_usage()
     assert text.plain.startswith("=== ")
     assert "In: 60/65.5k" in text.plain
-    assert "Out: 40/8.2k" in text.plain
+    assert "Out: 40" in text.plain
     assert "Cached: 5" in text.plain
     assert "Cost:" in text.plain
 

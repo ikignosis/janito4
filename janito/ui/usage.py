@@ -130,12 +130,7 @@ def _display_usage(
         else:
             parts.append(f"In: {format_tokens(input_tokens)}")
     if output_tokens is not None:
-        if max_output_tokens is not None:
-            parts.append(
-                f"Out: {format_tokens(output_tokens)}/{format_tokens(max_output_tokens)}"
-            )
-        else:
-            parts.append(f"Out: {format_tokens(output_tokens)}")
+        parts.append(f"Out: {format_tokens(output_tokens)}")
     if cached_tokens is not None:
         parts.append(f"Cached: {format_tokens(cached_tokens)}")
     if provider is not None and model is not None:
