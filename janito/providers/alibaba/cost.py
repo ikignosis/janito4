@@ -19,6 +19,7 @@ https://www.qwencloud.com/pricing/token-plan before relying on them.
 #: There is no peak-hour surcharge.
 _MODEL_RATES: dict[str, tuple[float, float, float]] = {
     "qwen3.8-max": (2.0, 0.25, 6.0),
+    "qwen3.8-max-0902": (2.0, 0.25, 6.0),
     # qwen3.8-flash: $0.15 input / $0.016 implicit cache hit / $0.47 output
     # per 1M tokens (https://www.qwencloud.com/models/qwen3.8-flash).
     "qwen3.8-flash": (0.15, 0.016, 0.47),

@@ -282,6 +282,7 @@ janito --set-api-key="your-dashscope-api-key" --provider alibaba
 |-------|-------------|
 | `qwen3.8-flash` | Default model: fast and cost-effective, with built-in token limits, reasoning levels and tools |
 | `qwen3.8-max` | Flagship model with built-in token limits, reasoning levels and tools |
+| `qwen3.8-max-0902` | Dated flagship snapshot, same limits/reasoning/tools as `qwen3.8-max` |
 
 Model selection is restricted to the built-in models above.
 `janito --list-models` shows the accepted names.

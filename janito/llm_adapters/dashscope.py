@@ -75,7 +75,10 @@ def _is_multimodal_model(model: str) -> bool:
     # The qwen3.x-plus generation and the qwen3.8-max flagship are served by
     # the multimodal-generation endpoint, while the qwen3.x-max text models
     # (e.g. qwen3.7-max) are not.
-    if re.match(r"^qwen3\.\d+-plus$", name) or name == "qwen3.8-max":
+    if re.match(r"^qwen3\.\d+-plus$", name) or name in (
+        "qwen3.8-max",
+        "qwen3.8-max-0902",
+    ):
         return True
     return False
 
