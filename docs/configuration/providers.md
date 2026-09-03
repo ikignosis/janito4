@@ -610,7 +610,7 @@ be combined with `previous_response_id`). Every request sends:
   cross-turn reasoning for tool loops.
 
 You can inspect the resolved mode with `janito --info` or `/status`
-(`Responses In Server: stateless (client re-sends history)`).
+(`Stateless Mode: stateless (client re-sends history)`).
 
 ### Popular Models
 

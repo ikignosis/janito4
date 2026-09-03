@@ -25,7 +25,7 @@ def test_meta_models_declare_stateless_and_include():
     found = get_provider("meta")
     assert found is not None
     for model in ("muse-spark-1.3", "muse-spark-1.3-contributor"):
-        assert found.responses_in_server(model) is False
+        assert found.stateless_mode(model) is True
         assert found.responses_include(model) == ["reasoning.encrypted_content"]
 
 
@@ -34,7 +34,7 @@ def test_models_without_declaration_default_to_no_include():
     assert found is not None
     # OpenAI models declare no include values (the API default applies).
     assert found.responses_include("gpt-5.6-luna") is None
-    assert found.responses_in_server("gpt-5.6-luna") is True
+    assert found.stateless_mode("gpt-5.6-luna") is False
 
 
 def test_responses_include_malformed_value_returns_none():
@@ -66,7 +66,7 @@ def test_responses_include_normalizes_entries_to_strings():
 # ---- Call kwargs wiring ---------------------------------------------------
 
 
-def _kwargs(responses_in_server, include=None):
+def _kwargs(stateless_mode, include=None):
     class _Found:
         def responses_include(self, model=None):
             return include
@@ -84,7 +84,7 @@ def _kwargs(responses_in_server, include=None):
             None,
             False,
             None,
-            responses_in_server,
+            stateless_mode,
             None,
             provider="meta" if include is not None else "openai",
         )
@@ -93,19 +93,19 @@ def _kwargs(responses_in_server, include=None):
 
 
 def test_stateless_kwargs_send_store_false_and_include():
-    kwargs = _kwargs(False, include=["reasoning.encrypted_content"])
+    kwargs = _kwargs(True, include=["reasoning.encrypted_content"])
     assert kwargs["store"] is False
     assert kwargs["include"] == ["reasoning.encrypted_content"]
 
 
 def test_server_side_kwargs_send_neither_store_nor_include():
-    kwargs = _kwargs(True, include=["reasoning.encrypted_content"])
+    kwargs = _kwargs(False, include=["reasoning.encrypted_content"])
     assert "store" not in kwargs
     assert "include" not in kwargs
 
 
 def test_stateless_kwargs_without_declared_include_omit_it():
-    kwargs = _kwargs(False, include=None)
+    kwargs = _kwargs(True, include=None)
     assert kwargs["store"] is False
     assert "include" not in kwargs
 
@@ -113,7 +113,7 @@ def test_stateless_kwargs_without_declared_include_omit_it():
 def test_stateless_kwargs_send_instructions_in_history_not_param():
     """Stateless providers fold instructions into the items history, so no
     separate ``instructions`` parameter is sent."""
-    kwargs = _kwargs(False, include=None)
+    kwargs = _kwargs(True, include=None)
     assert "instructions" not in kwargs
     assert "previous_response_id" not in kwargs
 

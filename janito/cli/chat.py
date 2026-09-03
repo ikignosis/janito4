@@ -336,14 +336,14 @@ def run_interactive_chat(args):
 
     # Annotate where the conversation state lives: the Responses API keeps
     # it server-side (chained via previous_response_id) unless the
-    # responses-in-server ("keep in server") config flips it to stateless,
+    # stateless-mode ("keep in server") config flips it to stateless,
     # in which case the client re-sends the full history; Completions and
     # other API types always keep history client-side.  The flag is resolved
     # by the single helper the Responses client itself uses.
     if api_type == "Responses" and provider != "(not configured)":
-        from ..llm_clients.openai.responses_state import responses_in_server
+        from ..llm_clients.openai.responses_state import stateless_mode
 
-        state = "server-side" if responses_in_server(provider, model) else "client-side"
+        state = "client-side" if stateless_mode(provider, model) else "server-side"
     else:
         state = "client-side"
     Console().print(

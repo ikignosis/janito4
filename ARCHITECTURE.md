@@ -563,7 +563,7 @@ Key modules:
   Config keys are scoped: flat keys (e.g. `provider`), **provider-scoped** keys
   (`model`, `endpoint` under `providers.<name>.<key>`) and **model-scoped**
   keys (`max-input-tokens`, `max-output-tokens`, `reasoning-effort`, `api-type`,
-  `responses-in-server` under `providers.<name>.models.<model>.<key>`).  The
+  `stateless-mode` under `providers.<name>.models.<model>.<key>`).  The
   storage and per-key logic live in the focused modules below.
 - **`config_keys.py`** — key constants (`PROVIDER_SCOPED_KEYS`,
   `MODEL_SCOPED_KEYS`) and the helpers that build/parse dotted keys
@@ -588,7 +588,7 @@ Key modules:
   (`default_model`, `endpoint`, `endpoint_by_api_type`) plus a per-provider
   **`models`** dict with the model-level fields (`supported_api_types`,
   `default_api_type`, token limits, reasoning levels, `thinking`,
-  `responses_in_server`). The `custom`
+  `stateless_mode`). The `custom`
   provider ships no models (`default_model: None`, `models: {}`).
   `janito/providers/template/config.py` is the documentation template for
   these entries: it is not a real provider (never registered in

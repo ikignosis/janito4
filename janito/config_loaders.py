@@ -3,7 +3,7 @@ Per-provider config loaders.
 
 These helpers read provider-scoped values (``model``, ``endpoint``) and
 model-scoped values (``max-output-tokens``, ``max-input-tokens``,
-``reasoning-effort``, ``api-type``, ``responses-in-server``) from
+``reasoning-effort``, ``api-type``, ``stateless-mode``) from
 ``~/.janito/config.json``.  They were extracted from
 :mod:`janito.general_config` so the core config storage module stays focused
 on read/write primitives.
@@ -241,13 +241,13 @@ class ProviderConfigLoader:
             return str(value)
         return None
 
-    def load_responses_in_server(
+    def load_stateless_mode(
         self, cli_provider: str | None = None, model: str | None = None
     ) -> bool | None:
-        """Load the Responses-in-server override for a provider/model from config.json.
+        """Load the Stateless-mode override for a provider/model from config.json.
 
         The override is stored under a model-scoped key
-        (``providers.<provider>.models.<model>.responses-in-server``) so that
+        (``providers.<provider>.models.<model>.stateless-mode``) so that
         different provider/model pairs can each decide whether their
         Responses API keeps conversation state server-side.
 
@@ -271,7 +271,7 @@ class ProviderConfigLoader:
         if not model:
             return None
         value = get_config_value(
-            model_scoped_config_key(provider, model, "responses-in-server")
+            model_scoped_config_key(provider, model, "stateless-mode")
         )
         if value is None:
             return None
@@ -420,14 +420,14 @@ def load_api_type(
     return _loader.load_api_type(cli_provider, model)
 
 
-def load_responses_in_server_from_config(
+def load_stateless_mode_from_config(
     cli_provider: str | None = None,
     model: str | None = None,
 ) -> bool | None:
-    """Load the Responses-in-server override for a provider/model from config.json.
+    """Load the Stateless-mode override for a provider/model from config.json.
 
     The override is stored under a model-scoped key
-    (``providers.<provider>.models.<model>.responses-in-server``) so that
+    (``providers.<provider>.models.<model>.stateless-mode``) so that
     different provider/model pairs can each decide whether their Responses
     API keeps conversation state server-side.
 
@@ -441,7 +441,7 @@ def load_responses_in_server_from_config(
         bool: The configured override (``True``/``False``), or ``None`` when
             no override is stored (the built-in default applies).
     """
-    return _loader.load_responses_in_server(cli_provider, model)
+    return _loader.load_stateless_mode(cli_provider, model)
 
 
 def load_endpoint_from_config(cli_provider: str | None = None) -> str | None:
@@ -551,7 +551,7 @@ def load_used_files_enabled() -> bool:
     (the default) the report is suppressed.  String forms written by hand /
     older configs (``"true"``/``"false"``/``"1"``/``"0"``/``"yes"``/``"no"``/
     ``"on"``/``"off"`` in any case) are tolerated, mirroring
-    :meth:`ProviderConfigLoader.load_responses_in_server`.
+    :meth:`ProviderConfigLoader.load_stateless_mode`.
 
     Returns:
         bool: ``True`` when the flag is set, ``False`` when unset or falsy.

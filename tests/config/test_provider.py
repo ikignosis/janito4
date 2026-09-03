@@ -140,15 +140,15 @@ if pytest is not None:
             "  MiniMax "
         )
 
-    def test_responses_in_server_override_honored(monkeypatch, tmp_path):
-        """Provider.responses_in_server() honors a model-scoped config override
+    def test_stateless_mode_override_honored(monkeypatch, tmp_path):
+        """Provider.stateless_mode() honors a model-scoped config override
         (and the module function delegates to it)."""
         import janito.config_store as gc
 
         monkeypatch.setattr(config_dir_mod, "_config_dir", tmp_path)
-        gc.set_config_value("openai.models.gpt-5.6-luna.responses-in-server", False)
-        assert Provider("openai").responses_in_server() is False
-        assert get_provider("openai").responses_in_server() is False
+        gc.set_config_value("openai.models.gpt-5.6-luna.stateless-mode", True)
+        assert Provider("openai").stateless_mode() is True
+        assert get_provider("openai").stateless_mode() is True
 
     def test_get_provider_cost():
         """get_provider_cost() delegates to the provider's cost module and

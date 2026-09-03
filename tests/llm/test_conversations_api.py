@@ -344,12 +344,12 @@ def _mock_run_turn_for_model(monkeypatch, model, builtin_tools, create_side_effe
 
 
 def test_run_turn_stateless_replays_full_history(monkeypatch):
-    """Stateless providers (responses_in_server False, e.g. DeepSeek) cannot
+    """Stateless providers (stateless_mode False, e.g. DeepSeek) cannot
     resolve a previous_response_id: the client re-sends the full conversation
     as input items on every request and never chains with an id."""
     monkeypatch.setattr(
         "janito.llm_clients.openai.responses_state.get_provider",
-        lambda p: mock.Mock(responses_in_server=lambda model=None: False),
+        lambda p: mock.Mock(stateless_mode=lambda model=None: True),
     )
     seen = []
 
@@ -450,7 +450,7 @@ def test_run_turn_stateless_continues_with_previous_items(monkeypatch):
     """The next turn re-sends the previous turn's items plus the new prompt."""
     monkeypatch.setattr(
         "janito.llm_clients.openai.responses_state.get_provider",
-        lambda p: mock.Mock(responses_in_server=lambda model=None: False),
+        lambda p: mock.Mock(stateless_mode=lambda model=None: True),
     )
     seen = []
 
@@ -525,7 +525,7 @@ def test_run_turn_stateless_sends_store_false_and_include(monkeypatch):
     monkeypatch.setattr(
         "janito.llm_clients.openai.responses_state.get_provider",
         lambda p: mock.Mock(
-            responses_in_server=lambda model=None: False,
+            stateless_mode=lambda model=None: True,
             responses_include=lambda model=None: ["reasoning.encrypted_content"],
         ),
     )
@@ -557,7 +557,7 @@ def test_run_turn_stateless_replays_reasoning_items(monkeypatch):
     monkeypatch.setattr(
         "janito.llm_clients.openai.responses_state.get_provider",
         lambda p: mock.Mock(
-            responses_in_server=lambda model=None: False,
+            stateless_mode=lambda model=None: True,
             responses_include=lambda model=None: ["reasoning.encrypted_content"],
         ),
     )
@@ -1416,7 +1416,7 @@ def test_shell_tracks_and_resets_previous_response_id():
 
 
 def test_shell_tracks_stateless_conversation_items():
-    """For stateless Responses providers (responses_in_server False) the shell
+    """For stateless Responses providers (stateless_mode False) the shell
     keeps the client-side input items (never an id) and resets them on a fresh
     conversation."""
     from janito.shell import InteractiveShell
@@ -1884,7 +1884,7 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
             {},
             [],
             {
-                "responses_in_server": True,
+                "stateless_mode": False,
                 "response_id": "r1",
                 "input_items": "List files",
                 "pending_items": pending,
@@ -1914,7 +1914,7 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
             {},
             [],
             {
-                "responses_in_server": True,
+                "stateless_mode": False,
                 "response_id": None,
                 "input_items": "List files",
             },
@@ -1952,7 +1952,7 @@ def test_run_stream_round_recovers_response_id_on_cancel(monkeypatch):
             {},
             [],
             {
-                "responses_in_server": False,
+                "stateless_mode": True,
                 "response_id": None,
                 "input_items": items,
             },

@@ -1,6 +1,6 @@
 """
-Tests for the --info handler output, in particular the ``Responses In Server``
-line that reflects the resolved ``responses_in_server`` flag.
+Tests for the --info handler output, in particular the ``Stateless Mode``
+line that reflects the resolved ``stateless_mode`` flag.
 
 The line is shown only when the effective API type resolves to ``Responses``:
 - server-side providers (e.g. OpenAI) report
@@ -56,8 +56,8 @@ def _fake_provider(name, *, default_model=_MISSING, default_thinking=False):
         def gemini_flavor(self):
             return real.gemini_flavor() if real is not None else False
 
-        def responses_in_server(self, model=None):
-            return real.responses_in_server(model) if real is not None else True
+        def stateless_mode(self, model=None):
+            return real.stateless_mode(model) if real is not None else True
 
     return _P()
 
@@ -118,30 +118,30 @@ def _run(capsys, provider="openai", api_type=None):
     return capsys.readouterr().out
 
 
-def test_responses_in_server_shown_for_server_side_provider(capsys):
+def test_stateless_mode_shown_for_server_side_provider(capsys):
     """OpenAI defaults to Responses and keeps state server-side."""
     out = _run(capsys, provider="openai")
     assert "API Type" in out
     assert "Responses" in out
-    assert "Responses In Server" in out
+    assert "Stateless Mode" in out
     assert "server-side (previous_response_id)" in out
 
 
-def test_responses_in_server_stateless_for_deepseek(capsys):
+def test_stateless_mode_stateless_for_deepseek(capsys):
     """DeepSeek's /responses endpoint is stateless."""
     out = _run(capsys, provider="deepseek")
     assert "Responses" in out
     assert "stateless (client re-sends history)" in out
 
 
-def test_responses_in_server_hidden_when_api_type_completions(capsys):
+def test_stateless_mode_hidden_when_api_type_completions(capsys):
     """The line is omitted when the API type resolves to Completions."""
     out = _run(capsys, provider="openai", api_type="completions")
     assert "Completions" in out
-    assert "Responses In Server" not in out
+    assert "Stateless Mode" not in out
 
 
-def test_responses_in_server_shown_when_api_type_forced_responses(capsys):
+def test_stateless_mode_shown_when_api_type_forced_responses(capsys):
     """--api-type responses keeps the line even for a Completions-only provider."""
     out = _run(capsys, provider="minimax", api_type="responses")
     assert "Responses" in out

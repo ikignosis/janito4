@@ -23,7 +23,7 @@ emits a final text answer. Only the final ``response_id`` needs to be kept by
 the caller.
 
 **Stateless endpoints.** Some providers' ``/responses`` endpoint is stateless
-(``responses_in_server`` is ``False`` in the provider's model config, e.g.
+(``stateless_mode`` is ``True`` in the provider's model config, e.g.
 DeepSeek and Meta's Muse Spark):
 it cannot resolve a ``previous_response_id`` and rejects tool outputs that
 reference it. For those providers the client falls back to the Completions
@@ -106,15 +106,15 @@ class ConversationResult:
     Attributes:
         content: The assistant's final text (after any tool-call rounds).
         response_id: The server-side id of the final response. For providers
-            that keep the conversation server-side (``responses_in_server``
+            that keep the conversation server-side (``stateless_mode``
             True), pass it as ``previous_response_id`` to the next
             ``run_turn`` call to continue the conversation. For stateless
-            providers (``responses_in_server`` False) this is always ``None``
+            providers (``stateless_mode`` True) this is always ``None``
             and the history is carried client-side in ``input_items`` instead.
         message_count: Number of responses chained during this turn (1 +
             number of tool-call rounds).
         input_items: The full conversation as Responses input items, only for
-            stateless providers (``responses_in_server`` False). Pass it back
+            stateless providers (``stateless_mode`` True). Pass it back
             as ``previous_items`` to the next ``run_turn`` call so the
             entire history is re-sent (the server keeps no state). ``None``
             for server-side providers, which chain with ``response_id``
@@ -178,8 +178,8 @@ def run_turn(
             continue from (``None`` for a fresh conversation). Obtained from
             the ``response_id`` of the previous ``ConversationResult``. Only
             used for providers whose Responses API keeps server-side state
-            (``responses_in_server`` True); ignored for stateless providers.
-        previous_items: For stateless providers (``responses_in_server``
+            (``stateless_mode`` False); ignored for stateless providers.
+        previous_items: For stateless providers (``stateless_mode``
             False), the full conversation as Responses input items (obtained
             from the previous result's ``input_items``), which cannot resolve
             a ``previous_response_id`` and must re-send the entire history on
@@ -276,7 +276,7 @@ class ResponsesClient(Client):
         # client tracks the full conversation as Responses input items and
         # re-sends them on every request (like Chat Completions).
         (
-            responses_in_server,
+            stateless_mode,
             response_id,
             conversation_items,
             input_items,
@@ -290,7 +290,7 @@ class ResponsesClient(Client):
             prompt,
         )
         return {
-            "responses_in_server": responses_in_server,
+            "stateless_mode": stateless_mode,
             "response_id": response_id,
             "conversation_items": conversation_items,
             "input_items": input_items,
@@ -334,7 +334,7 @@ class ResponsesClient(Client):
             preserve_thinking,
             thinking,
             state["response_id"],
-            state["responses_in_server"],
+            state["stateless_mode"],
             state["instructions"],
             builtin_tools,
             provider=self.api_config.provider,
@@ -365,7 +365,7 @@ class ResponsesClient(Client):
             )
             # Only server-side conversations chain with the returned id;
             # stateless providers never send previous_response_id.
-            if state["responses_in_server"]:
+            if not state["stateless_mode"]:
                 state["response_id"] = stream_response_id
             else:
                 # Stateless: record the finished ``reasoning`` output items
@@ -383,7 +383,7 @@ class ResponsesClient(Client):
             # the request failed without a proper error event. Raise a clear
             # error naming the model instead of returning an empty result.
             _validate_stream_result(
-                state["responses_in_server"],
+                state["stateless_mode"],
                 stream_response_id,
                 full_content,
                 tool_calls,
@@ -422,7 +422,7 @@ class ResponsesClient(Client):
             #  - stateless: the server keeps nothing, so hand back the full
             #    client-side items (which already include the cancelled
             #    message) for the next turn to re-send.
-            if state["responses_in_server"]:
+            if not state["stateless_mode"]:
                 e.conversation_items = _pending_items_for_cancel(state)
             else:
                 e.conversation_items = state["input_items"]
@@ -462,7 +462,7 @@ class ResponsesClient(Client):
             state["conversation_items"],
             state["message_count"],
             state["response_id"],
-            state["responses_in_server"],
+            state["stateless_mode"],
             turn_items=state["turn_items"],
         )
 

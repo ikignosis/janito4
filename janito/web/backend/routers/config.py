@@ -11,7 +11,7 @@ from .config_helpers import (
     _patch_api_type,
     _patch_endpoint,
     _patch_model,
-    _patch_responses_in_server,
+    _patch_stateless_mode,
     _read_json_body,
     _resolve_target_provider,
 )
@@ -97,9 +97,9 @@ async def patch_config(request: Request):
       ``"Responses"`` or ``"Completions"`` (case-insensitive, canonicalized).
       An empty value clears the override (falls back to the provider's
       built-in default -- its ``default_api_type`` entry).
-    * ``responses_in_server`` -- per-provider override of whether the
+    * ``stateless_mode`` -- per-provider override of whether the
       provider's Responses API keeps conversation state server-side
-      (``providers.<name>.responses-in-server``).  Accepts ``true``/``false``
+      (``providers.<name>.stateless-mode``).  Accepts ``true``/``false``
       (also ``1``/``0``/``yes``/``no``/``on``/``off``).  Only meaningful when
       the provider's API type is ``Responses``.
     """
@@ -117,7 +117,7 @@ async def patch_config(request: Request):
 
     mutable_fields = [
         field
-        for field in ("model", "endpoint", "api_type", "responses_in_server")
+        for field in ("model", "endpoint", "api_type", "stateless_mode")
         if field in body
     ]
     if not mutable_fields:
@@ -133,7 +133,7 @@ async def patch_config(request: Request):
         _patch_model,
         _patch_endpoint,
         _patch_api_type,
-        _patch_responses_in_server,
+        _patch_stateless_mode,
     ):
         error = patcher(body, provider, effective, config, updated)
         if error:

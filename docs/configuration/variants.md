@@ -111,7 +111,7 @@ Deleting a variant removes:
 - its `providers` entry in `config.json` — the `providers.<name>`
   registration marker plus every per-variant config key stored under it
   (provider-scoped keys `model`, `endpoint`, and model-scoped keys `api-type`,
-  tokens, reasoning level, responses-in-server under
+  tokens, reasoning level, stateless-mode under
   `providers.<name>.models.<model>.<key>`) — and
 - its API key in `auth.json`.
 
@@ -137,7 +137,7 @@ earlier):
 2. Per-variant configuration file values — provider-scoped
    (`providers.<base>-<word>.model` / `.endpoint`) and model-scoped
    (`providers.<base>-<word>.models.<model>.{api-type, max-output-tokens,
-   max-input-tokens, reasoning-effort, responses-in-server}`)
+   max-input-tokens, reasoning-effort, stateless-mode}`)
 3. Command-line arguments (`--model`, `--provider`, `--set endpoint=...`)
 
 The API key comes from `auth.json` under the variant name. See

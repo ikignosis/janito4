@@ -92,7 +92,7 @@ PROVIDER_CONFIG: dict = {
             #: on every request (like Chat Completions).  Absent defaults
             #: to ``True``.  Only meaningful when the model also supports
             #: "Responses".
-            "responses_in_server": True,
+            "stateless_mode": False,
             #: Extra ``include`` values (optional) to request on every
             #: Responses API call (e.g. ``["reasoning.encrypted_content"]``
             #: for Meta's Muse Spark, which exposes the chain of thought only

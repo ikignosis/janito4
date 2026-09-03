@@ -15,7 +15,7 @@ def _fake_provider(
     *,
     default_model=_MISSING,
     default_max_tokens=_MISSING,
-    responses_in_server=_MISSING,
+    stateless_mode=_MISSING,
 ):
     """A Provider-like object for ``name`` with selected lookups overridden.
 
@@ -41,10 +41,10 @@ def _fake_provider(
                 real.max_output_tokens(model) if real is not None else None,
             )
 
-        def responses_in_server(self, model=None):
+        def stateless_mode(self, model=None):
             return _pick(
-                responses_in_server,
-                real.responses_in_server(model) if real is not None else True,
+                stateless_mode,
+                real.stateless_mode(model) if real is not None else True,
             )
 
         def endpoint_for(self, api_type=None):
@@ -73,7 +73,7 @@ class TestPrintConfigInfo:
         default_max_tokens=128000,
         thinking=False,
         api_type="Responses",
-        responses_in_server=True,
+        stateless_mode=False,
         cli_api_type=None,
         model=None,
         configured_model=None,
@@ -86,8 +86,8 @@ class TestPrintConfigInfo:
                 When None, the (patched) configured default is used.
             thinking: The ``--thinking`` CLI flag passed to ``_print_config_info``.
             api_type: The effective API type returned by ``resolve_api_type``.
-            responses_in_server: Value returned by
-                ``get_responses_in_server_from_provider`` (only meaningful when
+            stateless_mode: Value returned by
+                ``get_stateless_mode_from_provider`` (only meaningful when
                 ``api_type`` is ``Responses``).
             cli_api_type: The ``--api-type`` CLI flag passed to
                 ``_print_config_info`` (``None`` when the flag was not given).
@@ -134,7 +134,7 @@ class TestPrintConfigInfo:
                     provider,
                     default_model=default_model,
                     default_max_tokens=default_max_tokens,
-                    responses_in_server=responses_in_server,
+                    stateless_mode=stateless_mode,
                 ),
             ),
             patch(
@@ -202,27 +202,27 @@ class TestPrintConfigInfo:
         assert "enabled" in out
         assert "(model default)" not in out
 
-    def test_responses_in_server_shown_for_server_side_provider(self, capsys):
+    def test_stateless_mode_shown_for_server_side_provider(self, capsys):
         """Responses API + server-side state reports previous_response_id chaining."""
-        out = self._run(capsys, api_type="Responses", responses_in_server=True)
+        out = self._run(capsys, api_type="Responses", stateless_mode=False)
         assert "API Type" in out
         assert "Responses" in out
-        assert "Responses In Server" in out
+        assert "Stateless Mode" in out
         assert "server-side (previous_response_id)" in out
 
-    def test_responses_in_server_stateless_for_deepseek(self, capsys):
+    def test_stateless_mode_stateless_for_deepseek(self, capsys):
         """DeepSeek's /responses endpoint is stateless."""
         out = self._run(
-            capsys, provider="deepseek", api_type="Responses", responses_in_server=False
+            capsys, provider="deepseek", api_type="Responses", stateless_mode=True
         )
         assert "Responses" in out
         assert "stateless (client re-sends history)" in out
 
-    def test_responses_in_server_hidden_when_api_type_completions(self, capsys):
+    def test_stateless_mode_hidden_when_api_type_completions(self, capsys):
         """The line is omitted when the API type resolves to Completions."""
         out = self._run(capsys, provider="openai", api_type="Completions")
         assert "Completions" in out
-        assert "Responses In Server" not in out
+        assert "Stateless Mode" not in out
 
     def test_cli_api_type_forwarded_to_resolve_api_type(self, capsys):
         """The session's --api-type (e.g. Gemini) reaches resolve_api_type.
@@ -352,7 +352,7 @@ class TestStatusCmdHandlerApiType:
                 return_value=_fake_provider(
                     "google",
                     default_max_tokens=None,
-                    responses_in_server=True,
+                    stateless_mode=False,
                 ),
             ),
             patch(
@@ -410,7 +410,7 @@ class TestStatusCmdHandlerApiType:
                 return_value=_fake_provider(
                     "google",
                     default_max_tokens=None,
-                    responses_in_server=True,
+                    stateless_mode=False,
                 ),
             ),
             patch(
@@ -451,7 +451,7 @@ class TestStatusCmdHandlerApiType:
                     "alibaba",
                     default_model="qwen3.8-flash",
                     default_max_tokens=None,
-                    responses_in_server=True,
+                    stateless_mode=False,
                 ),
             ),
             patch(

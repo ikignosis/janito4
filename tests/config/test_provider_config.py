@@ -139,10 +139,10 @@ def get_default_api_type_from_provider(provider, model=None):
     return found.default_api_type(model) if found is not None else None
 
 
-def get_responses_in_server_from_provider(provider, model=None):
+def get_stateless_mode_from_provider(provider, model=None):
     """Whether the model's Responses API keeps server-side state."""
     found = get_provider(provider)
-    return found.responses_in_server(model) if found is not None else True
+    return found.stateless_mode(model) if found is not None else False
 
 
 if pytest is not None:
@@ -197,8 +197,8 @@ if pytest is not None:
             "type": "adaptive"
         }
         assert (
-            get_provider_config("DeepSeek", "deepseek-v4-flash")["responses_in_server"]
-            is False
+            get_provider_config("DeepSeek", "deepseek-v4-flash")["stateless_mode"]
+            is True
         )
         # Unknown model -> None (no fallback to the default model's entry).
         assert get_provider_config("openai", "no-such-model") is None
@@ -328,7 +328,7 @@ if pytest is not None:
         # (the docs recommend store:false + encrypted reasoning replay, which
         # cannot be combined with previous_response_id), and the chain of
         # thought is only exposed in encrypted form.
-        assert model_entry["responses_in_server"] is False
+        assert model_entry["stateless_mode"] is True
         assert model_entry["responses_include"] == ["reasoning.encrypted_content"]
         assert get_endpoint_by_api_type("meta") is None
         # No built-in thinking/preserve_thinking flags; the built-in default
@@ -341,7 +341,7 @@ if pytest is not None:
         contributor_entry = info["models"]["muse-spark-1.3-contributor"]
         assert contributor_entry["supported_api_types"] == ["Responses", "Completions"]
         assert contributor_entry["default_api_type"] == "Responses"
-        assert contributor_entry["responses_in_server"] is False
+        assert contributor_entry["stateless_mode"] is True
         assert contributor_entry["responses_include"] == ["reasoning.encrypted_content"]
         assert contributor_entry["max_input_tokens"] == 1048576
         # Case-insensitive lookups.
@@ -1130,59 +1130,56 @@ if pytest is not None:
         ensure_api_type_available("Completions")
         ensure_api_type_available("Bogus")
 
-    def test_responses_in_server_flag():
+    def test_stateless_mode_flag():
         """Providers whose /responses endpoint keeps server-side state chain
         with previous_response_id; stateless endpoints (DeepSeek) do not."""
         # OpenAI keeps the conversation server-side.
-        assert get_responses_in_server_from_provider("openai") is True
+        assert get_stateless_mode_from_provider("openai") is False
         assert (
-            get_provider_config("openai")["models"]["gpt-5.6-luna"][
-                "responses_in_server"
+            get_provider_config("openai")["models"]["gpt-5.6-luna"]["stateless_mode"]
+            is False
+        )
+        # DeepSeek's /responses endpoint is stateless.
+        assert get_stateless_mode_from_provider("deepseek") is True
+        assert (
+            get_provider_config("deepseek")["models"]["deepseek-v4-flash"][
+                "stateless_mode"
             ]
             is True
         )
-        # DeepSeek's /responses endpoint is stateless.
-        assert get_responses_in_server_from_provider("deepseek") is False
-        assert (
-            get_provider_config("deepseek")["models"]["deepseek-v4-flash"][
-                "responses_in_server"
-            ]
-            is False
-        )
         # Case-insensitive lookups work.
-        assert get_responses_in_server_from_provider("DeepSeek") is False
-        # Providers that do not declare the flag default to True (the
-        # Responses API design).
-        assert get_responses_in_server_from_provider("minimax") is True
-        # Unknown provider defaults to True.
-        assert get_responses_in_server_from_provider("bogus") is True
+        assert get_stateless_mode_from_provider("DeepSeek") is True
+        # Providers that do not declare the flag default to False (server-side,
+        # the Responses API design).
+        assert get_stateless_mode_from_provider("minimax") is False
+        # Unknown provider defaults to False (server-side).
+        assert get_stateless_mode_from_provider("bogus") is False
 
-    def test_responses_in_server_flag_honors_config_override(monkeypatch, tmp_path):
-        """A per-provider/model responses-in-server override in config.json
+    def test_stateless_mode_flag_honors_config_override(monkeypatch, tmp_path):
+        """A per-provider/model stateless-mode override in config.json
         wins over the built-in default (e.g. set from the web Settings
-        drawer's Advanced section or ``--set responses-in-server=...``)."""
+        drawer's Advanced section or ``--set stateless-mode=...``)."""
         import janito.config_store as gc
 
         monkeypatch.setattr(config_dir_mod, "_config_dir", tmp_path)
 
-        # OpenAI's built-in default is True; force it off via a model-scoped
-        # config override (stored under providers.openai.models.<model>.
-        # responses-in-server).
-        gc.set_config_value("openai.models.gpt-5.6-luna.responses-in-server", False)
-        assert get_responses_in_server_from_provider("openai") is False
+        # OpenAI's built-in default is False (server-side); force stateless
+        # on via a model-scoped config override (stored under
+        # providers.openai.models.<model>.stateless-mode).
+        gc.set_config_value("openai.models.gpt-5.6-luna.stateless-mode", True)
+        assert get_stateless_mode_from_provider("openai") is True
 
         # Clearing the override falls back to the built-in default.
-        gc.unset_config_value("openai.models.gpt-5.6-luna.responses-in-server")
-        assert get_responses_in_server_from_provider("openai") is True
+        gc.unset_config_value("openai.models.gpt-5.6-luna.stateless-mode")
+        assert get_stateless_mode_from_provider("openai") is False
 
-        # DeepSeek's built-in default is False; force it on via config.
-        gc.set_config_value(
-            "deepseek.models.deepseek-v4-flash.responses-in-server", True
-        )
-        assert get_responses_in_server_from_provider("deepseek") is True
+        # DeepSeek's built-in default is True (stateless); force server-side
+        # via config.
+        gc.set_config_value("deepseek.models.deepseek-v4-flash.stateless-mode", False)
+        assert get_stateless_mode_from_provider("deepseek") is False
 
-        # Unknown providers still default to True regardless of config.
-        assert get_responses_in_server_from_provider("bogus") is True
+        # Unknown providers still default to False regardless of config.
+        assert get_stateless_mode_from_provider("bogus") is False
 
     # ---- Model-level fallback chain --------------------------------------
 

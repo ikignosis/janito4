@@ -11,6 +11,10 @@ Changes since `v4.37.0` (2026-09-03).
 
 ### Changed
 
+- Renamed `responses-in-server` to `stateless-mode` (issue #120): the flag
+  is inverted (`stateless-mode: true` = the client re-sends history,
+  `false` = server-side state, the default) and the old key is fully
+  removed with no backwards compatibility.
 - Narrowed blind `except Exception` handlers to specific types (`OSError`,
   `UnicodeError`, `ValueError`, ...) and enabled ruff `BLE001`.
 

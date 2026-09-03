@@ -2,7 +2,7 @@
 Tests for the ProviderConfigLoader class (janito.config_loaders).
 
 Covers the class-level API (load_model / load_max_output_tokens /
-load_reasoning_effort / load_api_type / load_responses_in_server / load_endpoint)
+load_reasoning_effort / load_api_type / load_stateless_mode / load_endpoint)
 including the legacy key chain and the boolean-string tolerance.
 """
 
@@ -98,7 +98,7 @@ if pytest is not None:
         assert loader.load_api_type("openai") == "Responses"
         assert loader.load_api_type("unknown") is None
 
-    def test_load_responses_in_server_bool_tolerance(monkeypatch, tmp_path):
+    def test_load_stateless_mode_bool_tolerance(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
         loader = ProviderConfigLoader()
         config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -108,28 +108,24 @@ if pytest is not None:
                 {
                     "providers": {
                         "openai": {
-                            "models": {"gpt-5.6-luna": {"responses-in-server": "true"}}
+                            "models": {"gpt-5.6-luna": {"stateless-mode": "true"}}
                         },
                         "deepseek": {
-                            "models": {
-                                "deepseek-v4-flash": {"responses-in-server": "FALSE"}
-                            }
+                            "models": {"deepseek-v4-flash": {"stateless-mode": "FALSE"}}
                         },
-                        "xai": {"models": {"grok-4.6": {"responses-in-server": True}}},
-                        "zai": {
-                            "models": {"glm-5.3-flash": {"responses-in-server": False}}
-                        },
+                        "xai": {"models": {"grok-4.6": {"stateless-mode": True}}},
+                        "zai": {"models": {"glm-5.3-flash": {"stateless-mode": False}}},
                     }
                 }
             )
         )
-        assert loader.load_responses_in_server("openai") is True
-        assert loader.load_responses_in_server("deepseek") is False
-        assert loader.load_responses_in_server("xai") is True
-        assert loader.load_responses_in_server("zai") is False
+        assert loader.load_stateless_mode("openai") is True
+        assert loader.load_stateless_mode("deepseek") is False
+        assert loader.load_stateless_mode("xai") is True
+        assert loader.load_stateless_mode("zai") is False
         # No override -> None.
-        assert loader.load_responses_in_server("moonshot") is None
-        assert loader.load_responses_in_server() is None
+        assert loader.load_stateless_mode("moonshot") is None
+        assert loader.load_stateless_mode() is None
 
     def test_load_endpoint_provider_then_legacy(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
@@ -293,7 +289,7 @@ if pytest is not None:
 
         config_path.parent.mkdir(parents=True, exist_ok=True)
         # A string that is not a known true form is treated as False
-        # (mirrors load_responses_in_server); a numeric 0 is falsy too.
+        # (mirrors load_stateless_mode); a numeric 0 is falsy too.
         config_path.write_text(json.dumps({"used-files": "x"}))
         assert load_used_files_enabled() is False
         config_path.write_text(json.dumps({"used-files": 0}))

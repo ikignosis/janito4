@@ -71,7 +71,7 @@ def _resolve_tools(
 
 
 def _validate_stream_result(
-    responses_in_server: bool,
+    stateless_mode: bool,
     stream_response_id: str | None,
     full_content: str,
     tool_calls: list[dict[str, Any]] | None,
@@ -79,7 +79,7 @@ def _validate_stream_result(
 ) -> None:
     """Raise a clear error when a server-side response came back empty."""
     if (
-        responses_in_server
+        not stateless_mode
         and stream_response_id is None
         and not full_content
         and not tool_calls
@@ -166,7 +166,7 @@ def _finalize_conversation(
     conversation_items: list[dict[str, Any]] | None,
     message_count: int,
     response_id: str | None,
-    responses_in_server: bool,
+    stateless_mode: bool,
     *,
     turn_items: list[dict[str, Any]] | None = None,
 ) -> Any:
@@ -184,7 +184,7 @@ def _finalize_conversation(
 
     return ConversationResult(
         content=full_content,
-        response_id=response_id if responses_in_server else None,
+        response_id=response_id if not stateless_mode else None,
         message_count=message_count,
         input_items=conversation_items,
         turn_items=turn_items,

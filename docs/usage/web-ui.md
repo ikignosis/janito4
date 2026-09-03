@@ -260,7 +260,7 @@ janito/web/frontend/   (Alpine.js — no build step)
 | `WS` | `/api/chat/ws/{id}` | Bidirectional streaming chat |
 | `POST` | `/api/chat/prompt` | One-shot SSE streaming |
 | `GET` | `/api/config` | Runtime config |
-| `PATCH` | `/api/config` | Update mutable config (`model`, `endpoint`, `api_type`, `responses_in_server`; per-provider, persisted) |
+| `PATCH` | `/api/config` | Update mutable config (`model`, `endpoint`, `api_type`, `stateless_mode`; per-provider, persisted) |
 | `GET` | `/api/config/providers` | Supported providers (incl. `api_key_set`, `active`, `effective`) |
 | `GET` | `/api/config/status` | API key status, provider, privileges |
 | `POST` | `/api/config/session-provider` | Switch provider for this session only (in memory; not persisted) |

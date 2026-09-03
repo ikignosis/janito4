@@ -30,7 +30,7 @@ PROVIDER_CONFIG: dict = {
             # api-type=Completions or --api-type completions.
             "supported_api_types": ["Responses", "Completions"],
             "default_api_type": "Responses",  # built-in default (the first supported type)
-            "responses_in_server": False,
+            "stateless_mode": True,
             # Muse Spark exposes its chain of thought only in encrypted
             # form: request it on every call so the reasoning items returned
             # in `output` can be replayed in the next turn's `input`
@@ -79,7 +79,7 @@ PROVIDER_CONFIG: dict = {
             # like the standard tier.
             "supported_api_types": ["Responses", "Completions"],
             "default_api_type": "Responses",
-            "responses_in_server": False,
+            "stateless_mode": True,
             "responses_include": ["reasoning.encrypted_content"],
             "max_input_tokens": 1048576,  # 1M (2**20)
             "default_reasoning_effort": "minimal",

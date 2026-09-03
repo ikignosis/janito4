@@ -8,25 +8,25 @@ fields:
 * ``endpoint`` -- base-URL override (``providers.<name>.endpoint``);
 * ``api_type`` -- a combobox with one option per supported API type
   (``providers.<name>.api-type``, "Responses"/"Completions");
-* ``responses_in_server`` -- a toggleable switch, only rendered while the
-  API type is "Responses" (``providers.<name>.responses-in-server``).
+* ``stateless_mode`` -- a toggleable switch, only rendered while the
+  API type is "Responses" (``providers.<name>.stateless-mode``).
 
 All three are persisted per provider via ``PATCH /api/config`` (like the
 model) and exposed per provider via ``GET /api/config/providers``.  The
-``responses_in_server`` override is also honoured at runtime by
-``get_responses_in_server_from_provider`` (the CLI's Responses-API path),
+``stateless_mode`` override is also honoured at runtime by
+``get_stateless_mode_from_provider`` (the CLI's Responses-API path),
 so the toggle actually changes how the conversation is chained.
 
 These tests pin down:
 
 1. ``PATCH /api/config`` persists ``endpoint`` / ``api_type`` /
-   ``responses_in_server`` under the right per-provider config keys and
+   ``stateless_mode`` under the right per-provider config keys and
    rejects invalid values / unknown providers with ``400``;
 2. an empty ``endpoint`` / ``api_type`` clears the per-provider override;
 3. the providers endpoint exposes the Advanced fields
    (``api_type``, ``supported_api_types``, ``api_types``,
-   ``responses_in_server``, ``default_responses_in_server``,
-   ``responses_in_server_override``).
+   ``stateless_mode``, ``default_stateless_mode``,
+   ``stateless_mode_override``).
 
 The ``api_types`` field also carries per-type *availability*: API types
 whose optional Python package is missing (e.g. the native ``Anthropic``
@@ -218,52 +218,52 @@ def test_patch_api_type_empty_clears_override(client):
 
 
 @requires_fastapi
-def test_patch_responses_in_server_persists(client):
-    """responses_in_server is stored per provider/model and exposed effectively."""
-    cs.unset_config_value("openai.models.gpt-5.6-luna.responses-in-server")
+def test_patch_stateless_mode_persists(client):
+    """stateless_mode is stored per provider/model and exposed effectively."""
+    cs.unset_config_value("openai.models.gpt-5.6-luna.stateless-mode")
 
     resp = client.patch(
         "/api/config",
-        json={"responses_in_server": False, "provider": "openai"},
+        json={"stateless_mode": False, "provider": "openai"},
     )
     assert resp.status_code == 200
-    assert resp.json()["updated"]["responses_in_server"] is False
+    assert resp.json()["updated"]["stateless_mode"] is False
 
-    assert cl.load_responses_in_server_from_config("openai") is False
+    assert cl.load_stateless_mode_from_config("openai") is False
     entry = _providers_by_name(client)["openai"]
-    assert entry["responses_in_server"] is False  # override wins
-    assert entry["default_responses_in_server"] is True  # built-in unchanged
-    assert entry["responses_in_server_override"] is False
+    assert entry["stateless_mode"] is False  # override wins
+    assert entry["default_stateless_mode"] is False  # built-in unchanged
+    assert entry["stateless_mode_override"] is False
 
 
 @requires_fastapi
-def test_patch_responses_in_server_accepts_string_bool(client):
+def test_patch_stateless_mode_accepts_string_bool(client):
     """String forms true/false/1/0 are coerced to booleans."""
     resp = client.patch(
         "/api/config",
-        json={"responses_in_server": "true", "provider": "deepseek"},
+        json={"stateless_mode": "true", "provider": "deepseek"},
     )
     assert resp.status_code == 200
-    assert resp.json()["updated"]["responses_in_server"] is True
-    assert cl.load_responses_in_server_from_config("deepseek") is True
+    assert resp.json()["updated"]["stateless_mode"] is True
+    assert cl.load_stateless_mode_from_config("deepseek") is True
 
     resp = client.patch(
         "/api/config",
-        json={"responses_in_server": "0", "provider": "deepseek"},
+        json={"stateless_mode": "0", "provider": "deepseek"},
     )
     assert resp.status_code == 200
-    assert resp.json()["updated"]["responses_in_server"] is False
+    assert resp.json()["updated"]["stateless_mode"] is False
 
 
 @requires_fastapi
-def test_patch_responses_in_server_rejects_invalid(client):
-    """A non-boolean responses_in_server is rejected with 400."""
-    cs.unset_config_value("openai.responses-in-server")
+def test_patch_stateless_mode_rejects_invalid(client):
+    """A non-boolean stateless_mode is rejected with 400."""
+    cs.unset_config_value("openai.stateless-mode")
     before = cs.load_config()
 
     resp = client.patch(
         "/api/config",
-        json={"responses_in_server": "maybe", "provider": "openai"},
+        json={"stateless_mode": "maybe", "provider": "openai"},
     )
     assert resp.status_code == 400
     assert "must be a boolean" in resp.json()["detail"]
@@ -291,10 +291,10 @@ def test_patch_advanced_unknown_provider_rejected(client):
 @requires_fastapi
 def test_providers_endpoint_exposes_advanced_fields(client):
     """Each provider entry carries the Advanced fields the drawer reads."""
-    # Clear any model-scoped responses-in-server override left by earlier
+    # Clear any model-scoped stateless-mode override left by earlier
     # tests in this module (they share the module-scoped config dir).
-    cs.unset_config_value("openai.models.gpt-5.6-luna.responses-in-server")
-    cs.unset_config_value("deepseek.models.deepseek-v4-flash.responses-in-server")
+    cs.unset_config_value("openai.models.gpt-5.6-luna.stateless-mode")
+    cs.unset_config_value("deepseek.models.deepseek-v4-flash.stateless-mode")
     entries = _providers_by_name(client)
 
     openai = entries["openai"]
@@ -303,9 +303,9 @@ def test_providers_endpoint_exposes_advanced_fields(client):
     assert openai["default_api_type"] == "Responses"
     assert "api_type" in openai  # configured override (None until set)
     # OpenAI's /responses endpoint is server-side by default.
-    assert openai["responses_in_server"] is True
-    assert openai["default_responses_in_server"] is True
-    assert openai["responses_in_server_override"] is None
+    assert openai["stateless_mode"] is False
+    assert openai["default_stateless_mode"] is False
+    assert openai["stateless_mode_override"] is None
     assert "endpoint" in openai
     assert "base_url" in openai
 
@@ -330,8 +330,8 @@ def test_providers_endpoint_exposes_advanced_fields(client):
     # base_url reflects the default API type's built-in endpoint.
     assert deepseek["base_url"] == "https://api.deepseek.com"
     # DeepSeek's /responses endpoint is stateless by default.
-    assert deepseek["responses_in_server"] is False
-    assert deepseek["default_responses_in_server"] is False
+    assert deepseek["stateless_mode"] is True
+    assert deepseek["default_stateless_mode"] is True
 
     anthropic = entries["anthropic"]
     # Anthropic supports Completions (the built-in default) plus the native

@@ -179,7 +179,7 @@ if pytest is not None:
             previous_items=None,
             instructions="Be helpful",
         )
-        assert state["responses_in_server"] is True
+        assert state["stateless_mode"] is False
         assert state["response_id"] is None
         assert state["conversation_items"] is None
         assert state["input_items"] == "hi"
@@ -471,7 +471,7 @@ if pytest is not None:
             ca,
             "_init_conversation_state",
             lambda provider, model, previous_response_id, previous_items, instructions, prompt: (
-                True,
+                False,
                 None,
                 None,
                 prompt,

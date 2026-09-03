@@ -685,78 +685,72 @@ if pytest is not None:
 
     # ---- Responses-in-server (per-provider override) --------------------
 
-    def test_responses_in_server_config_key_helper():
+    def test_stateless_mode_config_key_helper():
         assert (
-            ck.model_scoped_config_key("openai", "gpt-5.6-luna", "responses-in-server")
-            == "openai.models.gpt-5.6-luna.responses-in-server"
+            ck.model_scoped_config_key("openai", "gpt-5.6-luna", "stateless-mode")
+            == "openai.models.gpt-5.6-luna.stateless-mode"
         )
         assert (
-            ck.model_scoped_config_key(
-                "  OpenAI ", "gpt-5.6-luna", "responses-in-server"
-            )
-            == "openai.models.gpt-5.6-luna.responses-in-server"
+            ck.model_scoped_config_key("  OpenAI ", "gpt-5.6-luna", "stateless-mode")
+            == "openai.models.gpt-5.6-luna.stateless-mode"
         )
 
-    def test_set_responses_in_server_per_provider(monkeypatch, tmp_path):
+    def test_set_stateless_mode_per_provider(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
-        cc.set_config_from_cli("responses-in-server=true", "openai")
-        cc.set_config_from_cli("responses-in-server=false", "deepseek")
-        assert cl.load_responses_in_server_from_config("openai") is True
-        assert cl.load_responses_in_server_from_config("deepseek") is False
+        cc.set_config_from_cli("stateless-mode=true", "openai")
+        cc.set_config_from_cli("stateless-mode=false", "deepseek")
+        assert cl.load_stateless_mode_from_config("openai") is True
+        assert cl.load_stateless_mode_from_config("deepseek") is False
         config = _read_config(config_path)
         assert (
-            config["providers"]["openai"]["models"]["gpt-5.6-luna"][
-                "responses-in-server"
-            ]
+            config["providers"]["openai"]["models"]["gpt-5.6-luna"]["stateless-mode"]
             is True
         )
         assert (
             config["providers"]["deepseek"]["models"]["deepseek-v4-flash"][
-                "responses-in-server"
+                "stateless-mode"
             ]
             is False
         )
 
-    def test_set_responses_in_server_normalizes_bool_forms(monkeypatch, tmp_path):
+    def test_set_stateless_mode_normalizes_bool_forms(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
         # 1/0 and on/off (in any case) are normalized to real booleans.
-        key, value = cc.set_config_from_cli("responses-in-server=1", "openai")
-        assert key == "openai.models.gpt-5.6-luna.responses-in-server"
+        key, value = cc.set_config_from_cli("stateless-mode=1", "openai")
+        assert key == "openai.models.gpt-5.6-luna.stateless-mode"
         assert value is True
-        cc.set_config_from_cli("responses-in-server=OFF", "deepseek")
+        cc.set_config_from_cli("stateless-mode=OFF", "deepseek")
         config = _read_config(config_path)
         assert (
-            config["providers"]["openai"]["models"]["gpt-5.6-luna"][
-                "responses-in-server"
-            ]
+            config["providers"]["openai"]["models"]["gpt-5.6-luna"]["stateless-mode"]
             is True
         )
         assert (
             config["providers"]["deepseek"]["models"]["deepseek-v4-flash"][
-                "responses-in-server"
+                "stateless-mode"
             ]
             is False
         )
 
-    def test_set_responses_in_server_rejects_unknown_values(monkeypatch, tmp_path):
+    def test_set_stateless_mode_rejects_unknown_values(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
         with pytest.raises(ValueError) as exc:
-            cc.set_config_from_cli("responses-in-server=maybe", "openai")
+            cc.set_config_from_cli("stateless-mode=maybe", "openai")
         assert "boolean" in str(exc.value)
         # Nothing should have been written
         assert _read_config(config_path) == {}
 
-    def test_load_responses_in_server_defaults_to_none(monkeypatch, tmp_path):
+    def test_load_stateless_mode_defaults_to_none(monkeypatch, tmp_path):
         _use_temp_config(monkeypatch, tmp_path)
-        assert cl.load_responses_in_server_from_config("openai") is None
-        assert cl.load_responses_in_server_from_config() is None
+        assert cl.load_stateless_mode_from_config("openai") is None
+        assert cl.load_stateless_mode_from_config() is None
 
-    def test_unset_responses_in_server_per_provider(monkeypatch, tmp_path):
+    def test_unset_stateless_mode_per_provider(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
-        cc.set_config_from_cli("responses-in-server=true", "openai")
-        assert cc.unset_config_key_from_cli("responses-in-server", "openai") is True
+        cc.set_config_from_cli("stateless-mode=true", "openai")
+        assert cc.unset_config_key_from_cli("stateless-mode", "openai") is True
         assert "openai" not in config_path.read_text()
-        assert cc.unset_config_key_from_cli("responses-in-server", "openai") is False
+        assert cc.unset_config_key_from_cli("stateless-mode", "openai") is False
 
 else:  # pragma: no cover - fallback runner without pytest
 

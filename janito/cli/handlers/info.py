@@ -119,15 +119,13 @@ def handle_info(args) -> int:
     ]
     if api_type == "Responses":
         found = get_provider(provider)
-        responses_in_server = (
-            found.responses_in_server(model) if found is not None else True
-        )
+        stateless_mode = found.stateless_mode(model) if found is not None else False
         responses_display = (
-            "server-side (previous_response_id)"
-            if responses_in_server
-            else "stateless (client re-sends history)"
+            "stateless (client re-sends history)"
+            if stateless_mode
+            else "server-side (previous_response_id)"
         )
-        rows.append(("Responses In Server", responses_display))
+        rows.append(("Stateless Mode", responses_display))
     rows.append(("API Key", f"{get_masked_api_key(api_key)} ({api_key_source})"))
     rows.append(("Endpoint", f"{endpoint or '(not set)'} ({endpoint_source})"))
 

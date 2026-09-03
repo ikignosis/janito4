@@ -53,7 +53,7 @@ def handle_delete_variant(name: str) -> int:
     """Handle --delete-variant command.
 
     Deletes a provider variant and its per-variant configuration (model,
-    endpoint, API type, tokens, reasoning level, responses-in-server) and
+    endpoint, API type, tokens, reasoning level, stateless-mode) and
     API key.
 
     Args:

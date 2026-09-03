@@ -105,12 +105,12 @@ class ModelConfig:
             return by_type[api_type]
         return self._data.get("tools")
 
-    def responses_in_server(self) -> bool:
+    def stateless_mode(self) -> bool:
         """Whether the model's Responses API keeps state server-side.
 
         Absent defaults to ``True`` (the Responses API design).
         """
-        return bool(self._data.get("responses_in_server", True))
+        return bool(self._data.get("stateless_mode", False))
 
     def responses_include(self) -> list | None:
         """Extra ``include`` values to request on every Responses call.
@@ -318,23 +318,23 @@ class Provider:
         """The built-in default API type, from the model's ``default_api_type`` entry."""
         return self.model_config(model).default_api_type()
 
-    def responses_in_server(self, model: str | None = None) -> bool:
+    def stateless_mode(self, model: str | None = None) -> bool:
         """Whether the model's Responses API keeps conversation state server-side.
 
         A per-provider/model override stored in ``~/.janito/config.json``
-        under ``providers.<name>.models.<model>.responses-in-server`` wins
+        under ``providers.<name>.models.<model>.stateless-mode`` wins
         over the built-in default; models that do not declare the flag (and
         unknown providers) default to ``True`` (the Responses API design).
         """
         # A configured override takes priority over the built-in default.  The
         # import is deferred to avoid a module-level cycle (general_config does
         # not import provider_config at import time either).
-        from ..config_loaders import load_responses_in_server_from_config
+        from ..config_loaders import load_stateless_mode_from_config
 
-        override = load_responses_in_server_from_config(self._name, model)
+        override = load_stateless_mode_from_config(self._name, model)
         if override is not None:
             return override
-        return self.model_config(model).responses_in_server()
+        return self.model_config(model).stateless_mode()
 
     def responses_include(self, model: str | None = None) -> list | None:
         """Extra ``include`` values to request on every Responses call.

@@ -22,17 +22,17 @@ function settingsComponent() {
         message: null,
 
         // Advanced section (per-provider): endpoint override, API type
-        // (Responses/Completions) and the Responses-in-server flag.  Loaded
+        // (Responses/Completions) and the Stateless-mode flag.  Loaded
         // from the selected provider's entry in /api/config/providers and
         // saved per-provider via PATCH /api/config, like the model.
         endpoint: '',
         apiType: '',
-        responsesInServer: false,
+        statelessMode: false,
         // Pristine baselines for the Advanced fields (like originalModel):
         // Save stays disabled until one of them actually changes.
         originalEndpoint: '',
         originalApiType: '',
-        originalResponsesInServer: false,
+        originalStatelessMode: false,
 
         // "Set API Key" modal state
         keyModalOpen: false,
@@ -82,17 +82,17 @@ function settingsComponent() {
                 // configured override ('' = fall back to the built-in
                 // endpoint); the API type is the configured override or the
                 // provider's built-in default (first supported type); the
-                // Responses-in-server flag is the effective value.
+                // Stateless-mode flag is the effective value.
                 this.endpoint = this.selectedProviderDetail?.endpoint || '';
                 this.apiType = this.resolveApiType();
-                this.responsesInServer = !!this.selectedProviderDetail?.responses_in_server;
+                this.statelessMode = !!this.selectedProviderDetail?.stateless_mode;
                 // Record the pristine baseline: nothing to save yet, so the
                 // Save button starts (and stays) disabled until the model
                 // changes, a default is staged, or an API key is staged.
                 this.originalModel = this.model;
                 this.originalEndpoint = this.endpoint;
                 this.originalApiType = this.apiType;
-                this.originalResponsesInServer = this.responsesInServer;
+                this.originalStatelessMode = this.statelessMode;
                 this.defaultChanged = false;
                 this.pendingDefaultProvider = null;
                 this.pendingApiKey = null;
@@ -124,7 +124,7 @@ function settingsComponent() {
             this.model = (p && (p.model || p.default_model)) || '';
             this.endpoint = (p && p.endpoint) || '';
             this.apiType = this.resolveApiType();
-            this.responsesInServer = !!(p && p.responses_in_server);
+            this.statelessMode = !!(p && p.stateless_mode);
         },
 
         // The effective API type for the selected provider: the configured
@@ -159,7 +159,7 @@ function settingsComponent() {
         },
 
         // True while the selected API type is the Responses API, which is
-        // the only mode where the Responses-in-server toggle is meaningful.
+        // the only mode where the Stateless-mode toggle is meaningful.
         get apiTypeIsResponses() {
             return this.apiType === 'Responses';
         },
@@ -229,7 +229,7 @@ function settingsComponent() {
         // True while the drawer holds unsaved changes: the model field
         // differs from the value it loaded with, a different provider was
         // staged as the default, an API key was staged, or one of the
-        // Advanced section fields (endpoint / api type / Responses-in-server)
+        // Advanced section fields (endpoint / api type / Stateless-mode)
         // changed.  The Save button is disabled until one of these happens
         // (issue #38).
         get canSave() {
@@ -239,7 +239,7 @@ function settingsComponent() {
                 this.apiKeyChanged ||
                 this.endpoint !== this.originalEndpoint ||
                 this.apiType !== this.originalApiType ||
-                this.responsesInServer !== this.originalResponsesInServer
+                this.statelessMode !== this.originalStatelessMode
             );
         },
 
@@ -348,7 +348,7 @@ function settingsComponent() {
                 }
 
                 // 2.5. Persist the Advanced section changes (endpoint / API
-                //    type / Responses-in-server) — only the fields that
+                //    type / Stateless-mode) — only the fields that
                 //    actually changed, each scoped to the selected provider.
                 //    An emptied endpoint or API type clears the per-provider
                 //    override on the server (falls back to the built-in).
@@ -359,8 +359,8 @@ function settingsComponent() {
                 if (this.apiType !== this.originalApiType) {
                     advancedPatch.api_type = this.apiType;
                 }
-                if (this.responsesInServer !== this.originalResponsesInServer) {
-                    advancedPatch.responses_in_server = this.responsesInServer;
+                if (this.statelessMode !== this.originalStatelessMode) {
+                    advancedPatch.stateless_mode = this.statelessMode;
                 }
                 if (Object.keys(advancedPatch).length) {
                     advancedPatch.provider = this.selectedProvider;
@@ -402,7 +402,7 @@ function settingsComponent() {
                 this.originalModel = this.model;
                 this.originalEndpoint = this.endpoint;
                 this.originalApiType = this.apiType;
-                this.originalResponsesInServer = this.responsesInServer;
+                this.originalStatelessMode = this.statelessMode;
                 this.defaultChanged = false;
                 this.pendingDefaultProvider = null;
                 this.pendingApiKey = null;
