@@ -11,6 +11,8 @@ Changes since `v4.37.0` (2026-09-03).
 
 ### Changed
 
+- Renamed `TokenStats` to `TurnInfo` (issue #118): pure rename of the
+  turn-usage dataclass with no behavior change.
 - Renamed `responses-in-server` to `stateless-mode` (issue #120): the flag
   is inverted (`stateless-mode: true` = the client re-sends history,
   `false` = server-side state, the default) and the old key is fully

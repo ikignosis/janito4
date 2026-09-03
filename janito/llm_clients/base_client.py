@@ -50,7 +50,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from janito.llm_adapters.observer import NullObserver, TurnObserver
-from janito.llm_adapters.usage import TokenStats
+from janito.llm_adapters.usage import TurnInfo
 from janito.tooling.changes import clear_changes
 from janito.tooling.executor import extract_tool_names
 from janito.tooling.used_files import reset_used_files
@@ -90,20 +90,18 @@ class _HeadlessUIConfig:
 _DEFAULT_UI_CONFIG = _HeadlessUIConfig()
 
 
-def _fold_turn_usage(
-    token_stats: TokenStats | None, usage_info: Any
-) -> TokenStats | None:
+def _fold_turn_usage(token_stats: TurnInfo | None, usage_info: Any) -> TurnInfo | None:
     """Fold one round's usage into the turn-level cumulative totals.
 
     Tool-call rounds would otherwise be lost when the round state is
-    discarded; ``TokenStats`` keeps the final round's counters and sums
+    discarded; ``TurnInfo`` keeps the final round's counters and sums
     last_input/last_cached/last_output across every round of the turn
     (mirrors the web agent loop's ``_fold_turn_usage``).
     """
     if usage_info is None:
         return token_stats
     if token_stats is None:
-        return TokenStats.from_usage(usage_info)
+        return TurnInfo.from_usage(usage_info)
     token_stats.add_round(usage_info)
     return token_stats
 
@@ -192,7 +190,7 @@ class Client:
 
         The end-of-turn report (used files + token-usage summary) is
         delivered by this method itself: it builds a
-        :class:`~janito.llm_adapters.usage.TokenStats`, folds every round's usage
+        :class:`~janito.llm_adapters.usage.TurnInfo`, folds every round's usage
         into it (tool-call rounds included) and hands it -- together with the
         turn's resolved :class:`~janito.llm_clients.api_config.APIConfig`,
         whose provider / model / max tokens feed the report -- to the
@@ -273,10 +271,10 @@ class Client:
         )
 
         # Per-turn usage accumulator: folds every round (tool-call rounds
-        # included) into a TokenStats for the end-of-turn report (issue #82).
+        # included) into a TurnInfo for the end-of-turn report (issue #82).
         # The report's provider / model / max tokens come from self.api_config,
         # handed to the observer alongside the stats when the turn finishes.
-        token_stats: TokenStats | None = None
+        token_stats: TurnInfo | None = None
 
         while True:
             # Build the base call parameters for one round.
@@ -370,7 +368,7 @@ class Client:
         """Finalize the turn and deliver the end-of-turn report.
 
         Runs the concrete client's :meth:`_finalize` hook and then hands the
-        populated client-owned :class:`~janito.llm_adapters.usage.TokenStats`,
+        populated client-owned :class:`~janito.llm_adapters.usage.TurnInfo`,
         together with the turn's resolved ``self.api_config`` (provider / model /
         max tokens) and the turn's elapsed wall-clock time (seconds, from
         ``turn_started`` -- the ``time.monotonic()`` stamp ``run_turn`` records
@@ -548,7 +546,7 @@ class Client:
         """Record the final assistant message and return the result.
 
         The token counters were already folded onto a
-        :class:`~janito.llm_adapters.usage.TokenStats` by :meth:`run_turn`, and the
+        :class:`~janito.llm_adapters.usage.TurnInfo` by :meth:`run_turn`, and the
         report is delivered to the observer's ``on_turn_complete`` right
         after this hook returns -- this hook no longer carries any usage
         display metadata (message count / label are gone; provider / model /

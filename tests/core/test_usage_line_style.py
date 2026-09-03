@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from rich.console import Console  # noqa: E402
 from rich.text import Text  # noqa: E402
 
-from janito.llm_adapters.usage import TokenStats  # noqa: E402
+from janito.llm_adapters.usage import TurnInfo  # noqa: E402
 from janito.ui.usage import _display_usage, display_turn_usage  # noqa: E402
 
 EXPECTED_STYLE = "bright_white on dark_green"
@@ -91,7 +91,7 @@ def test_usage_line_shape_kept():
 def test_display_turn_usage_uses_the_same_style():
     """``display_turn_usage`` (the observer's render path) uses the style too."""
     console = _RecordingConsole(file=StringIO(), force_terminal=False, width=120)
-    token_stats = TokenStats(
+    token_stats = TurnInfo(
         total=100,
         last_input=60,
         last_output=40,

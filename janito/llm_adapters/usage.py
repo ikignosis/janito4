@@ -25,9 +25,9 @@ def normalize_usage(usage: Any) -> dict[str, Any] | None:
     """
     if usage is None:
         return None
-    # Already-normalized TokenStats (the CLI turn report renders the turn
+    # Already-normalized TurnInfo (the CLI turn report renders the turn
     # totals after the API call): pass the counters through unchanged.
-    if isinstance(usage, TokenStats):
+    if isinstance(usage, TurnInfo):
         return {
             "total": usage.total,
             "input": usage.last_input,
@@ -109,7 +109,7 @@ def _add(a: int | None, b: int | None) -> int | None:
 
 
 @dataclass
-class TokenStats:
+class TurnInfo:
     """Normalized token usage for one turn: final round + cumulative totals.
 
     ``total`` / ``last_input`` / ``last_output`` / ``last_cached`` mirror the
@@ -143,7 +143,7 @@ class TokenStats:
     turn_output: int | None = None
 
     @classmethod
-    def from_usage(cls, usage: Any) -> "TokenStats | None":
+    def from_usage(cls, usage: Any) -> "TurnInfo | None":
         """Build from one round's raw usage object (the first round of a turn).
 
         Returns ``None`` when the round reported no usage, so callers can

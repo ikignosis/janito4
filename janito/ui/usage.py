@@ -1,7 +1,7 @@
 """Token-usage summary line and the end-of-turn report (used files + usage).
 
 Rendered by the CLI's ``RichTurnObserver.on_turn_complete`` with the
-client-built :class:`~janito.llm_adapters.usage.TokenStats` and the turn's resolved
+client-built :class:`~janito.llm_adapters.usage.TurnInfo` and the turn's resolved
 :class:`~janito.llm_clients.api_config.APIConfig`.  Pure presentation: the
 token counters are normalized by :func:`janito.llm_adapters.usage.normalize_usage`
 and the cost estimate comes from ``janito.providers.costing``.
@@ -15,7 +15,7 @@ from rich.text import Text
 
 from janito.config_loaders import load_used_files_enabled
 from janito.llm_adapters.usage import (
-    TokenStats,
+    TurnInfo,
     format_elapsed,
     format_tokens,
     normalize_usage,
@@ -54,12 +54,12 @@ def _cost_counters(
 ) -> tuple[int | None, int | None, int | None]:
     """Return the token counters billed for the ``Cost`` estimate.
 
-    A :class:`~janito.llm_adapters.usage.TokenStats` (the turn report) bills the
+    A :class:`~janito.llm_adapters.usage.TurnInfo` (the turn report) bills the
     turn-wide cumulative counters (``turn_input`` / ``turn_output`` /
     ``turn_cached``) so tool-call rounds are included; any other usage shape
     falls back to the final round's counters.
     """
-    if isinstance(usage_info, TokenStats):
+    if isinstance(usage_info, TurnInfo):
         return (
             usage_info.turn_input,
             usage_info.turn_output,
@@ -100,7 +100,7 @@ def _display_usage(
     or model is unknown, or when no cost module exists for the provider.
     The estimate is rendered with an adaptive, magnitude-aware format
     (issue #67), e.g. ``88.0¢ (off-peak)`` / ``1.2$`` / ``0.012¢``.
-    When the usage is a :class:`~janito.llm_adapters.usage.TokenStats` (the turn
+    When the usage is a :class:`~janito.llm_adapters.usage.TurnInfo` (the turn
     report), the cost is billed against the turn-wide cumulative counters
     (``turn_input`` / ``turn_output`` / ``turn_cached``) so tool-call
     rounds are included; otherwise the final round's counters are used.
@@ -159,7 +159,7 @@ def _display_usage(
 
 
 def display_turn_usage(
-    token_stats: TokenStats | None,
+    token_stats: TurnInfo | None,
     api_config: APIConfig,
     *,
     console: Console | None = None,
@@ -169,7 +169,7 @@ def display_turn_usage(
 
     Rendered by the CLI's ``RichTurnObserver.on_turn_complete`` -- which
     ``Client.run_turn`` invokes at the end of every turn -- with the
-    client-built :class:`~janito.llm_adapters.usage.TokenStats` (every round's usage
+    client-built :class:`~janito.llm_adapters.usage.TurnInfo` (every round's usage
     folded into it) and the turn's resolved
     :class:`~janito.llm_clients.api_config.APIConfig`, whose
     ``provider`` / ``model`` / ``max_input_tokens`` / ``max_output_tokens``

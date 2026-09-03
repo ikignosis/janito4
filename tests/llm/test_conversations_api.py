@@ -1204,7 +1204,7 @@ def test_make_turn_func_responses_dispatch(monkeypatch):
     # previous_messages IS forwarded by the union signature (the Responses
     # backend ignores it -- each _init_conversation_state picks its own).
     assert captured["previous_messages"] == [{"role": "system", "content": "x"}]
-    # No out-param is threaded: the client owns the TokenStats and delivers
+    # No out-param is threaded: the client owns the TurnInfo and delivers
     # the end-of-turn report itself (issue #82).
     assert "usage_out" not in captured
 
@@ -1243,7 +1243,7 @@ def test_make_turn_func_completions_dispatch(monkeypatch):
     assert result == "completions answer"
     assert captured["config"].api_type == "Completions"
     assert captured["previous_messages"] == [{"role": "user", "content": "hello"}]
-    # No out-param is threaded: the client owns the TokenStats and delivers
+    # No out-param is threaded: the client owns the TurnInfo and delivers
     # the end-of-turn report itself (issue #82).
     assert "usage_out" not in captured
 

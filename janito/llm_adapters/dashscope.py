@@ -287,7 +287,7 @@ class DashScopeTurnAccumulator:
         """The raw usage object of this round, or ``None`` when unreported.
 
         Uniform accessor used by the web loop to fold each round's usage into
-        the turn-level cumulative totals (:class:`TokenStats`).
+        the turn-level cumulative totals (:class:`TurnInfo`).
         """
         if (
             self.input_tokens is None

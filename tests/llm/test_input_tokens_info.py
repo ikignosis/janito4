@@ -205,14 +205,14 @@ if pytest is not None:
         assert "Cost: N/A" in text
 
     def test_usage_line_cost_uses_turn_specific_counters(monkeypatch):
-        """TokenStats bills the turn-wide cumulative counters for the Cost.
+        """TurnInfo bills the turn-wide cumulative counters for the Cost.
 
         The displayed In/Out/Cached keep the final round's counters, but the
         cost must be computed from the turn totals (tool-call rounds
         included).  DeepSeek V4-Flash off-peak: $0.22 in (miss) + $0.66 out
         + $0.007 cache-hit per 1M tokens.
         """
-        from janito.llm_adapters.usage import TokenStats
+        from janito.llm_adapters.usage import TurnInfo
 
         # Pin the request time to a weekday off-peak hour (Monday 12:00 UTC)
         # so the estimate is deterministic.
@@ -222,7 +222,7 @@ if pytest is not None:
         )
         # Final round reports 1M in / 1M out, but the turn accumulated
         # 2M in (500k cached) / 2M out across tool-call rounds.
-        stats = TokenStats(
+        stats = TurnInfo(
             total=1_000_000,
             last_input=1_000_000,
             last_output=1_000_000,

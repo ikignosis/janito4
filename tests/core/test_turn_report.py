@@ -3,7 +3,7 @@ Tests for the end-of-turn report.
 
 The CLI no longer prints the token-usage summary inside the per-client
 ``_finalize`` helpers.  Instead ``Client.run_turn`` builds a
-:class:`~janito.llm_adapters.usage.TokenStats` per turn, folds every round's usage
+:class:`~janito.llm_adapters.usage.TurnInfo` per turn, folds every round's usage
 into it (tool-call rounds included), and delivers it -- together with the
 turn's resolved ``APIConfig``, whose provider / model / max tokens feed the
 report -- to the injected observer's ``on_turn_complete`` when the turn
@@ -27,7 +27,7 @@ from rich.console import Console  # noqa: E402
 import janito.config_dir as config_dir_mod  # noqa: E402
 import janito.tooling.tools_registry as tools_registry  # noqa: E402
 import janito.tooling.used_files as used_files  # noqa: E402
-from janito.llm_adapters.usage import TokenStats, normalize_usage  # noqa: E402
+from janito.llm_adapters.usage import TurnInfo, normalize_usage  # noqa: E402
 from janito.ui.usage import display_turn_usage  # noqa: E402
 
 
@@ -56,7 +56,7 @@ def _token_stats(**kw):
         turn_output=120,
     )
     defaults.update(kw)
-    return TokenStats(**defaults)
+    return TurnInfo(**defaults)
 
 
 def _config(**kw):
@@ -73,7 +73,7 @@ def _config(**kw):
     return make_config(**defaults)
 
 
-class TestNormalizeUsageWithTokenStats:
+class TestNormalizeUsageWithTurnInfo:
     def test_passes_token_stats_through(self):
         stats = _token_stats()
         assert normalize_usage(stats) == {
@@ -209,7 +209,7 @@ class TestDisplayTurnUsage:
 class TestRunTurnDeliversTurnReport:
     """``Client.run_turn`` delivers the end-of-turn report to the injected
     observer's ``on_turn_complete`` when the turn finishes (the CLI wrapper
-    that used to do it is gone, and the client owns the TokenStats -- there
+    that used to do it is gone, and the client owns the TurnInfo -- there
     is no caller-supplied out-param, issue #82)."""
 
     def _client(self, monkeypatch, observer):
@@ -257,12 +257,12 @@ class TestRunTurnDeliversTurnReport:
         result = client.run_turn("hi", tools=[])
         assert result == "final answer"
         # on_turn_complete was invoked exactly once, with the client-built
-        # TokenStats (usage folded from the stream round), the client's
+        # TurnInfo (usage folded from the stream round), the client's
         # resolved APIConfig (provider/model come from the config) and the
         # turn's elapsed wall-clock time (issue #99).
         assert len(recorded) == 1
         u, api_config, elapsed_time = recorded[0]
-        assert isinstance(u, TokenStats)
+        assert isinstance(u, TurnInfo)
         assert u.turn_input == 60
         assert u.turn_output == 40
         assert api_config.provider == "openai"
@@ -271,7 +271,7 @@ class TestRunTurnDeliversTurnReport:
         assert elapsed_time >= 0
 
     def test_run_turn_always_delivers_turn_report(self, monkeypatch):
-        """The report is always delivered -- the client owns the TokenStats
+        """The report is always delivered -- the client owns the TurnInfo
         and does not opt in through a caller-supplied out-param (issue #82)."""
         called = []
 
@@ -289,7 +289,7 @@ class TestRunTurnDeliversTurnReport:
         client.run_turn("hi", tools=[])
         assert len(called) == 1
         u, api_config, _elapsed = called[0]
-        assert isinstance(u, TokenStats)
+        assert isinstance(u, TurnInfo)
         assert api_config.model == "gpt-4"
         # The fake stream reported usage, so the report is populated.
         assert u.total is not None

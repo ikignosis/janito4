@@ -36,7 +36,7 @@ from janito.llm_adapters.gemini import accumulator as gemini_accumulator
 from janito.llm_adapters.gemini import build_call_kwargs as build_gemini_kwargs
 from janito.llm_adapters.responses import accumulator as responses_accumulator
 from janito.llm_adapters.responses import build_call_kwargs as build_responses_kwargs
-from janito.llm_adapters.usage import TokenStats
+from janito.llm_adapters.usage import TurnInfo
 from janito.providers.costing import get_provider_cost_value
 from janito.providers.registry import get_provider
 from janito.runtime_config import resolve_runtime_config
@@ -219,22 +219,22 @@ async def _stream_turn(client, runner, call_kwargs, acc):
         yield ev
 
 
-def _fold_turn_usage(turn_stats: TokenStats | None, acc) -> TokenStats | None:
+def _fold_turn_usage(turn_stats: TurnInfo | None, acc) -> TurnInfo | None:
     """Fold one round's usage into the turn-level cumulative totals.
 
     Each round's accumulator is discarded when the loop continues, so the
-    usage of tool-call rounds would otherwise be lost; ``TokenStats`` keeps
+    usage of tool-call rounds would otherwise be lost; ``TurnInfo`` keeps
     the final round's counters and sums last_input/last_cached/last_output
     across every round of the turn.
     """
     round_usage = acc.usage_object()
     if turn_stats is None:
-        return TokenStats.from_usage(round_usage)
+        return TurnInfo.from_usage(round_usage)
     turn_stats.add_round(round_usage)
     return turn_stats
 
 
-def _attach_turn_stats(usage_event, turn_stats: TokenStats | None) -> None:
+def _attach_turn_stats(usage_event, turn_stats: TurnInfo | None) -> None:
     """Attach the cumulative turn totals to the final-round usage event."""
     if turn_stats is None:
         return
@@ -244,7 +244,7 @@ def _attach_turn_stats(usage_event, turn_stats: TokenStats | None) -> None:
 
 
 def _record_web_turn(
-    provider: str | None, model: str | None, turn_stats: TokenStats | None
+    provider: str | None, model: str | None, turn_stats: TurnInfo | None
 ) -> None:
     """Append one overall-use accounting row for a completed web turn.
 
@@ -363,7 +363,7 @@ async def stream_prompt(
 
     # Cumulative turn totals: the usage of tool-call rounds would otherwise be
     # lost when the accumulator is discarded each round (see _fold_turn_usage).
-    turn_stats: TokenStats | None = None
+    turn_stats: TurnInfo | None = None
 
     first_turn = True
     while True:

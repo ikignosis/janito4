@@ -46,7 +46,7 @@ def _make_turn_func(
 
     The end-of-turn report (used files + token-usage summary) and the
     overall-use accounting row are delivered by ``Client.run_turn`` itself:
-    it builds the ``TokenStats`` internally (folding every round's usage into
+    it builds the ``TurnInfo`` internally (folding every round's usage into
     it, tool-call rounds included) and hands it -- together with the resolved
     ``APIConfig``, whose provider / model / max tokens feed the report -- to
     the injected observer's ``on_turn_complete`` when the turn finishes
@@ -91,7 +91,7 @@ def _make_turn_func(
         # time (the shell's /thinking toggle rebuilds the config via the
         # factory).
         # The end-of-turn report is delivered by Client.run_turn itself to
-        # the injected observer's on_turn_complete (client-owned TokenStats
+        # the injected observer's on_turn_complete (client-owned TurnInfo
         # + the resolved APIConfig, issue #82) -- the closure has no out-param
         # to pass.
         return client.run_turn(

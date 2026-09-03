@@ -15,7 +15,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from janito.llm_adapters.observer import NullObserver
-from janito.llm_adapters.usage import TokenStats
+from janito.llm_adapters.usage import TurnInfo
 from janito.providers.costing import get_provider_cost_value
 from janito.tooling.accounting import record_turn
 
@@ -154,7 +154,7 @@ class RichTurnObserver(NullObserver):
 
         Invoked by ``Client.run_turn`` at the end of every turn that reported
         token usage, with the client-built
-        :class:`~janito.llm_adapters.usage.TokenStats` and the resolved
+        :class:`~janito.llm_adapters.usage.TurnInfo` and the resolved
         :class:`~janito.llm_clients.api_config.APIConfig` for the turn
         (provider / model / max tokens come from the api_config).
         ``elapsed_time`` is the turn's wall-clock duration in seconds
@@ -196,10 +196,10 @@ class SilentTurnObserver(NullObserver):
         time.sleep(retry_interval)
 
 
-def _record_accounting(token_stats: TokenStats | None, api_config: APIConfig) -> None:
+def _record_accounting(token_stats: TurnInfo | None, api_config: APIConfig) -> None:
     """Append one overall-use accounting row for a completed turn (best effort).
 
-    Uses the turn-wide cumulative counters (:class:`~janito.llm_adapters.usage.TokenStats`
+    Uses the turn-wide cumulative counters (:class:`~janito.llm_adapters.usage.TurnInfo`
     accumulates every round of the turn, tool-call rounds included) so the
     accounting log reflects the billed usage; falls back to the final round's
     counters when the turn-wide ones were not reported.  The provider / model

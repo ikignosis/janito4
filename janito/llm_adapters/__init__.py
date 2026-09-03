@@ -14,7 +14,7 @@ normalization) are the same in both, so they live here:
 - :mod:`~.anthropic`   — native Anthropic SDK kwargs, conversion and accumulator.
 - :mod:`~.dashscope`   — native DashScope SDK kwargs and accumulator.
 - :mod:`~.gemini`      — native Gemini SDK kwargs, conversion and accumulator.
-- :mod:`~.usage`       — token-usage normalization (``TokenStats``) shared by both loops.
+- :mod:`~.usage`       — token-usage normalization (``TurnInfo``) shared by both loops.
 - :mod:`~.observer`    — the ``TurnObserver`` protocol + headless ``NullObserver``
   (the UI-observability contract the turn pipeline drives).
 - :mod:`~.sdk`         — raw SDK response-object introspection for the stream consumers.

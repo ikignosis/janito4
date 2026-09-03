@@ -235,10 +235,10 @@ The pipeline per turn:
    injected `TurnObserver`, see below) → if tool calls were
    requested, execute them (see [Tool execution](#tool-execution)) and loop
    again; otherwise finalize (record the assistant message, return value).
-   Each round's usage is folded into a `TokenStats` (`janito/llm_adapters/usage.py`);
+   Each round's usage is folded into a `TurnInfo` (`janito/llm_adapters/usage.py`);
    `Client.run_turn` itself delivers the end-of-turn reports (used files +
    token-usage summary) to the injected observer's `on_turn_complete` when
-   the turn finishes, passing the `TokenStats` together with the turn's
+   the turn finishes, passing the `TurnInfo` together with the turn's
    resolved `APIConfig` (provider / model / max tokens come from the config)
    -- there is no caller-supplied out-param -- so the `_finalize`
    hooks stay display-free and every CLI entry point (interactive shell,
@@ -356,7 +356,7 @@ the web loop bridges back into it at three seams, each one a thread hop:
 
 **The payoff.** Because async is confined to `janito/web/`, everything the
 two loops share — `llm_adapters` (call-kwargs builders,
-accumulators, the DashScope endpoint-routing helpers, `TokenStats`),
+accumulators, the DashScope endpoint-routing helpers, `TurnInfo`),
 `tooling`, the `TurnObserver` protocol — is
 sync-pure and usable without an event loop anywhere in sight. That is what
 makes the adapter layer genuinely shared — shared to the point that `web`
