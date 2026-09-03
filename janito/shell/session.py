@@ -86,7 +86,6 @@ class _SessionMixin:
         tokens.append(("class:key-label", "[F2] clear "))
         tokens.append(("class:key-label", "[F12] do-it "))
         tokens.append(("class:key-label", "[/exit] end "))
-        tokens.append(("class:key-label", "[!cmd] shell "))
 
         # Multiline mode indicator
         if getattr(self, "multiline_mode", False):
