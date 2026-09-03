@@ -78,6 +78,10 @@ Changes since `v4.36.0` (2026-09-01).
 
 ### Fixed
 
+- Test isolation for the AskUser gate (issue #125): `main(--web)` enabled
+  the global browser-prompts flag without reset, leaking into later
+  AskUser `should_load` tests. An autouse fixture in `tests/conftest.py`
+  now resets the flag around every test.
 - Server-side Responses instructions persistence: the ``instructions``
   parameter was only sent on the first turn of a server-side conversation,
   but some providers (e.g. Meta) do not persist it across

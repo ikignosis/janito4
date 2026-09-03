@@ -4,9 +4,25 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from janito.llm_adapters.observer import NullObserver
 from janito.llm_clients.api_config import APIConfig
 from janito.ui.config import UIConfig
+
+
+@pytest.fixture(autouse=True)
+def _reset_browser_prompts_flag():
+    """Isolate the mid-turn question surface flag between tests (issue #125).
+
+    ``main(--web)`` enables it globally; without a reset later AskUser gate
+    tests see a stale True.
+    """
+    import janito.tooling.prompting as prompting
+
+    prompting._browser_prompts_enabled = False
+    yield
+    prompting._browser_prompts_enabled = False
 
 
 def make_config(
