@@ -90,7 +90,7 @@ if pytest is not None:
                 yield None  # pragma: no cover - keeps this a generator
 
         c = ResponsesStreamConsumer()
-        content, reasoning, tools, usage, response_id, raw_attrs = c.consume(
+        content, reasoning, tools, usage, response_id, raw_attrs, _items = c.consume(
             events(), cancel_event=cancel
         )
         # Cancel short-circuit must not raise the empty-stream error.

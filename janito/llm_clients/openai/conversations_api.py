@@ -24,12 +24,18 @@ the caller.
 
 **Stateless endpoints.** Some providers' ``/responses`` endpoint is stateless
 (``responses_in_server`` is ``False`` in the provider's model config, e.g.
-DeepSeek):
+DeepSeek and Meta's Muse Spark):
 it cannot resolve a ``previous_response_id`` and rejects tool outputs that
 reference it. For those providers the client falls back to the Completions
 model of ownership: the full conversation is tracked as Responses input items
 (``ConversationResult.input_items``) and re-sent on every request via
 ``previous_items``, with the system instructions folded into the first turn.
+The stateless requests also carry ``store: False`` (the server keeps no copy
+of the conversation) and the model's declared ``responses_include`` values
+(e.g. Meta's ``reasoning.encrypted_content``); the finished ``reasoning``
+output items returned in the stream (the encrypted chain of thought) are
+replayed verbatim in the next round's ``input`` so the cross-turn reasoning
+survives.
 
 The Responses API stream handling lives in
 :mod:`janito.llm_clients.openai.responses_stream`; the shared LLM-side client
@@ -353,6 +359,7 @@ class ResponsesClient(Client):
                 usage_info,
                 stream_response_id,
                 raw_attrs,
+                reasoning_items,
             ) = self._invoke_stream_runner(
                 _stream_response, client, call_kwargs, tools_schemas
             )
@@ -360,6 +367,17 @@ class ResponsesClient(Client):
             # stateless providers never send previous_response_id.
             if state["responses_in_server"]:
                 state["response_id"] = stream_response_id
+            else:
+                # Stateless: record the finished ``reasoning`` output items
+                # (the encrypted chain of thought, e.g. Meta's Muse Spark)
+                # in the client-side history BEFORE the assistant message /
+                # tool calls are appended by ``_handle_tool_calls`` -- the
+                # Responses API requires a reasoning item to be followed by
+                # an assistant message or a function_call, and the stream
+                # emits them in that order.
+                state["input_items"].extend(reasoning_items)
+                if state["turn_items"] is not None:
+                    state["turn_items"].extend(reasoning_items)
             # Safety net: a server-side provider that never reported a
             # response id and produced neither content nor tool calls means
             # the request failed without a proper error event. Raise a clear

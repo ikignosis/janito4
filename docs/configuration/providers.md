@@ -28,6 +28,7 @@ The API type is selected per provider with `--set api-type=...` (see the
 | `alibaba` | Alibaba Cloud DashScope (Qwen models) |
 | `deepseek` | DeepSeek |
 | `minimax` | MiniMax AI (MiniMax models) |
+| `meta` | Meta Model API (Muse Spark models) |
 | `xiaomi` | Xiaomi AI (Mimo models) |
 | `moonshot` | Moonshot AI (Kimi models) |
 | `zai` | Z.AI (GLM models) |
@@ -557,6 +558,97 @@ Model selection is restricted to the built-in models above.
 janito --set provider=minimax --set model=MiniMax-M3
 # Step 2: Store API key
 janito --set-api-key="your-minimax-api-key" --provider minimax
+# Step 3: Run prompt
+janito "Explain quantum computing"
+```
+
+## Meta (Muse Spark)
+
+Use Meta Model API to access Muse Spark models.
+
+> **Get an API key:** Visit [dev.meta.ai](https://dev.meta.ai/) to create an account and generate a Model API key.
+
+### Configuration
+
+```bash
+# Step 1: Set provider and model
+janito --set provider=meta --set model=muse-spark-1.3
+# Step 2: Store API key
+janito --set-api-key="your-model-api-key" --provider meta
+```
+
+### API Types and Base URLs
+
+Meta Model API is drop-in compatible with the OpenAI SDK: the single base
+URL `https://api.meta.ai/v1` serves both the OpenAI-compatible **Responses**
+API (the built-in default) and the **Chat Completions** API. The Chat
+Completions API can be selected per provider or per call with:
+
+```bash
+# Per provider (persisted)
+janito --provider meta --set api-type=Completions
+
+# Per call
+janito --provider meta --api-type completions "Your prompt"
+```
+
+### Stateless Responses Handling
+
+Muse Spark's Responses endpoint is handled **statelessly**: janito re-sends
+the full conversation as typed input items on every request and never
+chains with `previous_response_id` (per [Meta's
+docs](https://dev.meta.ai/docs/protocols/responses), the stateless
+encrypted-replay path — `store: false` + `include:
+reasoning.encrypted_content` — is the recommended agentic mode and cannot
+be combined with `previous_response_id`). Every request sends:
+
+- `store: false` — the server keeps no copy of the conversation;
+- `include: ["reasoning.encrypted_content"]` — the chain of thought is only
+  exposed in encrypted form; the `reasoning` output items returned in each
+  response are replayed verbatim in the next request's `input`, preserving
+  cross-turn reasoning for tool loops.
+
+You can inspect the resolved mode with `janito --info` or `/status`
+(`Responses In Server: stateless (client re-sends history)`).
+
+### Popular Models
+
+| Model | Description |
+|-------|-------------|
+| `muse-spark-1.3` | Default model, trained for agentic workflows (1M context, built-in) |
+| `muse-spark-1.3-contributor` | Cheaper contributor tier of the same model |
+
+Model selection is restricted to the built-in models above.
+`janito --list-models` shows the accepted names.
+
+### Reasoning Level
+
+Muse Spark is a reasoning model: it works through a problem internally
+before producing an answer. Reasoning depth is configured via the
+OpenAI-compatible `reasoning_effort` parameter, which accepts `minimal`,
+`low`, `medium` and `high` (Meta also accepts `xhigh`, but it maps to the
+same reasoning strength as `high`).
+
+```bash
+# Override the reasoning depth for a single call
+janito --reasoning-effort high "Your prompt"
+
+# Set a per-provider default in the config
+janito --provider meta --set reasoning-effort=medium
+```
+
+Resolution order: `--reasoning-effort` > per-provider config value
+(`--set reasoning-effort=...`) > the API's own default (Meta has not
+finalized its default effort, so janito declares none and the API's default
+applies).
+
+### Example
+
+```bash
+# Step 1: Set provider and model
+janito --set provider=meta --set model=muse-spark-1.3
+# Step 2: Store API key
+janito --set-api-key="your-model-api-key" --provider meta
 # Step 3: Run prompt
 janito "Explain quantum computing"
 ```

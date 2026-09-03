@@ -127,12 +127,32 @@ def _build_call_kwargs(
     ``provider`` enables the Gemini-flavor guard in
     :func:`apply_thinking_to_extra_body` (Gemini-flavored providers do not
     accept ``enable_thinking``).
+
+    Stateless providers (``responses_in_server`` False) also send
+    ``store: False`` (the server keeps no copy of the conversation) and the
+    model's declared ``responses_include`` values (e.g. Meta's
+    ``reasoning.encrypted_content``, so the reasoning output items returned
+    in ``output`` carry the encrypted chain of thought that stateless
+    replay needs).
     """
     call_kwargs: dict[str, Any] = {
         "model": model,
         "input": input_items,
         "temperature": 1.0,
     }
+
+    if not responses_in_server:
+        # Stateless providers: the full history is re-sent in ``input`` and
+        # the server must keep no copy of the conversation (Meta's docs pair
+        # the encrypted reasoning replay with store:false).
+        call_kwargs["store"] = False
+        # Request the model's declared optional output fields (e.g. Meta's
+        # "reasoning.encrypted_content") so the reasoning output items carry
+        # the encrypted chain of thought needed for stateless replay.
+        found = get_provider(provider) if provider else None
+        include = found.responses_include(model) if found is not None else None
+        if isinstance(include, (list, tuple)) and include:
+            call_kwargs["include"] = [str(entry) for entry in include]
 
     # Add max_output_tokens if max output tokens is set in config
     if max_output_tokens is not None:
@@ -166,10 +186,14 @@ def _build_call_kwargs(
     # providers never chain: the full history is already in ``input``.
     if response_id is not None:
         call_kwargs["previous_response_id"] = response_id
-    elif responses_in_server and instructions:
-        # First turn of a server-side conversation: system instructions
-        # are only sent here; the server folds them into the stored
-        # conversation.
+
+    # System instructions: stateless providers fold them into the client-side
+    # items history (sent with every request), so no separate parameter is
+    # needed.  Server-side providers always send them -- some (e.g. Meta)
+    # do not persist ``instructions`` across ``previous_response_id`` turns
+    # and require it on every request; re-sending is also correct for those
+    # that do fold it into the stored conversation (OpenAI).
+    if responses_in_server and instructions:
         call_kwargs["instructions"] = instructions
 
     # The effective model's built-in (native) tools (e.g. Alibaba/Qwen's

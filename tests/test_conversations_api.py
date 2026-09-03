@@ -118,6 +118,7 @@ def test_consume_stream_assembles_text_and_usage():
         usage,
         response_id,
         raw_attrs,
+        _reasoning_items,
     ) = _consume_response_stream(events)
     assert content == "Hello world"
     assert reasoning is None
@@ -157,6 +158,7 @@ def test_consume_stream_assembles_split_tool_call_arguments():
         usage,
         response_id,
         raw_attrs,
+        _reasoning_items,
     ) = _consume_response_stream(events)
     assert content == "Let me check"
     assert reasoning == "thinking..."
@@ -182,7 +184,7 @@ def test_consume_stream_prefers_full_arguments_from_done_event():
             _Event("response.completed", response=_Response("resp_3")),
         ]
     )
-    _, _, tools, _, response_id, _ = _consume_response_stream(events)
+    _, _, tools, _, response_id, _, _ = _consume_response_stream(events)
     assert tools == [{"call_id": "call_9", "name": "run_bash", "arguments": '{"x": 1}'}]
     assert response_id == "resp_3"
 
@@ -506,6 +508,158 @@ def test_run_turn_stateless_continues_with_previous_items(monkeypatch):
     ]
 
 
+class _ReasoningItem:
+    """Fake finished ``reasoning`` output item (encrypted chain of thought)."""
+
+    def __init__(self, id, encrypted_content, summary=None):
+        self.id = id
+        self.type = "reasoning"
+        self.encrypted_content = encrypted_content
+        self.summary = summary if summary is not None else []
+
+
+def test_run_turn_stateless_sends_store_false_and_include(monkeypatch):
+    """Stateless providers send ``store: False`` plus the model's declared
+    ``responses_include`` values (e.g. Meta's reasoning.encrypted_content)
+    on every request, and never chain with a response id."""
+    monkeypatch.setattr(
+        "janito.llm_clients.openai.responses_state.get_provider",
+        lambda p: mock.Mock(
+            responses_in_server=lambda model=None: False,
+            responses_include=lambda model=None: ["reasoning.encrypted_content"],
+        ),
+    )
+    seen = []
+
+    def create(**kwargs):
+        seen.append(dict(kwargs, input=list(kwargs["input"])))
+        assert kwargs["store"] is False
+        assert kwargs["include"] == ["reasoning.encrypted_content"]
+        assert "previous_response_id" not in kwargs
+        return _stream(
+            [
+                _Event("response.created", response=_Response("resp_n")),
+                _Event("response.output_text.delta", delta="ok"),
+                _Event("response.completed", response=_Response("resp_n")),
+            ]
+        )
+
+    _mock_run_turn(monkeypatch, create)
+    result = api.run_turn(_responses_config(), "Hello", tools=[])
+    assert result.response_id is None
+
+
+def test_run_turn_stateless_replays_reasoning_items(monkeypatch):
+    """Stateless providers replay the finished ``reasoning`` output items
+    (the encrypted chain of thought) in the next round's ``input``, in the
+    order the stream emitted them (reasoning item -> assistant message /
+    function_call) and keep them in the items carried across turns."""
+    monkeypatch.setattr(
+        "janito.llm_clients.openai.responses_state.get_provider",
+        lambda p: mock.Mock(
+            responses_in_server=lambda model=None: False,
+            responses_include=lambda model=None: ["reasoning.encrypted_content"],
+        ),
+    )
+    seen = []
+    reasoning_item = {
+        "type": "reasoning",
+        "id": "rs_1",
+        "summary": [],
+        "encrypted_content": "ENCRYPTED",
+    }
+
+    def create(**kwargs):
+        seen.append(dict(kwargs, input=list(kwargs["input"])))
+        round_no = len(seen)
+        if round_no == 1:
+            return _stream(
+                [
+                    _Event("response.created", response=_Response("resp_a")),
+                    _Event(
+                        "response.output_item.done",
+                        item=_ReasoningItem("rs_1", "ENCRYPTED"),
+                    ),
+                    _Event("response.output_text.delta", delta="Working"),
+                    _Event(
+                        "response.output_item.done",
+                        item=_FunctionCallItem("it1", "call_1", "list_files", "{}"),
+                    ),
+                    _Event(
+                        "response.completed",
+                        response=_Response("resp_a", usage=_Usage()),
+                    ),
+                ]
+            )
+        # Round 2 (tool round): the reasoning item is replayed verbatim,
+        # followed by the assistant text and the function_call items.
+        assert kwargs["input"] == [
+            {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": "List files"}],
+            },
+            reasoning_item,
+            {
+                "type": "message",
+                "role": "assistant",
+                "content": [{"type": "output_text", "text": "Working"}],
+            },
+            {
+                "type": "function_call",
+                "call_id": "call_1",
+                "name": "list_files",
+                "arguments": "{}",
+            },
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": json.dumps({"success": True}),
+            },
+        ]
+        return _stream(
+            [
+                _Event("response.created", response=_Response("resp_b")),
+                _Event("response.output_text.delta", delta="Here are the files"),
+                _Event(
+                    "response.completed",
+                    response=_Response("resp_b", usage=_Usage()),
+                ),
+            ]
+        )
+
+    _mock_run_turn(monkeypatch, create)
+
+    result = api.run_turn(_responses_config(), "List files", tools=None)
+    assert result.content == "Here are the files"
+    # The final items history carries the reasoning item too, positioned
+    # between the user prompt and the assistant turn it belongs to.
+    assert result.input_items[1] == reasoning_item
+
+
+def test_run_turn_server_side_never_sends_store_or_include(monkeypatch):
+    """Server-side providers (e.g. OpenAI) send neither ``store`` nor
+    ``include``: the defaults apply (store:true is what makes the
+    previous_response_id chaining work)."""
+    seen = []
+
+    def create(**kwargs):
+        seen.append(dict(kwargs, input=kwargs["input"]))
+        assert "store" not in kwargs
+        assert "include" not in kwargs
+        return _stream(
+            [
+                _Event("response.created", response=_Response("resp_n")),
+                _Event("response.output_text.delta", delta="ok"),
+                _Event("response.completed", response=_Response("resp_n")),
+            ]
+        )
+
+    _mock_run_turn(monkeypatch, create)
+    result = api.run_turn(_responses_config(), "Hello", tools=None)
+    assert result.response_id == "resp_n"
+
+
 def test_run_turn_plain_response(monkeypatch):
     seen = []
 
@@ -588,7 +742,11 @@ def test_run_turn_raises_when_no_response_id_and_no_output(monkeypatch):
         api.run_turn(_responses_config(), "Hello", tools=None)
 
 
-def test_run_turn_sends_instructions_only_on_first_turn(monkeypatch):
+def test_run_turn_sends_instructions_on_every_server_side_turn(monkeypatch):
+    """Server-side providers always re-send ``instructions``: some (e.g.
+    Meta) do not persist them across ``previous_response_id`` turns and
+    require the parameter on every request; re-sending is also correct for
+    providers that fold them into the stored conversation (OpenAI)."""
     seen = []
 
     def create(**kwargs):
@@ -607,8 +765,8 @@ def test_run_turn_sends_instructions_only_on_first_turn(monkeypatch):
     api.run_turn(_responses_config(), "First", instructions="Be helpful", tools=[])
     assert seen[-1]["instructions"] == "Be helpful"
 
-    # Continuing a conversation: instructions are NOT re-sent; the turn is
-    # chained via previous_response_id instead.
+    # Continuing a conversation: instructions are re-sent (the turn is
+    # chained via previous_response_id, which does not carry them).
     api.run_turn(
         _responses_config(),
         "Follow up",
@@ -616,8 +774,25 @@ def test_run_turn_sends_instructions_only_on_first_turn(monkeypatch):
         instructions="Be helpful",
         tools=[],
     )
-    assert "instructions" not in seen[-1]
+    assert seen[-1]["instructions"] == "Be helpful"
     assert seen[-1]["previous_response_id"] == "resp_prev"
+
+    # Tool-call rounds re-send them too (same chaining rule applies).
+    api.run_turn(
+        _responses_config(),
+        "Third",
+        previous_response_id="resp_prev",
+        previous_items=[
+            {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": "pending"}],
+            }
+        ],
+        instructions="Be helpful",
+        tools=[],
+    )
+    assert seen[-1]["instructions"] == "Be helpful"
 
 
 def test_run_turn_server_side_resends_pending_items_with_completed_id(

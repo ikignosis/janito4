@@ -308,6 +308,54 @@ if pytest is not None:
                 == max_output
             )
 
+    def test_meta_provider():
+        info = get_provider_config("meta")
+        assert info is not None
+        assert info["default_model"] == "muse-spark-1.3"
+        model_entry = info["models"]["muse-spark-1.3"]
+        # 1M context window per the official model page.
+        assert model_entry["max_input_tokens"] == 1048576  # 1M (2**20)
+        # No built-in output limit: Meta does not publish one, so the
+        # caller's own default applies.
+        assert model_entry.get("max_output_tokens") is None
+        assert info["endpoint"] == "https://api.meta.ai/v1"
+        # Responses is the built-in default API type; the Chat Completions
+        # API remains fully supported.  No per-API-type endpoint map: the
+        # same base URL serves both OpenAI-compatible APIs.
+        assert model_entry["supported_api_types"] == ["Responses", "Completions"]
+        assert model_entry["default_api_type"] == "Responses"
+        # Meta's /responses endpoint is stateless for cross-turn continuity
+        # (the docs recommend store:false + encrypted reasoning replay, which
+        # cannot be combined with previous_response_id), and the chain of
+        # thought is only exposed in encrypted form.
+        assert model_entry["responses_in_server"] is False
+        assert model_entry["responses_include"] == ["reasoning.encrypted_content"]
+        assert get_endpoint_by_api_type("meta") is None
+        # No built-in thinking/preserve_thinking flags; the built-in default
+        # reasoning effort is the lowest supported level (minimal).
+        assert "thinking" not in model_entry
+        assert "preserve_thinking" not in model_entry
+        assert get_default_reasoning_effort_from_provider("meta") == "minimal"
+        # The contributor tier ships the same model capabilities under a
+        # separate model ID; only the pricing differs.
+        contributor_entry = info["models"]["muse-spark-1.3-contributor"]
+        assert contributor_entry["supported_api_types"] == ["Responses", "Completions"]
+        assert contributor_entry["default_api_type"] == "Responses"
+        assert contributor_entry["responses_in_server"] is False
+        assert contributor_entry["responses_include"] == ["reasoning.encrypted_content"]
+        assert contributor_entry["max_input_tokens"] == 1048576
+        # Case-insensitive lookups.
+        assert get_provider_config("Meta")["endpoint"] == "https://api.meta.ai/v1"
+        assert get_base_url_from_provider("meta") == "https://api.meta.ai/v1"
+        assert get_default_model_from_provider("meta") == "muse-spark-1.3"
+        assert get_default_max_input_tokens_from_provider("meta") == 1048576
+        assert (
+            get_default_max_input_tokens_from_provider(
+                "meta", "muse-spark-1.3-contributor"
+            )
+            == 1048576
+        )
+
     def test_google_provider():
         info = get_provider_config("google")
         assert info is not None
@@ -481,6 +529,29 @@ if pytest is not None:
         for entry in get_supported_reasoning_efforts_from_provider("openai"):
             assert "effort" in entry
             assert "description" in entry
+        # Meta's Muse Spark models declare reasoning levels too
+        # (minimal/low/medium/high per the Meta Model API reasoning
+        # cookbook), with the lowest (minimal) as the built-in default.
+        assert get_default_reasoning_effort_from_provider("meta") == "minimal"
+        assert get_supported_reasoning_efforts_from_provider("meta") is not None
+        assert [
+            entry["effort"]
+            for entry in get_supported_reasoning_efforts_from_provider("meta")
+        ] == ["minimal", "low", "medium", "high"]
+        for entry in get_supported_reasoning_efforts_from_provider("meta"):
+            assert "effort" in entry
+            assert "description" in entry
+        # The contributor-tier model declares the same levels.
+        supported = get_supported_reasoning_efforts_from_provider(
+            "meta", "muse-spark-1.3-contributor"
+        )
+        assert supported is not None
+        assert [entry["effort"] for entry in supported] == [
+            "minimal",
+            "low",
+            "medium",
+            "high",
+        ]
         # Providers without configurable reasoning expose None.
         assert get_default_reasoning_effort_from_provider("custom") is None
         # Unknown provider returns None.
@@ -515,6 +586,7 @@ if pytest is not None:
         for name in (
             "openai",
             "google",
+            "meta",
             "xiaomi",
             "moonshot",
             "zai",
@@ -552,6 +624,7 @@ if pytest is not None:
             "deepseek",
             "minimax",
             "google",
+            "meta",
             "xiaomi",
             "moonshot",
             "zai",
@@ -800,6 +873,13 @@ if pytest is not None:
             "Anthropic",
         ]
         assert get_default_api_type_from_provider("minimax") == "Completions"
+        # Meta supports the Responses (built-in default) and Completions
+        # API types against the single OpenAI-compatible base URL.
+        assert get_supported_api_types_from_provider("meta") == [
+            "Responses",
+            "Completions",
+        ]
+        assert get_default_api_type_from_provider("meta") == "Responses"
         # Google's default model supports the native Gemini SDK API type too
         # (Completions stays the built-in default).
         assert get_supported_api_types_from_provider("google") == [

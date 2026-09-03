@@ -358,6 +358,31 @@ if pytest is not None:
         assert get_provider_cost("xai", "grok-4.6", 300_000, 1_000_000, 0) == "13.2$"
         # Case-insensitive provider lookup.
         assert get_provider_cost("Xai", "grok-4.6", 100_000, 1_000_000, 0) == "6.2$"
+        # Meta ships a cost module: muse-spark-1.3 at $1.25 / $0.15 (cache
+        # hit) / $4.25 output per 1M tokens.  Standard request:
+        # 100k * $1.25 + 1M * $4.25 = 4.375 -> 4.4$.
+        assert (
+            get_provider_cost("meta", "muse-spark-1.3", 100_000, 1_000_000, 0) == "4.4$"
+        )
+        # Cached input tokens are billed at the cache-hit rate:
+        # 60k * $1.25 + 40k * $0.15 + 1M * $4.25 = 4.335 -> 4.3$.
+        assert (
+            get_provider_cost("meta", "muse-spark-1.3", 100_000, 1_000_000, 40_000)
+            == "4.3$"
+        )
+        # Case-insensitive provider lookup.
+        assert (
+            get_provider_cost("Meta", "muse-spark-1.3", 100_000, 1_000_000, 0) == "4.4$"
+        )
+        # The contributor tier bills at $0.10 / $0.002 (cache hit) / $0.20
+        # per 1M tokens: 100k * $0.10 + 1M * $0.20 = 0.201 -> 21.0¢ (the
+        # adaptive format re-renders it).
+        assert (
+            get_provider_cost(
+                "meta", "muse-spark-1.3-contributor", 100_000, 1_000_000, 0
+            )
+            == "21.0¢"
+        )
         # Anthropic ships a cost module: claude-sonnet-5 at $2 / $0.20 (cache
         # hit) / $10 output per 1M tokens.
         assert (
@@ -395,6 +420,7 @@ if pytest is not None:
         assert get_provider_cost("xiaomi", "bogus-model", 1000, 500, 100) == "N/A"
         assert get_provider_cost("zai", "bogus-model", 1000, 500, 100) == "N/A"
         assert get_provider_cost("xai", "bogus-model", 1000, 500, 100) == "N/A"
+        assert get_provider_cost("meta", "bogus-model", 1000, 500, 100) == "N/A"
         assert get_provider_cost("anthropic", "bogus-model", 1000, 500, 100) == "N/A"
         # Unknown providers fall back to "N/A".
         assert get_provider_cost("bogus", "model", 1000, 500, 100) == "N/A"

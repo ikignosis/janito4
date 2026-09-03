@@ -43,6 +43,11 @@ class ResponsesStreamConsumer:
         self.usage_info: Any = None
         self.response_id: str | None = None
         self.raw_attrs: dict[str, Any] = {}
+        # Finished ``reasoning`` output items (Meta's Muse Spark emits these
+        # carrying the encrypted chain of thought for stateless replay):
+        # raw item dicts in stream order, replayed verbatim in the next
+        # round's ``input`` by the stateless client.
+        self.reasoning_items: list[dict[str, Any]] = []
         self._events_seen = 0
 
     # ------------------------------------------------------------------
@@ -67,9 +72,11 @@ class ResponsesStreamConsumer:
         """Consume a streaming Responses API response and assemble its parts.
 
         Returns ``(full_content, reasoning_content, tool_calls, usage_info,
-        response_id, raw_attrs)`` where ``tool_calls`` is a list of
-        ``{"call_id", "name", "arguments"}`` dicts and ``raw_attrs`` holds the
-        raw top-level response metadata (id, model, created_at, status, ...).
+        response_id, raw_attrs, reasoning_items)`` where ``tool_calls`` is a
+        list of ``{"call_id", "name", "arguments"}`` dicts, ``raw_attrs``
+        holds the raw top-level response metadata (id, model, created_at,
+        status, ...) and ``reasoning_items`` the finished ``reasoning``
+        output items (raw replayable dicts) in stream order.
 
         When ``cancel_event`` is set (user pressed Enter while waiting), the
         stream is abandoned as soon as the next event arrives.
@@ -100,6 +107,7 @@ class ResponsesStreamConsumer:
             self.usage_info,
             self.response_id,
             self.raw_attrs,
+            self.reasoning_items,
         )
 
     # ------------------------------------------------------------------
@@ -174,21 +182,54 @@ class ResponsesStreamConsumer:
         )
 
     def handle_output_item(self, event) -> None:
-        """Append a finished function_call output item to the tool calls."""
+        """Append a finished output item to the tool calls / reasoning items.
+
+        ``function_call`` items become tool calls; ``reasoning`` items (the
+        encrypted chain of thought Meta's Muse Spark returns when
+        ``reasoning.encrypted_content`` is included) are kept as raw item
+        dicts so the stateless client can replay them verbatim in the next
+        round's ``input``.
+        """
         item = event.item
-        if getattr(item, "type", None) != "function_call":
-            return
-        self.tool_calls.append(
-            {
-                "call_id": item.call_id,
-                "name": item.name,
-                "arguments": item.arguments or self.partial_arguments.get(item.id, ""),
-            }
-        )
+        item_type = getattr(item, "type", None)
+        if item_type == "function_call":
+            self.tool_calls.append(
+                {
+                    "call_id": item.call_id,
+                    "name": item.name,
+                    "arguments": item.arguments
+                    or self.partial_arguments.get(item.id, ""),
+                }
+            )
+        elif item_type == "reasoning":
+            self.reasoning_items.append(_reasoning_item_dict(item))
+
+
+def _reasoning_item_dict(item) -> dict[str, Any]:
+    """Build the replayable input dict for a finished ``reasoning`` item.
+
+    The item is replayed verbatim (Meta's docs: encrypted reasoning items
+    are opaque -- keep them whole or drop them).  ``id`` is optional on
+    replay and ``summary`` is required (an empty list when the item carries
+    none), so both are normalized defensively.
+    """
+    item_id = getattr(item, "id", None)
+    summary = getattr(item, "summary", None)
+    if summary is None:
+        summary = []
+    replay: dict[str, Any] = {
+        "type": "reasoning",
+        "summary": list(summary),
+    }
+    if item_id:
+        replay["id"] = item_id
+    encrypted = getattr(item, "encrypted_content", None)
+    if encrypted:
+        replay["encrypted_content"] = encrypted
+    return replay
 
 
 def _handle_untyped_error(event) -> None:
-    """Raise for an untyped event carrying an error payload, else skip it."""
     message = getattr(event, "message", None)
     code = getattr(event, "code", None)
     if message or code:
@@ -212,9 +253,10 @@ def _consume_response_stream(stream, cancel_event=None):
     """Consume a streaming Responses API response and assemble its parts.
 
     Returns ``(full_content, reasoning_content, tool_calls, usage_info,
-    response_id, raw_attrs)`` where ``tool_calls`` is a list of
-    ``{"call_id", "name", "arguments"}`` dicts.  See
-    :meth:`ResponsesStreamConsumer.consume`.
+    response_id, raw_attrs, reasoning_items)`` where ``tool_calls`` is a
+    list of ``{"call_id", "name", "arguments"}`` dicts and ``reasoning_items``
+    the finished ``reasoning`` output items (raw replayable dicts) in stream
+    order.  See :meth:`ResponsesStreamConsumer.consume`.
     """
     return ResponsesStreamConsumer().consume(stream, cancel_event=cancel_event)
 
@@ -223,9 +265,9 @@ def _stream_response(client, call_kwargs, tools_schemas, cancel_event=None):
     """Open a streaming Responses API call and fully consume it.
 
     Returns ``(full_content, reasoning_content, tool_calls, usage_info,
-    response_id, raw_attrs)``. Tool schemas are attached here (mirroring
-    ``completions_api._stream_response``); the caller builds the remaining
-    kwargs per round.
+    response_id, raw_attrs, reasoning_items)``. Tool schemas are attached
+    here (mirroring ``completions_api._stream_response``); the caller builds
+    the remaining kwargs per round.
 
     The effective model's built-in (native) tools (e.g. Alibaba/Qwen's
     ``code_interpreter`` / ``web_search`` / ``web_extractor``) are resolved

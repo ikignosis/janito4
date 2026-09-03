@@ -11,6 +11,23 @@ Changes since `v4.36.0` (2026-09-01).
 
 ### Added
 
+- `responses_include` provider/model config option: extra `include` values
+  to request on every Responses API call. `meta`'s Muse Spark models
+  declare `["reasoning.encrypted_content"]` -- Muse Spark exposes its chain
+  of thought only in encrypted form, and the `reasoning` output items
+  returned in each response must be replayed verbatim in the next request's
+  `input` to preserve cross-turn reasoning.
+- `meta` provider (issue #115): support for Meta Model API and the Muse Spark
+  models. The provider ships two built-in models -- `muse-spark-1.3` (the
+  standard tier, the default model) and the cheaper
+  `muse-spark-1.3-contributor` tier -- served by a single OpenAI-compatible
+  base URL (`https://api.meta.ai/v1`) through the Responses (built-in
+  default) and Chat Completions API types, with the 1M-token context window
+  declared per model. Reasoning depth is configurable via
+  `--reasoning-effort` (the `minimal`/`low`/`medium`/`high` levels declared
+  per the Meta Model API reasoning cookbook; no built-in default, since
+  Meta's own default effort is still being finalized). A cost module bills
+  input / cached-input / output tokens at each tier's published rates.
 - `ListTasks` tool (issue #101): a blocking-free snapshot of every task known
   to the manager -- running *and* finished -- so the model can discover what
   has been started (including tasks orphaned by a mid-turn rollback, where
@@ -33,6 +50,13 @@ Changes since `v4.36.0` (2026-09-01).
 
 ### Fixed
 
+- Server-side Responses instructions persistence: the ``instructions``
+  parameter was only sent on the first turn of a server-side conversation,
+  but some providers (e.g. Meta) do not persist it across
+  ``previous_response_id`` turns and require it on every request. It is now
+  re-sent on every server-side round (also correct for providers that fold
+  it into the stored conversation, like OpenAI). Covered by
+  ``test_run_turn_sends_instructions_on_every_server_side_turn``.
 - Privilege-override note in the interactive shell (issue #109): the
   ``/read`` ``/write`` ``/rx`` ``/rw`` ``/rwx`` commands printed a hardcoded
   ``Note: this turn runs with privileges (-r/-w/-x)`` regardless of the

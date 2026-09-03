@@ -112,6 +112,19 @@ class ModelConfig:
         """
         return bool(self._data.get("responses_in_server", True))
 
+    def responses_include(self) -> list | None:
+        """Extra ``include`` values to request on every Responses call.
+
+        A list of strings (e.g. ``["reasoning.encrypted_content"]`` for
+        Meta's Muse Spark, whose chain of thought is only exposed in
+        encrypted form for replay across turns), or ``None`` when the model
+        declares none (no ``include`` parameter is sent).
+        """
+        value = self._data.get("responses_include")
+        if isinstance(value, (list, tuple)):
+            return [str(entry) for entry in value]
+        return None
+
 
 class Provider:
     """A supported provider from :data:`janito.providers._PROVIDER_CONFIGS` with typed accessors.
@@ -322,6 +335,14 @@ class Provider:
         if override is not None:
             return override
         return self.model_config(model).responses_in_server()
+
+    def responses_include(self, model: str | None = None) -> list | None:
+        """Extra ``include`` values to request on every Responses call.
+
+        See :meth:`ModelConfig.responses_include`.  ``None`` when the model
+        declares none (no ``include`` parameter is sent).
+        """
+        return self.model_config(model).responses_include()
 
     def endpoint_for(self, api_type: str | None = None) -> str | None:
         """Get the base URL for this provider, honoring ``endpoint_by_api_type``.
