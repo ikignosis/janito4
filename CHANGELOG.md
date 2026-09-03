@@ -11,6 +11,9 @@ Changes since `v4.37.0` (2026-09-03).
 
 ### Added
 
+- `/clear` shows running tasks count (issue #112): after clearing the
+  conversation, prints "<count> task(s) still running, use /tasks for
+  viewing." when background tasks are still running.
 - Anthropic Fable 5.1 support (issue #103): replaced `claude-fable-5` with
   `claude-fable-5-1` (1M in / 128k out, Completions + native Anthropic).
 - HTTP 429 rate-limit retry (issue #116): `Client.run_turn` retries the

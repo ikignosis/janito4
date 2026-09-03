@@ -265,6 +265,15 @@ class InteractiveShell(_SessionMixin):
         """Reset to a fresh conversation while preserving the system prompt."""
         self.initialize_history(system_prompt=self._system_prompt)
         _rich_console.print(message, style="bold bright_white on green")
+        from ..taskmanager import task_manager
+
+        running = task_manager.running_tasks()
+        if running:
+            count = len(running)
+            noun = "task" if count == 1 else "tasks"
+            _rich_console.print(
+                f"{count} {noun} still running, use /tasks for viewing."
+            )
 
     def _handle_command(self, user_input: str) -> bool:
         """Dispatch to registered command handlers; True when handled."""
