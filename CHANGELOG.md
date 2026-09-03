@@ -11,6 +11,8 @@ Changes since `v4.37.0` (2026-09-03).
 
 ### Added
 
+- Anthropic Fable 5.1 support (issue #103): replaced `claude-fable-5` with
+  `claude-fable-5-1` (1M in / 128k out, Completions + native Anthropic).
 - HTTP 429 rate-limit retry (issue #116): `Client.run_turn` retries the
   streaming round after a 429 instead of failing the turn, with exponential
   backoff from 1s (plus jitter) and `Retry-After` honored when present. The

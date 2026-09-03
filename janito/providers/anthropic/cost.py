@@ -24,7 +24,7 @@ claude-sonnet-5.  There is no peak-hour surcharge.
 #: billed at the cache-hit rate ($0.20/1M for claude-sonnet-5, 10% of the
 #: base input rate).
 _MODEL_RATES: dict[str, tuple[float, float, float]] = {
-    "claude-fable-5": (10.00, 1.00, 50.00),
+    "claude-fable-5-1": (10.00, 1.00, 50.00),
     "claude-opus-5": (5.00, 0.50, 25.00),
     "claude-sonnet-5": (2.00, 0.20, 10.00),
 }

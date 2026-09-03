@@ -406,9 +406,9 @@ if pytest is not None:
             get_provider_cost("anthropic", "claude-opus-5", 1_000_000, 1_000_000, 0)
             == "30.0$"
         )
-        # claude-fable-5 at $10 / $1 (cache hit) / $50 output per 1M tokens.
+        # claude-fable-5-1 at $10 / $1 (cache hit) / $50 output per 1M tokens.
         assert (
-            get_provider_cost("anthropic", "claude-fable-5", 1_000_000, 1_000_000, 0)
+            get_provider_cost("anthropic", "claude-fable-5-1", 1_000_000, 1_000_000, 0)
             == "60.0$"
         )
         # Unknown models within the provider fall back to "N/A".

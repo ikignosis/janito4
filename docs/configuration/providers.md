@@ -832,7 +832,7 @@ janito --set-api-key="your-anthropic-api-key" --provider anthropic
 
 | Model | Description |
 |-------|-------------|
-| `claude-fable-5` | Newest frontier model (1M context) |
+| `claude-fable-5-1` | Newest frontier model (1M context) |
 | `claude-opus-5` | Highest capability model (1M context) |
 | `claude-sonnet-5` | Latest flagship model (200K context; default) |
 
