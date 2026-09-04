@@ -76,7 +76,6 @@ def _display_usage(
     *,
     provider: str | None = None,
     model: str | None = None,
-    elapsed_time: float | None = None,
 ) -> None:
     """Print the token usage summary line.
 
@@ -120,6 +119,7 @@ def _display_usage(
     )
 
     parts = []
+    elapsed_time = getattr(usage_info, "elapsed_time", None)
     if elapsed_time is not None:
         parts.append(f"Time: {format_elapsed(elapsed_time)}")
     if input_tokens is not None:
@@ -163,7 +163,6 @@ def display_turn_usage(
     api_config: APIConfig,
     *,
     console: Console | None = None,
-    elapsed_time: float | None = None,
 ) -> None:
     """Print the end-of-turn reports (used files + token usage summary).
 
@@ -202,5 +201,4 @@ def display_turn_usage(
         console,
         provider=api_config.provider,
         model=api_config.model,
-        elapsed_time=elapsed_time,
     )

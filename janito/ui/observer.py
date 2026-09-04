@@ -147,9 +147,7 @@ class RichTurnObserver(NullObserver):
             progress.add_task(message, total=None)
             time.sleep(retry_interval)
 
-    def on_turn_complete(
-        self, token_stats, api_config, elapsed_time: float | None = None
-    ) -> None:
+    def on_turn_complete(self, token_stats, api_config) -> None:
         """End-of-turn report: record accounting, then render the usage summary.
 
         Invoked by ``Client.run_turn`` at the end of every turn that reported
@@ -166,9 +164,7 @@ class RichTurnObserver(NullObserver):
         token-usage summary) is delegated to :func:`display_turn_usage`.
         """
         _record_accounting(token_stats, api_config)
-        display_turn_usage(
-            token_stats, api_config, elapsed_time=elapsed_time, console=self.console
-        )
+        display_turn_usage(token_stats, api_config, console=self.console)
 
 
 class SilentTurnObserver(NullObserver):
@@ -185,9 +181,7 @@ class SilentTurnObserver(NullObserver):
     is untouched, so the progress bar keeps working).
     """
 
-    def on_turn_complete(
-        self, token_stats, api_config, elapsed_time: float | None = None
-    ) -> None:
+    def on_turn_complete(self, token_stats, api_config) -> None:
         """Record the accounting row only; never render anything."""
         _record_accounting(token_stats, api_config)
 

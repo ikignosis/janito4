@@ -377,12 +377,9 @@ class Client:
         overall-use accounting row).  The report is delivered on every turn.
         """
         result = self._finalize(full_content, reasoning_content, state)
-        elapsed_time = (
-            time.monotonic() - turn_started if turn_started is not None else None
-        )
-        self.observer.on_turn_complete(
-            token_stats, self.api_config, elapsed_time=elapsed_time
-        )
+        if token_stats is not None and turn_started is not None:
+            token_stats.elapsed_time = time.monotonic() - turn_started
+        self.observer.on_turn_complete(token_stats, self.api_config)
         return result
 
     # ------------------------------------------------------------------

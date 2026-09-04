@@ -99,20 +99,19 @@ class TestNormalizeUsageWithTurnInfo:
 
 
 class TestDisplayTurnUsage:
-    def _render(self, token_stats, api_config=None, elapsed_time=None):
+    def _render(self, token_stats, api_config=None):
         buf = StringIO()
         console = Console(file=buf, force_terminal=False, width=120)
         display_turn_usage(
             token_stats,
             api_config or _config(),
             console=console,
-            elapsed_time=elapsed_time,
         )
         return buf.getvalue()
 
     def test_renders_usage_line_from_populated_turn_stats(self):
         # The provider/model/max-token metadata comes from the APIConfig.
-        u = _token_stats()
+        u = _token_stats(elapsed_time=12.34)
         text = self._render(
             u,
             _config(
@@ -121,7 +120,6 @@ class TestDisplayTurnUsage:
                 max_input_tokens=65536,
                 max_output_tokens=8192,
             ),
-            elapsed_time=12.34,
         )
         # "Total" was replaced by the turn's elapsed time (issue #99).
         assert "Time: 12.3s" in text
@@ -250,8 +248,8 @@ class TestRunTurnDeliversTurnReport:
             def on_message(self, content):
                 pass
 
-            def on_turn_complete(self, token_stats, api_config, elapsed_time=None):
-                recorded.append((token_stats, api_config, elapsed_time))
+            def on_turn_complete(self, token_stats, api_config):
+                recorded.append((token_stats, api_config))
 
         client = self._client(monkeypatch, Obs())
         result = client.run_turn("hi", tools=[])
@@ -261,14 +259,14 @@ class TestRunTurnDeliversTurnReport:
         # resolved APIConfig (provider/model come from the config) and the
         # turn's elapsed wall-clock time (issue #99).
         assert len(recorded) == 1
-        u, api_config, elapsed_time = recorded[0]
+        u, api_config = recorded[0]
         assert isinstance(u, TurnInfo)
         assert u.turn_input == 60
         assert u.turn_output == 40
         assert api_config.provider == "openai"
         assert api_config.model == "gpt-4"
-        assert isinstance(elapsed_time, float)
-        assert elapsed_time >= 0
+        assert isinstance(u.elapsed_time, float)
+        assert u.elapsed_time >= 0
 
     def test_run_turn_always_delivers_turn_report(self, monkeypatch):
         """The report is always delivered -- the client owns the TurnInfo
@@ -282,13 +280,13 @@ class TestRunTurnDeliversTurnReport:
             def on_message(self, content):
                 pass
 
-            def on_turn_complete(self, token_stats, api_config, elapsed_time=None):
-                called.append((token_stats, api_config, elapsed_time))
+            def on_turn_complete(self, token_stats, api_config):
+                called.append((token_stats, api_config))
 
         client = self._client(monkeypatch, Obs())
         client.run_turn("hi", tools=[])
         assert len(called) == 1
-        u, api_config, _elapsed = called[0]
+        u, api_config = called[0]
         assert isinstance(u, TurnInfo)
         assert api_config.model == "gpt-4"
         # The fake stream reported usage, so the report is populated.
@@ -303,7 +301,7 @@ class TestRunTurnDeliversTurnReport:
         observer = RichTurnObserver(
             console=Console(file=buf, width=120, force_terminal=False)
         )
-        u = _token_stats()
+        u = _token_stats(elapsed_time=12.34)
         observer.on_turn_complete(
             u,
             _config(
@@ -312,7 +310,6 @@ class TestRunTurnDeliversTurnReport:
                 max_input_tokens=65536,
                 max_output_tokens=8192,
             ),
-            elapsed_time=12.34,
         )
         text = buf.getvalue()
         assert "Time: 12.3s" in text
