@@ -207,15 +207,12 @@ def test_shell_ctrl_c_decrements_turn_count(monkeypatch, capsys):
     assert shell.history_turns == []
 
 
-def test_shell_generic_error_decrements_turn_count(monkeypatch, capsys):
-    """An unexpected turn error also rolls the turn back, so the failed turn
-    must not be counted either (issue #78)."""
-    shell = _run_shell_turn(
-        monkeypatch, _appending_run_turn_factory(RuntimeError("boom"))
-    )
+def test_shell_generic_error_propagates(monkeypatch, capsys):
+    """Unexpected turn errors propagate instead of being swallowed."""
+    import pytest as _pytest
 
-    assert shell.history_turns == []
-    assert "Error: boom" in capsys.readouterr().out
+    with _pytest.raises(RuntimeError, match="boom"):
+        _run_shell_turn(monkeypatch, _appending_run_turn_factory(RuntimeError("boom")))
 
 
 def test_shell_successful_turn_increments_turn_count(monkeypatch):

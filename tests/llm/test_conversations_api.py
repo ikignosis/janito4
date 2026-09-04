@@ -1995,9 +1995,10 @@ def test_shell_run_turn_records_history_turns():
     assert seen == [1, 3]
 
 
-def test_shell_run_turn_error_rolls_back_and_pops_turn(capsys):
-    """An error during a turn rolls the history back to the last turn
-    and drops its recorded start, since the turn it marked is gone."""
+def test_shell_run_turn_error_propagates(capsys):
+    """Unexpected turn errors propagate instead of being swallowed."""
+    import pytest
+
     from janito.shell import InteractiveShell
 
     shell = InteractiveShell(model="test-model", no_history=True)
@@ -2013,13 +2014,8 @@ def test_shell_run_turn_error_rolls_back_and_pops_turn(capsys):
     shell.no_tools = True
     shell.thinking = False
 
-    shell._run_turn("hello")
-
-    # Back to the system prompt only, and the aborted turn's recorded start
-    # is gone.
-    assert len(shell.messages_history) == 1
-    assert shell.history_turns == []
-    assert "Error: boom" in capsys.readouterr().out
+    with pytest.raises(RuntimeError, match="boom"):
+        shell._run_turn("hello")
 
 
 def test_shell_rewind_steps_back_one_turn_at_a_time(capsys):

@@ -55,17 +55,16 @@ def test_shell_cmd_empty_is_noop(capfd):
     assert capfd.readouterr().out == ""
 
 
-def test_shell_cmd_error_is_reported(monkeypatch, capfd):
-    """Unexpected subprocess failures are reported without crashing."""
+def test_shell_cmd_error_propagates(monkeypatch, capfd):
+    """Unexpected subprocess failures propagate instead of being swallowed."""
     shell = _shell()
 
     def boom(cmd, **kwargs):
         raise OSError("boom")
 
     monkeypatch.setattr("janito.shell.interactive.subprocess.run", boom)
-    shell._run_shell_command("!anything")
-    err = capfd.readouterr().err
-    assert "[Shell] Error: boom" in err
+    with pytest.raises(OSError, match="boom"):
+        shell._run_shell_command("!anything")
 
 
 def test_shell_cmd_keyboard_interrupt_is_handled(monkeypatch, capfd):

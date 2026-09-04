@@ -349,8 +349,6 @@ class InteractiveShell(_SessionMixin):
             print(f"[Shell] Exit code: {result.returncode}")
         except KeyboardInterrupt:
             print("\n[Shell] Command interrupted", file=sys.stderr)
-        except Exception as e:
-            print(f"[Shell] Error: {e}", file=sys.stderr)
 
     def _dispatch_input(self, user_input: str) -> bool:
         """Handle clear/command/unknown/shell input; True when consumed."""
@@ -476,10 +474,6 @@ class InteractiveShell(_SessionMixin):
             print(
                 "Request interrupted, previous prompt/answer removed from the conversation history."
             )
-        except Exception as e:
-            # Rollback on any other unexpected error as well
-            self._rollback_history()
-            print(f"Error: {e}")
         finally:
             reset_turn_privileges(turn_privileges_token)
         # Note: turn_func already appends user and assistant messages
