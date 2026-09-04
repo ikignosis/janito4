@@ -10,13 +10,17 @@ from .registry import register_command
 
 
 def _load_skills():
-    """Load skills from the skills provider."""
+    """Load skills from the skills provider.
+
+    Filesystem errors during discovery (``OSError`` from ``iterdir``) yield
+    an empty list with a warning; anything else propagates.
+    """
     try:
         from janito.tooling.skills_provider import get_skills_provider
 
         provider = get_skills_provider()
         return provider.list_skills()
-    except Exception as e:  # noqa: BLE001 - /skills must never break the shell
+    except OSError as e:
         print(f"Warning: Could not load skills: {e}")
         return []
 
