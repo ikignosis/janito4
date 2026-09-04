@@ -253,10 +253,10 @@ if pytest is not None:
 
         stats = accounting.get_daily_stats()
         assert [row["day"] for row in stats] == [
-            (now - timedelta(days=1)).date().isoformat(),
             now.date().isoformat(),
+            (now - timedelta(days=1)).date().isoformat(),
         ]
-        older, today = stats
+        today, older = stats
         assert older["input_tokens"] == 3000
         assert older["cached_tokens"] == 300
         assert older["output_tokens"] == 1100
@@ -296,8 +296,8 @@ if pytest is not None:
         stats = accounting.get_daily_stats(days=5)
         assert len(stats) == 5
         days = [row["day"] for row in stats]
-        assert days == sorted(days)  # chronological order
-        assert days[-1] == now.date().isoformat()
+        assert days == sorted(days, reverse=True)  # newest first
+        assert days[0] == now.date().isoformat()
 
     def test_daily_stats_empty_db(monkeypatch, tmp_path):
         _point_at(monkeypatch, tmp_path)
@@ -363,7 +363,7 @@ if pytest is not None:
         )
 
         stats = accounting.get_per_model_stats()
-        # Oldest day first, then provider, then model (rows checked below).
+        # Newest day first, then provider, then model (rows checked below).
         rows = [
             (
                 r["day"],
@@ -377,6 +377,15 @@ if pytest is not None:
             for r in stats
         ]
         assert rows == [
+            (
+                now.date().isoformat(),
+                "openai",
+                "gpt-5.6-luna",
+                4000,
+                400,
+                700,
+                pytest.approx(0.04),
+            ),
             (
                 (now - timedelta(days=1)).date().isoformat(),
                 "deepseek",
@@ -394,15 +403,6 @@ if pytest is not None:
                 300,
                 1100,
                 pytest.approx(0.03),
-            ),
-            (
-                now.date().isoformat(),
-                "openai",
-                "gpt-5.6-luna",
-                4000,
-                400,
-                700,
-                pytest.approx(0.04),
             ),
         ]
 
@@ -465,8 +465,8 @@ if pytest is not None:
         rows = accounting.get_per_model_stats(days=5)
         days = [r["day"] for r in rows]
         assert len(days) == 5
-        assert days == sorted(days)  # chronological order
-        assert days[-1] == now.date().isoformat()
+        assert days == sorted(days, reverse=True)  # newest first
+        assert days[0] == now.date().isoformat()
 
     def test_per_model_stats_empty_db(monkeypatch, tmp_path):
         _point_at(monkeypatch, tmp_path)
