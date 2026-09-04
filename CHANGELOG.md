@@ -19,6 +19,8 @@ Changes since `v4.37.0` (2026-09-03).
   removed with no backwards compatibility.
 - Narrowed blind `except Exception` handlers to specific types (`OSError`,
   `UnicodeError`, `ValueError`, ...) and enabled ruff `BLE001`.
+- Conversation reset message uses black on white (issue #129): F2 / `clear`
+  notice changed from bright-white on green for readability.
 
 ### Added
 

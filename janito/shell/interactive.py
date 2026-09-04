@@ -264,7 +264,7 @@ class InteractiveShell(_SessionMixin):
     def _reset_conversation(self, message: str) -> None:
         """Reset to a fresh conversation while preserving the system prompt."""
         self.initialize_history(system_prompt=self._system_prompt)
-        _rich_console.print(message, style="bold bright_white on green")
+        _rich_console.print(message, style="bold black on white")
         from ..taskmanager import task_manager
 
         running = task_manager.running_tasks()
