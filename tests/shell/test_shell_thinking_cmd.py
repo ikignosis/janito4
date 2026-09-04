@@ -164,7 +164,7 @@ def test_status_command_reflects_thinking_toggle(capsys):
     # Status before toggle
     assert status_handler.handle(shell, "/status") is True
     out1 = capsys.readouterr().out
-    assert "disabled" in out1
+    assert "Model Default" in out1
 
     # Toggle on
     assert _thinking_handler().handle(shell, "/thinking on") is True

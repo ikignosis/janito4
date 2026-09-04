@@ -116,3 +116,29 @@ def format_thinking_display(thinking, provider: str | None = None) -> str:
     if isinstance(thinking, dict) and thinking.get("type"):
         return f"enabled ({thinking['type']})"
     return "enabled" if thinking else "disabled"
+
+
+def resolve_thinking_display(
+    effective_thinking, explicit_thinking: bool = False, provider: str | None = None
+) -> str:
+    """Render the effective thinking mode for session displays.
+
+    ``effective_thinking`` is the resolved value (explicit flag or the
+    model's built-in default); ``explicit_thinking`` reports whether the
+    flag was forced on.  A falsy effective value means "not forced" (the
+    model's own default applies), so it renders as ``"Model Default"``
+    rather than ``"disabled"``.  A truthy built-in default without an
+    explicit flag is marked ``" (model default)"``.  The Gemini-flavor
+    ``N/A`` rendering from :func:`format_thinking_display` is passed
+    through unchanged.
+    """
+    display = format_thinking_display(effective_thinking, provider=provider)
+    if display == "disabled":
+        return "Model Default"
+    if effective_thinking and not explicit_thinking:
+        if provider:
+            found = get_provider(provider)
+            if found is not None and found.gemini_flavor():
+                return display
+        return display + " (model default)"
+    return display

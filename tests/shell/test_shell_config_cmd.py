@@ -187,9 +187,9 @@ class TestPrintConfigInfo:
         assert "enabled (model default)" in out
 
     def test_thinking_disabled_by_default(self, capsys):
-        """OpenAI has no default thinking: thinking shows 'disabled'."""
+        """OpenAI has no default thinking: thinking shows 'Model Default'."""
         out = self._run(capsys, provider="openai")
-        assert "disabled" in out
+        assert "Model Default" in out
 
     def test_thinking_gemini_flavor_shows_na(self, capsys):
         """Google uses Gemini flavor: thinking shows 'N/A (controlled via Reasoning Effort)'."""

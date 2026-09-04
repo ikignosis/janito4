@@ -13,7 +13,7 @@ from janito.config_loaders import (
     load_reasoning_effort,
 )
 from janito.general_config import get_active_provider, resolve_api_type
-from janito.providers.payloads import format_thinking_display
+from janito.providers.payloads import resolve_thinking_display
 from janito.providers.registry import get_provider
 
 from .base import CmdHandler
@@ -49,6 +49,7 @@ def _print_config_info(
     thinking: bool = False,
     api_type: str | None = None,
     model: str | None = None,
+    reasoning_effort: str | None = None,
 ) -> None:
     """Print current configuration info (provider, model, base_url, masked API key, max output tokens).
 
@@ -74,6 +75,11 @@ def _print_config_info(
             the startup resolution). When None, the provider's configured
             model, else its built-in default model is used and the Model row
             marks the built-in default with ``(default)``.
+        reasoning_effort: The ``--reasoning-effort`` CLI flag for the session
+            (e.g. ``high``), or None when it was not given. Takes priority
+            over the model-scoped configured value, then the effective
+            model's built-in default -- mirroring ``build_api_config`` so
+            ``/status`` reports the level actually sent to the API.
     """
     if provider is None:
         provider = get_active_provider()
@@ -126,10 +132,11 @@ def _print_config_info(
             else "(not set)"
         )
 
-    # Resolve the effective reasoning level: an explicit configuration value
-    # first, otherwise the effective model's built-in default from
-    # the provider config.
-    reasoning_effort = load_reasoning_effort(provider, model)
+    # Resolve the effective reasoning level: the --reasoning-effort CLI flag
+    # first, otherwise an explicit configuration value, otherwise the
+    # effective model's built-in default from the provider config (mirrors
+    # build_api_config so /status reports what is actually sent).
+    reasoning_effort = reasoning_effort or load_reasoning_effort(provider, model)
     if reasoning_effort:
         reasoning_effort_display = reasoning_effort
     else:
@@ -150,13 +157,9 @@ def _print_config_info(
     effective_thinking = thinking or (
         found.default_thinking(model) if found is not None else False
     )
-    thinking_display = format_thinking_display(effective_thinking, provider=provider)
-    if (
-        effective_thinking
-        and not thinking
-        and not (provider and found is not None and found.gemini_flavor())
-    ):
-        thinking_display += " (model default)"
+    thinking_display = resolve_thinking_display(
+        effective_thinking, explicit_thinking=bool(thinking), provider=provider
+    )
 
     # When the effective API type is the Responses API, surface whether the
     # model keeps the conversation state server-side (chained with
@@ -217,6 +220,7 @@ class StatusCmdHandler(CmdHandler):
                 getattr(shell, "thinking", False),
                 getattr(shell, "api_type", None),
                 getattr(shell, "model", None),
+                getattr(shell, "reasoning_effort", None),
             )
             return True
         return False

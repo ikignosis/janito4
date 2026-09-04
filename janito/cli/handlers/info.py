@@ -6,7 +6,7 @@ from ...config_loaders import load_endpoint_from_config, load_model_from_config
 from ...config_store import get_config_path
 from ...general_config import load_provider_from_config, resolve_api_type
 from ...providers import CUSTOM_ENDPOINT_MARKER
-from ...providers.payloads import format_thinking_display
+from ...providers.payloads import resolve_thinking_display
 from ...providers.registry import get_provider
 from ...providers.validation import is_custom_provider
 
@@ -230,13 +230,11 @@ def handle_show_config(args=None) -> int:
     thinking = getattr(args, "thinking", False) or (
         found.default_thinking(model) if found is not None else False
     )
-    thinking_display = format_thinking_display(thinking, provider=provider)
-    if (
-        thinking
-        and not getattr(args, "thinking", False)
-        and not (provider and found is not None and found.gemini_flavor())
-    ):
-        thinking_display += " (model default)"
+    thinking_display = resolve_thinking_display(
+        thinking,
+        explicit_thinking=bool(getattr(args, "thinking", False)),
+        provider=provider,
+    )
 
     from rich.console import Console
     from rich.table import Table
