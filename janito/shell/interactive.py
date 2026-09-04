@@ -80,6 +80,9 @@ class InteractiveShell(_SessionMixin):
         # model).
         self.model_override = None
         self.no_history = no_history
+        from .stack import ConversationStack
+
+        self.conversation_stack = ConversationStack()
         # Conversation messages (role/content dicts) passed to the AI as
         # context
         self.messages_history: list[dict[str, Any]] = []
@@ -160,6 +163,11 @@ class InteractiveShell(_SessionMixin):
         Args:
             system_prompt: Optional system prompt to prepend
         """
+        # Full-stack clear (issue #124): a fresh conversation drops all pushed levels.
+        try:
+            self.conversation_stack.clear()
+        except AttributeError:
+            pass
         self._system_prompt = system_prompt  # stored so it can be restored on F2/clear without re-reading config
         if system_prompt:
             self.messages_history = [{"role": "system", "content": system_prompt}]
@@ -194,7 +202,9 @@ class InteractiveShell(_SessionMixin):
             (Ctrl+C declined, or F2 restart requested).
         """
         # Use HTML formatting for prompt
-        prompt_text = HTML(f'<style bg="#00008b">{self.model} # </style>')
+        depth = getattr(getattr(self, "conversation_stack", None), "depth", 0) or 0
+        prefix = f"[{depth}] " if depth else ""
+        prompt_text = HTML(f'<style bg="#00008b">{self.model} {prefix}# </style>')
 
         try:
             result = self.session.prompt(prompt_text, multiline=self.multiline_mode)
