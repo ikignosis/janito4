@@ -45,7 +45,7 @@ Options:
   --list-mcp         List all MCP services and their tools
   -Z, --no-system-prompt  Do not set a system prompt or pass any tools to the CLI
   --no-tools              Do not load tools (skill tools stay enabled)
-  --no-tasks              Do not load the tasks toolset (StartTask/StopTask/WaitForTask)
+  --no-tasks              Do not load the tasks toolset (StartTask/StopTask/WaitForTask/ListTasks)
 
 Examples:
   janito "What is the capital of France?"                    # Single prompt mode
@@ -187,7 +187,7 @@ Note: --set and --set-api-key must be used in separate commands.
         "--no-tasks",
         action="store_true",
         help="Do not load the tasks toolset (StartTask, StopTask, "
-        "WaitForTask). All other tools stay enabled.",
+        "WaitForTask, ListTasks). All other tools stay enabled.",
     )
 
     parser.add_argument(

@@ -77,7 +77,7 @@ class ReadCmdHandler(CmdHandler):
             return
 
         read_only_schemas = get_read_only_tool_schemas()
-        warn_if_privilege_override(read_only_schemas)
+        warn_if_privilege_override(read_only_schemas, "r")
         print()  # blank line before the streamed response, like /ask
         # Reuse the shell's main-prompt path: same history, turns,
         # Responses state sync and cancel/rollback handling -- only the tool

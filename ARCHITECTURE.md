@@ -47,6 +47,7 @@ point; the turn pipeline is a pure function of `(config, request)`.
 | `janito/tooling/` | Tool framework: discovery + privilege gating (`discovery.py`), registry, executor, skills, tracking |
 | `janito/tools/` | Built-in tool implementations, organized in toolsets (depends one-way on `tooling`) |
 | `janito/mcp_client/` + `mcp_manager.py` | MCP server connections and tool routing |
+| `janito/taskmanager/` | Parallel-task manager (issue #94): spawns each task as a child `janito` process and tracks its exit status (`constants`/`process`/`command`/`task`/`manager` modules, re-exported from `janito.taskmanager`) |
 | `janito/conversation_utils.py`, `janito/optional_packages.py` | Root-level helpers shared across domains: turn truncation/rollback (`truncate_to_last_turn`, `rollback_to_last_turn`) and the optional-SDK install guards (`require_optional_package`) |
 | `janito/web/` | FastAPI web backend + plain HTML/JS/CSS frontend |
 | `janito/session_setup.py` | Shared system-prompt/toolset selection for the CLI and web entry points (outside `cli/` so the web backend never imports from the CLI package) |
@@ -234,10 +235,10 @@ The pipeline per turn:
    injected `TurnObserver`, see below) → if tool calls were
    requested, execute them (see [Tool execution](#tool-execution)) and loop
    again; otherwise finalize (record the assistant message, return value).
-   Each round's usage is folded into a `TokenStats` (`janito/llm_adapters/usage.py`);
+   Each round's usage is folded into a `TurnInfo` (`janito/llm_adapters/usage.py`);
    `Client.run_turn` itself delivers the end-of-turn reports (used files +
    token-usage summary) to the injected observer's `on_turn_complete` when
-   the turn finishes, passing the `TokenStats` together with the turn's
+   the turn finishes, passing the `TurnInfo` together with the turn's
    resolved `APIConfig` (provider / model / max tokens come from the config)
    -- there is no caller-supplied out-param -- so the `_finalize`
    hooks stay display-free and every CLI entry point (interactive shell,
@@ -269,6 +270,8 @@ explicit `error_kind` -- `"not_found"` / `"auth"` -- passed by the OpenAI
 SDK clients' typed `except` blocks or derived for the native-SDK clients by
 `_classify_error` in `llm_clients/client_support.py`; the exception is always
 re-raised)
+and the rate-limit wait (`on_limits`, issue #116 -- `Client.run_turn`
+retries a 429 round after the observer's wait instead of failing the turn)
 and the end-of-turn report (`on_turn_complete`, invoked by
 `Client.run_turn` when the turn finishes -- the CLI's `RichTurnObserver`
 renders the usage summary *and* records the overall-use accounting row from
@@ -353,7 +356,7 @@ the web loop bridges back into it at three seams, each one a thread hop:
 
 **The payoff.** Because async is confined to `janito/web/`, everything the
 two loops share — `llm_adapters` (call-kwargs builders,
-accumulators, the DashScope endpoint-routing helpers, `TokenStats`),
+accumulators, the DashScope endpoint-routing helpers, `TurnInfo`),
 `tooling`, the `TurnObserver` protocol — is
 sync-pure and usable without an event loop anywhere in sight. That is what
 makes the adapter layer genuinely shared — shared to the point that `web`
@@ -560,7 +563,7 @@ Key modules:
   Config keys are scoped: flat keys (e.g. `provider`), **provider-scoped** keys
   (`model`, `endpoint` under `providers.<name>.<key>`) and **model-scoped**
   keys (`max-input-tokens`, `max-output-tokens`, `reasoning-effort`, `api-type`,
-  `responses-in-server` under `providers.<name>.models.<model>.<key>`).  The
+  `stateless-mode` under `providers.<name>.models.<model>.<key>`).  The
   storage and per-key logic live in the focused modules below.
 - **`config_keys.py`** — key constants (`PROVIDER_SCOPED_KEYS`,
   `MODEL_SCOPED_KEYS`) and the helpers that build/parse dotted keys
@@ -585,7 +588,7 @@ Key modules:
   (`default_model`, `endpoint`, `endpoint_by_api_type`) plus a per-provider
   **`models`** dict with the model-level fields (`supported_api_types`,
   `default_api_type`, token limits, reasoning levels, `thinking`,
-  `responses_in_server`). The `custom`
+  `stateless_mode`). The `custom`
   provider ships no models (`default_model: None`, `models: {}`).
   `janito/providers/template/config.py` is the documentation template for
   these entries: it is not a real provider (never registered in

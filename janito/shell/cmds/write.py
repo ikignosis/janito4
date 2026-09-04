@@ -77,7 +77,7 @@ class WriteCmdHandler(CmdHandler):
             return
 
         write_only_schemas = get_write_only_tool_schemas()
-        warn_if_privilege_override(write_only_schemas)
+        warn_if_privilege_override(write_only_schemas, "w")
         print()  # blank line before the streamed response, like /ask
         # Reuse the shell's main-prompt path: same history, turns,
         # Responses state sync and cancel/rollback handling -- only the tool

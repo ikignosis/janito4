@@ -71,7 +71,7 @@ See [Provider Variants](../configuration/variants.md) for the full guide.
 | `-Z`, `--no-system-prompt` | Do not set a system prompt and do not pass any tools |
 | `-S`, `--system-prompt <prompt>` | Override the system prompt (tools stay enabled) |
 | `--no-tools` | Do not load tools (skill tools stay enabled) |
-| `--no-tasks` | Do not load the tasks toolset (`StartTask`, `StopTask`, `WaitForTask`); all other tools stay enabled |
+| `--no-tasks` | Do not load the tasks toolset (`StartTask`, `StopTask`, `WaitForTask`, `ListTasks`); all other tools stay enabled |
 | `--show-system-prompt` | Display the resolved system prompt and exit |
 | `-t`, `--thinking` | Enable thinking mode (sends `extra_body={'enable_thinking': True}`). DeepSeek, Alibaba/Qwen and MiniMax-M3 have thinking enabled by default. Gemini-flavored providers (google) do not accept this flag; thinking depth is controlled through `--reasoning-effort` instead. |
 | `--reasoning-effort <level>` | Set the reasoning depth for the API call (sends `reasoning_effort=<level>`). Overrides the provider's configured value and built-in default. Values: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`. |
@@ -275,7 +275,7 @@ Values stored in `~/.janito/config.json` via `--set`. Keys are scoped:
 | `max-output-tokens` | model-scoped | Maximum output tokens | model built-in |
 | `reasoning-effort` | model-scoped | Reasoning depth (`none`…`max`) | model built-in |
 | `api-type` | model-scoped | API type (`Responses`, `Completions`, `Anthropic`, `DashScope`, `Gemini`) | model built-in default |
-| `responses-in-server` | model-scoped | Whether the Responses API keeps conversation state server-side (bool) | model built-in default |
+| `stateless-mode` | model-scoped | Whether the Responses API keeps conversation state server-side (bool) | model built-in default |
 | `used-files` | flat | Whether the end-of-turn `Used files` report is printed by the CLI/shell (bool, opt-in) | `false` |
 | `system-prompt` | flat | Literal text used as the system prompt's `start` section | built-in base prompt |
 | `system-prompt-file` | flat | Path to a file whose content becomes the `start` section (`~` is expanded, relative paths resolve against the cwd); wins over `system-prompt` when both are set. Validated when set and at startup: janito fails (exit 1) with an actionable error when the file does not exist | unset |

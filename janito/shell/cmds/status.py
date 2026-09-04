@@ -53,7 +53,7 @@ def _print_config_info(
     """Print current configuration info (provider, model, base_url, masked API key, max output tokens).
 
     Model-level settings (API type, max output tokens, reasoning level,
-    thinking, Responses-in-server) are resolved for the *effective model*:
+    thinking, Stateless-mode) are resolved for the *effective model*:
     the session's model, else the provider's configured model, else its
     built-in default model.
 
@@ -162,12 +162,12 @@ def _print_config_info(
     # model keeps the conversation state server-side (chained with
     # previous_response_id) or serves a stateless /responses endpoint (the
     # client re-sends the full history on every request, e.g. DeepSeek).
-    responses_in_server_display = ""
+    stateless_mode_display = ""
     if api_type == "Responses":
-        if found is not None and found.responses_in_server(model):
-            responses_in_server_display = "server-side (previous_response_id)"
+        if found is not None and found.stateless_mode(model):
+            stateless_mode_display = "stateless (client re-sends history)"
         else:
-            responses_in_server_display = "stateless (client re-sends history)"
+            stateless_mode_display = "server-side (previous_response_id)"
 
     from rich.console import Console
     from rich.table import Table
@@ -188,8 +188,8 @@ def _print_config_info(
         f"{model} (default)" if model_default else (model or "(not set)"),
     )
     table.add_row("API Type", api_type)
-    if responses_in_server_display:
-        table.add_row("Responses In Server", responses_in_server_display)
+    if stateless_mode_display:
+        table.add_row("Stateless Mode", stateless_mode_display)
     table.add_row("Base URL", base_url_display)
     table.add_row("API Key", masked_key)
     table.add_row("Max Output Tokens", max_output_tokens_display)

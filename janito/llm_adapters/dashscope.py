@@ -75,7 +75,10 @@ def _is_multimodal_model(model: str) -> bool:
     # The qwen3.x-plus generation and the qwen3.8-max flagship are served by
     # the multimodal-generation endpoint, while the qwen3.x-max text models
     # (e.g. qwen3.7-max) are not.
-    if re.match(r"^qwen3\.\d+-plus$", name) or name == "qwen3.8-max":
+    if re.match(r"^qwen3\.\d+-plus$", name) or name in (
+        "qwen3.8-max",
+        "qwen3.8-max-0902",
+    ):
         return True
     return False
 
@@ -284,7 +287,7 @@ class DashScopeTurnAccumulator:
         """The raw usage object of this round, or ``None`` when unreported.
 
         Uniform accessor used by the web loop to fold each round's usage into
-        the turn-level cumulative totals (:class:`TokenStats`).
+        the turn-level cumulative totals (:class:`TurnInfo`).
         """
         if (
             self.input_tokens is None

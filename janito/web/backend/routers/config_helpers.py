@@ -3,11 +3,11 @@ Shared helpers for the config API router.
 
 The patch helpers implement the per-provider mutable fields of the web
 Settings drawer (``model``, ``endpoint``, ``api_type``,
-``responses_in_server``) and their provider resolution.  They were extracted
+``stateless_mode``) and their provider resolution.  They were extracted
 from ``janito.web.backend.routers.config`` so the router stays focused on
 endpoint wiring.
 
-``api_type`` and ``responses_in_server`` are **model-scoped**: they are
+``api_type`` and ``stateless_mode`` are **model-scoped**: they are
 stored under ``providers.<name>.models.<model>.<key>`` where ``model`` is
 the provider's configured model, else its built-in default model.
 """
@@ -25,7 +25,7 @@ async def _read_json_body(request: Request):
     """Parse the request body; returns ``(body, error_response)``."""
     try:
         body = await request.json()
-    except Exception:
+    except ValueError:
         return None, JSONResponse({"detail": "Invalid JSON"}, status_code=400)
     return body, None
 
@@ -181,17 +181,17 @@ def _patch_api_type(body, provider, effective, config, updated) -> JSONResponse 
     return None
 
 
-def _patch_responses_in_server(
+def _patch_stateless_mode(
     body, provider, effective, config, updated
 ) -> JSONResponse | None:
-    """Apply the ``responses_in_server`` field; returns an error response or None."""
-    if "responses_in_server" not in body:
+    """Apply the ``stateless_mode`` field; returns an error response or None."""
+    if "stateless_mode" not in body:
         return None
 
     from janito.config_keys import model_scoped_config_key
     from janito.config_store import set_config_value
 
-    value = body["responses_in_server"]
+    value = body["stateless_mode"]
     if isinstance(value, str):
         lowered = value.strip().lower()
         if lowered in ("true", "1", "yes", "on"):
@@ -200,13 +200,13 @@ def _patch_responses_in_server(
             value = False
         else:
             return JSONResponse(
-                {"detail": "'responses_in_server' must be a boolean"},
+                {"detail": "'stateless_mode' must be a boolean"},
                 status_code=400,
             )
-    responses_in_server = bool(value)
+    stateless_mode = bool(value)
 
     # The value is model-scoped: it lands under
-    # providers.<name>.models.<model>.responses-in-server for the
+    # providers.<name>.models.<model>.stateless-mode for the
     # provider's configured/default model, so the CLI's Responses-API
     # path (conversations_api) picks it up.  Only meaningful while the
     # provider's API type is "Responses".
@@ -216,14 +216,14 @@ def _patch_responses_in_server(
             {
                 "detail": (
                     f"Provider '{provider}' has no configured or default "
-                    "model; set one before changing responses-in-server."
+                    "model; set one before changing stateless-mode."
                 )
             },
             status_code=400,
         )
-    key = model_scoped_config_key(provider, model, "responses-in-server")
-    set_config_value(key, responses_in_server)
-    updated["responses_in_server"] = responses_in_server
+    key = model_scoped_config_key(provider, model, "stateless-mode")
+    set_config_value(key, stateless_mode)
+    updated["stateless_mode"] = stateless_mode
 
     return None
 
@@ -268,7 +268,7 @@ def _build_provider_entry(
     inherits the base's built-in defaults while its own per-variant config
     (``providers.<name>.*``) and API key are read off the variant name.
 
-    The ``default_*`` fields (and the plain ``responses_in_server`` /
+    The ``default_*`` fields (and the plain ``stateless_mode`` /
     ``supported_api_types`` / ``supported_reasoning_efforts`` fields) are
     computed for the entry's **effective model**: the configured model
     (``providers.<name>.model``), else the built-in ``default_model``.  A
@@ -289,7 +289,7 @@ def _build_provider_entry(
         load_api_type,
         load_endpoint_from_config,
         load_model_from_config,
-        load_responses_in_server_from_config,
+        load_stateless_mode_from_config,
     )
     from janito.providers import CUSTOM_ENDPOINT_MARKER
     from janito.providers.registry import get_provider
@@ -331,13 +331,11 @@ def _build_provider_entry(
 
     # Advanced per-provider settings (Settings drawer's Advanced section):
     # the configured ``api_type`` override (``None`` when the model's
-    # built-in default applies) and the effective ``responses_in_server``
+    # built-in default applies) and the effective ``stateless_mode``
     # flag (configured override first, else the built-in default).
     api_type_override = load_api_type(name, entry_model)
-    responses_in_server = (
-        provider_obj.responses_in_server(entry_model)
-        if provider_obj is not None
-        else True
+    stateless_mode = (
+        provider_obj.stateless_mode(entry_model) if provider_obj is not None else True
     )
 
     # Per-API-type availability for the Settings drawer's API Type
@@ -385,15 +383,15 @@ def _build_provider_entry(
                         model_name
                     ),
                     "thinking": provider_obj.default_thinking(model_name),
-                    "responses_in_server": provider_obj.responses_in_server(model_name),
+                    "stateless_mode": provider_obj.stateless_mode(model_name),
                 }
             )
 
-    # The built-in (raw) responses-in-server default for the entry's model --
+    # The built-in (raw) stateless-mode default for the entry's model --
     # NOT the config-overridden effective value, so the drawer can show the
     # built-in default next to the effective flag and the override.
-    default_responses_in_server = (
-        provider_obj.model_config(entry_model).responses_in_server()
+    default_stateless_mode = (
+        provider_obj.model_config(entry_model).stateless_mode()
         if provider_obj is not None
         else True
     )
@@ -416,11 +414,9 @@ def _build_provider_entry(
         ),
         "api_types": api_types,
         "endpoint_by_api_type": info.get("endpoint_by_api_type"),
-        "responses_in_server": responses_in_server,
-        "default_responses_in_server": default_responses_in_server,
-        "responses_in_server_override": load_responses_in_server_from_config(
-            name, entry_model
-        ),
+        "stateless_mode": stateless_mode,
+        "default_stateless_mode": default_stateless_mode,
+        "stateless_mode_override": load_stateless_mode_from_config(name, entry_model),
         "default_max_input_tokens": (
             provider_obj.max_input_tokens(entry_model)
             if provider_obj is not None

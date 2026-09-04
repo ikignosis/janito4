@@ -310,7 +310,7 @@ class _SearchWalker:
 
                     files_searched += 1
 
-        except Exception:
+        except OSError:
             pass  # Skip directories that can't be accessed
 
         return (
@@ -369,7 +369,7 @@ class _SearchWalker:
                         total_matches += file_count
                     files_searched += 1
 
-        except Exception:
+        except OSError:
             pass  # Skip directories that can't be accessed
 
         return (

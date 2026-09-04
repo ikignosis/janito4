@@ -28,7 +28,7 @@ PROVIDER_CONFIG: dict = {
             # DeepSeek's /responses endpoint is stateless: it cannot
             # resolve a previous_response_id, so the client must re-send
             # the full history.
-            "responses_in_server": False,
+            "stateless_mode": True,
             "max_input_tokens": 1048576,  # 1M
             "max_output_tokens": 393216,  # 384k
             "thinking": True,  # DeepSeek models reason by default
@@ -56,7 +56,7 @@ PROVIDER_CONFIG: dict = {
             # DeepSeek's /responses endpoint is stateless: it cannot
             # resolve a previous_response_id, so the client must re-send
             # the full history.
-            "responses_in_server": False,
+            "stateless_mode": True,
             "max_input_tokens": 1048576,  # 1M
             "max_output_tokens": 393216,  # 384k
             "thinking": True,  # DeepSeek models reason by default

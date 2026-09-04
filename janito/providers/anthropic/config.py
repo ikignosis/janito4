@@ -42,7 +42,7 @@ PROVIDER_CONFIG: dict = {
             "max_input_tokens": 1000000,
             "max_output_tokens": 128000,
         },
-        "claude-fable-5": {
+        "claude-fable-5-1": {
             "supported_api_types": [
                 "Completions",
                 "Anthropic",  # native Anthropic SDK (requires the `anthropic` package)

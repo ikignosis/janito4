@@ -126,7 +126,7 @@ The server prints the URL it's listening on, then opens your default browser
 | `-S "prompt"` | Override system prompt (tools stay enabled) |
 | `-Z, --no-system-prompt` | No system prompt, no tools |
 | `--no-tools` | Do not load tools (skill tools stay enabled) |
-| `--no-tasks` | Do not load the tasks toolset (`StartTask`, `StopTask`, `WaitForTask`); all other tools stay enabled |
+| `--no-tasks` | Do not load the tasks toolset (`StartTask`, `StopTask`, `WaitForTask`, `ListTasks`); all other tools stay enabled |
 | `-v, --verbose` | Verbose backend logging |
 | `--no-history` | Don't persist session history to disk (`./.janito/sessions/` is neither written nor read) |
 
@@ -260,7 +260,7 @@ janito/web/frontend/   (Alpine.js — no build step)
 | `WS` | `/api/chat/ws/{id}` | Bidirectional streaming chat |
 | `POST` | `/api/chat/prompt` | One-shot SSE streaming |
 | `GET` | `/api/config` | Runtime config |
-| `PATCH` | `/api/config` | Update mutable config (`model`, `endpoint`, `api_type`, `responses_in_server`; per-provider, persisted) |
+| `PATCH` | `/api/config` | Update mutable config (`model`, `endpoint`, `api_type`, `stateless_mode`; per-provider, persisted) |
 | `GET` | `/api/config/providers` | Supported providers (incl. `api_key_set`, `active`, `effective`) |
 | `GET` | `/api/config/status` | API key status, provider, privileges |
 | `POST` | `/api/config/session-provider` | Switch provider for this session only (in memory; not persisted) |

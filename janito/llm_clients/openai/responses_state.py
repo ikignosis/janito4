@@ -2,7 +2,7 @@
 Conversation-state helpers for the Responses API client.
 
 The Responses API keeps the conversation server-side for most providers
-(``responses_in_server`` True) and chains turns with
+(``stateless_mode`` False) and chains turns with
 ``previous_response_id``; stateless providers (e.g. DeepSeek) cannot resolve
 a previous response id, so the client tracks the full conversation as
 Responses input items and re-sends them on every request.  These helpers
@@ -18,7 +18,7 @@ from janito.providers.registry import get_provider
 from .responses_items import message_item
 
 
-def responses_in_server(provider: str, model: str | None) -> bool:
+def stateless_mode(provider: str, model: str | None) -> bool:
     """Whether the Responses API keeps the conversation on the server.
 
     Resolved for the effective ``model``: a per-provider/model config
@@ -29,7 +29,7 @@ def responses_in_server(provider: str, model: str | None) -> bool:
     banner's ``(server-side / client-side)`` annotation.
     """
     found = get_provider(provider)
-    return found.responses_in_server(model) if found is not None else True
+    return found.stateless_mode(model) if found is not None else False
 
 
 def _init_conversation_state(
@@ -48,7 +48,7 @@ def _init_conversation_state(
 ]:
     """Set up the server-side or stateless conversation state.
 
-    Returns ``(responses_in_server, response_id, conversation_items,
+    Returns ``(stateless_mode, response_id, conversation_items,
     input_items, pending_items)``.  ``pending_items`` only applies to
     server-side conversations: the user messages that are not yet part of a
     completed response in the caller's chain (e.g. an Enter-cancelled prompt
@@ -56,11 +56,11 @@ def _init_conversation_state(
     turns and re-sends them (chained from the last completed response id)
     until a turn completes; ``None`` for stateless conversations.
 
-    The ``responses_in_server`` flag is resolved for the effective ``model``
+    The ``stateless_mode`` flag is resolved for the effective ``model``
     (a per-provider/model config override wins over the built-in default).
     """
-    responses_in_server_flag = responses_in_server(provider, model)
-    if responses_in_server_flag:
+    stateless_mode_flag = stateless_mode(provider, model)
+    if not stateless_mode_flag:
         response_id = previous_response_id
         conversation_items: list[dict[str, Any]] | None = None
         # The first round sends the raw prompt; tool-call rounds send the
@@ -94,7 +94,7 @@ def _init_conversation_state(
         input_items = conversation_items
         pending_items = None
     return (
-        responses_in_server_flag,
+        stateless_mode_flag,
         response_id,
         conversation_items,
         input_items,
@@ -110,7 +110,7 @@ def _build_call_kwargs(
     preserve_thinking: Any,
     thinking,
     response_id: str | None,
-    responses_in_server: bool,
+    stateless_mode: bool,
     instructions: str | None,
     builtin_tools=None,
     provider: str | None = None,
@@ -127,12 +127,32 @@ def _build_call_kwargs(
     ``provider`` enables the Gemini-flavor guard in
     :func:`apply_thinking_to_extra_body` (Gemini-flavored providers do not
     accept ``enable_thinking``).
+
+    Stateless providers (``stateless_mode`` True) also send
+    ``store: False`` (the server keeps no copy of the conversation) and the
+    model's declared ``responses_include`` values (e.g. Meta's
+    ``reasoning.encrypted_content``, so the reasoning output items returned
+    in ``output`` carry the encrypted chain of thought that stateless
+    replay needs).
     """
     call_kwargs: dict[str, Any] = {
         "model": model,
         "input": input_items,
         "temperature": 1.0,
     }
+
+    if stateless_mode:
+        # Stateless providers: the full history is re-sent in ``input`` and
+        # the server must keep no copy of the conversation (Meta's docs pair
+        # the encrypted reasoning replay with store:false).
+        call_kwargs["store"] = False
+        # Request the model's declared optional output fields (e.g. Meta's
+        # "reasoning.encrypted_content") so the reasoning output items carry
+        # the encrypted chain of thought needed for stateless replay.
+        found = get_provider(provider) if provider else None
+        include = found.responses_include(model) if found is not None else None
+        if isinstance(include, (list, tuple)) and include:
+            call_kwargs["include"] = [str(entry) for entry in include]
 
     # Add max_output_tokens if max output tokens is set in config
     if max_output_tokens is not None:
@@ -166,10 +186,14 @@ def _build_call_kwargs(
     # providers never chain: the full history is already in ``input``.
     if response_id is not None:
         call_kwargs["previous_response_id"] = response_id
-    elif responses_in_server and instructions:
-        # First turn of a server-side conversation: system instructions
-        # are only sent here; the server folds them into the stored
-        # conversation.
+
+    # System instructions: stateless providers fold them into the client-side
+    # items history (sent with every request), so no separate parameter is
+    # needed.  Server-side providers always send them -- some (e.g. Meta)
+    # do not persist ``instructions`` across ``previous_response_id`` turns
+    # and require it on every request; re-sending is also correct for those
+    # that do fold it into the stored conversation (OpenAI).
+    if not stateless_mode and instructions:
         call_kwargs["instructions"] = instructions
 
     # The effective model's built-in (native) tools (e.g. Alibaba/Qwen's

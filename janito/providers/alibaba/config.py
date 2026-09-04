@@ -86,6 +86,68 @@ PROVIDER_CONFIG: dict = {
                 },
             ],
         },
+        "qwen3.8-max-0902": {
+            # Responses is the built-in default API type. The Completions
+            # API remains fully supported and can be selected with
+            # --set api-type=Completions or --api-type completions. The
+            # native DashScope SDK API type is selectable with
+            # --set api-type=DashScope or --api-type DashScope (it
+            # requires the optional `dashscope` package; see
+            # REQUIRES_BY_API_TYPE).
+            "supported_api_types": ["Completions", "Responses", "DashScope"],
+            "default_api_type": "Responses",  # built-in default
+            "max_input_tokens": 1000000,  # 1M
+            "max_output_tokens": 131072,
+            # Per the QwenCloud API reference, reasoning_effort accepts
+            # low/medium/xhigh.  The built-in default is the lowest
+            # supported level (low) instead of the API's xhigh.
+            "default_reasoning_effort": "low",
+            "thinking": True,  # Qwen models reason by default
+            # Qwen hybrid-thinking models keep their previous reasoning in
+            # multi-turn context: preserve_thinking appends the assistant
+            # messages' reasoning_content to the next input, so the model can
+            # reference its own prior reasoning (per the QwenCloud Thinking
+            # guide).  Sent as extra_body['preserve_thinking'] on the
+            # OpenAI-compatible Completions / Responses calls (a Qwen
+            # extension, not an OpenAI standard parameter).
+            "preserve_thinking": True,
+            # Built-in (native) tools, enabled per API type.  These are
+            # *not* function tools: on the Responses API they are entries in
+            # the ``tools`` array, on the Completions API they are extra_body
+            # ``enable_code_interpreter`` / ``enable_search`` flags, and on
+            # the native DashScope API they are ``enable_code_interpreter`` /
+            # ``enable_search`` kwargs.  ``code_interpreter`` only supports
+            # calls in thinking mode, so it also forces ``enable_thinking``
+            # on.
+            #
+            # Only the Responses API is enabled: the qwen3.8-max deployment
+            # rejects the built-in tools on the Completions API with ``400
+            # InternalError.Algo.InvalidParameter: The current model does not
+            # support the code_interpreter tool.``, and the DashScope native
+            # endpoint is left off for the same reason until confirmed.
+            # Re-enable per API type once the endpoint accepts them.
+            "tools_by_api_type": {
+                "Responses": [
+                    {"type": "code_interpreter"},
+                    {"type": "web_search"},
+                    {"type": "web_extractor"},
+                ],
+            },
+            "supported_reasoning_efforts": [
+                {
+                    "effort": "low",
+                    "description": "Fast responses with lighter reasoning",
+                },
+                {
+                    "effort": "medium",
+                    "description": "Greater reasoning depth for complex problems",
+                },
+                {
+                    "effort": "xhigh",
+                    "description": "Extra high reasoning depth for complex problems",
+                },
+            ],
+        },
         "qwen3.8-flash": {
             # Same API-type surface as qwen3.8-max (see its entry for the
             # endpoint notes): the OpenAI-compatible Chat Completions /

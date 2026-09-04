@@ -22,16 +22,19 @@ from collections.abc import Iterable
 from typing import Any
 
 
-def warn_if_privilege_override(schemas: list[dict[str, Any]]) -> None:
+def warn_if_privilege_override(schemas: list[dict[str, Any]], permissions: str) -> None:
     """Print a one-line warning when ``schemas`` expand beyond the session
     privileges.
 
     The /read, /write, /rx, /rw and /rwx commands explicitly override the
     runtime ``-r``/``-w``/``-x`` restrictions for the current turn (issue
     #87); surface that so the escalation is visible, mirroring the
-    full-privileges warning at startup.  Prints nothing when the offered
-    schemas are a subset of the session's allowed tools (or when no
-    privilege flags were passed).
+    full-privileges warning at startup.  ``permissions`` is the set of
+    permission letters the command grants for the turn (e.g. ``"rx"`` for
+    ``/rx``); it is rendered in the note as ``(-r/-x)`` so the message
+    reflects what the turn actually receives (issue #109).  Prints nothing
+    when the offered schemas are a subset of the session's allowed tools
+    (or when no privilege flags were passed).
     """
     if not schemas:
         return
@@ -51,9 +54,10 @@ def warn_if_privilege_override(schemas: list[dict[str, Any]]) -> None:
     if extra:
         from rich.console import Console
 
+        flags = "/".join(f"-{letter}" for letter in sorted(permissions))
         Console().print(
-            "[bold yellow]Note:[/bold yellow] this turn runs with "
-            "privileges (-r/-w/-x)"
+            f"[bold yellow]Note:[/bold yellow] this turn runs with "
+            f"privileges ({flags})"
         )
 
 

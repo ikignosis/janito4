@@ -16,7 +16,7 @@ PROVIDER_CONFIG: dict = {
                 "Completions",
             ],
             "default_api_type": "Responses",  # built-in default (Responses is the default)
-            "responses_in_server": True,  # server-side conversation state (previous_response_id)
+            "stateless_mode": False,  # server-side conversation state (previous_response_id)
             "max_input_tokens": 1050000,
             "max_output_tokens": 128000,
             # GPT-5.x models support configurable reasoning depth via the
@@ -44,7 +44,7 @@ PROVIDER_CONFIG: dict = {
                 "Completions",
             ],
             "default_api_type": "Responses",  # built-in default (Responses is the default)
-            "responses_in_server": True,  # server-side conversation state (previous_response_id)
+            "stateless_mode": False,  # server-side conversation state (previous_response_id)
             "max_input_tokens": 1050000,
             "max_output_tokens": 128000,
             # GPT-5.x models support configurable reasoning depth via the
@@ -72,7 +72,7 @@ PROVIDER_CONFIG: dict = {
                 "Completions",
             ],
             "default_api_type": "Responses",  # built-in default (Responses is the default)
-            "responses_in_server": True,  # server-side conversation state (previous_response_id)
+            "stateless_mode": False,  # server-side conversation state (previous_response_id)
             "max_input_tokens": 1050000,
             "max_output_tokens": 128000,
             # GPT-5.x models support configurable reasoning depth via the

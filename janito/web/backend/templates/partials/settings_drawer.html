@@ -82,7 +82,7 @@
                 </div>
 
                 <!-- Advanced section (collapsed by default): per-provider
-                     endpoint, API type and Responses-in-server.  All three
+                     endpoint, API type and Stateless-mode.  All three
                      describe the provider picked in the combo and are saved
                      per-provider with Save, like the Model field. -->
                 <details class="advanced-section">
@@ -131,15 +131,15 @@
                         </template>
                     </div>
 
-                    <!-- Responses-in-server only applies to the Responses API. -->
+                    <!-- Stateless-mode only applies to the Responses API. -->
                     <template x-if="apiTypeIsResponses">
                         <div class="form-group">
-                            <label class="switch-row" for="responses-in-server-toggle">
+                            <label class="switch-row" for="stateless-mode-toggle">
                                 <span class="switch-label">
                                     ResponsesInServer
                                     <span class="field-hint">Server-side conversation state (previous_response_id).</span>
                                 </span>
-                                <input id="responses-in-server-toggle" type="checkbox"
+                                <input id="stateless-mode-toggle" type="checkbox"
                                        class="switch-input" x-model="responsesInServer">
                                 <span class="switch-track" aria-hidden="true"></span>
                             </label>

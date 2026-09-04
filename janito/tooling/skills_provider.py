@@ -102,7 +102,7 @@ class Skill:
             try:
                 with open(resource_path, encoding="utf-8") as f:
                     return f.read()
-            except Exception:
+            except (OSError, UnicodeError):
                 return None
         return None
 
@@ -208,7 +208,7 @@ class SkillsProvider:
                     content = f.read()
                     # Extract description from first paragraph
                     description = self._extract_description(content)
-            except Exception:
+            except (OSError, UnicodeError):
                 pass
 
         self._skills[name] = Skill(name, path, description, source=source)

@@ -37,10 +37,11 @@ records the overall-use accounting row from that call.
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from janito.llm_adapters.usage import TokenStats
+    from janito.llm_adapters.usage import TurnInfo
 
 
 class TurnObserver(Protocol):
@@ -116,16 +117,20 @@ class TurnObserver(Protocol):
         """
         ...
 
+    def on_limits(self, http_error_msg: str, retry_interval: float) -> None:
+        """Rate-limit wait (issue #116): render, wait, return to retry."""
+        ...
+
     def on_turn_complete(
         self,
-        token_stats: TokenStats | None,
+        token_stats: TurnInfo | None,
         api_config: Any,
         elapsed_time: float | None = None,
     ) -> None:
         """End-of-turn report (used files + token-usage summary + accounting).
 
         Invoked by ``Client.run_turn`` at the end of the turn with the
-        client-built :class:`~janito.llm_adapters.usage.TokenStats`
+        client-built :class:`~janito.llm_adapters.usage.TurnInfo`
         (``token_stats``, every round's usage folded into it) and the turn's
         resolved :class:`~janito.llm_clients.api_config.APIConfig`
         (``api_config``);
@@ -198,6 +203,9 @@ class NullObserver:
         error_kind: str | None = None,
     ) -> None:
         pass
+
+    def on_limits(self, http_error_msg: str, retry_interval: float) -> None:
+        time.sleep(retry_interval)
 
     def on_turn_complete(
         self,

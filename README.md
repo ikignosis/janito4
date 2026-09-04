@@ -171,7 +171,7 @@ janito -S "You are a concise coding assistant" "Explain recursion"
 # Keep the system prompt but skip tool loading (skill tools stay enabled)
 janito --no-tools "Explain recursion"
 
-# Skip only the parallel-tasks toolset (StartTask/StopTask/WaitForTask)
+# Skip only the parallel-tasks toolset (StartTask/StopTask/WaitForTask/ListTasks)
 janito --no-tasks "Refactor this file"
 ```
 
@@ -180,13 +180,13 @@ janito --no-tasks "Refactor this file"
 | `-Z`, `--no-system-prompt` | Skip system prompt and disable tools |
 | `-S`, `--system-prompt` | Custom system prompt |
 | `--no-tools` | Do not load tools (skill tools stay enabled) |
-| `--no-tasks` | Do not load the tasks toolset (`StartTask`, `StopTask`, `WaitForTask`); all other tools stay enabled |
+| `--no-tasks` | Do not load the tasks toolset (`StartTask`, `StopTask`, `WaitForTask`, `ListTasks`); all other tools stay enabled |
 
 > **Note:** When using `-Z`, built-in tools (file operations, MCP) are disabled. Use the default mode or `-S` flag when you need tool access.
 >
 > **Note:** `--no-tools` disables loading of all non-skill tools (file operations, MCP) while keeping the skill tools (`load_skill`, `read_skill_resource`) available, so the model can still load installed skills on demand.
 >
-> **Note:** `--no-tasks` disables only the tasks toolset (the `StartTask` / `StopTask` / `WaitForTask` tools that spawn parallel child processes). File, system, net and skill tools stay available.
+> **Note:** `--no-tasks` disables only the tasks toolset (the `StartTask` / `StopTask` / `WaitForTask` / `ListTasks` tools that spawn parallel child processes). File, system, net and skill tools stay available.
 
 ### Logging
 

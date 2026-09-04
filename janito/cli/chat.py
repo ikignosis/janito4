@@ -46,7 +46,7 @@ def _make_turn_func(
 
     The end-of-turn report (used files + token-usage summary) and the
     overall-use accounting row are delivered by ``Client.run_turn`` itself:
-    it builds the ``TokenStats`` internally (folding every round's usage into
+    it builds the ``TurnInfo`` internally (folding every round's usage into
     it, tool-call rounds included) and hands it -- together with the resolved
     ``APIConfig``, whose provider / model / max tokens feed the report -- to
     the injected observer's ``on_turn_complete`` when the turn finishes
@@ -91,7 +91,7 @@ def _make_turn_func(
         # time (the shell's /thinking toggle rebuilds the config via the
         # factory).
         # The end-of-turn report is delivered by Client.run_turn itself to
-        # the injected observer's on_turn_complete (client-owned TokenStats
+        # the injected observer's on_turn_complete (client-owned TurnInfo
         # + the resolved APIConfig, issue #82) -- the closure has no out-param
         # to pass.
         return client.run_turn(
@@ -336,14 +336,14 @@ def run_interactive_chat(args):
 
     # Annotate where the conversation state lives: the Responses API keeps
     # it server-side (chained via previous_response_id) unless the
-    # responses-in-server ("keep in server") config flips it to stateless,
+    # stateless-mode ("keep in server") config flips it to stateless,
     # in which case the client re-sends the full history; Completions and
     # other API types always keep history client-side.  The flag is resolved
     # by the single helper the Responses client itself uses.
     if api_type == "Responses" and provider != "(not configured)":
-        from ..llm_clients.openai.responses_state import responses_in_server
+        from ..llm_clients.openai.responses_state import stateless_mode
 
-        state = "server-side" if responses_in_server(provider, model) else "client-side"
+        state = "client-side" if stateless_mode(provider, model) else "server-side"
     else:
         state = "client-side"
     Console().print(

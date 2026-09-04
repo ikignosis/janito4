@@ -9,7 +9,7 @@ The CLI loop does not use these wire events: it prints through the
 ``TurnObserver`` protocol (``janito.llm_adapters.observer``) instead.
 ``UsageEvent`` + :func:`usage_event_from_usage` live here too -- the web
 backend is their only consumer; the shared adapter layer
-(``janito.llm_adapters``) exposes only the normalized ``TokenStats``.
+(``janito.llm_adapters``) exposes only the normalized ``TurnInfo``.
 """
 
 from dataclasses import dataclass

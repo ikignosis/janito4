@@ -20,6 +20,7 @@ from .custom.config import CUSTOM_ENDPOINT_MARKER as CUSTOM_ENDPOINT_MARKER
 from .custom.config import PROVIDER_CONFIG as _CUSTOM_CONFIG
 from .deepseek.config import PROVIDER_CONFIG as _DEEPSEEK_CONFIG
 from .google.config import PROVIDER_CONFIG as _GOOGLE_CONFIG
+from .meta.config import PROVIDER_CONFIG as _META_CONFIG
 from .minimax.config import PROVIDER_CONFIG as _MINIMAX_CONFIG
 from .moonshot.config import PROVIDER_CONFIG as _MOONSHOT_CONFIG
 from .openai.config import PROVIDER_CONFIG as _OPENAI_CONFIG
@@ -40,6 +41,7 @@ _PROVIDER_CONFIGS: dict[str, dict] = {
     "moonshot": _MOONSHOT_CONFIG,
     "alibaba": _ALIBABA_CONFIG,
     "zai": _ZAI_CONFIG,
+    "meta": _META_CONFIG,
     "deepseek": _DEEPSEEK_CONFIG,
     "xai": _XAI_CONFIG,
     "anthropic": _ANTHROPIC_CONFIG,

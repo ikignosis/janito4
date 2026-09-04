@@ -24,7 +24,7 @@ Config keys come in three scopes:
   ``endpoint``), stored under ``providers.<provider>.<key>``;
 - **model-scoped** keys (``MODEL_SCOPED_KEYS``: ``max-input-tokens``,
   ``max-output-tokens``, ``reasoning-effort``, ``api-type``,
-  ``responses-in-server``), stored under
+  ``stateless-mode``), stored under
   ``providers.<provider>.models.<model>.<key>`` so each provider/model pair
   keeps its own values.
 """

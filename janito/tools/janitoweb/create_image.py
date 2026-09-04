@@ -63,7 +63,7 @@ def _alibaba_base_url() -> str | None:
         override = load_endpoint_from_config("alibaba")
         if override:
             return override
-    except Exception:
+    except (ImportError, AttributeError, ValueError):
         pass
 
     try:
@@ -71,7 +71,7 @@ def _alibaba_base_url() -> str | None:
 
         found = get_provider("alibaba")
         return found.info.get("endpoint") if found is not None else None
-    except Exception:
+    except (ImportError, AttributeError, ValueError):
         return None
 
 
@@ -104,7 +104,7 @@ def _resolve_api_key() -> str | None:
         from ...auth_config import get_api_key
 
         return get_api_key("alibaba")
-    except Exception:
+    except (ImportError, AttributeError, ValueError):
         return None
 
 
@@ -139,7 +139,7 @@ class CreateImage(BaseTool):
                     "CreateImage requires the alibaba provider"
                 )
                 return False
-        except Exception:
+        except (ImportError, AttributeError, ValueError):
             cls._load_skip_reason = "Could not determine the active provider"
             return False
 
@@ -190,7 +190,7 @@ class CreateImage(BaseTool):
             detail = ""
             try:
                 detail = e.read().decode("utf-8", errors="replace")
-            except Exception:
+            except (OSError, ValueError):
                 pass
             msg = f"HTTP Error {e.code}: {e.reason}"
             if detail:
@@ -236,7 +236,7 @@ class CreateImage(BaseTool):
                             break
                         fh.write(chunk)
             return tmp_path, None
-        except Exception as e:
+        except (OSError, urllib.error.URLError) as e:
             # Best-effort cleanup of the empty/partial temp file.
             try:
                 os.remove(tmp_path)
@@ -356,7 +356,11 @@ class CreateImage(BaseTool):
         """
         try:
             return self._do_generate(prompt, size)
-        except Exception as e:
+        except (
+            OSError,
+            ValueError,
+            RuntimeError,
+        ) as e:  # narrowed from blind Exception
             self.report_error(f"Execution error: {e!s}")
             return {
                 "success": False,

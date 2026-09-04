@@ -45,6 +45,37 @@ PROVIDER_CONFIG: dict = {
     # the API maps to the model's ``thinking_level``.
     "gemini_flavor": True,
     "models": {
+        "gemini-3.8-flash": {
+            # Completions is the built-in default (Google's OpenAI-
+            # compatibility layer, which works out of the box with the
+            # hard `openai` dependency).  The native Gemini API type is
+            # selectable with --set api-type=Gemini / --api-type Gemini
+            # (it requires the optional `google-genai` package; see
+            # REQUIRES_BY_API_TYPE).
+            "supported_api_types": ["Completions", "Gemini"],
+            "default_api_type": "Completions",  # built-in default (the first supported type)
+            "max_input_tokens": 1048576,  # 1M
+            "max_output_tokens": 65536,  # 64k
+            # Gemini 3.x models reason by default and thinking cannot be
+            # disabled for them.  Per the Gemini Flash reference,
+            # reasoning_effort maps to the model's thinking_level, which
+            # accepts low/medium/high (default low).
+            "default_reasoning_effort": "low",
+            "supported_reasoning_efforts": [
+                {
+                    "effort": "low",
+                    "description": "Lighter reasoning for fast responses",
+                },
+                {
+                    "effort": "medium",
+                    "description": "Standard reasoning depth",
+                },
+                {
+                    "effort": "high",
+                    "description": "Deep reasoning for complex problems",
+                },
+            ],
+        },
         "gemini-3.7-flash": {
             # Completions is the built-in default (Google's OpenAI-
             # compatibility layer, which works out of the box with the
@@ -59,8 +90,8 @@ PROVIDER_CONFIG: dict = {
             # Gemini 3.x models reason by default and thinking cannot be
             # disabled for them.  Per the Gemini 3.7 Flash reference,
             # reasoning_effort maps to the model's thinking_level, which
-            # accepts low/medium/high (default medium).
-            "default_reasoning_effort": "medium",
+            # accepts low/medium/high (default low).
+            "default_reasoning_effort": "low",
             "supported_reasoning_efforts": [
                 {
                     "effort": "low",

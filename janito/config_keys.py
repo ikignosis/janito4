@@ -16,21 +16,21 @@ PROVIDER_SCOPED_KEYS = {
 
 # Config keys that are stored per-provider *and* per-model (as
 # ``<provider>.models.<model>.<key>``).  These carry model-level settings
-# (token limits, reasoning level, API type, Responses-in-server flag), so
+# (token limits, reasoning level, API type, Stateless-mode flag), so
 # each provider/model pair keeps its own values.
 MODEL_SCOPED_KEYS = {
     "max-input-tokens",
     "max-output-tokens",
     "reasoning-effort",
     "api-type",
-    "responses-in-server",
+    "stateless-mode",
 }
 
 # Config keys whose values should be coerced to int when set via CLI.
 INT_VALUED_KEYS = {"max-input-tokens", "max-output-tokens"}
 
 # Config keys whose values should be coerced to bool when set via CLI.
-BOOL_VALUED_KEYS = {"responses-in-server", "used-files"}
+BOOL_VALUED_KEYS = {"stateless-mode", "used-files"}
 
 
 def split_model_scoped_key(key: str) -> tuple[str, str, str] | None:
@@ -110,7 +110,7 @@ def model_scoped_config_key(provider: str, model: str, key: str) -> str:
     """Return the config key for a model-scoped setting.
 
     Model-level settings (token limits, reasoning level, API type,
-    Responses-in-server flag) are stored per provider/model pair under
+    Stateless-mode flag) are stored per provider/model pair under
     ``providers.<provider>.models.<model>.<key>`` so each provider/model
     combination keeps its own values.
 

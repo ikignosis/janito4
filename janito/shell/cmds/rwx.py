@@ -82,7 +82,7 @@ class RwxCmdHandler(CmdHandler):
             return
 
         read_write_exec_schemas = get_read_write_exec_tool_schemas()
-        warn_if_privilege_override(read_write_exec_schemas)
+        warn_if_privilege_override(read_write_exec_schemas, "rwx")
         print()  # blank line before the streamed response, like /ask
         # Reuse the shell's main-prompt path: same history, turns,
         # Responses state sync and cancel/rollback handling -- only the tool

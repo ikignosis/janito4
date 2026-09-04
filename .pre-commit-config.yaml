@@ -63,4 +63,4 @@ repos:
         entry: tox
         language: system
         pass_filenames: false
-        always_run: true
+        files: ^(janito|tests)/

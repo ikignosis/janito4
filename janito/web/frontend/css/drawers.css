@@ -214,7 +214,7 @@ input.key-unset { color: var(--text-muted); font-style: italic; }
 }
 .api-type-unavailable-row + .api-type-unavailable-row { margin-top: 4px; }
 
-/* Responses-in-server switch (only rendered while the API type is Responses). */
+/* Stateless-mode switch (only rendered while the API type is Responses). */
 .switch-row {
     display: flex;
     align-items: flex-start;

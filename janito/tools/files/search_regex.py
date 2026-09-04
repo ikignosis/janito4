@@ -127,7 +127,7 @@ class SearchRegex(SearchRunner):
         except re.error as e:
             self.report_error(f"Invalid regex pattern '{pattern}': {e!s}")
             return []
-        except Exception:
+        except (OSError, UnicodeError):
             # Skip files that can't be read (binary files, permission issues, etc.)
             return []
 
@@ -148,7 +148,7 @@ class SearchRegex(SearchRunner):
         except re.error:
             # Invalid regex pattern
             return 0
-        except Exception:
+        except (OSError, UnicodeError):
             # Skip files that can't be read
             return 0
 

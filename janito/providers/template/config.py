@@ -92,7 +92,14 @@ PROVIDER_CONFIG: dict = {
             #: on every request (like Chat Completions).  Absent defaults
             #: to ``True``.  Only meaningful when the model also supports
             #: "Responses".
-            "responses_in_server": True,
+            "stateless_mode": False,
+            #: Extra ``include`` values (optional) to request on every
+            #: Responses API call (e.g. ``["reasoning.encrypted_content"]``
+            #: for Meta's Muse Spark, which exposes the chain of thought only
+            #: in encrypted form so it can be replayed across turns).  A
+            #: list of strings; absent/``None`` sends no ``include``
+            #: parameter (the API's own default applies).
+            "responses_include": None,
             #: The maximum input-token (context window) limit used as the
             #: built-in default.  Absent/``None`` means there is no
             #: built-in limit (the caller falls back to its own default).

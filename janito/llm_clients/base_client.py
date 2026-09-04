@@ -43,19 +43,20 @@ monkeypatching a module global.
 """
 
 import logging
+import random
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
 from janito.llm_adapters.observer import NullObserver, TurnObserver
-from janito.llm_adapters.usage import TokenStats
+from janito.llm_adapters.usage import TurnInfo
 from janito.tooling.changes import clear_changes
 from janito.tooling.executor import extract_tool_names
 from janito.tooling.used_files import reset_used_files
 
 from .api_config import APIConfig
-from .client_support import _load_mcp
+from .client_support import _is_rate_limit, _load_mcp, _retry_after_seconds
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -89,20 +90,18 @@ class _HeadlessUIConfig:
 _DEFAULT_UI_CONFIG = _HeadlessUIConfig()
 
 
-def _fold_turn_usage(
-    token_stats: TokenStats | None, usage_info: Any
-) -> TokenStats | None:
+def _fold_turn_usage(token_stats: TurnInfo | None, usage_info: Any) -> TurnInfo | None:
     """Fold one round's usage into the turn-level cumulative totals.
 
     Tool-call rounds would otherwise be lost when the round state is
-    discarded; ``TokenStats`` keeps the final round's counters and sums
+    discarded; ``TurnInfo`` keeps the final round's counters and sums
     last_input/last_cached/last_output across every round of the turn
     (mirrors the web agent loop's ``_fold_turn_usage``).
     """
     if usage_info is None:
         return token_stats
     if token_stats is None:
-        return TokenStats.from_usage(usage_info)
+        return TurnInfo.from_usage(usage_info)
     token_stats.add_round(usage_info)
     return token_stats
 
@@ -191,7 +190,7 @@ class Client:
 
         The end-of-turn report (used files + token-usage summary) is
         delivered by this method itself: it builds a
-        :class:`~janito.llm_adapters.usage.TokenStats`, folds every round's usage
+        :class:`~janito.llm_adapters.usage.TurnInfo`, folds every round's usage
         into it (tool-call rounds included) and hands it -- together with the
         turn's resolved :class:`~janito.llm_clients.api_config.APIConfig`,
         whose provider / model / max tokens feed the report -- to the
@@ -272,10 +271,10 @@ class Client:
         )
 
         # Per-turn usage accumulator: folds every round (tool-call rounds
-        # included) into a TokenStats for the end-of-turn report (issue #82).
+        # included) into a TurnInfo for the end-of-turn report (issue #82).
         # The report's provider / model / max tokens come from self.api_config,
         # handed to the observer alongside the stats when the turn finishes.
-        token_stats: TokenStats | None = None
+        token_stats: TurnInfo | None = None
 
         while True:
             # Build the base call parameters for one round.
@@ -296,14 +295,16 @@ class Client:
             # Consume the full stream through the injected per-round stream
             # runner (the CLI's TUI runner runs the blocking work in a worker
             # thread while the main thread drives the spinner; the default
-            # ``None`` calls it directly -- no thread, no UI).
+            # ``None`` calls it directly -- no thread, no UI). A 429
+            # rate-limit error retries after the observer's on_limits wait
+            # instead of failing the turn (issue #116).
             (
                 full_content,
                 reasoning_content,
                 tool_calls,
                 usage_info,
                 raw_attrs,
-            ) = self._run_stream_round(
+            ) = self._run_stream_round_with_retry(
                 client,
                 call_kwargs,
                 tools_schemas,
@@ -367,7 +368,7 @@ class Client:
         """Finalize the turn and deliver the end-of-turn report.
 
         Runs the concrete client's :meth:`_finalize` hook and then hands the
-        populated client-owned :class:`~janito.llm_adapters.usage.TokenStats`,
+        populated client-owned :class:`~janito.llm_adapters.usage.TurnInfo`,
         together with the turn's resolved ``self.api_config`` (provider / model /
         max tokens) and the turn's elapsed wall-clock time (seconds, from
         ``turn_started`` -- the ``time.monotonic()`` stamp ``run_turn`` records
@@ -387,6 +388,44 @@ class Client:
     # ------------------------------------------------------------------
     # Shared helpers (base implementation; not monkeypatched by tests)
     # ------------------------------------------------------------------
+
+    def _run_stream_round_with_retry(
+        self, client, call_kwargs, tools_schemas, state, *, base_url, api_key, model
+    ):
+        """Run one streaming round, retrying HTTP 429 rate limits (issue #116).
+
+        Starts at a 1s interval, doubles after each consecutive 429 (capped
+        at 60s) with up to 0.5s jitter, and honors the ``Retry-After``
+        delay when the error carries one. Each wait is delivered to the
+        observer's ``on_limits`` (which blocks for the interval) before the
+        round is retried; non-429 errors propagate unchanged. Gives up
+        after 5 minutes of consecutive 429 waits and re-raises the last
+        error.
+        """
+        retry_interval = 1.0
+        waited = 0.0
+        while True:
+            try:
+                return self._run_stream_round(
+                    client,
+                    call_kwargs,
+                    tools_schemas,
+                    state,
+                    base_url=base_url,
+                    api_key=api_key,
+                    model=model,
+                )
+            except Exception as e:
+                if not _is_rate_limit(e):
+                    raise
+                wait = _retry_after_seconds(e)
+                if wait is None:
+                    wait = retry_interval + random.uniform(0, 0.5)
+                    retry_interval = min(retry_interval * 2, 60.0)
+                if waited + wait > 300.0:
+                    raise
+                self.observer.on_limits(str(e), wait)
+                waited += wait
 
     def _invoke_stream_runner(self, func: Callable, *args: Any, **kwargs: Any) -> Any:
         """Run the per-round worker through the injected stream runner.
@@ -507,7 +546,7 @@ class Client:
         """Record the final assistant message and return the result.
 
         The token counters were already folded onto a
-        :class:`~janito.llm_adapters.usage.TokenStats` by :meth:`run_turn`, and the
+        :class:`~janito.llm_adapters.usage.TurnInfo` by :meth:`run_turn`, and the
         report is delivered to the observer's ``on_turn_complete`` right
         after this hook returns -- this hook no longer carries any usage
         display metadata (message count / label are gone; provider / model /
