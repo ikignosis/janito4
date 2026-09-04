@@ -15,14 +15,10 @@ from typing import Any
 
 from ...tooling.skills_provider import get_default_skills_dir
 
-# Alias of :func:`janito.tooling.skills_provider.get_default_skills_dir`.
-# Retained for backward compatibility; prefer the canonical name in new code.
-get_skills_dir = get_default_skills_dir
-
 
 def _ensure_skills_dir() -> Path:
     """Ensure the skills directory exists."""
-    skills_dir = get_skills_dir()
+    skills_dir = get_default_skills_dir()
     skills_dir.mkdir(parents=True, exist_ok=True)
     return skills_dir
 
@@ -118,7 +114,7 @@ def _install_skill_dir(skill_src: Path, skill_path: str, skill_name: str) -> boo
         return False
 
     # Copy skill to ~/.janito/skills/
-    skill_dst = get_skills_dir() / skill_name
+    skill_dst = get_default_skills_dir() / skill_name
     print(f"Copying skill to {skill_dst}...")
     _ensure_skills_dir()
     _copy_dir(skill_src, skill_dst)
@@ -205,7 +201,7 @@ def handle_install_skill(url: str) -> int:
             return 1
         print(f"[OK] Skill '{skill_name}' installed successfully!")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - install must report any failure as exit 1
         print(f"Error installing skill: {e}")
         return 1
 
@@ -272,7 +268,7 @@ def handle_uninstall_skill(name: str) -> int:
         return 1
 
     # Remove skill directory
-    skill_path = get_skills_dir() / name
+    skill_path = get_default_skills_dir() / name
 
     if skill_path.exists():
         print(f"Removing skill files from {skill_path}...")

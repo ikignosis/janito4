@@ -127,7 +127,7 @@ if pytest is not None:
         assert loader.load_stateless_mode("moonshot") is None
         assert loader.load_stateless_mode() is None
 
-    def test_load_endpoint_provider_then_legacy(monkeypatch, tmp_path):
+    def test_load_endpoint_provider_scoped_only(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
         loader = ProviderConfigLoader()
         config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -139,12 +139,11 @@ if pytest is not None:
                 }
             )
         )
-        # Provider-scoped endpoint wins.
+        # Provider-scoped endpoint is read.
         assert loader.load_endpoint("custom") == "http://a/v1"
-        # Legacy top-level endpoint is the fallback.
-        assert loader.load_endpoint("openai") == "http://legacy/v1"
-        # Unknown provider still falls back to the legacy key.
-        assert loader.load_endpoint("bogus") == "http://legacy/v1"
+        # Top-level 'endpoint' is ignored (no backward compatibility).
+        assert loader.load_endpoint("openai") is None
+        assert loader.load_endpoint("bogus") is None
 
     # ---- flat system-prompt / system-prompt-file keys --------------------
 

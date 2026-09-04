@@ -147,8 +147,8 @@ The server prints the URL it's listening on, then opens your default browser
   New empty conversations are auto-named from the start of the first message you
   send (first 60 characters, replacing the default "New conversation" label).
 - **Session persistence** — every conversation is stored to
-  `./.janito/sessions/<session_id>.jsonl` (JSON-lines: a metadata line followed
-  by one message per line, relative to the working directory) and restored when
+  `./.janito/sessions/<session_id>/metadata.json` (single JSON object with
+  metadata plus `messages`, relative to the working directory) and restored when
   the server starts, so conversations **survive a restart**. When the page
   loads, the frontend triggers the load of *all* sessions and replays their
   stored history into the UI, so switching tabs is instant. Pass `--no-history`
@@ -226,7 +226,7 @@ janito/web/backend/
                  completions.py/turn.py/responses.py/anthropic.py/dashscope.py/gemini.py
    events.py     TokenEvent, ToolCallEvent, ToolProgressEvent, …
    session.py    ConversationSession + SessionManager (optional lazy TTL + persistence hooks)
-   session_store.py  .janito/sessions/<id>.jsonl read/write (issue #36)
+   session_store.py  .janito/sessions/<id>/metadata.json read/write (issue #36)
    security.py   Token auth middleware + CORS
    routers/
      chat.py     WS /api/chat/ws/{session} + REST session CRUD + SSE

@@ -1,14 +1,14 @@
 """Tests for web session persistence (issue #36).
 
-The web backend mirrors every conversation to ``./.janito/sessions/<id>.jsonl``
-(relative to the CWD, like ``./.janito/changes.jsonl``) and restores those
-files when the server starts, so conversations survive a restart. The
+The web backend mirrors every conversation to
+``./.janito/sessions/<id>/metadata.json`` (relative to the CWD) and restores
+those files when the server starts, so conversations survive a restart. The
 frontend prefetches every session's history on page load to restore the UI
 state ("events sent by the backend, replayed in the frontend").
 
 These tests pin down:
 
-1. creating a session writes its jsonl file (metadata line + system prompt);
+1. creating a session writes its metadata file (metadata + system prompt);
 2. messages appended by the agent loop are persisted on demand;
 3. a fresh SessionManager restores the persisted sessions from disk;
 4. deleting a session removes its file;
@@ -77,16 +77,16 @@ def client(isolated_cwd):
 
 
 def _session_path(isolated_cwd, session_id):
-    return isolated_cwd / ".janito" / "sessions" / f"{session_id}.jsonl"
+    return isolated_cwd / ".janito" / "sessions" / session_id / "metadata.json"
 
 
-def _read_lines(path):
-    return path.read_text(encoding="utf-8").strip().splitlines()
+def _read_doc(path):
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 @requires_fastapi
-def test_create_session_writes_jsonl(client, isolated_cwd):
-    """POST /api/chat/sessions writes the session's jsonl file."""
+def test_create_session_writes_metadata(client, isolated_cwd):
+    """POST /api/chat/sessions writes the session's metadata file."""
     resp = client.post("/api/chat/sessions")
     assert resp.status_code == 200
     session_id = resp.json()["session_id"]
@@ -94,17 +94,15 @@ def test_create_session_writes_jsonl(client, isolated_cwd):
     path = _session_path(isolated_cwd, session_id)
     assert path.exists()
 
-    lines = _read_lines(path)
-    assert lines  # at least the metadata line
-    meta = json.loads(lines[0])
-    assert meta["session_id"] == session_id
-    assert meta["title"] == "New conversation"
+    doc = _read_doc(path)
+    assert doc["session_id"] == session_id
+    assert doc["title"] == "New conversation"
 
     # The first message (if a system prompt is configured) is the system role.
-    if meta["system_prompt"]:
-        first_msg = json.loads(lines[1])
-        assert first_msg["role"] == "system"
-        assert first_msg["content"] == meta["system_prompt"]
+    if doc["system_prompt"]:
+        assert doc["messages"]
+        assert doc["messages"][0]["role"] == "system"
+        assert doc["messages"][0]["content"] == doc["system_prompt"]
 
 
 @requires_fastapi
@@ -120,11 +118,10 @@ def test_turn_messages_are_persisted(client, isolated_cwd):
     session.messages.append({"role": "assistant", "content": "hi there"})
     sessions.persist(session)
 
-    lines = _read_lines(_session_path(isolated_cwd, session_id))
-    messages = [json.loads(ln) for ln in lines[1:]]
-    roles = [m["role"] for m in messages]
+    doc = _read_doc(_session_path(isolated_cwd, session_id))
+    roles = [m["role"] for m in doc["messages"]]
     assert roles[-2:] == ["user", "assistant"]
-    assert messages[-1]["content"] == "hi there"
+    assert doc["messages"][-1]["content"] == "hi there"
 
 
 @requires_fastapi
@@ -181,7 +178,7 @@ def test_create_app_restores_sessions(client, isolated_cwd):
 
 @requires_fastapi
 def test_delete_session_removes_file(client, isolated_cwd):
-    """DELETE /api/chat/sessions/{id} removes the session's jsonl file."""
+    """DELETE /api/chat/sessions/{id} removes the session's directory."""
     resp = client.post("/api/chat/sessions")
     session_id = resp.json()["session_id"]
     path = _session_path(isolated_cwd, session_id)
@@ -190,6 +187,7 @@ def test_delete_session_removes_file(client, isolated_cwd):
     resp = client.delete(f"/api/chat/sessions/{session_id}")
     assert resp.status_code == 200
     assert not path.exists()
+    assert not path.parent.exists()
 
 
 @requires_fastapi
@@ -206,9 +204,8 @@ def test_restart_rewrites_history(client, isolated_cwd):
     session.restart()
     sessions.persist(session)
 
-    lines = _read_lines(_session_path(isolated_cwd, session_id))
-    messages = [json.loads(ln) for ln in lines[1:]]
-    assert all(m["role"] == "system" for m in messages)
+    doc = _read_doc(_session_path(isolated_cwd, session_id))
+    assert all(m["role"] == "system" for m in doc["messages"])
 
 
 @requires_fastapi
@@ -259,9 +256,8 @@ def test_rollback_is_persisted(client, isolated_cwd):
     session.history_turns.pop()
     sessions.persist(session)
 
-    lines = _read_lines(_session_path(isolated_cwd, session_id))
-    messages = [json.loads(ln) for ln in lines[1:]]
-    assert all(m["role"] == "system" for m in messages)
+    doc = _read_doc(_session_path(isolated_cwd, session_id))
+    assert all(m["role"] == "system" for m in doc["messages"])
 
 
 @requires_fastapi
@@ -271,8 +267,11 @@ def test_malformed_session_file_is_skipped(isolated_cwd):
     from janito.web.backend.session import SessionManager
 
     sessions_dir = isolated_cwd / ".janito" / "sessions"
-    sessions_dir.mkdir(parents=True)
-    (sessions_dir / "bad.jsonl").write_text("not json\n{broken\n", encoding="utf-8")
+    bad_dir = sessions_dir / "bad"
+    bad_dir.mkdir(parents=True)
+    (bad_dir / "metadata.json").write_text("not json\n{broken\n", encoding="utf-8")
+    # Legacy jsonl files are ignored.
+    (sessions_dir / "legacy.jsonl").write_text("not json\n", encoding="utf-8")
 
     manager = SessionManager(
         WebServerConfig(web_host="127.0.0.1", web_port=0, no_web_open=True)

@@ -16,7 +16,7 @@ def _load_skills():
 
         provider = get_skills_provider()
         return provider.list_skills()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - /skills must never break the shell
         print(f"Warning: Could not load skills: {e}")
         return []
 
@@ -108,16 +108,10 @@ class SkillsCmdHandler(CmdHandler):
         )
         summary.add_column("Key", style="green", no_wrap=True)
         summary.add_column("Value")
-        # Keep the compact two-source format when no agent skills are present
-        # for backwards compatibility, but report all three sources when they
-        # are in use.
-        if agent_skills:
-            source_summary = (
-                f"{len(home_skills)} home, {len(agent_skills)} agents, "
-                f"{len(local_skills)} local"
-            )
-        else:
-            source_summary = f"{len(home_skills)} home, {len(local_skills)} local"
+        source_summary = (
+            f"{len(home_skills)} home, {len(agent_skills)} agents, "
+            f"{len(local_skills)} local"
+        )
         summary.add_row("Total", f"{total} skill(s) ({source_summary})")
         Console(markup=False).print(summary)
 

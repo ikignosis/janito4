@@ -83,7 +83,7 @@ class SessionManager:
     """Store of active sessions, persisted to disk.
 
     Each session's conversation history is mirrored to
-    ``./.janito/sessions/<session_id>.jsonl`` (see
+    ``./.janito/sessions/<session_id>/metadata.json`` (see
     :mod:`janito.web.backend.session_store`) so conversations survive a
     server restart. Persistence is skipped entirely when
     ``config.no_history`` is set (``--no-history``).
@@ -269,6 +269,6 @@ class SessionManager:
 
         The chat router calls this after a turn completes — normally, on
         cancel (rollback), on error (rollback), and after a restart — so
-        the on-disk jsonl always mirrors the in-memory conversation.
+        the on-disk copy always mirrors the in-memory conversation.
         """
         self._persist(session)

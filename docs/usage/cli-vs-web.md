@@ -78,7 +78,7 @@ Legend: ✅ available · — not available
 |---------|:---------:|:------:|
 | Conversation history kept in context during a session | ✅ | ✅ |
 | Session sidebar (new chat, delete, rename, auto-naming) | — | ✅ |
-| Session persistence to `./.janito/sessions/<id>.jsonl` (survives restart) | — | ✅ |
+| Session persistence to `./.janito/sessions/<id>/metadata.json` (survives restart) | — | ✅ |
 | Interactive input-history file | ✅ | — |
 | `--no-history` (disable persistence) | ✅ *input history* | ✅ *session files* |
 

@@ -290,9 +290,6 @@ class ProviderConfigLoader:
         own endpoint. The provider is resolved from ``cli_provider`` first, then
         from the configured ``provider`` value.
 
-        For backward compatibility, the legacy top-level ``endpoint`` key is still
-        honored as a fallback when no provider-scoped endpoint is set.
-
         Args:
             cli_provider: Provider passed via ``--provider`` (may be None). If
                 not provided, the provider is read from config.json.
@@ -304,15 +301,12 @@ class ProviderConfigLoader:
         from .config_store import get_config_value
 
         provider = self._resolve_provider(cli_provider)
-        if provider:
-            value = get_config_value(endpoint_config_key(provider))
-            if value is not None:
-                return value
-        # Backward compatibility: legacy top-level 'endpoint' key
-        return get_config_value("endpoint")
+        if not provider:
+            return None
+        return get_config_value(endpoint_config_key(provider))
 
 
-# Module-level singleton backing the backward-compatible functions below.
+# Module-level singleton backing the functions below.
 _loader = ProviderConfigLoader()
 
 
@@ -453,9 +447,6 @@ def load_endpoint_from_config(cli_provider: str | None = None) -> str | None:
     (``<provider>.endpoint``) so that different providers can each have their
     own endpoint. The provider is resolved from ``cli_provider`` first, then
     from the configured ``provider`` value.
-
-    For backward compatibility, the legacy top-level ``endpoint`` key is still
-    honored as a fallback when no provider-scoped endpoint is set.
 
     Args:
         cli_provider: Provider passed via ``--provider`` (may be None). If not

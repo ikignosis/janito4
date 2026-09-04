@@ -248,12 +248,11 @@ if pytest is not None:
         # Unknown provider has no endpoint (and no legacy top-level value)
         assert cl.load_endpoint_from_config("unknown") is None
 
-    def test_load_endpoint_legacy_top_level_fallback(monkeypatch, tmp_path):
+    def test_load_endpoint_top_level_key_ignored(monkeypatch, tmp_path):
         _use_temp_config(monkeypatch, tmp_path)
-        # Write a legacy top-level 'endpoint' key directly.
+        # A top-level 'endpoint' key is ignored (no backward compatibility).
         cs.set_config_value("endpoint", "http://legacy/v1")
-        # No provider-scoped endpoint exists, so the legacy key is honored.
-        assert cl.load_endpoint_from_config("custom") == "http://legacy/v1"
+        assert cl.load_endpoint_from_config("custom") is None
 
     def test_unset_endpoint_per_provider(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)

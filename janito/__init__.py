@@ -13,8 +13,8 @@ from .mcp_client.stdio import StdioTransport
 
 # MCP modules
 from .mcp_config import (
-    MCP_CONFIG_PATH,
     add_service,
+    get_mcp_config_path,
     get_service,
     list_services,
     load_mcp_config,
@@ -28,7 +28,7 @@ __all__ = [
     "__version__",
     "__version_tuple__",
     # MCP Config
-    "MCP_CONFIG_PATH",
+    "get_mcp_config_path",
     "load_mcp_config",
     "save_mcp_config",
     "get_service",

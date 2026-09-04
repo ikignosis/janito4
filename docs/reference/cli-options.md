@@ -280,9 +280,6 @@ Values stored in `~/.janito/config.json` via `--set`. Keys are scoped:
 | `system-prompt` | flat | Literal text used as the system prompt's `start` section | built-in base prompt |
 | `system-prompt-file` | flat | Path to a file whose content becomes the `start` section (`~` is expanded, relative paths resolve against the cwd); wins over `system-prompt` when both are set. Validated when set and at startup: janito fails (exit 1) with an actionable error when the file does not exist | unset |
 
-> **Note:** for backward compatibility, a legacy top-level `endpoint` key is
-> still honored as a fallback when no provider-scoped endpoint is set.
-
 See [Configuration — System prompt](../configuration/index.md#system-prompt-system-prompt--system-prompt-file)
 for the full semantics (`-S`/`-Z` precedence, per-session file re-read, the
 project-local trust note).

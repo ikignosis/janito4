@@ -6,7 +6,6 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from .config_dir import get_config_dir
 from .json_store import McpConfigStore
 
 # Configure logger for this module
@@ -14,10 +13,6 @@ logger = logging.getLogger(__name__)
 
 # Module-level singleton store backing every function below.
 _store = McpConfigStore()
-
-# Default MCP services configuration path. Retained for backward compatibility;
-# prefer :func:`get_mcp_config_path` which honors the -c/--config-dir override.
-MCP_CONFIG_PATH = get_config_dir() / "mcp_services.json"
 
 
 def get_mcp_config_path() -> Path:
