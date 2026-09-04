@@ -262,15 +262,15 @@ if pytest is not None:
         registry.disabled_toolsets().add("files")
         assert registry.disabled_toolsets() == {"tasks"}
 
-    def test_register_plugin_tools_not_gated_by_no_tools(monkeypatch):
-        """Plugin tools are registered even with --no-tools."""
+    def test_register_plugin_tools_gated_by_no_tools(monkeypatch):
+        """Plugin tools are NOT registered with --no-tools."""
         registry = _fresh_registry(monkeypatch, {}, skills_enabled=False)
         monkeypatch.setattr(tools_registry, "_tools_loading_enabled", False)
 
         plugin_tool = _fake_tool("PluginTool", "r")
         registry.register_plugin_tools({"PluginTool": plugin_tool})
 
-        assert "PluginTool" in registry.all_tools()
+        assert "PluginTool" not in registry.all_tools()
 
     def test_tools_loading_flag_module_delegators(monkeypatch):
         """Module-level disable_tools_loading / tools_loading_enabled."""

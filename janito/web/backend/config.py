@@ -117,6 +117,10 @@ class WebServerConfig:
         type.  These are not function tools: each ``type`` is enabled
         through request-body flags on the API call.
         """
+        from janito.tooling.tools_registry import tools_loading_enabled
+
+        if not tools_loading_enabled():
+            return None
         from janito.providers.registry import get_provider
 
         found = get_provider(self.effective_provider)
@@ -188,9 +192,13 @@ class WebServerConfig:
         # CLI path (__main__._setup_runtime already applied it before the
         # server starts).
         if getattr(args, "no_tools", False):
-            from janito.tooling.tools_registry import disable_tools_loading
+            from janito.tooling.tools_registry import (
+                disable_skills,
+                disable_tools_loading,
+            )
 
             disable_tools_loading()
+            disable_skills()
 
         # --no-tasks: stop loading the tasks toolset (StartTask/StopTask/
         # WaitForTask/ListTasks).  Everything else -- and the skill tools --

@@ -233,9 +233,12 @@ class GeminiClient(Client):
         # (mirroring the Completions / Anthropic / DashScope clients), which
         # receives the resolved tools_schemas from the shared turn pipeline.
         from janito.providers.registry import get_provider
+        from janito.tooling.tools_registry import tools_loading_enabled
 
         found = get_provider(self.api_config.provider)
-        tools = found.tools(model, api_type="Gemini") if found is not None else None
+        tools = None
+        if tools_loading_enabled() and found is not None:
+            tools = found.tools(model, api_type="Gemini")
         return _build_call_kwargs(
             model,
             state["messages"],

@@ -441,12 +441,12 @@ def test_get_default_plugins_dir_honors_config_dir(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Plugin tools independent of --no-tools
+# Plugin tools gated by --no-tools
 # ---------------------------------------------------------------------------
 
 
-def test_plugin_tools_register_even_with_no_tools(toy_plugin, monkeypatch):
-    """--no-tools does NOT gate plugin tool registration."""
+def test_plugin_tools_not_registered_with_no_tools(toy_plugin, monkeypatch):
+    """--no-tools gates plugin tool registration."""
     from janito.tooling import tools_registry
 
     monkeypatch.setattr(plugin_manager, "LOADED_PLUGINS", [])
@@ -459,7 +459,7 @@ def test_plugin_tools_register_even_with_no_tools(toy_plugin, monkeypatch):
     assert plugin.loaded
     schemas = get_all_tool_schemas()
     names = {s["function"]["name"] for s in schemas}
-    assert "ToyTool" in names
+    assert "ToyTool" not in names
 
 
 # ---------------------------------------------------------------------------

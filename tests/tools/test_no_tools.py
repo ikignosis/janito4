@@ -1,10 +1,8 @@
 """
 Tests for the ``--no-tools`` CLI flag.
 
-``--no-tools`` disables loading of non-skill tools: the registry never runs
-``discover_toolsets`` for the autoload toolsets, ``add_toolset`` becomes a
-no-op, and MCP tools are not loaded.  The skill tools (``load_skill`` /
-``read_skill_resource``) stay enabled regardless.
+``--no-tools`` disables all tool surfaces: autoload toolsets, skill tools,
+plugin tools, MCP tools, and server-side/builtin provider tools.
 """
 
 import sys
@@ -52,7 +50,7 @@ if pytest is not None:
 
         help_text = create_parser().format_help()
         assert "--no-tools" in help_text
-        assert "skill tools stay enabled" in help_text
+        assert "server-side tools" in help_text
         assert "--no-plugins" in help_text
 
     def test_setup_runtime_applies_no_tools(monkeypatch):
@@ -105,7 +103,7 @@ if pytest is not None:
         assert config.cli_args["no_tools"] is True
 
     def test_registry_only_skill_tools_with_no_tools(monkeypatch):
-        """--no-tools: autoload toolsets skipped, skill tools still present."""
+        """--no-tools: autoload toolsets skipped, skill tools disabled."""
         skill_tools = {
             "load_skill": _fake_tool("load_skill"),
             "read_skill_resource": _fake_tool("read_skill_resource"),
@@ -128,11 +126,14 @@ if pytest is not None:
 
         monkeypatch.setattr(tools_registry, "discover_toolsets", fake_discover)
 
+        # Skill tools are disabled alongside everything else: disable_skills
+        # mirrors what --no-tools does in __main__._setup_runtime.
+        tools_registry.disable_skills()
         schemas = tools_registry.get_all_tool_schemas()
         names = {s["function"]["name"] for s in schemas}
 
         assert calls["n"] == 0  # autoload discovery never ran
-        assert names == {"load_skill", "read_skill_resource"}
+        assert names == set()
 
     def test_mcp_not_loaded_when_no_tools(monkeypatch):
         """--no-tools also suppresses MCP tool loading in the shared helper."""

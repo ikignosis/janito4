@@ -322,10 +322,12 @@ class ResponsesClient(Client):
         # capabilities, not function tools, so they are enabled whenever the
         # model declares them for this API type -- even with no_tools / an
         # empty function-tools list (mirroring the web agent).
+        from janito.tooling.tools_registry import tools_loading_enabled
+
         found = get_provider(self.api_config.provider)
-        builtin_tools = (
-            found.tools(model, api_type="Responses") if found is not None else None
-        )
+        builtin_tools = None
+        if tools_loading_enabled() and found is not None:
+            builtin_tools = found.tools(model, api_type="Responses")
         return _build_call_kwargs(
             model,
             state["input_items"],

@@ -150,14 +150,17 @@ class ToolsRegistry:
         Plugin tools go through the same ``should_load()`` gate as built-in
         tools (applied by ``wrap_tool_class`` / ``discover_module_tools`` in
         the plugin manager); privileges are applied by the session tool
-        selector like every other tool.  Plugin tools are **not** gated by
-        ``_tools_loading_enabled`` (``--no-tools``): plugins are disabled
-        independently via ``--no-plugins``.
+        selector like every other tool.  Plugin tools are gated by
+        ``_tools_loading_enabled`` (``--no-tools`` disables them);
+        ``--no-plugins`` disables them independently.
 
         Args:
             tools: Mapping of tool names to wrapped callables.
         """
         if not tools:
+            return
+        # --no-tools disables plugin tools as well (not registered).
+        if not _tools_loading_enabled:
             return
         self.ensure_initialized()
         AVAILABLE_TOOLS.update(tools)
@@ -338,11 +341,13 @@ You should load a skill when the user's request matches its description or you n
             AVAILABLE_TOOLS.pop(tool_name, None)
 
     def disable_tools_loading(self) -> None:
-        """Disable loading of non-skill tools (``--no-tools``).
+        """Disable loading of all tools (``--no-tools``).
 
         Must be called before the first :meth:`ensure_initialized` to take
-        effect: afterwards the autoload toolsets are never discovered and
-        :meth:`add_toolset` becomes a no-op.  Skill tools are not affected.
+        effect: afterwards the autoload toolsets are never discovered,
+        :meth:`add_toolset` and :meth:`register_plugin_tools` become
+        no-ops.  Skill tools must be disabled separately via
+        :meth:`disable_skills` (the CLI does both for ``--no-tools``).
         """
         global _tools_loading_enabled
         _tools_loading_enabled = False
@@ -501,9 +506,9 @@ def disable_skills() -> None:
 
 
 def disable_tools_loading() -> None:
-    """Disable loading of non-skill tools (``--no-tools``).
+    """Disable loading of all tools (``--no-tools``).
 
-    Skill tools (``load_skill`` / ``read_skill_resource``) stay enabled.
+    Skill tools must be disabled separately via :func:`disable_skills`.
     """
     _registry.disable_tools_loading()
 

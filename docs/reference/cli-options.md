@@ -70,7 +70,7 @@ See [Provider Variants](../configuration/variants.md) for the full guide.
 |--------|-------------|
 | `-Z`, `--no-system-prompt` | Do not set a system prompt and do not pass any tools |
 | `-S`, `--system-prompt <prompt>` | Override the system prompt (tools stay enabled) |
-| `--no-tools` | Do not load tools (skill tools stay enabled) |
+| `--no-tools` | Do not load tools (disables built-in, skill, plugin, MCP and server-side tools) |
 | `--no-tasks` | Do not load the tasks toolset (`StartTask`, `StopTask`, `WaitForTask`, `ListTasks`); all other tools stay enabled |
 | `--show-system-prompt` | Display the resolved system prompt and exit |
 | `-t`, `--thinking` | Enable thinking mode (sends `extra_body={'enable_thinking': True}`). DeepSeek, Alibaba/Qwen and MiniMax-M3 have thinking enabled by default. Gemini-flavored providers (google) do not accept this flag; thinking depth is controlled through `--reasoning-effort` instead. |

@@ -84,14 +84,15 @@ def _setup_runtime(args) -> int | None:
     set_local_config_mode(getattr(args, "local", False))
     setup_logging(args.log)
 
-    # --no-tools: stop loading non-skill tools (skill tools stay enabled).
+    # --no-tools: disable all tools (autoload toolsets, skill tools,
+    # plugin tools, and server-side/builtin provider tools).
     # Applied before any registry access so the lazy discovery in
-    # tools_registry.ensure_initialized() never runs discover_toolsets()
-    # for the autoload toolsets.
+    # tools_registry.ensure_initialized() never loads anything.
     if getattr(args, "no_tools", False):
-        from .tooling.tools_registry import disable_tools_loading
+        from .tooling.tools_registry import disable_skills, disable_tools_loading
 
         disable_tools_loading()
+        disable_skills()
 
     # --no-tasks: stop loading the tasks toolset (StartTask/StopTask/
     # WaitForTask/ListTasks).  Everything else -- and the skill tools -- stays
@@ -334,7 +335,9 @@ def main():
     # - Plugins installed in ~/.janito/plugins are autoloaded unless
     #   --no-plugins is passed (they are independent of --no-tools).
     # - Plugins explicitly requested with --plugin DIR are always loaded.
-    if getattr(args, "plugin", None) or not getattr(args, "no_plugins", False):
+    if not getattr(args, "no_tools", False) and (
+        getattr(args, "plugin", None) or not getattr(args, "no_plugins", False)
+    ):
         from .plugin_manager import load_installed_plugins, load_plugins
 
         # Show the version banner before any plugin loading messages so the
