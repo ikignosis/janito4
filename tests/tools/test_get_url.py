@@ -191,7 +191,7 @@ def test_discovery_found_at_root(server):
     _set_routes({"/llms.txt": (200, LLMS_PAYLOAD)})
 
     tool = GetUrl()
-    result = tool.run(url=f"{server}/guide")
+    result = tool.run(url=f"{server}/guide", check_llms_txt=True)
 
     assert result["success"] is True
     assert result.get("llms_txt") is True
@@ -212,7 +212,7 @@ def test_discovery_well_known_fallback(server):
     _set_routes({"/.well-known/llms.txt": (200, LLMS_PAYLOAD)})
 
     tool = GetUrl()
-    result = tool.run(url=f"{server}/guide")
+    result = tool.run(url=f"{server}/guide", check_llms_txt=True)
 
     assert result["success"] is True
     assert result.get("llms_txt") is True
@@ -234,7 +234,7 @@ def test_discovery_root_takes_priority(server):
     )
 
     tool = GetUrl()
-    result = tool.run(url=f"{server}/guide")
+    result = tool.run(url=f"{server}/guide", check_llms_txt=True)
 
     assert result["success"] is True
     assert result.get("llms_txt") is True
@@ -249,7 +249,7 @@ def test_discovery_not_found_falls_back(server):
     _set_routes({})
 
     tool = GetUrl()
-    result = tool.run(url=f"{server}/guide")
+    result = tool.run(url=f"{server}/guide", check_llms_txt=True)
 
     assert result["success"] is True
     assert result.get("llms_txt") is None
@@ -280,7 +280,7 @@ def test_llms_txt_too_big_returned_inline(server):
     _set_routes({"/llms.txt": (200, BIG_PAYLOAD)})
 
     tool = GetUrl()
-    result = tool.run(url=f"{server}/guide")
+    result = tool.run(url=f"{server}/guide", check_llms_txt=True)
 
     assert result["success"] is True
     assert result.get("llms_txt") is True
@@ -302,7 +302,9 @@ def test_llms_txt_never_truncated(server):
     tool = GetUrl()
     # Tiny max_length/max_lines and the default threshold must not truncate or
     # store the site map - it is always returned inline in full.
-    result = tool.run(url=f"{server}/guide", max_length=100, max_lines=5)
+    result = tool.run(
+        url=f"{server}/guide", max_length=100, max_lines=5, check_llms_txt=True
+    )
 
     assert result["success"] is True
     assert result.get("llms_txt") is True
@@ -317,7 +319,7 @@ def test_discovery_uses_head_requests(server):
     _set_routes({"/llms.txt": (200, LLMS_PAYLOAD)})
 
     tool = GetUrl()
-    result = tool.run(url=f"{server}/guide")
+    result = tool.run(url=f"{server}/guide", check_llms_txt=True)
 
     assert result["success"] is True
     # Only the root location was probed (found on the first try).
@@ -339,7 +341,7 @@ def test_not_found_does_not_report_llms_txt(server):
     set_report_handler(handler)
     try:
         tool = GetUrl()
-        result = tool.run(url=f"{server}/guide")
+        result = tool.run(url=f"{server}/guide", check_llms_txt=True)
         assert result["success"] is True
     finally:
         set_report_handler(None)
@@ -362,7 +364,7 @@ def test_found_reports_retrieved(server):
     set_report_handler(handler)
     try:
         tool = GetUrl()
-        result = tool.run(url=f"{server}/guide")
+        result = tool.run(url=f"{server}/guide", check_llms_txt=True)
         assert result["success"] is True
     finally:
         set_report_handler(None)
@@ -373,16 +375,16 @@ def test_found_reports_retrieved(server):
 
 
 # ---------------------------------------------------------------------------
-# skip_llms_txt parameter
+# check_llms_txt parameter
 # ---------------------------------------------------------------------------
 
 
-def test_skip_llms_txt_fetches_url_directly(server):
-    """With skip_llms_txt=True the URL is fetched as-is even when llms.txt exists."""
+def test_check_llms_txt_false_fetches_url_directly(server):
+    """By default the URL is fetched as-is even when llms.txt exists."""
     _set_routes({"/llms.txt": (200, LLMS_PAYLOAD)})
 
     tool = GetUrl()
-    result = tool.run(url=f"{server}/guide", skip_llms_txt=True)
+    result = tool.run(url=f"{server}/guide")
 
     assert result["success"] is True
     assert result.get("llms_txt") is None  # fetched as a plain URL
@@ -393,12 +395,12 @@ def test_skip_llms_txt_fetches_url_directly(server):
     assert _Handler.requests == [("GET", "/guide")]
 
 
-def test_skip_llms_txt_default_false(server):
-    """Without the flag, discovery still runs and llms.txt is returned as before."""
+def test_check_llms_txt_true_discovers(server):
+    """With check_llms_txt=True, discovery runs and llms.txt is returned."""
     _set_routes({"/llms.txt": (200, LLMS_PAYLOAD)})
 
     tool = GetUrl()
-    result = tool.run(url=f"{server}/guide")
+    result = tool.run(url=f"{server}/guide", check_llms_txt=True)
 
     assert result["success"] is True
     assert result.get("llms_txt") is True
@@ -407,19 +409,17 @@ def test_skip_llms_txt_default_false(server):
     assert ("GET", "/llms.txt") in _Handler.requests
 
 
-def test_skip_llms_txt_no_llms_txt(server):
-    """With no llms.txt present, the page is fetched directly with no HEAD probes."""
+def test_check_llms_txt_true_no_llms_txt(server):
+    """With check_llms_txt=True but no llms.txt present, page is fetched directly."""
     _set_routes({})
 
     tool = GetUrl()
-    result = tool.run(url=f"{server}/guide", skip_llms_txt=True)
+    result = tool.run(url=f"{server}/guide", check_llms_txt=True)
 
     assert result["success"] is True
     assert result.get("llms_txt") is None
     assert result["content"] == SMALL_PAYLOAD
     assert result["url"] == f"{server}/guide"
-    # No discovery probes at all - just the direct GET.
-    assert _Handler.requests == [("GET", "/guide")]
 
 
 if __name__ == "__main__":

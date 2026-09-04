@@ -130,8 +130,8 @@ class GetUrl(BaseTool):
     Tool for fetching content from web URLs.
 
     This tool retrieves content from HTTP/HTTPS URLs and returns the response.
-    Before fetching a site URL (a hostname or hostname/path) it tries to
-    discover an ``llms.txt`` site map at the root and ``.well-known``
+    When ``check_llms_txt`` is True, before fetching a site URL (a hostname
+    or hostname/path) it tries to discover an ``llms.txt`` site map at the root and ``.well-known``
     locations; when one exists its content is returned as-is instead of the
     requested page.
     """
@@ -143,20 +143,21 @@ class GetUrl(BaseTool):
         max_lines: int | None = 200,
         timeout: int | None = 10,
         follow_redirects: bool = True,
-        skip_llms_txt: bool = False,
+        check_llms_txt: bool = False,
         threshold: int | None = BIG_CONTENT_THRESHOLD,
     ) -> dict[str, Any]:
         """
         Fetch content from a URL and return results.
 
-        Before fetching, the tool attempts llms.txt discovery: it probes
-        ``<origin>/llms.txt`` (root level) and, if that fails,
+        When ``check_llms_txt`` is True, the tool attempts llms.txt discovery:
+        it probes ``<origin>/llms.txt`` (root level) and, if that fails,
         ``<origin>/.well-known/llms.txt`` (well-known path) with lightweight
         HEAD requests. If one answers 200 OK, the file is fetched with a GET
         request and its content is returned as-is (no Markdown parsing, never
         truncated by max_length/max_lines). The discovery probes are silent;
         only a successful retrieval is reported. If no llms.txt exists, or
-        ``skip_llms_txt`` is True, the tool fetches the requested URL as-is.
+        ``check_llms_txt`` is False (default), the tool fetches the requested
+        URL as-is.
 
         Args:
             url (str): The URL to fetch content from (must be http:// or https://)
@@ -164,8 +165,8 @@ class GetUrl(BaseTool):
             max_lines (Optional[int]): Maximum number of lines to return (default: 200)
             timeout (Optional[int]): Request timeout in seconds (default: 10)
             follow_redirects (bool): Whether to follow HTTP redirects (default: True)
-            skip_llms_txt (bool): When True, fetch the URL as-is without
-                probing for an llms.txt site map (default: False)
+            check_llms_txt (bool): When True, probe for an llms.txt site map
+                before fetching the URL (default: False)
             threshold (Optional[int]): Content size (in characters) above which the
                 full content is written to a temporary file instead of being returned
                 inline. Pass None to disable. llms.txt content is never stored to a
@@ -196,11 +197,10 @@ class GetUrl(BaseTool):
                     "url": url,
                 }
 
-            # Try llms.txt discovery first. The probes are silent; only a
-            # successful retrieval is reported. Skipped entirely when the
-            # caller asks for a direct fetch (skip_llms_txt=True).
+            # Try llms.txt discovery first (opt-in via check_llms_txt=True).
+            # The probes are silent; only a successful retrieval is reported.
             llms_url = None
-            if not skip_llms_txt:
+            if check_llms_txt:
                 llms_url = _discover_llms_txt(
                     url, timeout=timeout, follow_redirects=follow_redirects
                 )
@@ -410,9 +410,9 @@ Examples:
         "--no-follow-redirects", action="store_true", help="Don't follow HTTP redirects"
     )
     parser.add_argument(
-        "--skip-llms-txt",
+        "--check-llms-txt",
         action="store_true",
-        help="Fetch the URL as-is without probing for an llms.txt site map",
+        help="Probe for an llms.txt site map before fetching the URL",
     )
     parser.add_argument(
         "--json", "-j", action="store_true", help="Output in JSON format"
@@ -431,7 +431,7 @@ Examples:
         max_lines=args.max_lines,
         timeout=args.timeout,
         follow_redirects=not args.no_follow_redirects,
-        skip_llms_txt=args.skip_llms_txt,
+        check_llms_txt=args.check_llms_txt,
         threshold=None
         if args.threshold is not None and args.threshold < 0
         else args.threshold,
