@@ -362,6 +362,7 @@ def run_interactive_chat(args):
         no_history=args.no_history,
         provider=cli_provider,
         api_type=cli_api_type,
+        reasoning_effort=cli_reasoning_effort,
     )
     # Factory to (re)build the run-turn function per provider: ``/provider``
     # calls
