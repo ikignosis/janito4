@@ -15,7 +15,7 @@ def _resolve_model_from_config(provider: str | None) -> str | None:
         from janito.config_loaders import load_model_from_config
 
         return load_model_from_config(provider)
-    except Exception:
+    except (OSError, ValueError):
         return None
 
 
