@@ -42,7 +42,6 @@ Plain keyboard/input commands in interactive mode:
 | `Ctrl+C` | While idle: asks whether to quit the conversation. While a response is pending: cancels the request and rolls the last prompt/answer back out of the history |
 | `Enter` | While a prompt is pending ("Waiting for response from the API server..."), cancels the request and keeps the prompt in the conversation history |
 | `F2` | Clear the conversation and start a fresh one (like `clear`) |
-| `F12` | "Do It" — auto-sends a `Do It` prompt to continue an existing plan |
 
 ## Chat Commands
 

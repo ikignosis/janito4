@@ -56,7 +56,7 @@ Legend: ✅ available · — not available
 | `/exit` | ✅ | — |
 | `clear` | ✅ | — |
 | `Ctrl+D` / `Ctrl+Z` (EOF), `Ctrl+C` (cancel + rollback), Enter (cancel, keep prompt) | ✅ | — |
-| `F2` (clear conversation), `F12` (Do It / continue existing plan) | ✅ | — |
+| `F2` (clear conversation) | ✅ | — |
 | `/help` | ✅ | — |
 | `/skills` | ✅ | — |
 | `/tools` | ✅ | ✅ (client-side card panel) |

@@ -84,7 +84,6 @@ class _SessionMixin:
         # Keyboard shortcuts
         tokens.append(("", " \u2502 "))
         tokens.append(("class:key-label", "[F2] clear "))
-        tokens.append(("class:key-label", "[F12] do-it "))
         tokens.append(("class:key-label", "[/exit] end "))
 
         # Multiline mode indicator
@@ -102,12 +101,6 @@ class _SessionMixin:
             """Handle F2 key to clear the conversation."""
             self.restart_requested = True
             event.app.exit(result=None)
-
-        @kb.add("f12")
-        def do_it_action(event: KeyPressEvent) -> None:
-            """Handle F12 key to trigger 'Do It' auto-execution."""
-            self.do_it_requested = True
-            event.app.exit(result="Do It")
 
         # Style for the chat shell
         chat_shell_style = Style.from_dict(
