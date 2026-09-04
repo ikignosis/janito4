@@ -106,7 +106,7 @@ class _SessionMixin:
         chat_shell_style = Style.from_dict(
             {
                 "prompt": "bg:#2323af #ffffff bold",
-                "": "bg:#005fdd #ffffff",  # blue background for input area
+                "": "#ffffff",
                 "bottom-toolbar": "fg:#232323 bg:#f0f0f0",
                 "key-label": "bg:#ff9500 fg:#232323 bold",
                 "provider": "fg:#117fbf",
