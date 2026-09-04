@@ -83,9 +83,15 @@ def _model_supports_image_generation(model: str) -> bool:
     models should support the built-in ``image_generation`` tool; the tool
     handles GPT Image model selection internally.  Older / third-party
     models (e.g. ``gpt-4``, DeepSeek) do not, so the tool is only appended
-    for the gpt-5 family.
+    for the gpt-5/gpt-6 families.
     """
-    return bool(model) and (model == "gpt-5" or model.startswith("gpt-5."))
+    return bool(model) and (
+        model == "gpt-5"
+        or model.startswith("gpt-5.")
+        or model == "gpt-6"
+        or model.startswith("gpt-6.")
+        or model.startswith("gpt-6-")
+    )
 
 
 def _save_base64_image(b64_data: str) -> str | None:

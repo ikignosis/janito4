@@ -24,6 +24,10 @@ Changes since `v4.37.0` (2026-09-03).
 
 ### Added
 
+- `gpt-6-astra` model support (issue #132): OpenAI provider entry with
+  1,050,000 input / 128,000 output tokens, Responses+Completions,
+  reasoning low/med/high (default low), cost rates and image_generation
+  tool support.
 - `/clear` shows running tasks count (issue #112): after clearing the
   conversation, prints "<count> task(s) still running, use /tasks for
   viewing." when background tasks are still running.

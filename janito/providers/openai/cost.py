@@ -34,6 +34,7 @@ _MODEL_RATES: dict[str, tuple[float, float, float]] = {
     "gpt-5.6-sol": (4.00, 0.40, 20.00),
     "gpt-5.6-terra": (2.00, 0.20, 12.00),
     "gpt-5.6-luna": (0.20, 0.02, 1.20),
+    "gpt-6-astra": (10.00, 1.00, 50.00),
 }
 
 #: Input-token count above which the whole request is billed as high-context
