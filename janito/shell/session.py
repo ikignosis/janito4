@@ -43,6 +43,16 @@ def _thinking_arg_completer(prefix: str) -> list[str]:
     return [opt for opt in options if opt.lower().startswith(lowered)]
 
 
+def _effort_arg_completer(prefix: str) -> list[str]:
+    """Return supported reasoning efforts matching prefix for /effort."""
+    from janito.general_config import get_active_provider
+
+    from .cmds.effort import available_effort_names
+
+    # No shell instance here; use active provider with no model filter.
+    return list(available_effort_names(get_active_provider(), None, prefix))
+
+
 class _SessionMixin:
     """Mixin providing prompt_toolkit session and history management."""
 
@@ -149,6 +159,7 @@ class _SessionMixin:
                     "/provider": _provider_arg_completer,
                     "/model": self._model_arg_completer,
                     "/thinking": _thinking_arg_completer,
+                    "/effort": _effort_arg_completer,
                 },
             ),
             complete_while_typing=True,

@@ -82,6 +82,9 @@ Additional slash commands available in the terminal shell:
 | `/compact` | Compress older conversation history: keeps the last 3 turns verbatim and replaces everything before them with a single `[RECAP OF PRIOR WORK]` assistant message produced by a dedicated LLM call (Context Compression Engine). The compression call runs silently — only the progress bar shows, the model's raw recap output is not echoed (the turn still counts in the usage accounting). Disabled with "Conversation too short to compact effectively." when there is nothing worth compacting (fewer than 3 turns, or under 2,000 estimated tokens to replace) |
 | `/thinking` | Show the current session thinking mode status |
 | `/thinking on\|off` | Enable or disable runtime config thinking for the current session — the configured default in `config.json` is left unchanged (autocompleted) |
+| `/effort` | Show the current session reasoning effort and supported levels |
+| `/effort <level>` | Switch the session's reasoning effort (validated against the current model's supported levels; autocompleted) — runtime-only, config default unchanged |
+| `/effort clear` | Clear the session effort override (config/default applies) |
 | `/mcp add <name> stdio <cmd>` | Add MCP stdio service |
 | `/mcp add <name> http <url>` | Add MCP HTTP service |
 | `/mcp list` | List MCP services |
@@ -113,6 +116,8 @@ available set is the provider's built-in models; `/model` with no argument
 lists them all.
 
 After `/thinking `, `on` and `off` are suggested.
+
+After `/effort `, the current model's supported reasoning efforts are suggested.
 
 ## Examples
 

@@ -209,7 +209,9 @@ def test_switch_model_rebinds_send_function(monkeypatch, tmp_path, capsys):
     shell = _shell_with_history(provider="deepseek")
     calls = []
 
-    def factory(provider, model_override=None, thinking_override=None):
+    def factory(
+        provider, model_override=None, thinking_override=None, effort_override=None
+    ):
         calls.append((provider, model_override))
         return f"send:{provider}:{model_override}"
 
@@ -229,7 +231,7 @@ def test_provider_switch_clears_model_override(monkeypatch, tmp_path, capsys):
     _use_temp_config(monkeypatch, tmp_path)
     shell = _shell_with_history(provider="openai")
     shell.turn_factory = (
-        lambda provider, model_override=None, thinking_override=None: f"send:{provider}"
+        lambda provider, model_override=None, thinking_override=None, effort_override=None: f"send:{provider}"
     )
     shell.turn_func = "send:openai"
 

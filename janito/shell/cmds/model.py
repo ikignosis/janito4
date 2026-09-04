@@ -164,6 +164,7 @@ class ModelCmdHandler(CmdHandler):
                     provider,
                     model_override=canonical,
                     thinking_override=getattr(shell, "thinking", None),
+                    effort_override=getattr(shell, "reasoning_effort", None),
                 )
             shell.initialize_history(
                 system_prompt=getattr(shell, "_system_prompt", None)

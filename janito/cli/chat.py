@@ -114,6 +114,7 @@ def _make_turn_factory(
     cli_reasoning_effort: str | None,
     verbose: bool = False,
     cli_thinking: bool | None = None,
+    cli_effort: str | None = None,
 ) -> Callable[[str | None, str | None], Callable]:
     """Return a factory that builds the run-turn function for a provider.
 
@@ -167,6 +168,7 @@ def _make_turn_factory(
         provider: str | None,
         model_override: str | None = None,
         thinking_override: bool | None = None,
+        effort_override: str | None = None,
         silent: bool = False,
     ) -> Callable:
         from janito.config_loaders import load_model_from_config
@@ -191,6 +193,7 @@ def _make_turn_factory(
         # rebuilding the config; otherwise the session's --thinking flag
         # applies.
         thinking = thinking_override if thinking_override is not None else cli_thinking
+        effort = effort_override if effort_override is not None else cli_effort
         # ``silent`` swaps the turn observer for the headless silent variant
         # (used by the /compact compression call, whose raw recap JSON must
         # not be echoed) while keeping the injected TUI stream runner, so
@@ -202,7 +205,7 @@ def _make_turn_factory(
                 api_type=resolve_api_type(cli_api_type, provider, model),
                 cli_model=model,
                 cli_provider=provider,
-                reasoning_effort=cli_reasoning_effort,
+                reasoning_effort=effort,
                 thinking=thinking,
             ),
             ui_config=UIConfig(
@@ -377,10 +380,13 @@ def run_interactive_chat(args):
         cli_reasoning_effort,
         verbose=args.verbose,
         cli_thinking=getattr(args, "thinking", False),
+        cli_effort=cli_reasoning_effort,
     )
     shell.initialize_history(system_prompt=effective_system_prompt)
     shell.run(
-        turn_func=shell.turn_factory(cli_provider),
+        turn_func=shell.turn_factory(
+            cli_provider, effort_override=cli_reasoning_effort
+        ),
         verbose=args.verbose,
         no_tools=no_tools,
         thinking=args.thinking,

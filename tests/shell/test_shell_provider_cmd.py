@@ -265,7 +265,7 @@ def test_cli_bound_session_switch_to_other_provider_clears_history(
     shell = _shell_with_history(provider="openai")
     calls = []
 
-    def factory(provider, thinking_override=None):
+    def factory(provider, thinking_override=None, effort_override=None):
         calls.append(provider)
         return f"send:{provider}"
 
