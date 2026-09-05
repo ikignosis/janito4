@@ -387,7 +387,19 @@ Note: --set and --set-api-key must be used in separate commands.
     parser.add_argument(
         "--no-history",
         action="store_true",
-        help="Don't persist input history to file (store only in memory)",
+        help="Don't persist input history to file (store only in memory). "
+        "Also disables the conversation-session snapshot used by -C/--continue.",
+    )
+
+    parser.add_argument(
+        "-C",
+        "--continue",
+        dest="continue_session",
+        action="store_true",
+        help="Resume the last interactive conversation saved in the current "
+        "working directory (./.janito/session.json). The session reuses its "
+        "previous provider/model/API type, so the restored context stays "
+        "valid. Only meaningful for interactive chat (no prompt argument).",
     )
 
     parser.add_argument(

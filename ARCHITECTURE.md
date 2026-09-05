@@ -40,7 +40,7 @@ point; the turn pipeline is a pure function of `(config, request)`.
 |------|----------------|
 | `janito/__main__.py` | Entry point: argument parsing, dispatch, runtime setup |
 | `janito/cli/` | CLI parsing, chat modes, flag-driven command handlers |
-| `janito/shell/` | Interactive prompt_toolkit shell and `/`-commands |
+| `janito/shell/` | Interactive prompt_toolkit shell, `/`-commands and CLI conversation persistence (`persistence.py`: the `./.janito/session.json` snapshot behind `-C/--continue`) |
 | `janito/llm_adapters/` | Shared per-API adapters used by both the CLI and web loops |
 | `janito/llm_clients/` | API clients and the shared agent-loop pipeline |
 | `janito/ui/` | Rich terminal presentation of the agent loop (turn observer, per-round stream runner, `UIConfig` bundle, usage/error rendering) |
