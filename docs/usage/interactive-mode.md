@@ -30,6 +30,50 @@ provider and privileges.)
     Unrecognized `/slash` commands are rejected with an `Unknown command:`
     message instead of being sent to the model.
 
+## Resuming a Session (`-C` / `--continue`)
+
+An interactive session **mirrors its conversation** to `./.janito/session.json`
+(in the current working directory, next to the input-history `history.log`)
+after every interaction, so you can exit and later pick up exactly where you
+left off:
+
+```bash
+janito          # chat for a while...
+/exit           # (or Ctrl+D) leave
+janito -C       # reopen with the whole previous context restored
+```
+
+`-C` / `--continue` restores the last conversation saved in that working
+directory **including** its provider, model and API type, so the restored
+context stays valid (a server-side Responses conversation even resumes from
+its last response id). Because the snapshot is keyed to the directory, resume
+from the same directory you chatted in.
+
+On resume, janito prints the **5 most recent messages** (a `Resumed
+conversation` recap: the latest user prompt plus the replies that followed,
+shown in full text; tool-call and reasoning rows are hidden) so you can see
+where the previous session left off — display-only; the whole restored
+context is still what gets sent to the model.
+
+What gets restored:
+
+- the full conversation (user/assistant turns, tool-call rounds, ...),
+- the system prompt,
+- the `/history` turn markers and `/rewind` capability,
+- the session's provider/model/API type, thinking mode and reasoning effort.
+
+Notes:
+
+- Starting a session without `-C` replaces the snapshot once you interact, so
+  use `janito -C` to resume and `janito` to start fresh.
+- If you pass `--provider` / `--model` / `--api-type` with `-C` that conflict
+  with the saved session, janito starts a new conversation (the saved snapshot
+  is left intact for a plain `janito -C`).
+- `-C` only applies to the interactive shell — it is rejected with a
+  positional prompt or piped stdin.
+- `--no-history` disables the snapshot entirely (nothing is written, nothing
+  is resumed); it still disables the input-history file as before.
+
 ## Available Commands
 
 Plain keyboard/input commands in interactive mode:

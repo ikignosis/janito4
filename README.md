@@ -13,6 +13,7 @@
 - 🔌 **MCP Support** - Connect to Model Context Protocol servers
 - 🧩 **Skills** - Install and use task-specific skills from GitHub
 - 🌐 **Web UI (Alpha)** - Chat through a browser instead of the terminal with `--web`
+- ↪️ **Session Resume** - Exit a terminal chat and reopen it with `janito -C` (full conversation restored)
 - 📊 **Real-time Progress** - Watch tool execution progress as it happens
 - 🚀 **Easy Setup** - Interactive configuration with `--config` or quick setup with `--set` flags
 - 🔗 **OpenAI-Compatible & Native APIs** - Works with any OpenAI-compatible endpoint (OpenAI, LM Studio, Ollama, custom) and native SDKs (Anthropic, DashScope)

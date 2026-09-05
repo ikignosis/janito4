@@ -79,11 +79,13 @@ Legend: ✅ available · — not available
 | Conversation history kept in context during a session | ✅ | ✅ |
 | Session sidebar (new chat, delete, rename, auto-naming) | — | ✅ |
 | Session persistence to `./.janito/sessions/<id>/metadata.json` (survives restart) | — | ✅ |
+| Conversation resume with `-C` / `--continue` (snapshot to `./.janito/session.json`) | ✅ | — |
 | Interactive input-history file | ✅ | — |
-| `--no-history` (disable persistence) | ✅ *input history* | ✅ *session files* |
+| `--no-history` (disable persistence) | ✅ *input history + resume snapshot* | ✅ *session files* |
 
 > Note: the same `--no-history` flag means different things in each interface —
-> in the CLI it disables the input-history file, in the web UI it disables
+> in the CLI it disables the input-history file **and** the conversation
+> snapshot used by `-C`/`--continue`, in the web UI it disables
 > session persistence to `.janito/sessions/`.
 
 ### Configuration & Secrets

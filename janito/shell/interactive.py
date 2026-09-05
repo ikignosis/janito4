@@ -3,6 +3,7 @@ Interactive shell implementation using prompt_toolkit.
 """
 
 import contextlib
+import copy
 import os
 import signal
 import subprocess
@@ -80,6 +81,15 @@ class InteractiveShell(_SessionMixin):
         # model).
         self.model_override = None
         self.no_history = no_history
+        # The active system prompt; (re)set by initialize_history() or a
+        # conversation restore.  Defaulted here so get_system_prompt() and the
+        # snapshot helpers never hit an unset attribute on a bare shell.
+        self._system_prompt: str | None = None
+        # When True, the shell mirrors its conversation to
+        # ``./.janito/session.json`` after every interaction so ``janito -C``
+        # can resume it later.  Enabled by the CLI chat entry point only (not
+        # for bare/test shells); always off under ``--no-history``.
+        self.persist_history = False
         from .stack import ConversationStack
 
         self.conversation_stack = ConversationStack()
@@ -592,6 +602,108 @@ class InteractiveShell(_SessionMixin):
         else:
             self.previous_response_id = None
 
+    def _effective_api_type(self) -> str | None:
+        """Resolve the API type in effect for the current session identity.
+
+        An explicit ``--api-type`` (``self.api_type``) wins; otherwise the API
+        type is re-resolved from the current provider/model the same way the
+        turn factory resolves it (a mid-session ``/provider`` or ``/model``
+        switch updates ``self.provider`` / ``self.model``, so the resolved
+        value tracks the session).  Best-effort: never raises, so a snapshot
+        can never break the shell.
+        """
+        if self.api_type:
+            return self.api_type
+        provider = self.provider
+        if not provider:
+            return None
+        try:
+            from ..general_config import resolve_api_type
+
+            return resolve_api_type(None, provider, self.model)
+        except Exception:  # noqa: BLE001 - snapshot must never break the shell
+            return None
+
+    def conversation_snapshot(self) -> dict[str, Any]:
+        """Return a serializable snapshot of the current conversation state.
+
+        Captures every field ``janito -C`` needs to reproduce this exact
+        conversation: the per-API native history (``messages_history`` for the
+        client-side-history modes, ``conversation_items`` / ``mirrored_history``
+        plus the server-side chain for the Responses modes), the turn markers
+        (``history_turns`` and the rewind indices), the system prompt and the
+        session identity (provider / model / API type / thinking / effort).
+
+        The lists are deep-copied so the snapshot is decoupled from the live
+        shell state.
+        """
+        from .persistence import make_state
+
+        return make_state(
+            provider=self.provider,
+            model=self.model,
+            model_override=self.model_override,
+            api_type=self._effective_api_type(),
+            thinking=bool(getattr(self, "thinking", False)),
+            reasoning_effort=self.reasoning_effort,
+            system_prompt=self._system_prompt,
+            messages_history=copy.deepcopy(self.messages_history),
+            history_turns=list(self.history_turns),
+            previous_response_id=self.previous_response_id,
+            conversation_items=(
+                copy.deepcopy(self.conversation_items)
+                if self.conversation_items is not None
+                else None
+            ),
+            conversation_turn=self.conversation_turn,
+            response_chain=list(self.response_chain),
+            response_turn=self.response_turn,
+            mirrored_history=copy.deepcopy(self.mirrored_history),
+            mirrored_turn=self.mirrored_turn,
+        )
+
+    def restore_conversation(self, state: dict[str, Any]) -> bool:
+        """Restore a saved conversation snapshot into this shell.
+
+        Replaces the whole conversation state (per-API history, turn markers,
+        server-side chain) and the system prompt with the values from
+        ``state``.  The session identity (provider / model / API type) is not
+        changed here: the caller (``run_interactive_chat``) only restores when
+        the identity matches the snapshot, so the native per-API state stays
+        valid for the session.
+
+        Returns:
+            bool: ``True`` when the state was restored, ``False`` when
+            ``state`` is not a usable snapshot (the shell is left untouched).
+        """
+        if not isinstance(state, dict) or "messages_history" not in state:
+            return False
+        self._system_prompt = state.get("system_prompt")
+        self.messages_history = copy.deepcopy(state.get("messages_history") or [])
+        self.history_turns = list(state.get("history_turns") or [])
+        self.previous_response_id = state.get("previous_response_id")
+        items = state.get("conversation_items")
+        self.conversation_items = copy.deepcopy(items) if items is not None else None
+        self.conversation_turn = int(state.get("conversation_turn") or 0)
+        self.response_chain = list(state.get("response_chain") or [])
+        self.response_turn = int(state.get("response_turn") or 0)
+        self.mirrored_history = copy.deepcopy(state.get("mirrored_history") or [])
+        self.mirrored_turn = int(state.get("mirrored_turn") or 0)
+        return True
+
+    def _save_snapshot(self) -> None:
+        """Persist the current conversation for ``janito -C``, when enabled.
+
+        No-op unless the CLI chat entry point enabled persistence
+        (``persist_history``); also disabled under ``--no-history``.  Best
+        effort: a failed write is logged, never raised.
+        """
+        if not self.persist_history:
+            return
+        from .persistence import save_conversation_state
+
+        save_conversation_state(self.conversation_snapshot())
+
     def run(
         self,
         turn_func: Callable,
@@ -629,6 +741,8 @@ class InteractiveShell(_SessionMixin):
             _rich_console.print(Rule(f"Turn {len(self.history_turns) + 1}"))
             user_input = self._get_user_input()
             if user_input is None:
+                # Quit: persist the current state so `janito -C` can resume it.
+                self._save_snapshot()
                 break  # User quit
 
             # Reset multiline mode after input is received (single-use)
@@ -645,11 +759,13 @@ class InteractiveShell(_SessionMixin):
 
             # Check if F2 was pressed (restart requested)
             if self._handle_restart_request():
+                self._save_snapshot()
                 continue
 
             # Handle clear text, registered commands, unknown commands and
             # !cmd shell execution.
             if self._dispatch_input(user_input):
+                self._save_snapshot()
                 # Check if exit was requested via a command
                 if self.exit_requested:
                     break
@@ -657,5 +773,9 @@ class InteractiveShell(_SessionMixin):
 
             if user_input.strip():
                 self._run_turn(user_input)
+            # Persist after the turn (or its rollback) so the on-disk copy
+            # always mirrors the in-memory conversation.
+            self._save_snapshot()
 
+        self._save_snapshot()
         print("\nChat session ended.")

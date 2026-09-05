@@ -21,6 +21,8 @@ Changes since `v4.38.0` (2026-09-04).
 - Change task ids to incremental integers starting at 1 instead of random hex strings (close #111).
 - Expand `--no-tools` scope: it now disables skill tools, plugin tools, and server-side/builtin provider tools in addition to the autoload toolsets and MCP tools (close #127).
 - Add `/effort <level>` shell command: show or switch the session reasoning effort at runtime, validated against the current model's supported levels (`/effort clear` restores config/default) (close #121).
+- Add `-C`/`--continue` to resume the previous interactive conversation in a working directory: the shell now mirrors its conversation to `./.janito/session.json` after every interaction (disabled by `--no-history`), and `-C` restores it together with its provider/model/API type (server-side Responses conversations resume from their last response id).
+- `janito -C` / `--continue` now prints a `Resumed conversation` recap on resume (display-only): the latest user prompt plus the replies that followed, shown in full text — tool-call/reasoning rows are hidden — so you can see where the previous session left off; the full restored context is still sent to the model.
 - Break all intra-package import cycles (close #110): new `tests/test_circular_deps.py` detector-guard (top-level + lazy imports, Tarjan SCCs, fails on any cycle); provider-name/label leaves (`providers/variant_names.py`, `system_labels.py`) so `providers/*` never imports `config_*`; `ConversationResult` moved to the `responses_items` leaf; `find_files_cli` merged back into the `FindFiles` tool module; web `stream_prompt` passed as an explicit `stream_fn` argument through the chat turn helpers.
 
 ### Removed

@@ -300,6 +300,123 @@ def _print_tool_summary(args) -> None:
             print(f"    - {tool_name}: {reason}")
 
 
+def _normalize_identity(value) -> str | None:
+    """Lowercase a session-identity value for comparison (``None``/``""`` -> ``None``)."""
+    if value in (None, ""):
+        return None
+    return str(value).lower()
+
+
+def _resume_identity_matches(state, provider, model, api_type) -> bool:
+    """Whether the current session identity matches a saved snapshot.
+
+    ``-C/--continue`` restores a saved conversation only when the provider,
+    model and API type all match: the saved conversation lives in the per-API
+    native format (and a server-side Responses conversation is chained from a
+    saved response id), so it is only valid for the exact session identity
+    that produced it.
+    """
+    return (
+        _normalize_identity(state.get("provider")) == _normalize_identity(provider)
+        and _normalize_identity(state.get("model")) == _normalize_identity(model)
+        and _normalize_identity(state.get("api_type")) == _normalize_identity(api_type)
+    )
+
+
+def _resolve_resume(args, provider, model, api_type) -> tuple[dict | None, bool]:
+    """Decide the resume state and whether this session should be persisted.
+
+    ``-C/--continue`` restores the conversation this shell saved to
+    ``./.janito/session.json``. The snapshot is only restored when the session
+    identity (provider/model/API type) matches, so the per-API native
+    conversation state stays valid. When it does not match (the user passed
+    conflicting ``--provider``/``--model``/``--api-type`` flags), the session
+    starts fresh **and is not persisted**, so the saved snapshot is not
+    overwritten by the throwaway conversation.
+
+    Returns:
+        ``(resume_state, persist_session)``: the snapshot to restore (``None``
+        for a fresh conversation) and whether this shell should write new
+        snapshots on exit / after each interaction.
+    """
+    from rich.console import Console
+
+    persist_session = not getattr(args, "no_history", False)
+    if not getattr(args, "continue_session", False):
+        return None, persist_session
+    if getattr(args, "no_history", False):
+        print(
+            "Nothing to resume: --no-history disables the conversation "
+            "snapshot used by -C/--continue."
+        )
+        print("Starting a new conversation.")
+        return None, persist_session
+    from ..shell.persistence import load_conversation_state
+
+    resume_state = load_conversation_state()
+    if resume_state is None:
+        print(
+            "No previous conversation found to resume in this directory "
+            "(./.janito/session.json)."
+        )
+        print("Starting a new conversation.")
+        return None, persist_session
+    if not _resume_identity_matches(resume_state, provider, model, api_type):
+        saved = (
+            f"{resume_state.get('provider') or '?'} / "
+            f"{resume_state.get('model') or '?'} "
+            f"({resume_state.get('api_type') or '?'})"
+        )
+        print(
+            f"The saved conversation ({saved}) does not match this session's "
+            f"provider/model/API type ({provider} / {model} / {api_type})."
+        )
+        print(
+            "Starting a new conversation. To resume the saved one instead, "
+            "run 'janito -C' without --provider/--model/--api-type."
+        )
+        print(
+            "This new conversation will not be saved, so the saved "
+            "snapshot above stays available for 'janito -C'."
+        )
+        return None, False
+    Console().print(
+        "Resumed previous conversation: "
+        f"[cyan]{provider}[/cyan], model [magenta]{model}[/magenta], "
+        f"API: [yellow]{api_type}[/yellow]. Type 'clear' to start fresh."
+    )
+    return resume_state, persist_session
+
+
+def _print_resume_recap(shell, *, limit: int = 5) -> None:
+    """Echo the most recent messages after a ``-C/--continue`` resume.
+
+    Display-only recap so the user can see where the previous session left
+    off: the full restored conversation is still what gets sent to the model;
+    this prints the last ``limit`` user/assistant messages **in full**
+    (tool-call / reasoning rows are hidden and the recap is anchored on the
+    most recent user prompt, see
+    :func:`janito.shell.conversation.recent_conversation_rows`).  No-op when
+    there are no messages to show.
+    """
+    from rich.console import Console
+    from rich.rule import Rule
+
+    from ..shell.conversation import recent_conversation_rows
+
+    rows = recent_conversation_rows(shell, limit=limit)
+    if not rows:
+        return
+    console = Console(markup=False)
+    console.print(Rule("Resumed conversation", style="bold cyan"))
+    for role, content in rows:
+        label = "You:" if role == "user" else "Assistant:"
+        style = "bold green" if role == "user" else "bold"
+        console.print(label, style=style)
+        console.print(content if content else "(no text)")
+        console.print()
+
+
 def run_interactive_chat(args):
     """Run the interactive chat session.
 
@@ -359,13 +476,17 @@ def run_interactive_chat(args):
         "Starting interactive chat session. Type '/exit' or CTRL-D to end the session"
     )
 
+    # -C/--continue: decide whether to restore the conversation this shell
+    # saves to ./.janito/session.json after every interaction.
+    resume_state, persist_session = _resolve_resume(args, provider, model, api_type)
+
     # Choose system prompt based on enabled modes
     effective_system_prompt, no_tools = _resolve_system_prompt(args)
 
     shell = InteractiveShell(
         model=model,
         no_history=args.no_history,
-        provider=cli_provider,
+        provider=None if provider == "(not configured)" else provider,
         api_type=cli_api_type,
         reasoning_effort=cli_reasoning_effort,
     )
@@ -384,7 +505,26 @@ def run_interactive_chat(args):
         cli_thinking=getattr(args, "thinking", False),
         cli_effort=cli_reasoning_effort,
     )
-    shell.initialize_history(system_prompt=effective_system_prompt)
+    if resume_state is not None:
+        # Restore the whole conversation (system prompt included) exactly as
+        # it was saved; the identity was matched above, so the native state is
+        # valid for this session.
+        if not shell.restore_conversation(resume_state):
+            print("Could not restore the saved conversation; starting a new one.")
+            shell.initialize_history(system_prompt=effective_system_prompt)
+        else:
+            # Echo the last few messages so the user can see where the
+            # previous session left off. Display-only: the full restored
+            # conversation is still what gets sent to the model.
+            _print_resume_recap(shell)
+    else:
+        shell.initialize_history(system_prompt=effective_system_prompt)
+    # Mirror the conversation to ./.janito/session.json after every
+    # interaction so `janito -C` can resume it later (--no-history keeps it
+    # in memory only, mirroring the web UI's --no-history semantics).  In the
+    # -C identity-mismatch case persistence stays off so the saved snapshot
+    # is not overwritten by the throwaway fresh session.
+    shell.persist_history = persist_session
     shell.run(
         turn_func=shell.turn_factory(
             cli_provider, effort_override=cli_reasoning_effort

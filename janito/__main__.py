@@ -309,6 +309,87 @@ def _declare_prompt_surface(args) -> None:
             enable_browser_prompts()
 
 
+def _reject_continue_with_input(args, *, piped: bool) -> int | None:
+    """Reject ``-C/--continue`` outside interactive chat (a prompt is present).
+
+    ``-C`` can only resume an interactive session; with a positional prompt or
+    piped stdin there is nothing to resume, so fail with an actionable error
+    instead of silently ignoring the flag.
+
+    Returns:
+        ``1`` when the flag is misused, otherwise ``None``.
+    """
+    if (
+        not getattr(args, "continue_session", False)
+        or getattr(args, "prompt", None) is None
+    ):
+        return None
+    source = "piped input" if piped else "a prompt argument"
+    print(
+        "Error: -C/--continue applies to interactive chat sessions only "
+        f"(run 'janito -C' without {source}).",
+        file=sys.stderr,
+    )
+    return 1
+
+
+def _apply_resume_session(args) -> None:
+    """Backfill the session identity from the saved conversation for ``-C``.
+
+    ``janito -C`` resumes the last interactive conversation saved in the
+    current working directory.  The saved session's provider / model / API
+    type / thinking / effort are reused so the restored conversation stays
+    API-compatible even when the configured defaults changed since it was
+    saved.  Explicit ``--provider`` / ``--model`` / ``--api-type`` /
+    ``--thinking`` / ``--reasoning-effort`` flags always win and are never
+    overridden here -- ``run_interactive_chat`` then starts a fresh
+    conversation when they do not match the saved session.
+
+    No-op when ``-C`` was not passed, in web mode (the web UI has its own
+    session persistence), or under ``--no-history`` (no snapshot is kept).
+    """
+    if not getattr(args, "continue_session", False):
+        return
+    if getattr(args, "web", False) or getattr(args, "no_history", False):
+        return
+    from .shell.persistence import load_conversation_state
+
+    state = load_conversation_state()
+    if not state:
+        return
+    # Backfill only the values the user did not set explicitly.
+    if state.get("provider") and not getattr(args, "provider", None):
+        args.provider = state["provider"]
+    if state.get("model") and not getattr(args, "model", None):
+        args.model = state["model"]
+    if state.get("api_type") and not getattr(args, "api_type", None):
+        args.api_type = state["api_type"]
+    if state.get("reasoning_effort") and not getattr(args, "reasoning_effort", None):
+        args.reasoning_effort = state["reasoning_effort"]
+    if not getattr(args, "thinking", False):
+        args.thinking = bool(state.get("thinking"))
+
+
+def _dispatch_chat(args, stdin_prompt: str | None) -> int | None:
+    """Dispatch to the interactive shell or single-prompt mode.
+
+    Piped stdin (``stdin_prompt``) also selects single-prompt mode.  ``-C`` /
+    ``--continue`` is interactive-only: with a positional prompt or piped
+    input there is nothing to resume, so it is rejected here (after web mode
+    and config validation have already been handled by ``main``).
+    """
+    if stdin_prompt:
+        args.prompt = stdin_prompt
+    if args.prompt is None:
+        run_interactive_chat(args)
+    else:
+        exit_code = _reject_continue_with_input(args, piped=bool(stdin_prompt))
+        if exit_code is not None:
+            return exit_code
+        run_single_prompt(args)
+    return None
+
+
 def main():
     """Main entry point."""
     parser = create_parser()
@@ -361,6 +442,11 @@ def main():
     if exit_code is not None:
         return exit_code
 
+    # -C/--continue: reuse the saved session's identity so the restored
+    # conversation stays API-compatible (before runtime validation, which
+    # resolves provider/model/api key against the CLI flags).
+    _apply_resume_session(args)
+
     # Validate that the runtime configuration (API key from auth store,
     # endpoint from provider default/config, model from --model or config)
     # can be resolved before starting a session.
@@ -380,15 +466,10 @@ def main():
 
     # Check for stdin input
     stdin_prompt = read_stdin_prompt()
-    if stdin_prompt:
-        args.prompt = stdin_prompt
 
-    # Run chat or single prompt
-    if args.prompt is None:
-        run_interactive_chat(args)
-    else:
-        run_single_prompt(args)
-    return None
+    # Dispatch to the interactive shell or a single prompt (also rejecting
+    # -C/--continue, which is interactive-only, when a prompt is present).
+    return _dispatch_chat(args, stdin_prompt)
 
 
 if __name__ == "__main__":
