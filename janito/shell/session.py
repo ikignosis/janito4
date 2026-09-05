@@ -139,7 +139,12 @@ class _SessionMixin:
             {
                 "prompt": "bg:#2323af #ffffff bold",
                 "": "#ffffff",
-                "bottom-toolbar": "fg:#232323 bg:#f0f0f0",
+                # NOTE: prompt_toolkit's default UI style sets
+                # ``bottom-toolbar`` to ``reverse``, which swaps fg/bg at
+                # display time for everything in the toolbar. Cancel it here
+                # with ``noreverse`` so badge background colors render as
+                # specified (this was showing FULL as red-on-black).
+                "bottom-toolbar": "fg:#232323 bg:#f0f0f0 noreverse",
                 "key-label": "bg:#ff9500 fg:#232323 bold",
                 "provider": "fg:#117fbf",
                 "model": "fg:#1f5fa9",
@@ -150,7 +155,7 @@ class _SessionMixin:
                 "tokens_in": "fg:#00af5f",
                 "tokens_out": "fg:#01814a",
                 "max-tokens": "fg:#888888",
-                "key-toggle-on": "bg:#ffd700 fg:#232323 bold",
+                "key-toggle-on": "bg:#ffd700 fg:#232323 bold noreverse",
                 "key-toggle-off": "bg:#444444 fg:#ffffff bold",
                 "cmd-label": "bg:#ff9500 fg:#232323 bold",
             }

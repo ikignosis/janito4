@@ -28,6 +28,51 @@ class Privileges:
 
 running_privileges = None
 
+# Rich style for the privilege badge shown in the ``Turn N`` rule, by
+# category. Light backgrounds with black text; resolved by priority:
+# WRITE present -> red, else EXEC present -> yellow, else READ present ->
+# green, else grey.
+_PRIV_RICH_STYLE_BY_KIND = {
+    "w": "black on bright_red",
+    "x": "black on bright_yellow",
+    "r": "black on bright_green",
+    "none": "black on grey70",
+}
+
+
+def privilege_badge() -> tuple[str, str]:
+    """Return the ``(label, rich_style)`` privilege badge for the current turn.
+
+    Label mapping: ``r`` -> ``read-only``, ``w`` -> ``write-only``,
+    ``x`` -> ``exec-only``, ``rw`` -> ``read-write``, ``rx`` -> ``read-exec``,
+    ``wx`` -> ``write-exec``, ``rwx`` (or ``None``, the implicit
+    full-privileges default) -> ``full``, ``""`` (nothing granted) ->
+    ``no-access``.
+
+    Colour priority, resolved in order: ``WRITE`` present -> red, else
+    ``EXEC`` present -> yellow, else ``READ`` present -> green, else grey.
+    """
+    priv = running_privileges
+    read = priv is None or priv.READ
+    write = priv is None or priv.WRITE
+    exec_ = priv is None or priv.EXEC
+    if read and write and exec_:
+        return ("full", _PRIV_RICH_STYLE_BY_KIND["w"])
+    if read and write:
+        return ("read-write", _PRIV_RICH_STYLE_BY_KIND["w"])
+    if read and exec_:
+        return ("read-exec", _PRIV_RICH_STYLE_BY_KIND["x"])
+    if write and exec_:
+        return ("write-exec", _PRIV_RICH_STYLE_BY_KIND["w"])
+    if read:
+        return ("read-only", _PRIV_RICH_STYLE_BY_KIND["r"])
+    if write:
+        return ("write-only", _PRIV_RICH_STYLE_BY_KIND["w"])
+    if exec_:
+        return ("exec-only", _PRIV_RICH_STYLE_BY_KIND["x"])
+    return ("no-access", _PRIV_RICH_STYLE_BY_KIND["none"])
+
+
 # Set when the session fell back to the implicit full-privileges default
 # (no -r/-w/-x flags, no privileges config). Consumed after the version
 # banner is printed to warn about running with full privileges.

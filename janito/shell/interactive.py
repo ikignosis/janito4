@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 from prompt_toolkit.formatted_text import HTML
 from rich.console import Console
 from rich.rule import Rule
+from rich.text import Text
 
 from ..conversation_utils import rollback_to_last_turn
 from ..llm_clients import RequestCancelled
@@ -737,8 +738,19 @@ class InteractiveShell(_SessionMixin):
             # (``history_turns``, one entry per submitted turn), so a turn
             # that is rolled back (Ctrl+C / error) or undone (/rewind) no
             # longer counts and the number is shown again for the retry
-            # (issue #78); a fresh conversation starts at Turn 1.
-            _rich_console.print(Rule(f"Turn {len(self.history_turns) + 1}"))
+            # (issue #78); a fresh conversation starts at Turn 1. The
+            # title also carries the running privileges badge
+            # (``Turn N with full privileges``), built as Text with a
+            # styled span because the shell console disables markup.
+            from ..privileges import privilege_badge
+
+            _priv_label, _priv_style = privilege_badge()
+            _turn_title = Text.assemble(
+                f"Turn {len(self.history_turns) + 1} with ",
+                (_priv_label, _priv_style),
+                " privileges",
+            )
+            _rich_console.print(Rule(_turn_title))
             user_input = self._get_user_input()
             if user_input is None:
                 # Quit: persist the current state so `janito -C` can resume it.
