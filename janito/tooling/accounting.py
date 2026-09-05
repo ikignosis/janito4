@@ -211,7 +211,7 @@ class AccountingStore:
         reported) and the estimated cost (summed dollars, ``None`` when no
         cost was reported for any of the day's turns).  Only the ``days``
         most recent days that actually have recorded usage are returned,
-        ordered oldest first.
+        ordered newest first.
 
         Best-effort, like every other access in this module: never raises,
         failures are logged and ``[]`` is returned.
@@ -258,9 +258,6 @@ class AccountingStore:
                         "cost",
                     ]
                     rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
-                    # Newest first from SQL; flip to chronological order for
-                    # display (oldest day on top).
-                    rows.reverse()
                     return rows
                 finally:
                     conn.close()
@@ -277,7 +274,7 @@ class AccountingStore:
         ``0`` when nothing was reported) and the estimated cost (summed
         dollars, ``None`` when no cost was reported for any of the group's
         turns).  Only the ``days`` most recent days that actually have
-        recorded usage are returned, ordered oldest first and, within a day,
+        recorded usage are returned, ordered newest day first and, within a day,
         by provider then model.
 
         Best-effort, like every other access in this module: never raises,
@@ -324,7 +321,7 @@ class AccountingStore:
                                 LIMIT ?
                             )
                         )
-                        ORDER BY day, provider, model
+                        ORDER BY day DESC, provider, model
                         """,
                         (days,),
                     )
@@ -443,7 +440,7 @@ def get_daily_stats(days: int = 10) -> list[dict]:
 
     Thin wrapper over :meth:`AccountingStore.daily_stats` (the module-level
     singleton); see it for details.  Grouped by calendar day and ordered
-    oldest first, best-effort: never raises, ``[]`` when nothing has been
+    newest first, best-effort: never raises, ``[]`` when nothing has been
     recorded or the database cannot be read.
 
     Args:
@@ -461,7 +458,7 @@ def get_per_model_stats(days: int = 10) -> list[dict]:
 
     Thin wrapper over :meth:`AccountingStore.per_model_stats` (the
     module-level singleton); see it for details.  Grouped by calendar day,
-    provider and model, ordered oldest day first then provider/model,
+    provider and model, ordered newest day first then provider/model,
     best-effort: never raises, ``[]`` when nothing has been recorded or the
     database cannot be read.
 

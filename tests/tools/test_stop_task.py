@@ -64,7 +64,7 @@ def test_schema_exposes_required_task_id():
     schema = get_function_schema(tools["StopTask"])
 
     params = schema["function"]["parameters"]
-    assert params["properties"]["task_id"]["type"] == "string"
+    assert params["properties"]["task_id"]["type"] == "integer"
     assert params["required"] == ["task_id"]
 
 

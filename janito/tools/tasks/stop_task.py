@@ -24,15 +24,15 @@ class StopTask(BaseTool):
     Tool for stopping a running task started with the StartTask tool.
 
     Args:
-        task_id (str): The id of the task to stop (returned by StartTask).
+        task_id (int): The id of the task to stop (returned by StartTask).
     """
 
-    def run(self, task_id: str) -> dict[str, Any]:
+    def run(self, task_id: int) -> dict[str, Any]:
         """
         Stop a running task.
 
         Args:
-            task_id (str): The id of the task to stop.
+            task_id (int): The id of the task to stop.
 
         Returns:
             Dict[str, Any]: A dictionary containing:
@@ -55,7 +55,7 @@ class StopTask(BaseTool):
             self.report_error(str(e))
             return {"success": False, "error": str(e), "task_id": task_id}
 
-        except Exception as e:
+        except (ValueError, OSError, RuntimeError) as e:
             self.report_error(f"Error: {e}")
             return {"success": False, "error": str(e), "task_id": task_id}
 
@@ -68,9 +68,10 @@ def main():
     parser = argparse.ArgumentParser(
         description="Stop a running task started with the StartTask tool"
     )
-    parser.add_argument("task_id", help="The id of the task to stop")
-    parser.add_argument("--json", "-j", action="store_true",
-                        help="Output in JSON format")
+    parser.add_argument("task_id", type=int, help="The id of the task to stop")
+    parser.add_argument(
+        "--json", "-j", action="store_true", help="Output in JSON format"
+    )
     args = parser.parse_args()
 
     result = StopTask().run(task_id=args.task_id)

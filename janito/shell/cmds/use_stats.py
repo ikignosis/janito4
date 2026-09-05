@@ -63,7 +63,7 @@ class UseStatsCmdHandler(CmdHandler):
 
         Args:
             stats: Per-day usage aggregates as returned by
-                ``accounting.get_daily_stats()`` (oldest day first).
+                ``accounting.get_daily_stats()`` (newest day first).
 
         Returns:
             rich.table.Table: A table with one row per day: the date, the
@@ -103,7 +103,7 @@ class UseStatsCmdHandler(CmdHandler):
 
         Args:
             stats: Per-day/per-provider/per-model aggregates as returned by
-                ``accounting.get_per_model_stats()`` (oldest day first, then
+                ``accounting.get_per_model_stats()`` (newest day first, then
                 provider, then model).
 
         Returns:

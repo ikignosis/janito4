@@ -141,6 +141,7 @@ class TurnInfo:
     turn_input: int | None = None
     turn_cached: int | None = None
     turn_output: int | None = None
+    elapsed_time: float | None = None
 
     @classmethod
     def from_usage(cls, usage: Any) -> "TurnInfo | None":

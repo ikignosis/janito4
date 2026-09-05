@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Changes since `v4.38.0` (2026-09-04).
 
+### Added
+- Add `/push` and `/pop` shell commands: nestable conversation-thread stack with deep-copy snapshots per level, `[n]` depth in the prompt, `Last Message:` replay on `/pop`, and full-stack clear on `clear`/`F2` (close #124).
+- Support `/push <msg>`: after cloning the history into a new thread, immediately start a turn with `<msg>` as the prompt (refs #124).
+
 ### Changed
+- Change task ids to incremental integers starting at 1 instead of random hex strings (close #111).
 - Expand `--no-tools` scope: it now disables skill tools, plugin tools, and server-side/builtin provider tools in addition to the autoload toolsets and MCP tools (close #127).
 - Add `/effort <level>` shell command: show or switch the session reasoning effort at runtime, validated against the current model's supported levels (`/effort clear` restores config/default) (close #121).
 - Add `-C`/`--continue` to resume the previous interactive conversation in a working directory: the shell now mirrors its conversation to `./.janito/session.json` after every interaction (disabled by `--no-history`), and `-C` restores it together with its provider/model/API type (server-side Responses conversations resume from their last response id).

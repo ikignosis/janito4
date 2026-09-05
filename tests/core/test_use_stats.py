@@ -94,7 +94,7 @@ if pytest is not None:
 
         handler = UseStatsCmdHandler()
         stats = accounting.get_daily_stats()
-        assert [row["day"] for row in stats] == ["2026-08-27", "2026-08-28"]
+        assert [row["day"] for row in stats] == ["2026-08-28", "2026-08-27"]
 
         table = handler._build_table(stats)
         # One row per day.
@@ -110,8 +110,8 @@ if pytest is not None:
         assert "2026-08-27" in output
         assert "2026-08-28" in output
         assert "Usage Statistics" in output
-        # Oldest day is rendered first.
-        assert output.index("2026-08-27") < output.index("2026-08-28")
+        # Newest day is rendered first.
+        assert output.index("2026-08-28") < output.index("2026-08-27")
 
     def test_cached_percentage_after_cached_tokens():
         handler = UseStatsCmdHandler()
@@ -260,8 +260,8 @@ if pytest is not None:
         handler = UseStatsCmdHandler()
         stats = accounting.get_per_model_stats()
         assert [row["model"] for row in stats] == [
-            "deepseek-v4-flash",
             "gpt-5.6-luna",
+            "deepseek-v4-flash",
             "gpt-5.6-luna",
         ]
 

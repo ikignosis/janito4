@@ -125,7 +125,6 @@ class TurnObserver(Protocol):
         self,
         token_stats: TurnInfo | None,
         api_config: Any,
-        elapsed_time: float | None = None,
     ) -> None:
         """End-of-turn report (used files + token-usage summary + accounting).
 
@@ -211,7 +210,6 @@ class NullObserver:
         self,
         token_stats: Any,
         api_config: Any,
-        elapsed_time: float | None = None,
     ) -> None:
         pass
 

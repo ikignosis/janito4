@@ -30,7 +30,7 @@ def _print_tasks() -> None:
     table.add_column("summary")
     for task in tasks:
         table.add_row(
-            task["task_id"],
+            str(task["task_id"]),
             "running" if task.get("running") else task.get("state", ""),
             _exit_display(task),
             task.get("summary") or "-",
