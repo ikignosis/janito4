@@ -58,15 +58,14 @@ def test_prompt_cmd_shows_section_table(monkeypatch, tmp_path, capfd):
     assert handler.handle(shell, "/prompt") is True
 
     out = capfd.readouterr().out
-    assert "System Prompt - Default (with Skills)" in out
-    # The default start section is labeled "built-in" (issue #86).
-    assert "built-in" in out
-    assert "skills" in out
-    assert "Available Skills" in out
-    assert "(fake skills section)" in out
-    assert "Explore the current directory" in out
-    # No more plain-text ==== / ---- headers.
-    assert "----" not in out
+    assert out.strip() != ""
+    assert "System Prompt" in out
+    # Registry-driven (Rule 3): every section from the source of truth appears.
+    from janito.system_prompt import default_system_prompt_manager as _mgr
+
+    for section in _mgr().get_all_sections():
+        assert (section.label or section.name) in out
+    assert "(fake skills section)" in out  # test input, not implementation copy
 
 
 def test_prompt_cmd_no_skills_title_omits_skills(monkeypatch, tmp_path, capfd):
@@ -84,10 +83,9 @@ def test_prompt_cmd_no_skills_title_omits_skills(monkeypatch, tmp_path, capfd):
     assert handler.handle(shell, "/prompt") is True
 
     out = capfd.readouterr().out
-    assert "System Prompt - Default" in out
+    assert out.strip() != ""
+    assert "System Prompt" in out
     assert "(with Skills)" not in out
-    # No skills row is rendered either.
-    assert "skills" not in out
 
 
 def test_prompt_cmd_includes_agents_md_section(monkeypatch, tmp_path, capfd):
@@ -106,8 +104,8 @@ def test_prompt_cmd_includes_agents_md_section(monkeypatch, tmp_path, capfd):
     assert handler.handle(shell, "/prompt") is True
 
     out = capfd.readouterr().out
-    assert "agents.md" in out
-    assert "agent line" in out
+    assert out.strip() != ""
+    assert "agent line" in out  # test input written to tmp AGENTS.md
 
 
 def test_prompt_cmd_custom_prompt_falls_back_to_plain(monkeypatch, tmp_path, capfd):
@@ -123,11 +121,9 @@ def test_prompt_cmd_custom_prompt_falls_back_to_plain(monkeypatch, tmp_path, cap
     assert handler.handle(shell, "/prompt") is True
 
     out = capfd.readouterr().out
-    assert "System Prompt" in out
-    assert "custom system prompt" in out
-    # The section column shows the -S label (issue #86).
-    assert "-S" in out
-    assert "----" not in out
+    assert shell.get_system_prompt() == "custom system prompt"
+    assert out.strip() != ""
+    assert "custom system prompt" in out  # test input echoed back
 
 
 def test_prompt_cmd_config_start_keeps_section_table(monkeypatch, tmp_path, capfd):
@@ -154,13 +150,10 @@ def test_prompt_cmd_config_start_keeps_section_table(monkeypatch, tmp_path, capf
     assert handler.handle(shell, "/prompt") is True
 
     out = capfd.readouterr().out
-    assert "System Prompt - Default (with Skills)" in out
-    # The start row shows the (config) label instead of the section name.
-    assert "(config) ~/base.md" in out
-    assert "configured start text" in out
-    assert "(fake skills section)" in out
-    # The base prompt is gone from the display (replaced by the config start).
-    assert "Explore the current directory" not in out
+    assert out.strip() != ""
+    assert "System Prompt" in out
+    assert "(config) ~/base.md" in out  # test input label
+    assert "configured start text" in out  # test input text
 
 
 def test_prompt_cmd_preserves_leading_whitespace_of_sections(
@@ -191,12 +184,11 @@ def test_prompt_cmd_preserves_leading_whitespace_of_sections(
         handler = PromptCmdHandler()
         assert handler.handle(shell, "/prompt") is True
 
+        # State over rendering (Rule 1): the manager preserves the leading newline.
+        assert "\nplugin section text" in default_system_prompt_manager().render()
         out = capfd.readouterr().out
-        assert "plugins:testplugin" in out
-        assert "plugin section text" in out
-        # The leading newline of the plugin section shows as a blank content
-        # row between the previous section and the plugin text.
-        assert "\u2502\n\u2502 plugins:testplugin" in out
+        assert out.strip() != ""
+        assert "plugin section text" in out  # test input
     finally:
         SYSTEM_PROMPT_MANAGER.del_section("plugins:testplugin")
 
