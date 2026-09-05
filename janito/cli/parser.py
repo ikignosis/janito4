@@ -208,6 +208,7 @@ Note: --set and --set-api-key must be used in separate commands.
     )
 
     parser.add_argument(
+        "-e",
         "--reasoning-effort",
         metavar="LEVEL",
         choices=["none", "minimal", "low", "medium", "high", "xhigh", "max"],
