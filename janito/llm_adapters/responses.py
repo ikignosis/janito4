@@ -25,6 +25,7 @@ import logging
 import tempfile
 
 from janito.providers.payloads import apply_thinking_to_extra_body
+from janito.providers.registry import get_provider
 
 logger = logging.getLogger(__name__)
 
@@ -213,11 +214,25 @@ def build_call_kwargs(
     if max_output_tokens is not None:
         call_kwargs["max_output_tokens"] = max_output_tokens
 
-    # Reasoning effort: sent whenever a reasoning level resolves (None means
-    # the API's own default applies).
+    # Reasoning effort/summary: sent whenever a reasoning level resolves
+    # (None means the API's own default applies).  Models declaring
+    # thinking_summary (e.g. Meta's Muse Spark) also request
+    # reasoning.summary="auto" so the private chain of thought is returned
+    # as summary text (response.reasoning_summary_text deltas, surfaced via
+    # on_reasoning).  Responses-only: Chat Completions has no summary.
     provider = getattr(config, "effective_provider", None)
-    if reasoning_effort:
-        call_kwargs["reasoning"] = {"effort": reasoning_effort}
+    found_reasoning = get_provider(provider) if provider else None
+    thinking_summary_fn = getattr(found_reasoning, "thinking_summary", None)
+    thinking_summary = (
+        bool(thinking_summary_fn(model)) if callable(thinking_summary_fn) else False
+    )
+    if reasoning_effort or thinking_summary:
+        reasoning: dict = {}
+        if reasoning_effort:
+            reasoning["effort"] = reasoning_effort
+        if thinking_summary:
+            reasoning["summary"] = "auto"
+        call_kwargs["reasoning"] = reasoning
 
     if preserve_thinking is not None:
         call_kwargs.setdefault("extra_body", {})[

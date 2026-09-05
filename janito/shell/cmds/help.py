@@ -118,6 +118,7 @@ class HelpCmdHandler(CmdHandler):
         shortcuts.add_column("Key", style="green", no_wrap=True)
         shortcuts.add_column("Description", overflow="fold")
         shortcuts.add_row("[F2]", "Clear conversation")
+        shortcuts.add_row("[F12]", "Do It (continue existing plan)")
         console.print(shortcuts)
 
         mcp = Table(

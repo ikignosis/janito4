@@ -76,3 +76,27 @@ def make_ui_config(*, stream_runner=None, observer=None) -> UIConfig:
         stream_runner=stream_runner,
         observer=observer or NullObserver(),
     )
+
+
+def assert_command_registered(name: str) -> None:
+    """Assert a shell command is registered (see docs/development/testing.md)."""
+    from janito.shell.cmds import get_registered_commands
+
+    names = [cmd.name for cmd in get_registered_commands()]
+    assert name in names
+
+
+def assert_command_matching(handler, name: str) -> None:
+    """Assert standard command matching: exact, case-insensitive,
+    whitespace-tolerant, and non-matching input rejected."""
+    assert handler.name == name
+
+    class _Shell:
+        pass
+
+    shell = _Shell()
+    assert handler.handle(shell, name) is True
+    assert handler.handle(shell, name.upper()) is True
+    assert handler.handle(shell, f"  {name}  ") is True
+    assert handler.handle(shell, "/tools" if name != "/tools" else "/help") is False
+    assert handler.handle(shell, "hello") is False

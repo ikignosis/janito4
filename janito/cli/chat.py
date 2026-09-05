@@ -234,23 +234,20 @@ def print_version_banner(console=None):
 
 
 def _print_privileges_notice(args) -> None:
-    """Print a startup notice about the running privileges (issue #85).
+    """Print the full-privileges warning after the version banner.
 
-    janito now starts **read-only** by default: with no ``-r``/``-w``/``-x``
-    flag the session only gets the READ tools.  Right after the version
-    banner we print a one-line hint telling the user how to run a single
-    request with full privileges (``/rwx <prompt>`` in the interactive
-    shell).  Explicit ``-r`` alone also leaves the session read-only, so the
-    same hint is printed.  Only sessions that actually grant WRITE or EXEC
-    (``-w``/``-x`` or any combination of them) skip the notice, since the
-    read-only hint would be misleading there (``-r -w -x`` grants everything
-    deliberately; ``-w`` alone grants write-only, ...).
+    The warning is only pending when the session fell back to the implicit
+    full-privileges default (no ``-r``/``-w``/``-x`` flags, no ``privileges``
+    config key). Explicit flags or config -- even ``rwx`` -- never set it,
+    so no warning is shown for those.
 
-    Called only for interactive sessions (``run_interactive_chat``): the
-    ``/rwx`` command is an interactive-shell command, so single-prompt runs
-    (``run_single_prompt``) never print this hint.
+    Called for both interactive sessions (``run_interactive_chat``) and
+    single-prompt runs (``run_single_prompt``), always after ensuring the
+    version banner was printed first.
     """
-    if getattr(args, "write", False) or getattr(args, "exec", False):
+    from .. import privileges as _privileges_mod
+
+    if not getattr(_privileges_mod, "full_privileges_warning_pending", False):
         return
 
     from rich.console import Console
@@ -258,9 +255,10 @@ def _print_privileges_notice(args) -> None:
     if not _banner_printed:
         print_version_banner()
     Console().print(
-        "Started read-only, use /rwx <prompt>...with full privileges..",
+        "Warning: running with full privileges (rwx). " "Use -r/-w/-x to restrict.",
         style="yellow",
     )
+    _privileges_mod.full_privileges_warning_pending = False
 
 
 def _enable_requested_toolsets(args) -> None:
@@ -470,6 +468,10 @@ def run_interactive_chat(args):
         f"Using [cyan]{provider}[/cyan], model [magenta]{model}[/magenta], "
         f"API: [yellow]{api_type}[/yellow] [green]({state})[/green]"
     )
+    Console().print(
+        "Keys: [bold green]F2[/bold green] - Clear conversation, "
+        '[bold green]F12[/bold green] - Send "Do It"'
+    )
     print(
         "Starting interactive chat session. Type '/exit' or CTRL-D to end the session"
     )
@@ -552,11 +554,9 @@ def run_single_prompt(args):
     """
     import sys
 
-    # Single-prompt runs have no interactive shell, so the read-only hint
-    # (``/rwx <prompt>`` is an interactive-shell command, issue #85) does not
-    # apply; keep the version-banner fallback for the --no-plugins path.
     if not _banner_printed:
         print_version_banner()
+    _print_privileges_notice(args)
     _enable_requested_toolsets(args)
 
     prompt = args.prompt

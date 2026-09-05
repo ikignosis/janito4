@@ -49,9 +49,44 @@ def _function_call_output_row(item: dict[str, Any]) -> tuple[str, str]:
     return "function_call_output", str(item.get("output") or "")
 
 
-def _reasoning_row(item: dict[str, Any]) -> tuple[str, str]:
-    """Render a Responses ``reasoning`` item as a row."""
-    return "reasoning", str(item.get("summary") or item.get("text") or "")
+def _reasoning_text(item: dict[str, Any]) -> str:
+    """Extract human-readable text from a Responses ``reasoning`` item.
+
+    ``summary`` may be a plain string, a list of summary blocks
+    (``[{"type": "summary_text", "text": ...}]``), or an empty list when
+    the provider only returns opaque encrypted content (e.g. Meta's Muse
+    Spark with ``reasoning.encrypted_content``).  ``text`` is a fallback
+    for the same shapes.  Encrypted content is opaque and never rendered.
+    """
+    for key in ("summary", "text"):
+        value = item.get(key)
+        if isinstance(value, str) and value:
+            return value
+        if isinstance(value, list):
+            parts = []
+            for block in value:
+                if isinstance(block, dict):
+                    text = block.get("text")
+                    if text:
+                        parts.append(text)
+                elif isinstance(block, str) and block:
+                    parts.append(block)
+            if parts:
+                return "".join(parts)
+    return ""
+
+
+def _reasoning_row(item: dict[str, Any]) -> tuple[str, str] | None:
+    """Render a Responses ``reasoning`` item as a row.
+
+    Returns ``None`` when the item carries no human-readable text (e.g.
+    an encrypted-only reasoning item kept for stateless replay) so the
+    caller can skip it instead of showing an empty ``reasoning`` row.
+    """
+    text = _reasoning_text(item)
+    if not text:
+        return None
+    return "reasoning", text
 
 
 #: Per-item-type renderers for Responses input items (see
@@ -65,7 +100,7 @@ _ITEM_TO_ROW = {
 }
 
 
-def _responses_item_to_row(item: dict[str, Any]) -> tuple[str, str]:
+def _responses_item_to_row(item: dict[str, Any]) -> tuple[str, str] | None:
     """Convert one Responses input item into a ``(role, content)`` display row.
 
     Stateless Responses providers (e.g. DeepSeek) keep the full conversation
@@ -73,6 +108,9 @@ def _responses_item_to_row(item: dict[str, Any]) -> tuple[str, str]:
     assistant) plus ``function_call`` / ``function_call_output`` items for the
     tool-call rounds.  Each becomes a row so ``/history`` reads like the
     Completions history table.
+
+    Returns ``None`` for items with nothing human-readable to show (currently
+    encrypted-only ``reasoning`` items kept for stateless replay).
     """
     item_type = item.get("type", "unknown")
     renderer = _ITEM_TO_ROW.get(item_type)
@@ -82,8 +120,20 @@ def _responses_item_to_row(item: dict[str, Any]) -> tuple[str, str]:
 
 
 def items_to_rows(items) -> list[tuple[str, str]]:
-    """Render Responses input items as ``(role, content)`` display rows."""
-    return [_responses_item_to_row(item) for item in items]
+    """Render Responses input items as ``(role, content)`` display rows.
+
+    Encrypted-only ``reasoning`` items (no readable summary/text, only
+    opaque ``encrypted_content`` for stateless replay) are skipped so
+    ``/history`` does not show an empty ``reasoning`` row before every
+    assistant message.  The stored items are untouched -- only the display
+    rows are filtered.
+    """
+    rows: list[tuple[str, str]] = []
+    for item in items or []:
+        row = _responses_item_to_row(item)
+        if row is not None:
+            rows.append(row)
+    return rows
 
 
 def messages_to_rows(messages_history) -> list[tuple[str, str]]:

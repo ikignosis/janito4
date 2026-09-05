@@ -35,6 +35,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from importlib.resources import files
 
+from .system_labels import LABEL_BUILTIN
+
 # The packaged resource holding the built-in base prompt (the ``start``
 # section used when no ``system-prompt`` / ``system-prompt-file`` config is
 # set).  Installed as package data; read lazily via
@@ -66,13 +68,11 @@ SECTION_SKILLS = "skills"
 SECTION_AGENTS_MD = "agents.md"
 SECTION_PLUGINS = "plugins"
 
-# Labels describing where the ``start`` section came from (issue #86).
-# ``LABEL_BUILTIN`` marks the packaged base prompt, ``LABEL_CLI`` a ``-S``
-# override, and config-sourced starts carry a ``(config) ...`` label built by
-# :func:`janito.config_loaders.load_system_prompt_start`.
-LABEL_BUILTIN = "built-in"
-LABEL_CLI = "-S"
-LABEL_CONFIG_PREFIX = "(config) "
+# Labels describing where the ``start`` section came from live in the leaf
+# :mod:`janito.system_labels` (issue #86 for the labels, #110 for the
+# location): ``LABEL_BUILTIN`` marks the packaged base prompt, ``LABEL_CLI``
+# a ``-S`` override, and config-sourced starts carry a ``(config) ...`` label
+# built by :func:`janito.config_loaders.load_system_prompt_start`.
 
 
 @dataclass(frozen=True)

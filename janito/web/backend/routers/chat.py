@@ -80,7 +80,7 @@ async def rename_session(session_id: str, request: Request):
     sessions = _get_sessions(request)
     try:
         body = await request.json()
-    except Exception:
+    except ValueError:
         body = {}
     title = body.get("title", "")
     if sessions.set_title(session_id, title):
@@ -184,6 +184,10 @@ async def _process_prompt(
         pending_prompts,
         sessions,
         prompt_registry,
+        # Passed explicitly (rather than letting the helpers import it from
+        # here) so tests that monkeypatch ``chat.stream_prompt`` keep working
+        # without an import cycle (issue #110).
+        stream_fn=stream_prompt,
     )
     for extra in pending_prompts:
         _maybe_auto_title(sessions, session.session_id, session, extra)
@@ -195,6 +199,7 @@ async def _process_prompt(
             pending_prompts,
             sessions,
             prompt_registry,
+            stream_fn=stream_prompt,
         )
 
 
@@ -281,7 +286,7 @@ async def chat_websocket(websocket: WebSocket, session_id: str):
         logger.exception(f"WebSocket error: {e}")
         try:
             await websocket.close()
-        except Exception:
+        except (WebSocketDisconnect, RuntimeError, OSError):
             pass
 
 
@@ -304,7 +309,7 @@ async def one_shot_prompt(request: Request):
 
     try:
         body = await request.json()
-    except Exception:
+    except ValueError:
         return JSONResponse({"detail": "Invalid JSON"}, status_code=400)
 
     session_id = body.get("session_id")
@@ -336,7 +341,7 @@ async def one_shot_prompt(request: Request):
             async for event in stream_prompt(content, session.messages, turn_config):
                 payload = json.dumps(event_to_dict(event))
                 yield f"data: {payload}\n\n"
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, AttributeError) as e:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
         finally:
             # Persist whatever the turn left in the conversation (success or

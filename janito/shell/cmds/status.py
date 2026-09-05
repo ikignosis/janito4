@@ -13,6 +13,7 @@ from janito.config_loaders import (
     load_reasoning_effort,
 )
 from janito.general_config import get_active_provider, resolve_api_type
+from janito.llm_clients.openai.responses_state import stateless_mode
 from janito.providers.payloads import resolve_thinking_display
 from janito.providers.registry import get_provider
 
@@ -167,7 +168,7 @@ def _print_config_info(
     # client re-sends the full history on every request, e.g. DeepSeek).
     stateless_mode_display = ""
     if api_type == "Responses":
-        if found is not None and found.stateless_mode(model):
+        if stateless_mode(provider, model):
             stateless_mode_display = "stateless (client re-sends history)"
         else:
             stateless_mode_display = "server-side (previous_response_id)"

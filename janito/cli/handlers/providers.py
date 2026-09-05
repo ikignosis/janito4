@@ -7,8 +7,9 @@ from ...config_store import get_config_path
 from ...general_config import get_active_provider
 from ...providers import CUSTOM_ENDPOINT_MARKER
 from ...providers.payloads import format_thinking_display
-from ...providers.registry import get_provider, parse_variant_name
+from ...providers.registry import get_provider
 from ...providers.validation import list_supported_providers, list_variants
+from ...providers.variant_names import parse_variant_name
 
 
 def _format_token_limit(value: int | None) -> str:

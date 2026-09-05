@@ -14,3 +14,4 @@
 - Before commiting do NOT run all the full tests suite
 - When making changes and a github issue can not be found, offer to the user to create one
 - When commiting follow the conventional commits messages format and use (close #<issue_nr>) when applicable
+- When creating/updating tests, follow the guidelines described at dev-docs/testing.md

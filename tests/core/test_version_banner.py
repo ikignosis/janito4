@@ -1,11 +1,10 @@
 """
 Tests for the CLI version banner printed on the shell.
 
-The banner is printed right before the default read-only notice (issue #85)
-in interactive sessions and shows ``Janito x.y.z - Working at <cwd>`` with
-the version in cyan and the working directory in magenta. Single-prompt
-runs keep the banner but skip the read-only notice, since ``/rwx`` is an
-interactive-shell command.
+The banner is printed right before the full-privileges warning in sessions
+that fell back to the implicit full-privileges default and shows
+``Janito x.y.z - Working at <cwd>`` with the version in cyan and the
+working directory in magenta.
 """
 
 import sys
@@ -33,14 +32,16 @@ if pytest is not None:
         assert out == f"Janito {__version__} - Working at {cwd}"
 
     def test_single_prompt_prints_banner_without_read_only_notice(monkeypatch, capsys):
-        """run_single_prompt prints the banner but not the read-only notice."""
+        """run_single_prompt prints the banner but no warning without fallback."""
         from conftest import make_config
 
         import janito.cli.chat as chat_mod
+        from janito import privileges as _privileges_mod
 
         # The banner must not have been printed yet in this test process
         # (other tests call print_version_banner directly).
         monkeypatch.setattr(chat_mod, "_banner_printed", False)
+        _privileges_mod.full_privileges_warning_pending = False
 
         class _Args:
             prompt = "hi"
@@ -75,8 +76,7 @@ if pytest is not None:
 
         out = capsys.readouterr().out
         assert "Janito" in out
-        assert "Started read-only" not in out
-        assert "/rwx" not in out
+        assert "full privileges" not in out
 
 else:  # pragma: no cover - fallback runner without pytest
 

@@ -54,7 +54,7 @@ Or, with [uv](https://docs.astral.sh/uv/):
 uv tool install janito
 ```
 
-For development setup, see [README_DEV.md](README_DEV.md).
+For development setup, see [README_DEV.md](dev-docs/README_DEV.md).
 
 ## Configuration
 

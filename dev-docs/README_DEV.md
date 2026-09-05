@@ -207,6 +207,6 @@ We use standard Python conventions. Key points:
 
 ## Related Guides
 
-- [README.md](README.md) - Main documentation
-- [README_custom.md](README_custom.md) - Custom endpoint providers (configuration, env vars, testing, `--set provider=`)
-- [README_MCP.md](README_MCP.md) - MCP server configuration
+- [README.md](../README.md) - Main documentation
+- [README_custom.md](../README_custom.md) - Custom endpoint providers (configuration, env vars, testing, `--set provider=`)
+- [README_MCP.md](../README_MCP.md) - MCP server configuration

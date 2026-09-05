@@ -38,6 +38,7 @@ import janito.config_store as cs
 import janito.config_variants as cv
 import janito.providers.registry as pr
 import janito.providers.validation as pv
+import janito.providers.variant_names as vn
 from janito.auth_config import get_api_key, set_api_key
 from janito.providers.registry import get_provider
 
@@ -62,21 +63,21 @@ def _read_json(path):
 
 
 def test_parse_variant_name_shapes():
-    assert pr.parse_variant_name("alibaba-tokenplan") == ("alibaba", "tokenplan")
+    assert vn.parse_variant_name("alibaba-tokenplan") == ("alibaba", "tokenplan")
     # The word may itself contain hyphens (split on the FIRST hyphen).
-    assert pr.parse_variant_name("alibaba-token-plan") == ("alibaba", "token-plan")
-    assert pr.parse_variant_name("custom-local") == ("custom", "local")
+    assert vn.parse_variant_name("alibaba-token-plan") == ("alibaba", "token-plan")
+    assert vn.parse_variant_name("custom-local") == ("custom", "local")
     # Not in <provider>-<word> form.
-    assert pr.parse_variant_name("openai") is None
-    assert pr.parse_variant_name("-foo") is None
-    assert pr.parse_variant_name("openai-") is None
-    assert pr.parse_variant_name("") is None
-    assert pr.parse_variant_name(None) is None
+    assert vn.parse_variant_name("openai") is None
+    assert vn.parse_variant_name("-foo") is None
+    assert vn.parse_variant_name("openai-") is None
+    assert vn.parse_variant_name("") is None
+    assert vn.parse_variant_name(None) is None
 
 
 def test_is_variant_style_name():
-    assert pr.is_variant_style_name("alibaba-tokenplan") is True
-    assert pr.is_variant_style_name("openai") is False
+    assert vn.is_variant_style_name("alibaba-tokenplan") is True
+    assert vn.is_variant_style_name("openai") is False
 
 
 # ---------------------------------------------------------------------------

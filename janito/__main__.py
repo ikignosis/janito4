@@ -144,8 +144,10 @@ def _setup_privileges(args) -> None:
        default read).
     2. The ``privileges`` config key (``--set privileges=rwx``, issue #89):
        the session default when no privilege flag is given.
-    3. The built-in default: **read-only** (READ granted, WRITE/EXEC not,
-       issue #85).
+    3. The built-in default: **full privileges** (READ/WRITE/EXEC granted).
+       A warning is printed in this case; no warning is shown when the
+       effective privileges come from explicit ``-r``/``-w``/``-x`` flags
+       or from the config key (even when those grant full ``rwx``).
     """
     if args.read or args.write or args.exec:
         if _privileges_mod.running_privileges is None:
@@ -159,13 +161,18 @@ def _setup_privileges(args) -> None:
         return
 
     # No -r/-w/-x flag: use the configured default privileges
-    # (--set privileges=...), else fall back to read-only (issue #85).
+    # (--set privileges=...), else fall back to full privileges with a warning.
     if _privileges_mod.running_privileges is None:
         from .config_loaders import load_privileges_from_config
 
         _privileges_mod.running_privileges = load_privileges_from_config()
         if _privileges_mod.running_privileges is None:
-            _privileges_mod.running_privileges = Privileges(READ=True)
+            _privileges_mod.running_privileges = Privileges(
+                READ=True, WRITE=True, EXEC=True
+            )
+            # Deferred: printed after the version banner (see
+            # cli.chat._print_privileges_notice).
+            _privileges_mod.full_privileges_warning_pending = True
 
 
 def _has_batch_config_ops(args) -> bool:

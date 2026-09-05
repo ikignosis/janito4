@@ -7,6 +7,11 @@ family.
 """
 
 from .registry import _registry
+from .variant_names import (
+    normalize_provider,
+    read_providers_map,
+    registered_variant_names,
+)
 
 
 def canonical_provider_name(provider: str) -> str | None:
@@ -44,13 +49,9 @@ def list_variants() -> list:
     Returns:
         Sorted list of registered variant names (e.g. ``["alibaba-tokenplan"]``).
     """
-    # Accepted lazy cycle with the root config layer (issue #90): variant
-    # listing reads the config store while the config layer validates
-    # variant-style names through this module; the imports are lazy on both
-    # sides, keeping the cycle contained.
-    from ..config_variants import load_variants
-
-    return sorted(load_variants().keys())
+    # Registration is read straight from config.json through the leaf
+    # variant_names module (issue #110): no import of the config layer.
+    return sorted(registered_variant_names())
 
 
 def is_custom_provider(provider: str) -> bool:
@@ -126,13 +127,9 @@ def validate_model_name(provider: str, model: str) -> str:
         ValueError: If the provider has usable built-in models and ``model``
             is not one of them (or a configured per-model entry).
     """
-    # Accepted lazy cycle with the root config layer (issue #90): same
-    # contained lazy cycle as list_variants -- the config layer validates
-    # provider/model names through this module while this module reads the
-    # config store for the configured entries.
-    from ..config_keys import normalize_provider
-    from ..config_store import get_config_value
-
+    # Configured per-model entries are read straight from config.json
+    # through the leaf variant_names module (issue #110): no import of the
+    # config layer.
     found = _registry.get(provider)
     if found is None or not found.has_usable_builtin_models():
         # Unknown provider, or custom/openrouter (no usable built-in list):
@@ -148,7 +145,7 @@ def validate_model_name(provider: str, model: str) -> str:
     # Configured per-model entries (custom models with model-scoped settings
     # in config.json, e.g. --set max-output-tokens=...); these are the same
     # names --list-models shows, so they are accepted too.
-    providers = get_config_value("providers")
+    providers = read_providers_map()
     if isinstance(providers, dict):
         provider_config = providers.get(normalize_provider(provider))
         if isinstance(provider_config, dict):

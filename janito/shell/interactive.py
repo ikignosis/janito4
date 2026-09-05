@@ -148,6 +148,9 @@ class InteractiveShell(_SessionMixin):
         # Set True by the F2 key binding; signals the run loop to clear
         # history and start a fresh conversation
         self.restart_requested = False
+        # Set True by the F12 key binding; signals the run loop to
+        # auto-send a "Do It" prompt
+        self.do_it_requested = False
         # Set True by the /exit command handler; signals the run loop to
         # break and end the session
         self.exit_requested = False
@@ -725,6 +728,7 @@ class InteractiveShell(_SessionMixin):
 
         while True:
             self.restart_requested = False
+            self.do_it_requested = False
             self.exit_requested = False
 
             # Show the upcoming conversation turn above the prompt (issue
@@ -745,6 +749,13 @@ class InteractiveShell(_SessionMixin):
             if self.multiline_mode:
                 self.multiline_mode = False
                 self.session = self._create_session(multiline=False)
+
+            # Check if F12 was pressed (Do It requested)
+            if self.do_it_requested:
+                _rich_console.print(
+                    "\n[Keybinding F12] 'Do It' to continue existing plan..."
+                )
+                user_input = "Do It"
 
             # Check if F2 was pressed (restart requested)
             if self._handle_restart_request():

@@ -9,12 +9,15 @@ the one-shot SSE endpoint.
 import asyncio
 import json
 import logging
+from collections.abc import Callable
+from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
 
 from janito.conversation_utils import rollback_to_last_turn
 from janito.tooling.prompting import set_prompt_handler
 
+from ..agent.loop import stream_prompt as _default_stream_prompt
 from ..events import event_to_dict
 from ..prompts import PromptRegistry, WebPromptHandler
 from ..session import ConversationSession, SessionManager
@@ -118,8 +121,16 @@ async def _stream_to_websocket(
     messages: list[dict],
     config,
     prompt_registry: PromptRegistry | None = None,
+    *,
+    stream_fn: Callable[..., Any] | None = None,
 ):
-    """Run ``stream_prompt`` and forward every event to the client.
+    """Run the stream function and forward every event to the client.
+
+    ``stream_fn`` defaults to :func:`janito.web.backend.agent.loop.stream_prompt`;
+    the chat router passes its own module-global explicitly so tests that
+    monkeypatch ``chat.stream_prompt`` keep working (issue #110: this
+    dependency injection replaces the former lazy ``from .chat import``
+    that closed an import cycle).
 
     When a ``prompt_registry`` is provided (web mode), an in-browser prompt
     handler is installed for the duration of the turn: interactive tools
@@ -128,10 +139,7 @@ async def _stream_to_websocket(
     context variable so the worker thread that executes the tool
     (``asyncio.to_thread``) sees it, and it is scoped to this turn's task.
     """
-    # Imported lazily from the chat router so tests that monkeypatch
-    # ``chat.stream_prompt`` keep working (the name is looked up in that
-    # module's namespace at call time).
-    from .chat import stream_prompt
+    streamer = stream_fn if stream_fn is not None else _default_stream_prompt
 
     if prompt_registry is not None:
         set_prompt_handler(
@@ -141,7 +149,7 @@ async def _stream_to_websocket(
                 registry=prompt_registry,
             )
         )
-    async for event in stream_prompt(
+    async for event in streamer(
         prompt=content,
         messages=messages,
         config=config,
@@ -157,6 +165,8 @@ async def _run_turn(
     config,
     pending_prompts: list[str],
     prompt_registry: PromptRegistry | None = None,
+    *,
+    stream_fn: Callable[..., Any] | None = None,
 ) -> None:
     """Stream one prompt, racing the client's cancel request.
 
@@ -172,7 +182,12 @@ async def _run_turn(
 
     stream_task = asyncio.ensure_future(
         _stream_to_websocket(
-            websocket, content, session.messages, config, prompt_registry
+            websocket,
+            content,
+            session.messages,
+            config,
+            prompt_registry,
+            stream_fn=stream_fn,
         )
     )
     cancel_task = asyncio.ensure_future(
@@ -194,7 +209,13 @@ async def _run_turn(
         task.cancel()
         try:
             await task
-        except (asyncio.CancelledError, Exception):
+        except (
+            asyncio.CancelledError,
+            WebSocketDisconnect,
+            RuntimeError,
+            OSError,
+            ValueError,
+        ):
             pass
 
     # Client requested an abort -> roll back and confirm.
@@ -220,6 +241,8 @@ async def _run_prompt_turn(
     pending_prompts: list[str],
     sessions: SessionManager,
     prompt_registry: PromptRegistry | None = None,
+    *,
+    stream_fn: Callable[..., Any] | None = None,
 ) -> None:
     """Run one prompt turn with the shared error handling.
 
@@ -232,7 +255,13 @@ async def _run_prompt_turn(
     """
     try:
         await _run_turn(
-            session, websocket, content, config, pending_prompts, prompt_registry
+            session,
+            websocket,
+            content,
+            config,
+            pending_prompts,
+            prompt_registry,
+            stream_fn=stream_fn,
         )
         sessions.persist(session)
     except WebSocketDisconnect:

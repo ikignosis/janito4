@@ -1,9 +1,9 @@
 """
 Tests for the shell ``/help`` command.
 
-The command prints every registered command with its description in a rich
-table, and splits the prompt tool modes (read-only / read + execute /
-write-only / no tools) into their own table.
+Behavior-first: matching/registration go through shared conftest helpers;
+rendering is one smoke test driven by the command registry (not hardcoded
+copy). See docs/development/testing.md.
 """
 
 import sys
@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import pytest
 
 from janito.shell.cmds.help import HelpCmdHandler
+from tests.conftest import assert_command_matching, assert_command_registered
 
 
 class _DummyShell:
@@ -24,52 +25,40 @@ class _DummyShell:
 if pytest is not None:
 
     def test_command_matches_only_its_name():
-        handler = HelpCmdHandler()
-        shell = _DummyShell()
-        assert handler.name == "/help"
-        assert handler.handle(shell, "/help") is True
-        assert handler.handle(shell, "/HELP") is True
-        assert handler.handle(shell, "  /help  ") is True
-        assert handler.handle(shell, "/tools") is False
-        assert handler.handle(shell, "hello") is False
+        assert_command_matching(HelpCmdHandler(), "/help")
 
     def test_command_is_registered():
-        from janito.shell.cmds import get_registered_commands
-
-        names = [cmd.name for cmd in get_registered_commands()]
-        assert "/help" in names
+        assert_command_registered("/help")
 
     def test_every_command_has_a_description():
-        """/help shows the description after each command, so every registered
-        command must expose one."""
+        """Every registered command must expose a description for /help."""
         from janito.shell.cmds import get_registered_commands
 
         for cmd in get_registered_commands():
             assert cmd.description.strip(), f"{cmd.name} has no description"
 
-    def test_help_output_shows_descriptions(capfd):
-        handler = HelpCmdHandler()
-        handler.handle(_DummyShell(), "/help")
-        out = capfd.readouterr().out
-        assert "Available Commands" in out
-        assert "/tools" in out
-        assert "List all loaded tools" in out
-        assert "/exit" in out
-        assert "Exit the chat session" in out
+    def test_help_output_lists_registered_commands(capfd):
+        """Smoke test: one header + every registered name rendered.
 
-    def test_help_output_splits_tool_modes(capfd):
-        """The prompt tool modes are split by their tool type."""
+        Names come from the registry so adding a command needs no edit here.
+        """
+        handler = HelpCmdHandler()
+        assert handler.handle(_DummyShell(), "/help") is True
+        out = capfd.readouterr().out
+        assert out.strip(), "help printed nothing"
+        assert "Available Commands" in out
+        from janito.shell.cmds import get_registered_commands
+
+        for cmd in get_registered_commands():
+            assert cmd.name in out
+
+    def test_help_output_lists_sections(capfd):
+        """Tool-mode / feature sections render (headers only, not copy)."""
         handler = HelpCmdHandler()
         handler.handle(_DummyShell(), "/help")
         out = capfd.readouterr().out
-        assert "Prompt tool modes" in out
-        assert "read-only" in out
-        assert "read + execute" in out
-        assert "write-only" in out
-        assert "/notools <message>" in out
-        # The non-tool features stay in their own section.
-        assert "Additional features" in out
-        assert "!<command>" in out
+        for section in ("Prompt tool modes", "Additional features"):
+            assert section in out
 
 else:  # pragma: no cover - fallback runner without pytest
 

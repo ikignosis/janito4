@@ -100,6 +100,15 @@ PROVIDER_CONFIG: dict = {
             #: list of strings; absent/``None`` sends no ``include``
             #: parameter (the API's own default applies).
             "responses_include": None,
+            #: Request a human-readable reasoning summary on the Responses
+            #: API (optional).  When ``True`` (e.g. Meta's Muse Spark),
+            #: Responses calls send ``reasoning.summary="auto"`` (merged
+            #: with ``reasoning.effort`` when set); the summary streams as
+            #: ``response.reasoning_summary_text`` deltas and is surfaced
+            #: through the existing ``on_reasoning`` observer.  Absent (or
+            #: ``False``) sends no summary (the API's own default applies).
+            #: Responses-only (Chat Completions has no reasoning summary).
+            "thinking_summary": False,
             #: The maximum input-token (context window) limit used as the
             #: built-in default.  Absent/``None`` means there is no
             #: built-in limit (the caller falls back to its own default).

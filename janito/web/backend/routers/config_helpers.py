@@ -241,8 +241,9 @@ def _base_info_for(variant: str):
         A ``(base_name, base_info)`` tuple; ``base_info`` is ``None`` when the
         prefix does not map to a supported provider.
     """
-    from janito.providers.registry import get_provider, parse_variant_name
+    from janito.providers.registry import get_provider
     from janito.providers.validation import canonical_provider_name
+    from janito.providers.variant_names import parse_variant_name
 
     base_name = parse_variant_name(variant)[0]
     canonical = canonical_provider_name(base_name)

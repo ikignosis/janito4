@@ -28,6 +28,11 @@ class Privileges:
 
 running_privileges = None
 
+# Set when the session fell back to the implicit full-privileges default
+# (no -r/-w/-x flags, no privileges config). Consumed after the version
+# banner is printed to warn about running with full privileges.
+full_privileges_warning_pending = False
+
 
 def parse_privileges(value) -> Privileges:
     """Parse a ``privileges=...`` config value into a :class:`Privileges`.
@@ -55,7 +60,7 @@ def parse_privileges(value) -> Privileges:
         raise ValueError(
             "Invalid privileges value '': expected a combination of 'r', 'w' "
             "and 'x' (e.g. 'rw', 'rwx'); use --unset privileges to restore "
-            "the read-only default."
+            "the full-privileges default."
         )
     for char in chars:
         if char not in _CHAR_TO_ATTR:

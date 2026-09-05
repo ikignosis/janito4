@@ -6,6 +6,13 @@ from .base import CmdHandler
 from .registry import register_command
 
 
+def _format_duration(task: dict) -> str:
+    duration = task.get("duration_seconds")
+    if duration is None:
+        return "-"
+    return f"{duration:.1f}s"
+
+
 def _exit_display(task: dict) -> str:
     exit_code = task.get("exit_code")
     code = str(exit_code) if exit_code is not None else "-"
@@ -26,12 +33,14 @@ def _print_tasks() -> None:
     table = Table(title="Tasks", header_style="bold cyan")
     table.add_column("Task ID", no_wrap=True)
     table.add_column("state", no_wrap=True)
+    table.add_column("duration", no_wrap=True)
     table.add_column("exit_code/reason", no_wrap=True)
     table.add_column("summary")
     for task in tasks:
         table.add_row(
             str(task["task_id"]),
             "running" if task.get("running") else task.get("state", ""),
+            _format_duration(task),
             _exit_display(task),
             task.get("summary") or "-",
         )
@@ -50,7 +59,7 @@ class TasksCmdHandler(CmdHandler):
         return "List all tasks"
 
     def handle(self, shell, user_input: str) -> bool:
-        if user_input.lower() == self.name.lower():
+        if user_input.strip().lower() == self.name.lower():
             _print_tasks()
             return True
         return False

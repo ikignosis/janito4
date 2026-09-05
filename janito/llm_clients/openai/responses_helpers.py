@@ -21,7 +21,7 @@ from janito.tooling.executor import ToolExecutor
 # Import tools
 from janito.tooling.tools_registry import get_session_tool_schemas
 
-from .responses_items import message_item
+from .responses_items import ConversationResult, message_item
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -171,8 +171,6 @@ def _finalize_conversation(
     turn_items: list[dict[str, Any]] | None = None,
 ) -> Any:
     """Assemble the final ConversationResult."""
-    from .conversations_api import ConversationResult
-
     # Record the final assistant text in the client-side history (stateless
     # providers) and in the /history display mirror (all providers).
     if full_content:

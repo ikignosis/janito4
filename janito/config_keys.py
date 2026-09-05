@@ -7,6 +7,7 @@ the helpers that build/parse dotted config keys.  Extracted from
 on read/write primitives.
 """
 
+from .providers.variant_names import normalize_provider
 
 # Config keys that are stored per-provider (as ``<provider>.<key>``)
 PROVIDER_SCOPED_KEYS = {
@@ -61,21 +62,6 @@ def split_model_scoped_key(key: str) -> tuple[str, str, str] | None:
     return provider, model, leaf
 
 
-def normalize_provider(provider: str | None) -> str | None:
-    """Normalize a provider name for use as a config key prefix.
-
-    Args:
-        provider: The raw provider name (may be None)
-
-    Returns:
-        The lowercased/stripped provider name, or None if empty/None
-    """
-    if not provider:
-        return None
-    normalized = provider.strip().lower()
-    return normalized or None
-
-
 def model_config_key(provider: str) -> str:
     """Return the config key used to store the model for a given provider.
 
@@ -126,7 +112,7 @@ def model_scoped_config_key(provider: str, model: str, key: str) -> str:
     return f"{normalize_provider(provider)}.models.{model}.{key}"
 
 
-def normalize_api_type(value: str) -> str:
+def normalize_api_type(value: str, allowed_types: list[str] | None = None) -> str:
     """Normalize an API type value to its canonical form.
 
     Accepts ``responses``/``completions`` (and any native-SDK API type, e.g.
@@ -138,6 +124,12 @@ def normalize_api_type(value: str) -> str:
 
     Args:
         value: The raw API type value
+        allowed_types: The accepted canonical API types.  Callers that
+            already know the set (e.g. ``general_config.resolve_api_type``)
+            pass it explicitly (dependency injection, issue #110); when
+            omitted it is read from the provider registry, which is a
+            one-way (acyclic) dependency -- the provider layer never imports
+            this module.
 
     Returns:
         The canonical API type (e.g. ``"Responses"``, ``"Completions"``,
@@ -146,13 +138,11 @@ def normalize_api_type(value: str) -> str:
     Raises:
         ValueError: If the value is not a known API type
     """
-    # Accepted lazy cycle with the provider package (issue #90): the provider
-    # registry validates variant-style names through the config layer
-    # (config_keys/config_variants), so API-type validation resolves through
-    # the registry lazily instead of at import time.
-    from .providers.validation import get_all_api_types
+    if allowed_types is None:
+        from .providers.validation import get_all_api_types
 
-    known = get_all_api_types()
+        allowed_types = get_all_api_types()
+    known = allowed_types
     raw = str(value).strip()
     for api_type in known:
         if api_type.lower() == raw.lower():
