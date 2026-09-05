@@ -14,6 +14,7 @@ Changes since `v4.38.0` (2026-09-04).
 - Support `/push <msg>`: after cloning the history into a new thread, immediately start a turn with `<msg>` as the prompt (refs #124).
 
 ### Changed
+- Show reasoning effort (`effort: <level>`) in the shell status bar instead of `[F2] clear [/exit] end`, using the same style as the provider segment.
 - Change task ids to incremental integers starting at 1 instead of random hex strings (close #111).
 - Expand `--no-tools` scope: it now disables skill tools, plugin tools, and server-side/builtin provider tools in addition to the autoload toolsets and MCP tools (close #127).
 - Add `/effort <level>` shell command: show or switch the session reasoning effort at runtime, validated against the current model's supported levels (`/effort clear` restores config/default) (close #121).

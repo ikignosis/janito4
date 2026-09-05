@@ -78,23 +78,39 @@ class _SessionMixin:
         tokens = []
 
         # Model info
-        tokens.append(("class:model", f" model: {self.model} "))
+        model = getattr(self, "model", None)
+        tokens.append(("class:model", f" model: {model} "))
 
         # Provider info (if available)
+        provider = None
         try:
             from janito.general_config import get_active_provider
 
-            provider = self.provider or get_active_provider()
+            provider = getattr(self, "provider", None) or get_active_provider()
             if provider:
                 tokens.append(("", " \u2502 "))
                 tokens.append(("class:provider", f" provider: {provider} "))
         except Exception:  # noqa: BLE001 - toolbar is cosmetic; never break the shell
             logger.debug("Could not resolve provider for the toolbar", exc_info=True)
 
-        # Keyboard shortcuts
-        tokens.append(("", " \u2502 "))
-        tokens.append(("class:key-label", "[F2] clear "))
-        tokens.append(("class:key-label", "[/exit] end "))
+        # Effort info (same style as provider)
+        try:
+            effort = getattr(self, "reasoning_effort", None)
+            if not effort:
+                from janito.config_loaders import load_reasoning_effort
+
+                effort = load_reasoning_effort(provider, model)
+            if not effort:
+                from janito.providers.registry import get_provider
+
+                found = get_provider(provider) if provider else None
+                effort = found.reasoning_effort(model) if found is not None else None
+            tokens.append(("", " \u2502 "))
+            tokens.append(
+                ("class:provider", f" effort: {effort if effort else '(not set)'} ")
+            )
+        except Exception:  # noqa: BLE001 - toolbar is cosmetic; never break the shell
+            logger.debug("Could not resolve effort for the toolbar", exc_info=True)
 
         # Multiline mode indicator
         if getattr(self, "multiline_mode", False):
