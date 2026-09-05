@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Changes since `v4.38.0` (2026-09-04).
 
 ### Added
+- Add `GetTaskInfo` tool (`task_id`): full detail snapshot of a single task, including description and stdout/stderr filenames (close #117).
 - Add `/push` and `/pop` shell commands: nestable conversation-thread stack with deep-copy snapshots per level, `[n]` depth in the prompt, `Last Message:` replay on `/pop`, and full-stack clear on `clear`/`F2` (close #124).
 - Support `/push <msg>`: after cloning the history into a new thread, immediately start a turn with `<msg>` as the prompt (refs #124).
 - Restore `F12` "Do It" keybinding (auto-sends a `Do It` prompt to continue an existing plan) and print `Keys: F2 - Clear conversation, F12 - Send "Do It"` with rich styling before the interactive startup line.

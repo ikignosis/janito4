@@ -428,6 +428,52 @@ class TaskManager:
             raise KeyError(f"Unknown task id: {task_id}")
         return task
 
+    def get_task_info(self, task_id: int) -> dict[str, Any]:
+        """Full detail snapshot of a single task (issue #117).
+
+        Unlike :meth:`list_tasks` (one summary row per task), this returns
+        everything the manager knows about one task -- including the
+        ``description`` and the ``stdout_filename`` / ``stderr_filename``
+        temp output paths -- so the model can inspect a task without
+        waiting on it.
+
+        Args:
+            task_id: The id returned by :meth:`start_task`.
+
+        Returns:
+            Dict with ``task_id``, ``summary``, ``description``,
+            ``working_dir``, ``privileges``, ``pid``,
+            ``stdout_filename``, ``stderr_filename``, ``timeout``,
+            ``state``, ``running``, ``exit_reason``, ``exit_code``,
+            ``returncode``, ``duration_seconds`` and ``error``.
+
+        Raises:
+            KeyError: If no task with that id exists.
+        """
+        task = self.get_task(task_id)
+        if task.exit_reason == EXIT_RUNNING:
+            duration = time.monotonic() - task.started_at
+        else:
+            duration = task.duration_seconds
+        return {
+            "task_id": task.task_id,
+            "summary": task.summary,
+            "description": task.description,
+            "working_dir": task.working_dir,
+            "privileges": task.privileges,
+            "pid": task.pid,
+            "stdout_filename": task.stdout_filename,
+            "stderr_filename": task.stderr_filename,
+            "timeout": task.timeout,
+            "state": task.exit_reason,
+            "running": task.exit_reason == EXIT_RUNNING,
+            "exit_reason": task.exit_reason,
+            "exit_code": task.exit_code,
+            "returncode": task.returncode,
+            "duration_seconds": duration,
+            "error": task.error,
+        }
+
     def stop_task(self, task_id: int) -> dict[str, Any]:
         """Stop a running task (SIGTERM, then SIGKILL after 10s).
 
