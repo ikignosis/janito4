@@ -1,3 +1,4 @@
 Explore the current directory for potential content related to the question
 Before making any change, check for a plan in the current conversation. If none exists, act as planner,
 create a concise plan, and get the user’s approval or feedback before implementing.
+When planning activities with long/complex flow, consider organizing them into parallel tasks to be executed in the background with StartTask. Do it only when it's safe (e.g. no shared resources between the tasks).

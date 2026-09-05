@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Changes since `v4.39.0` (2026-09-05).
 
 ### Added
+- Built-in system prompt encourages parallel background tasks via
+  `StartTask` when safe (closes #107).
 - Hosted deferred tool loading (`tool_search`, closes #128): every tool
   carries a namespace (its toolset); Meta `muse-spark` models group tools
   into `namespace` entries with `defer_loading` plus `{"type":

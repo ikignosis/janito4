@@ -172,6 +172,13 @@ def test_system_prompt_content():
     assert not prompt.endswith("\n")
 
 
+def test_builtin_prompt_encourages_parallel_starttask():
+    """Built-in prompt guides parallel background tasks via StartTask (#107)."""
+    prompt = get_builtin_system_prompt()
+    assert "StartTask" in prompt
+    assert "parallel" in prompt.lower()
+
+
 def test_builtin_prompt_is_packaged_resource():
     """The built-in prompt ships as janito/system-prompt.txt (package data)."""
     from importlib.resources import files
