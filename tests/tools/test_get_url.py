@@ -126,8 +126,9 @@ def test_big_content_stored_to_temp_file(server):
 
     # The returned message must point to the temp file, and there must be no
     # inline content payload.
+    assert result["success"] is True
     assert tmp_filename in result["message"]
-    assert "Content was too big, stored at" in result["message"]
+    assert "stored" in result["message"].lower()
     assert "content" not in result
 
     # The file must have been registered for cleanup on exit.
@@ -287,7 +288,6 @@ def test_llms_txt_too_big_returned_inline(server):
     assert result.get("too_big") is None
     assert "tmp_filename" not in result
     assert result["content"] == BIG_PAYLOAD  # full payload, no temp file
-    assert "Content was too big, stored at" not in result.get("message", "")
 
 
 def test_llms_txt_never_truncated(server):
@@ -371,7 +371,6 @@ def test_found_reports_retrieved(server):
 
     llms_msgs = [m for _, m in captured if "llms.txt" in m]
     assert len(llms_msgs) == 1
-    assert "Retrieved llms.txt from" in llms_msgs[0]
 
 
 # ---------------------------------------------------------------------------

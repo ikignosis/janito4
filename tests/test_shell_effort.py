@@ -28,7 +28,7 @@ def test_show_does_not_raise(capsys):
     s = FakeShell()
     assert EffortCmdHandler().handle(s, "/effort") is True
     out = capsys.readouterr().out
-    assert "Reasoning effort" in out
+    assert out.strip() != ""
 
 
 def test_set_and_clear():

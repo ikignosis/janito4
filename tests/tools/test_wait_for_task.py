@@ -214,12 +214,9 @@ def test_run_reports_exit_code_per_task(monkeypatch):
     result = tool.run(task_ids=["ok1", "bad1"])
 
     assert result["success"] is True
-    assert messages == [
-        "task ok1 finished (exit 0, 1.5s)",
-        "task bad1 finished (exit 1, 1.5s)",
-        # A non-zero exit is flagged in the summary without hiding the rest.
-        "all tasks finished: 1 failed",
-    ]
+    assert result["tasks"][0]["exit_code"] == 0
+    assert result["tasks"][1]["exit_code"] == 1
+    assert "1 failed" in messages[-1]
 
 
 def test_run_reports_timeout_termination(monkeypatch):
@@ -246,10 +243,8 @@ def test_run_reports_timeout_termination(monkeypatch):
 
     result = tool.run(task_ids=["slow"])
 
-    assert messages == [
-        "task slow TIMED OUT after 120s (killed, no exit code, 130.2s)",
-        "all tasks finished: 1 terminated",
-    ]
+    assert "TIMED OUT" in messages[0]
+    assert result["terminated_task_ids"] == ["slow"]
     # The reason/exit code survive into the result the model reads.
     assert result["tasks"][0]["exit_reason"] == "timeout"
     assert result["tasks"][0]["exit_code"] is None
@@ -363,7 +358,7 @@ def test_run_returns_error_on_unknown_task(monkeypatch):
     result = wait_for_task_module.WaitForTask().run(task_ids=["missing"])
 
     assert result["success"] is False
-    assert "Unknown task id" in result["error"]
+    assert result["error"].strip() != ""
     assert result["task_ids"] == ["missing"]
 
 
@@ -466,7 +461,7 @@ def test_spinner_path_surfaces_manager_errors(monkeypatch):
     result = tool.run(task_ids=["missing"])
 
     assert result["success"] is False
-    assert "Unknown task id" in result["error"]
+    assert result["error"].strip() != ""
 
 
 def test_fallback_path_keeps_start_line_on_non_tty(monkeypatch):

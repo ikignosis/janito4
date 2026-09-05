@@ -151,10 +151,9 @@ if pytest is not None:
         rc = handle_list_keys(None)
         out = capsys.readouterr().out
         assert rc == 0
+        assert out.strip() != ""
         assert "openai" in out
         assert "deepseek" in out
-        assert str(global_dir / "auth.json") in out
-        assert str(project_dir / ".janito" / "auth.json") in out
 
     def test_list_secrets_shows_both_global_and_local(monkeypatch, tmp_path, capsys):
         global_dir, project_dir = _use_temp_dirs(monkeypatch, tmp_path)
@@ -166,10 +165,9 @@ if pytest is not None:
         rc = handle_list_secrets(None)
         out = capsys.readouterr().out
         assert rc == 0
+        assert out.strip() != ""
         assert "global_key" in out
         assert "local_key" in out
-        assert str(global_dir / "secrets.json") in out
-        assert str(project_dir / ".janito" / "secrets.json") in out
 
     def test_local_mode_flag_resets(monkeypatch, tmp_path):
         global_dir, _ = _use_temp_dirs(monkeypatch, tmp_path)

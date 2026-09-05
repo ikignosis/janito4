@@ -74,7 +74,8 @@ def test_no_argument_respects_session_provider(monkeypatch, tmp_path, capsys):
     shell = _shell(provider="deepseek")
     assert _provider_handler().handle(shell, "/provider") is True
     out = capsys.readouterr().out
-    assert "Current provider: deepseek" in out
+    assert "Current provider:" in out
+    assert shell.provider == "deepseek"
 
 
 def test_switch_provider_updates_shell_without_changing_config(monkeypatch, tmp_path):

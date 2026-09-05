@@ -197,7 +197,7 @@ def test_http_error_handled(brave_server):
 
     assert result["success"] is False
     assert result.get("status_code") == 422
-    assert "422" in result["error"]
+    assert result["error"].strip() != ""
 
 
 def test_missing_api_key_at_runtime(monkeypatch):

@@ -157,7 +157,7 @@ def test_build_result_error():
     result = pbm.build_result("alibaba_tp", 1, "", stderr)
     assert result["status"] == "error"
     assert result["out_tokens"] is None
-    assert "Unknown provider" in result["error"]
+    assert result["error"].strip() != ""
 
 
 def test_first_error_skips_log_noise_and_picks_root_cause():

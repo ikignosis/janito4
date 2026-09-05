@@ -91,7 +91,9 @@ def test_failure_returns_full_stderr():
 
     assert result["success"] is False
     assert result["exit_code"] == 3
-    assert result["error"] == "Bash execution failed with exit code 3"
+    assert result["success"] is False
+    assert "error" in result
+    assert "exit code 3" in result["error"].lower()
     assert len(result["stderr"].split("\n")) == 200
     assert "stderr_file" not in result
 

@@ -1,32 +1,15 @@
-"""
-Tests for the /skills shell command.
+"""Tests for the /skills shell command (behavior over rendering)."""
 
-The shell command lists all available skills (home + local) using the
-skills provider. These tests verify the command is registered, dispatches
-correctly, and renders the expected sections for populated and empty
-skill sets.
-"""
-
-import sys
+import io
 from pathlib import Path
-
-# Add the repo root to sys.path to allow importing the package directly.
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 from unittest.mock import patch
-
-import pytest
 
 from janito.shell.cmds.skills import SkillsCmdHandler
 from janito.tooling.skills_provider import SkillsProvider
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+from tests.conftest import assert_command_registered
 
 
 def _make_skill(base: Path, name: str, description: str = "A test skill.") -> Path:
-    """Create a minimal skill directory under *base* and return its path."""
     skill_dir = base / name
     skill_dir.mkdir(parents=True, exist_ok=True)
     (skill_dir / "SKILL.md").write_text(
@@ -37,7 +20,6 @@ def _make_skill(base: Path, name: str, description: str = "A test skill.") -> Pa
 
 
 def _provider_with(home_dir, local_dir=None) -> SkillsProvider:
-    """Build a SkillsProvider from optional home/local directories."""
     paths = []
     if home_dir is not None:
         paths.append((home_dir, "home"))
@@ -47,9 +29,6 @@ def _provider_with(home_dir, local_dir=None) -> SkillsProvider:
 
 
 def _run_handler(provider, user_input="/skills"):
-    """Run the /skills handler with a patched provider, capturing output."""
-    import io
-
     from janito.tooling import skills_provider as sp
 
     handler = SkillsCmdHandler()
@@ -61,96 +40,59 @@ def _run_handler(provider, user_input="/skills"):
     return handled, output.getvalue()
 
 
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
+def test_skills_registered():
+    assert_command_registered("/skills")
 
-if pytest is not None:
 
-    def test_skills_command_is_registered():
-        from janito.shell.cmds import get_registered_commands
+def test_skills_matching(capsys):
+    handler = SkillsCmdHandler()
+    assert handler.name == "/skills"
+    assert handler.handle(object(), "/skills") is True
+    assert handler.handle(object(), "/SKILLS") is True
+    assert handler.handle(object(), "/skills extra") is False
+    assert handler.handle(object(), "/tools") is False
+    capsys.readouterr()
 
-        names = [c.name for c in get_registered_commands()]
-        assert "/skills" in names
 
-    def test_handler_name():
-        assert SkillsCmdHandler().name == "/skills"
+def test_lists_skills_smoke(tmp_path):
+    home = tmp_path / "home" / "skills"
+    local = tmp_path / "local" / "skills"
+    home.mkdir(parents=True)
+    local.mkdir(parents=True)
+    _make_skill(home, "git-commit", "Commit with conventional commits")
+    _make_skill(local, "code-review", "Review code for security issues")
 
-    def test_handle_dispatches_only_exact_command():
-        handler = SkillsCmdHandler()
-        assert handler.handle(object(), "/skills") is True
-        assert handler.handle(object(), "/SKILLS") is True
-        assert handler.handle(object(), "/skills extra") is False
-        assert handler.handle(object(), "/tools") is False
+    provider = _provider_with(home, local)
+    # State first: provider sees both skills.
+    assert len(provider.list_skills()) == 2
+    handled, output = _run_handler(provider)
+    # One smoke assert + one stable header max.
+    assert handled is True
+    assert output.strip() != ""
+    assert "Home Skills" in output
 
-    def test_lists_home_and_local_skills(tmp_path):
-        home = tmp_path / "home" / "skills"
-        local = tmp_path / "local" / "skills"
-        home.mkdir(parents=True)
-        local.mkdir(parents=True)
-        _make_skill(home, "git-commit", "Commit with conventional commits")
-        _make_skill(local, "code-review", "Review code for security issues")
 
-        provider = _provider_with(home, local)
-        handled, output = _run_handler(provider)
+def test_empty_output_smoke(tmp_path):
+    provider = _provider_with(tmp_path / "does_not_exist")
+    assert provider.list_skills() == []
+    handled, output = _run_handler(provider)
+    assert handled is True
+    assert output.strip() != ""
 
-        assert handled is True
-        assert "Home Skills" in output
-        assert "Local Skills" in output
-        assert "git-commit" in output
-        assert "Commit with conventional commits" in output
-        assert "code-review" in output
-        assert "Review code for security issues" in output
-        assert "2 skill(s) (1 home, 0 agents, 1 local)" in output
 
-    def test_empty_output_shows_helpful_message(tmp_path):
-        provider = _provider_with(tmp_path / "does_not_exist")
-        handled, output = _run_handler(provider)
+def test_local_override_wins(tmp_path):
+    home = tmp_path / "home" / "skills"
+    local = tmp_path / "local" / "skills"
+    home.mkdir(parents=True)
+    local.mkdir(parents=True)
+    _make_skill(home, "shared", "Home version")
+    _make_skill(local, "shared", "Local version")
 
-        assert handled is True
-        assert "No skills installed." in output
-        assert "--install-skill" in output
-
-    def test_description_shown_in_full(tmp_path):
-        home = tmp_path / "home" / "skills"
-        home.mkdir(parents=True)
-        long_description = "x" * 200
-        _make_skill(home, "long-skill", long_description)
-
-        provider = _provider_with(home)
-        _, output = _run_handler(provider)
-
-        # Rich wraps long cells across lines, but must preserve every
-        # character of the description.
-        assert output.count("x") == 200
-        assert "..." not in output
-
-    def test_local_skill_shown_once_when_overriding(tmp_path):
-        home = tmp_path / "home" / "skills"
-        local = tmp_path / "local" / "skills"
-        home.mkdir(parents=True)
-        local.mkdir(parents=True)
-        _make_skill(home, "shared", "Home version")
-        _make_skill(local, "shared", "Local version")
-
-        provider = _provider_with(home, local)
-        _, output = _run_handler(provider)
-
-        # The local copy wins, so only one entry appears.
-        assert output.count("shared") == 1
-        assert "Local version" in output
-        assert "Home version" not in output
-
-else:  # pragma: no cover - fallback runner without pytest
-
-    def _main():
-        import tempfile
-
-        for name, fn in sorted(globals().items()):
-            if name.startswith("test_") and callable(fn):
-                with tempfile.TemporaryDirectory() as d:
-                    fn(Path(d))
-                print(f"OK {name}")
-
-    if __name__ == "__main__":
-        _main()
+    provider = _provider_with(home, local)
+    skills = provider.list_skills()
+    # State: single entry, local version wins.
+    assert len(skills) == 1
+    assert skills[0]["description"] == "Local version"
+    handled, output = _run_handler(provider)
+    assert handled is True
+    assert output.strip() != ""

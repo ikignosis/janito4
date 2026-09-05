@@ -24,13 +24,13 @@ import pytest
 from janito.shell import InteractiveShell
 from janito.shell.conversation import effective_rows, recent_conversation_rows
 from janito.shell.persistence import (
+    STATE_VERSION,
     clear_conversation_state,
     get_state_path,
     load_conversation_state,
     make_state,
     save_conversation_state,
 )
-from janito.shell.persistence import STATE_VERSION
 
 
 @pytest.fixture(autouse=True)
@@ -430,7 +430,10 @@ def test_recent_rows_anchors_on_last_user_when_reply_run_exceeds_limit():
     shell = _shell()
     # A single user question answered by a long run of assistant messages
     # (tool rounds): the plain tail would be assistant-only.
-    messages = [{"role": "system", "content": "SYS-PROMPT"}, {"role": "user", "content": "q"}]
+    messages = [
+        {"role": "system", "content": "SYS-PROMPT"},
+        {"role": "user", "content": "q"},
+    ]
     for i in range(1, 10):
         messages.append({"role": "assistant", "content": f"a{i}"})
     shell.messages_history = messages
@@ -498,4 +501,3 @@ def test_recent_rows_reads_mirrored_history_for_server_side_responses():
         ("user", "q3"),
         ("assistant", "a3"),
     ]
-

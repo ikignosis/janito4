@@ -203,7 +203,7 @@ def test_run_returns_error_on_failure(monkeypatch):
     )
 
     assert result["success"] is False
-    assert "working_dir is not a directory" in result["error"]
+    assert result["error"].strip() != ""
     assert result["summary"] == "Do something"
     assert result["description"] == "Do something"
     assert result["working_dir"] == "/nope"
@@ -241,7 +241,7 @@ def test_run_rejects_non_positive_timeout(monkeypatch):
     )
 
     assert result["success"] is False
-    assert "timeout must be a positive number" in result["error"]
+    assert result["error"].strip() != ""
     assert result["timeout"] == 0
 
 

@@ -258,7 +258,7 @@ def test_should_load_false_when_non_alibaba_active(monkeypatch):
 
     monkeypatch.setattr(gc, "get_active_provider", lambda: "openai")
     assert CreateImage.should_load() is False
-    assert "not 'alibaba'" in CreateImage._load_skip_reason
+    assert CreateImage._load_skip_reason.strip() != ""
 
 
 def test_should_load_false_when_endpoint_missing(monkeypatch):

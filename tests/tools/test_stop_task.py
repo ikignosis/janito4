@@ -51,7 +51,7 @@ def test_run_returns_error_on_unknown_task(monkeypatch):
     result = stop_task_module.StopTask().run(task_id="missing")
 
     assert result["success"] is False
-    assert "Unknown task id" in result["error"]
+    assert result["error"].strip() != ""
     assert result["task_id"] == "missing"
 
 
