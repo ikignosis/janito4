@@ -162,7 +162,7 @@ def _check_tool_privileges(cls: type) -> bool:
     return tool_is_allowed_by_privileges(getattr(cls, "_tool_permissions", "") or "")
 
 
-def _make_class_tool(cls: type) -> Callable:
+def _make_class_tool(cls: type, namespace: str | None = None) -> Callable:
     """Create a wrapper function that instantiates and calls run."""
     # Get the run method signature and type hints
     run_method = cls.run
@@ -184,6 +184,9 @@ def _make_class_tool(cls: type) -> Callable:
     class_tool_wrapper.__doc__ = cls.__doc__
     class_tool_wrapper._is_tool = True
     class_tool_wrapper._tool_permissions = getattr(cls, "_tool_permissions", "")
+    class_tool_wrapper._tool_namespace = namespace or getattr(
+        cls, "_tool_namespace", ""
+    )
     # Propagate the load validation hook for later introspection
     class_tool_wrapper.should_load = getattr(cls, "should_load", None)
 
@@ -195,7 +198,9 @@ def _make_class_tool(cls: type) -> Callable:
     return class_tool_wrapper
 
 
-def _collect_module_tools(module, full_module_name: str, tools: dict) -> None:
+def _collect_module_tools(
+    module, full_module_name: str, tools: dict, namespace: str | None = None
+) -> None:
     """Discover and register tool classes defined in ``module``."""
     for attr_name in dir(module):
         if attr_name.startswith("_"):
@@ -219,10 +224,10 @@ def _collect_module_tools(module, full_module_name: str, tools: dict) -> None:
                 if not _check_should_load(attr):
                     continue
 
-                tools[attr_name] = _make_class_tool(attr)
+                tools[attr_name] = _make_class_tool(attr, namespace=namespace)
 
 
-def wrap_tool_class(cls: type) -> Callable | None:
+def wrap_tool_class(cls: type, namespace: str | None = None) -> Callable | None:
     """
     Validate and wrap a single tool class into a callable.
 
@@ -247,7 +252,7 @@ def wrap_tool_class(cls: type) -> Callable | None:
         return None
     if not _check_should_load(cls):
         return None
-    return _make_class_tool(cls)
+    return _make_class_tool(cls, namespace=namespace)
 
 
 def discover_module_tools(module) -> dict[str, Callable]:
@@ -282,7 +287,7 @@ def _load_module_tools(toolset_name: str, module_name: str, tools: dict) -> None
         logger.warning("Skipping tool module %s: %s", full_module_name, e)
         return
 
-    _collect_module_tools(module, full_module_name, tools)
+    _collect_module_tools(module, full_module_name, tools, namespace=toolset_name)
 
 
 def discover_toolsets(toolset_names: list[str]) -> dict[str, Callable]:

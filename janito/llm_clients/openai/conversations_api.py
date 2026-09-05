@@ -205,7 +205,21 @@ class ResponsesClient(Client):
         return ToolExecutor(mcp_manager)
 
     def _resolve_tools(self, tools, mcp_tools):
-        return _resolve_tools(tools, mcp_tools)
+        schemas = _resolve_tools(tools, mcp_tools)
+        from janito.llm_adapters.responses import (
+            convert_tools_for_tool_search,
+            model_uses_tool_search,
+        )
+        from janito.tooling.tools_registry import get_tool_namespace
+
+        if model_uses_tool_search(self.api_config.provider, self.api_config.model):
+            namespaced_input = []
+            for schema in schemas:
+                name = schema.get("name", "")
+                namespace = get_tool_namespace(name) if name else "default"
+                namespaced_input.append({**schema, "namespace": namespace})
+            return convert_tools_for_tool_search(namespaced_input)
+        return schemas
 
     def _resolve_model_settings(self, provider, model):
         # All resolved at build time into the APIConfig (issue #70): thinking
@@ -323,9 +337,15 @@ class ResponsesClient(Client):
                 stream_response_id,
                 raw_attrs,
                 reasoning_items,
+                tool_search_calls,
+                tool_search_outputs,
             ) = self._invoke_stream_runner(
                 _stream_response, client, call_kwargs, tools_schemas
             )
+            for call in tool_search_calls or []:
+                self.observer.on_tool_search_call(call.get("paths", []))
+            for output in tool_search_outputs or []:
+                self.observer.on_tool_search_output(output.get("tool_names", []))
             # Only server-side conversations chain with the returned id;
             # stateless providers never send previous_response_id.
             if not state["stateless_mode"]:

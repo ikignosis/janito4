@@ -146,3 +146,60 @@ def get_function_schema(func: Callable) -> dict[str, Any]:
             },
         },
     }
+
+
+def get_tool_namespace(func: Callable) -> str:
+    """Return the namespace a tool belongs to (issue #128).
+
+    The namespace is set at discovery from the toolset name
+    (``files``/``system``/``net``/``tasks``/...); skill tools use
+    ``skills`` and tools without one fall back to ``default``.
+    """
+    return getattr(func, "_tool_namespace", "") or "default"
+
+
+def group_schemas_by_namespace(
+    tools: dict[str, Callable] | list[dict[str, Any]],
+    *,
+    defer_loading: bool = True,
+) -> list[dict[str, Any]]:
+    """Group Chat Completions schemas into Meta namespace entries (issue #128).
+
+    Accepts either a mapping of tool name to wrapped callable (namespaces
+    read from each callable) or a plain list of schemas (grouped under
+    ``default``).  Every function inside a namespace carries
+    ``defer_loading`` so hosted tool search has something to load; the
+    caller appends the single ``{"type": "tool_search"}`` entry.
+    """
+    from collections import OrderedDict
+
+    grouped: dict[str, list[dict[str, Any]]] = OrderedDict()
+    if isinstance(tools, dict):
+        items = [
+            (name, get_function_schema(fn), get_tool_namespace(fn))
+            for name, fn in tools.items()
+        ]
+    else:
+        items = [(s.get("function", s).get("name", ""), s, "default") for s in tools]
+    for name, schema, namespace in items:
+        function = schema.get("function", schema)
+        # Skill tools are never deferred (issue #128).
+        defer = (namespace or "default") != "skills" and defer_loading
+        grouped.setdefault(namespace or "default", []).append(
+            {
+                "type": "function",
+                "name": function.get("name", name),
+                "description": function.get("description", ""),
+                "parameters": function.get("parameters", {}),
+                "defer_loading": defer,
+            }
+        )
+    return [
+        {
+            "type": "namespace",
+            "name": namespace,
+            "description": f"{namespace} tools.",
+            "tools": functions,
+        }
+        for namespace, functions in grouped.items()
+    ]

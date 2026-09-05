@@ -66,6 +66,11 @@ def extract_tool_names(schemas: list[dict[str, Any]] | None) -> set[str]:
     for schema in schemas or []:
         if not isinstance(schema, dict):
             continue
+        if schema.get("type") == "namespace":
+            for fn in schema.get("tools", []) or []:
+                if isinstance(fn, dict) and fn.get("name"):
+                    names.add(fn["name"])
+            continue
         function = schema.get("function")
         if isinstance(function, dict) and function.get("name"):
             names.add(function["name"])

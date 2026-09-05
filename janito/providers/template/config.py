@@ -109,6 +109,14 @@ PROVIDER_CONFIG: dict = {
             #: ``False``) sends no summary (the API's own default applies).
             #: Responses-only (Chat Completions has no reasoning summary).
             "thinking_summary": False,
+            #: Use hosted deferred tool loading via tool search (optional).
+            #: When ``True`` (e.g. Meta's Muse Spark, issue #128), function
+            #: tools are grouped into ``namespace`` entries with
+            #: ``defer_loading`` and a ``{"type": "tool_search"}`` entry is
+            #: appended, so the model loads tool schemas on demand.
+            #: Absent (or ``False``) sends flat function tools (the default
+            #: for all non-Meta models).  Responses-only.
+            "tool_search": False,
             #: The maximum input-token (context window) limit used as the
             #: built-in default.  Absent/``None`` means there is no
             #: built-in limit (the caller falls back to its own default).

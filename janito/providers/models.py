@@ -137,6 +137,16 @@ class ModelConfig:
         """
         return bool(self._data.get("thinking_summary", False))
 
+    def tool_search(self) -> bool:
+        """Whether the model uses hosted deferred tool loading.
+
+        When ``True`` (e.g. Meta's Muse Spark, issue #128), function tools
+        are grouped into ``namespace`` entries with ``defer_loading`` and a
+        ``{"type": "tool_search"}`` entry is appended.  Absent/``False``
+        sends flat function tools (the default for all non-Meta models).
+        """
+        return bool(self._data.get("tool_search", False))
+
 
 class Provider:
     """A supported provider from :data:`janito.providers._PROVIDER_CONFIGS` with typed accessors.
@@ -360,6 +370,10 @@ class Provider:
         declares none.
         """
         return self.model_config(model).thinking_summary()
+
+    def tool_search(self, model: str | None = None) -> bool:
+        """Whether the model uses hosted deferred tool loading (issue #128)."""
+        return self.model_config(model).tool_search()
 
     def endpoint_for(self, api_type: str | None = None) -> str | None:
         """Get the base URL for this provider, honoring ``endpoint_by_api_type``.

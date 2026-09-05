@@ -42,6 +42,10 @@ PROVIDER_CONFIG: dict = {
             # response.reasoning_summary_text deltas and surfaced via
             # on_reasoning).  The raw chain of thought stays private.
             "thinking_summary": True,
+            # Hosted deferred tool loading (issue #128): function tools are
+            # grouped into namespace entries with defer_loading and a
+            # {"type": "tool_search"} entry is appended (Responses-only).
+            "tool_search": True,
             # 1M-token context window per the official model page
             # (https://developer.meta.com/ai/models/muse-spark/).
             "max_input_tokens": 1048576,  # 1M (2**20)
@@ -91,6 +95,10 @@ PROVIDER_CONFIG: dict = {
             # response.reasoning_summary_text deltas and surfaced via
             # on_reasoning).  The raw chain of thought stays private.
             "thinking_summary": True,
+            # Hosted deferred tool loading (issue #128): function tools are
+            # grouped into namespace entries with defer_loading and a
+            # {"type": "tool_search"} entry is appended (Responses-only).
+            "tool_search": True,
             "max_input_tokens": 1048576,  # 1M (2**20)
             "default_reasoning_effort": "minimal",
             "supported_reasoning_efforts": [
