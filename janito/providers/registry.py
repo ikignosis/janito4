@@ -10,46 +10,7 @@ helpers it relies on.  Part of the split provider-config module family (see
 
 from . import _PROVIDER_CONFIGS, REQUIRES_BY_API_TYPE
 from .models import Provider
-
-
-def parse_variant_name(name: str) -> tuple[str, str] | None:
-    """Split a variant-style name into its ``(base_provider, word)`` parts.
-
-    A variant name follows the syntax ``<provider>-<word>``; the split
-    happens on the **first** hyphen, so the word may itself contain hyphens
-    (e.g. ``alibaba-token-plan`` -> ``("alibaba", "token-plan")``).
-
-    Args:
-        name: The raw name.
-
-    Returns:
-        A ``(base, word)`` tuple with both parts non-empty (stripped), or
-        ``None`` when the name is not in ``<provider>-<word>`` form.
-    """
-    if not name:
-        return None
-    parts = str(name).split("-", 1)
-    if len(parts) != 2:
-        return None
-    base, word = parts[0].strip(), parts[1].strip()
-    if not base or not word:
-        return None
-    return base, word
-
-
-def is_variant_style_name(name: str) -> bool:
-    """Whether ``name`` looks like a provider variant (``<provider>-<word>``).
-
-    This only checks the shape; the variant need not be registered (use
-    :func:`janito.providers.validation.validate_provider_name` for that).
-
-    Args:
-        name: The provider name.
-
-    Returns:
-        True if the name matches the ``<provider>-<word>`` syntax.
-    """
-    return parse_variant_name(name) is not None
+from .variant_names import parse_variant_name, registered_variant_names
 
 
 class ProviderRegistry:
@@ -102,12 +63,9 @@ class ProviderRegistry:
             The canonical base provider name if ``name`` is a registered
             variant, otherwise ``None``.
         """
-        # Accepted lazy cycle with the root config layer (issue #90): the
-        # config layer resolves variant-style names through the registry
-        # while the registry checks registration through the config store;
-        # the imports are lazy on both sides, keeping the cycle contained.
-        from ..config_variants import is_registered_variant
-
+        # Registration is read straight from config.json through the leaf
+        # variant_names module (issue #110): the registry never imports the
+        # config-store layer, so the config <-> providers cycle is gone.
         parsed = parse_variant_name(name)
         if parsed is None:
             return None
@@ -115,9 +73,10 @@ class ProviderRegistry:
         base_lower = base.strip().lower()
         if not base_lower:
             return None
+        normalized = name.strip().lower() if name else ""
         for key in _PROVIDER_CONFIGS:
             if key.lower() == base_lower:
-                return key if is_registered_variant(name) else None
+                return key if normalized in registered_variant_names() else None
         return None
 
     def canonical_name(self, provider: str) -> str | None:

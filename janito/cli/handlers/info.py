@@ -118,11 +118,11 @@ def handle_info(args) -> int:
         ("API Type", api_type),
     ]
     if api_type == "Responses":
-        found = get_provider(provider)
-        stateless_mode = found.stateless_mode(model) if found is not None else False
+        from ...llm_clients.openai.responses_state import stateless_mode
+
         responses_display = (
             "stateless (client re-sends history)"
-            if stateless_mode
+            if stateless_mode(provider, model)
             else "server-side (previous_response_id)"
         )
         rows.append(("Stateless Mode", responses_display))
@@ -286,11 +286,8 @@ def handle_show_system_prompt(args) -> int:
     from rich.console import Console
     from rich.table import Table
 
-    from ...system_prompt import (
-        LABEL_CLI,
-        SECTION_SKILLS,
-        default_system_prompt_manager,
-    )
+    from ...system_labels import LABEL_CLI
+    from ...system_prompt import SECTION_SKILLS, default_system_prompt_manager
 
     console = Console(markup=False)
 

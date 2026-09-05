@@ -141,8 +141,9 @@ def get_default_api_type_from_provider(provider, model=None):
 
 def get_stateless_mode_from_provider(provider, model=None):
     """Whether the model's Responses API keeps server-side state."""
-    found = get_provider(provider)
-    return found.stateless_mode(model) if found is not None else False
+    from janito.llm_clients.openai.responses_state import stateless_mode
+
+    return stateless_mode(provider, model)
 
 
 if pytest is not None:

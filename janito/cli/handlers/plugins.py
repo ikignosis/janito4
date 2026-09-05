@@ -228,7 +228,7 @@ def handle_install_plugin(url: str) -> int:
         shutil.move(str(extracted), str(plugin_dest))
         print("[OK] Plugin installed successfully!")
 
-    except Exception as e:
+    except (OSError, shutil.Error, zipfile.ZipError, RuntimeError) as e:
         print(f"Error installing plugin: {e}")
         return 1
 

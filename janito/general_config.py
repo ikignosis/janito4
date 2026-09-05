@@ -31,9 +31,11 @@ Config keys come in three scopes:
 
 import logging
 
-from .config_keys import normalize_provider
+from .config_keys import normalize_api_type, normalize_provider
 from .config_loaders import load_api_type, load_model_from_config
 from .config_store import get_config_value
+from .providers.registry import get_provider
+from .providers.validation import get_all_api_types
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -131,16 +133,13 @@ def resolve_api_type(
         ValueError: If an explicitly configured API type is not a known
             API type.
     """
-    from .config_keys import normalize_api_type
-    from .providers.registry import get_provider
-
     provider = cli_provider or get_active_provider()
     effective_model = cli_model or load_model_from_config(provider)
 
     raw = cli_api_type or load_api_type(cli_provider, effective_model)
     if raw:
         try:
-            return normalize_api_type(raw)
+            return normalize_api_type(raw, get_all_api_types())
         except ValueError:
             logger.error(f"Unsupported API type: {raw}")
             raise

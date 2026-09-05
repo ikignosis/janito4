@@ -21,6 +21,7 @@ Changes since `v4.38.0` (2026-09-04).
 - Change task ids to incremental integers starting at 1 instead of random hex strings (close #111).
 - Expand `--no-tools` scope: it now disables skill tools, plugin tools, and server-side/builtin provider tools in addition to the autoload toolsets and MCP tools (close #127).
 - Add `/effort <level>` shell command: show or switch the session reasoning effort at runtime, validated against the current model's supported levels (`/effort clear` restores config/default) (close #121).
+- Break all intra-package import cycles (close #110): new `tests/test_circular_deps.py` detector-guard (top-level + lazy imports, Tarjan SCCs, fails on any cycle); provider-name/label leaves (`providers/variant_names.py`, `system_labels.py`) so `providers/*` never imports `config_*`; `ConversationResult` moved to the `responses_items` leaf; `find_files_cli` merged back into the `FindFiles` tool module; web `stream_prompt` passed as an explicit `stream_fn` argument through the chat turn helpers.
 
 ### Removed
 - Drop backwards-compat shims: legacy top-level `endpoint` config fallback (use `providers.<name>.endpoint`), `get_skills_dir` alias (use `get_default_skills_dir`), `MCP_CONFIG_PATH` constant (use `get_mcp_config_path()`), legacy web session `<id>.jsonl` files (sessions are now only `<id>/metadata.json`), and the two-source `/skills` summary format (always `home, agents, local`).
@@ -29,3 +30,4 @@ Changes since `v4.38.0` (2026-09-04).
 - Propagate `--reasoning-effort` CLI flag to the interactive session and `/status` display (previously `/status` showed the built-in default, e.g. `minimal (default)`, instead of the CLI value like `high`; the API call itself already used the CLI value via `build_api_config`).
 - Show `Model Default` instead of `disabled` for Thinking in `/status` and `--show-config` when thinking is not forced (a falsy value means the model's own default applies, not forced off).
 - Tests: behavior-over-strings pilots — shared `assert_command_registered` / `assert_command_matching` helpers, registry-driven `/help` smoke test, state-only `/provider` switch/history assertions, plus `docs/development/testing.md` guideline.
+- Replace blind `except Exception` with specific error tuples in the plugin-install and MCP-tools-listing CLI handlers, the `FindFiles` tool, and the web chat router/helpers (request JSON, socket close, SSE encoding, turn cleanup).

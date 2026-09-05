@@ -297,7 +297,6 @@ def test_run_turn_in_browser_prompt_round_trip(monkeypatch):
     handler, a tool running in a worker thread blocks on the question, the
     receive-loop resolution wakes it, and the turn completes normally with
     the answer in the streamed tool result."""
-    import janito.web.backend.routers.chat as chat_mod
     from janito.web.backend.events import DoneEvent, ToolResultEvent
     from janito.web.backend.prompts import PromptRegistry
     from janito.web.backend.routers.chat_helpers import _run_turn
@@ -312,15 +311,21 @@ def test_run_turn_in_browser_prompt_round_trip(monkeypatch):
         yield ToolResultEvent(tool_call_id="call_1", tool_name="AskUser", result=result)
         yield DoneEvent(full_content="done", message_count=len(messages))
 
-    monkeypatch.setattr(chat_mod, "stream_prompt", fake_stream_prompt)
-
     async def scenario():
         registry = PromptRegistry()
         ws = _DuplexWebSocket()
         session = ConversationSession(session_id="s1")
 
         turn = asyncio.ensure_future(
-            _run_turn(session, ws, "hi", object(), [], registry)
+            _run_turn(
+                session,
+                ws,
+                "hi",
+                object(),
+                [],
+                registry,
+                stream_fn=fake_stream_prompt,
+            )
         )
         # The "browser" receives the question…
         await ws.wait_for_prompt(timeout=2.0)

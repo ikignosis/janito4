@@ -141,14 +141,21 @@ if pytest is not None:
         )
 
     def test_stateless_mode_override_honored(monkeypatch, tmp_path):
-        """Provider.stateless_mode() honors a model-scoped config override
-        (and the module function delegates to it)."""
+        """The effective stateless_mode() honors a model-scoped config override.
+
+        Provider.stateless_mode() returns the built-in default only (the
+        provider layer never imports the config layer, issue #110); the
+        override is applied by the effective resolution point in
+        llm_clients.openai.responses_state.
+        """
         import janito.config_store as gc
+        from janito.llm_clients.openai.responses_state import stateless_mode
 
         monkeypatch.setattr(config_dir_mod, "_config_dir", tmp_path)
         gc.set_config_value("openai.models.gpt-5.6-luna.stateless-mode", True)
-        assert Provider("openai").stateless_mode() is True
-        assert get_provider("openai").stateless_mode() is True
+        assert Provider("openai").stateless_mode() is False
+        assert stateless_mode("openai", None) is True
+        assert get_provider("openai").stateless_mode() is False
 
     def test_get_provider_cost():
         """get_provider_cost() delegates to the provider's cost module and

@@ -153,7 +153,16 @@ def _mcp_service_rows(
                 tool_names.append(display_name)
             if tool_names:
                 tools_display = ", ".join(tool_names)
-        except Exception as e:
+        except (
+            ConnectionError,
+            TimeoutError,
+            OSError,
+            RuntimeError,
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+        ) as e:
             tools_display = f"Error loading tools: {e}"
 
     return name, transport, status, config_display, tools_display

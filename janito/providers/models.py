@@ -333,19 +333,16 @@ class Provider:
     def stateless_mode(self, model: str | None = None) -> bool:
         """Whether the model's Responses API keeps conversation state server-side.
 
-        A per-provider/model override stored in ``~/.janito/config.json``
-        under ``providers.<name>.models.<model>.stateless-mode`` wins
-        over the built-in default; models that do not declare the flag (and
-        unknown providers) default to ``True`` (the Responses API design).
-        """
-        # A configured override takes priority over the built-in default.  The
-        # import is deferred to avoid a module-level cycle (general_config does
-        # not import provider_config at import time either).
-        from ..config_loaders import load_stateless_mode_from_config
+        Absent defaults to ``True`` (the Responses API design).
 
-        override = load_stateless_mode_from_config(self._name, model)
-        if override is not None:
-            return override
+        This returns the *built-in* default only.  A per-provider/model
+        override stored in ``~/.janito/config.json`` under
+        ``providers.<name>.models.<model>.stateless-mode`` is applied by the
+        caller (see :func:`janito.config_loaders.load_stateless_mode_from_config`
+        and the single effective resolution point
+        :func:`janito.llm_clients.openai.responses_state.stateless_mode`):
+        the provider layer never imports the config layer (issue #110).
+        """
         return self.model_config(model).stateless_mode()
 
     def responses_include(self, model: str | None = None) -> list | None:

@@ -28,6 +28,11 @@ def stateless_mode(provider: str, model: str | None) -> bool:
     capability -- shared by the conversation-state setup below and the CLI
     banner's ``(server-side / client-side)`` annotation.
     """
+    from janito.config_loaders import load_stateless_mode_from_config
+
+    override = load_stateless_mode_from_config(provider, model)
+    if override is not None:
+        return override
     found = get_provider(provider)
     return found.stateless_mode(model) if found is not None else False
 

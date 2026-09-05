@@ -29,11 +29,8 @@ class PromptCmdHandler(CmdHandler):
         from rich.console import Console
         from rich.table import Table
 
-        from janito.system_prompt import (
-            LABEL_CLI,
-            SECTION_SKILLS,
-            default_system_prompt_manager,
-        )
+        from janito.system_labels import LABEL_CLI
+        from janito.system_prompt import SECTION_SKILLS, default_system_prompt_manager
 
         # Get the actual system prompt from the shell
         effective_prompt = shell.get_system_prompt()

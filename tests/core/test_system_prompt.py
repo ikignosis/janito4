@@ -18,8 +18,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import pytest
 
 import janito.tooling.tools_registry as tools_registry_mod
+from janito.system_labels import LABEL_BUILTIN
 from janito.system_prompt import (
-    LABEL_BUILTIN,
     SECTION_START,
     SYSTEM_PROMPT_MANAGER,
     Section,

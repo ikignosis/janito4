@@ -17,8 +17,8 @@ focused on resolution and provider helpers.
 
 import logging
 
-from .config_keys import normalize_provider
 from .config_store import _load_config_file, _store, get_config_path, get_config_value
+from .providers.variant_names import is_variant_style_name, normalize_provider
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -37,11 +37,6 @@ def load_variants() -> dict[str, dict]:
     Returns:
         Dict mapping variant names to their config entries.
     """
-    # Accepted lazy cycle with the provider package (issue #90): the provider
-    # registry / validation re-enter the config layer for variant lookups, so
-    # variant helpers resolve them lazily instead of at import time.
-    from .providers.registry import is_variant_style_name
-
     providers = get_config_value("providers")
     if not isinstance(providers, dict):
         return {}
@@ -94,10 +89,10 @@ def create_variant(name: str) -> str:
         ValueError: If the name is not ``<provider>-<word>``, the provider
             prefix is unsupported, or the variant is already registered.
     """
-    # Accepted lazy cycle with the provider package (issue #90): see
-    # load_variants -- registry/validation re-enter the config layer.
-    from .providers.registry import parse_variant_name
+    # Variant-name parsing / provider validation come from the provider
+    # layer one-way (issue #110): the provider layer never imports back.
     from .providers.validation import is_supported_provider, list_supported_providers
+    from .providers.variant_names import parse_variant_name
 
     normalized = normalize_provider(name)
     if not normalized:
@@ -159,7 +154,6 @@ def delete_variant(name: str) -> bool:
         ValueError: If ``name`` is the currently configured default provider.
     """
     from .auth_config import delete_api_key
-    from .general_config import load_provider_from_config
 
     normalized = normalize_provider(name)
     if not normalized:
@@ -169,7 +163,7 @@ def delete_variant(name: str) -> bool:
         return False
 
     # Guard: cannot delete the variant in use as the default provider.
-    default = load_provider_from_config()
+    default = get_config_value("provider")
     if default and normalize_provider(default) == normalized:
         raise ValueError(
             f"Provider variant '{normalized}' is the configured default provider. "

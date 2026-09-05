@@ -26,9 +26,9 @@ system prompt as ``(text, label)``, from the ``system-prompt`` /
 ``privileges`` key, issue #89) and :func:`load_used_files_enabled` (the
 ``used-files`` flag).
 
-``general_config`` imports this module's helpers at its top, so this module
-imports ``general_config`` *lazily* inside the methods below
-(``determine_provider``) rather than at module import time -- this keeps the
+``general_config`` imports this module's helpers at its top; this module
+resolves the provider inline in :meth:`ProviderConfigLoader._resolve_provider`
+instead of importing ``general_config`` (issue #110) -- this keeps the
 import graph acyclic regardless of which module is imported first.
 """
 
@@ -56,9 +56,15 @@ class ProviderConfigLoader:
     @staticmethod
     def _resolve_provider(cli_provider: str | None) -> str | None:
         """Resolve the provider used for provider-scoped config lookups."""
-        from .general_config import determine_provider
+        from .config_keys import normalize_provider
+        from .config_store import get_config_value
 
-        return determine_provider(cli_provider)
+        # Same resolution as general_config.determine_provider, inlined here
+        # so this module never imports general_config (issue #110): the
+        # config fan-in stays one-way (general_config -> this module).
+        return normalize_provider(cli_provider) or normalize_provider(
+            get_config_value("provider")
+        )
 
     @staticmethod
     def _resolve_model(
@@ -509,7 +515,7 @@ def load_system_prompt_start() -> tuple[str | None, str | None]:
             read, naming the key and path.
     """
     from .config_store import get_config_path, get_config_value
-    from .system_prompt import LABEL_CONFIG_PREFIX
+    from .system_labels import LABEL_CONFIG_PREFIX
 
     file_value = get_config_value("system-prompt-file")
     if file_value:
