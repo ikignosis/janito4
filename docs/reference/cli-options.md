@@ -86,11 +86,11 @@ See [Provider Variants](../configuration/variants.md) for the full guide.
 
 | Option | Description |
 |--------|-------------|
-| `-r`, `--read` | Grant READ privilege (the default when no `-r`/`-w`/`-x` flag is given) |
+| `-r`, `--read` | Grant READ privilege |
 | `-w`, `--write` | Grant WRITE privilege |
 | `-x`, `--exec` | Grant EXEC privilege |
 | `--set privileges=<rwx>` | Persist the session's default privileges in `config.json` (issue #89) |
-| `--unset privileges` | Remove the configured default, restoring the built-in read-only default |
+| `--unset privileges` | Remove the configured default, restoring the built-in full-privileges default |
 
 The default privileges can be persisted in `config.json` so every session
 starts with them without repeating the flags:
@@ -98,7 +98,7 @@ starts with them without repeating the flags:
 ```bash
 janito --set privileges=rwx      # sessions default to full privileges
 janito --set privileges=rw       # sessions default to read+write
-janito --unset privileges        # back to the built-in read-only default
+janito --unset privileges        # back to the built-in full-privileges default
 ```
 
 The value is a combination of `r` / `w` / `x` in any order and case
@@ -108,21 +108,18 @@ empty value) is rejected. Like the flags, `privileges=w` means write-only
 (it does **not** imply read).
 
 Precedence: explicit `-r`/`-w`/`-x` flags always win over the configured
-default, which wins over the built-in read-only default. If none of
+default, which wins over the built-in full-privileges default. If none of
 `-r`, `-w`, `-x` are given and no `privileges` config is set, janito starts
-**read-only** (READ granted, WRITE/EXEC not) and prints a hint right after
-the version banner when an *interactive* session starts:
+with **full privileges** (READ/WRITE/EXEC granted) and prints a warning
+right after the version banner:
 
 ```
-Started read-only, use /rwx <prompt>...with full privileges..
+Warning: running with full privileges (rwx). Use -r/-w/-x to restrict.
 ```
 
-Explicit `-r` alone also leaves the session read-only, so the same hint is
-printed. Sessions that grant WRITE or EXEC do not print the read-only hint.
-In the interactive shell, `/rwx <prompt>` runs a single request with the
-full toolset. Single-prompt runs (`janito "prompt"` or piped stdin) skip
-the hint — `/rwx` is an interactive-shell command and does not apply
-there.
+Explicit `-r`/`-w`/`-x` flags or a configured `privileges` value -- even
+`rwx` -- print no warning. In the interactive shell, `/rwx <prompt>` runs
+a single request with the full toolset.
 
 ## Tools
 

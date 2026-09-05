@@ -396,28 +396,33 @@ def _privilege_args(read=False, write=False, exec_=False):
     return args
 
 
-def test_setup_privileges_default_is_read_only():
-    """No -r/-w/-x flags -> running_privileges is read-only (issue #85)."""
+def test_setup_privileges_default_is_full_privileges():
+    """No -r/-w/-x flags -> running_privileges is full (rwx) with warning pending."""
     from janito import __main__ as main_mod
 
     _privileges_mod.running_privileges = None
+    _privileges_mod.full_privileges_warning_pending = False
     args = _privilege_args()
     main_mod._setup_privileges(args)
 
     priv = _privileges_mod.running_privileges
-    assert (priv.READ, priv.WRITE, priv.EXEC) == (True, False, False)
+    assert (priv.READ, priv.WRITE, priv.EXEC) == (True, True, True)
+    assert _privileges_mod.full_privileges_warning_pending is True
+    _privileges_mod.full_privileges_warning_pending = False
 
 
 def test_setup_privileges_read_flag_only():
-    """-r alone -> read-only, same as the default."""
+    """-r alone -> read-only, with no warning pending."""
     from janito import __main__ as main_mod
 
     _privileges_mod.running_privileges = None
+    _privileges_mod.full_privileges_warning_pending = False
     args = _privilege_args(read=True)
     main_mod._setup_privileges(args)
 
     priv = _privileges_mod.running_privileges
     assert (priv.READ, priv.WRITE, priv.EXEC) == (True, False, False)
+    assert _privileges_mod.full_privileges_warning_pending is False
 
 
 def test_setup_privileges_write_flag_takes_priority():
@@ -500,6 +505,7 @@ def test_setup_privileges_uses_config_default(monkeypatch):
     from janito import __main__ as main_mod
 
     _privileges_mod.running_privileges = None
+    _privileges_mod.full_privileges_warning_pending = False
     monkeypatch.setattr(
         "janito.config_loaders.load_privileges_from_config",
         lambda: Privileges(READ=True, WRITE=True, EXEC=True),
@@ -508,20 +514,24 @@ def test_setup_privileges_uses_config_default(monkeypatch):
 
     priv = _privileges_mod.running_privileges
     assert (priv.READ, priv.WRITE, priv.EXEC) == (True, True, True)
+    assert _privileges_mod.full_privileges_warning_pending is False
 
 
-def test_setup_privileges_config_default_is_read_only_when_unset(monkeypatch):
-    """No flags + no configured privileges -> read-only (issue #85)."""
+def test_setup_privileges_config_default_is_full_privileges_when_unset(monkeypatch):
+    """No flags + no configured privileges -> full (rwx) with warning pending."""
     from janito import __main__ as main_mod
 
     _privileges_mod.running_privileges = None
+    _privileges_mod.full_privileges_warning_pending = False
     monkeypatch.setattr(
         "janito.config_loaders.load_privileges_from_config", lambda: None
     )
     main_mod._setup_privileges(_privilege_args())
 
     priv = _privileges_mod.running_privileges
-    assert (priv.READ, priv.WRITE, priv.EXEC) == (True, False, False)
+    assert (priv.READ, priv.WRITE, priv.EXEC) == (True, True, True)
+    assert _privileges_mod.full_privileges_warning_pending is True
+    _privileges_mod.full_privileges_warning_pending = False
 
 
 def test_setup_privileges_flags_override_config_default(monkeypatch):
@@ -547,35 +557,37 @@ def test_setup_privileges_flags_override_config_default(monkeypatch):
 
 
 def test_print_privileges_notice_with_no_flags(capsys, monkeypatch):
-    """The read-only startup hint is printed after the version banner."""
+    """The full-privileges warning is printed after the version banner."""
     from janito.cli import chat as chat_mod
 
     monkeypatch.setattr(chat_mod, "_banner_printed", False)
+    _privileges_mod.full_privileges_warning_pending = True
     chat_mod._print_privileges_notice(_privilege_args())
 
     out = capsys.readouterr().out
-    assert "Started read-only" in out
-    assert "/rwx <prompt>...with full privileges.." in out
-    assert out.index("Janito") < out.index("Started read-only")
+    assert "Warning: running with full privileges" in out
+    assert "-r/-w/-x" in out
+    assert out.index("Janito") < out.index("Warning")
+    assert _privileges_mod.full_privileges_warning_pending is False
 
 
 def test_print_privileges_notice_with_read_flag(capsys, monkeypatch):
-    """Explicit -r leaves the session read-only, so the hint is printed."""
+    """Explicit -r never sets the warning, so no notice is printed."""
     from janito.cli import chat as chat_mod
 
     monkeypatch.setattr(chat_mod, "_banner_printed", False)
+    _privileges_mod.full_privileges_warning_pending = False
     chat_mod._print_privileges_notice(_privilege_args(read=True))
 
     out = capsys.readouterr().out
-    assert "Started read-only" in out
-    assert "/rwx <prompt>...with full privileges.." in out
-    assert out.index("Janito") < out.index("Started read-only")
+    assert out == ""
 
 
 def test_print_privileges_notice_silent_with_write_exec_flags(capsys):
-    """Sessions granting WRITE or EXEC silence the read-only notice."""
+    """Explicit flags or config never set the warning, so no notice is printed."""
     from janito.cli import chat as chat_mod
 
+    _privileges_mod.full_privileges_warning_pending = False
     chat_mod._print_privileges_notice(_privilege_args(write=True))
     assert capsys.readouterr().out == ""
 
