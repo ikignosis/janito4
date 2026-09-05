@@ -135,28 +135,55 @@ def effective_rows(shell) -> list[tuple[str, str]]:
 
 
 def recent_conversation_rows(
-    shell, limit: int = 5, skip_roles: tuple[str, ...] = ("system",)
+    shell, limit: int = 5, roles: tuple[str, ...] = ("user", "assistant")
 ) -> list[tuple[str, str]]:
-    """Return up to ``limit`` of the most recent non-skipped conversation rows.
+    """Return up to ``limit`` of the most recent dialogue rows.
 
     Used by the ``-C/--continue`` resume recap so the user can see where the
     previous session left off without dumping the whole transcript.  Delegates
     to :func:`effective_rows` -- the single source ``/history`` uses in every
-    API mode -- and returns the tail after dropping the ``skip_roles`` rows
-    (by default the system prompt, which is not part of the dialogue).
+    API mode -- and returns the tail of the rows whose role is in ``roles``
+    (by default the user/assistant dialogue: the system prompt, the
+    ``function_call``/``function_call_output`` tool-call plumbing and the
+    ``reasoning`` trace are excluded).
+
+    A tool-heavy turn can end in a long run of assistant-only messages, which
+    would push the user's latest prompt out of a plain ``[-limit:]`` tail.
+    When that happens the recap is re-anchored on the most recent user row:
+    it always shows the latest question followed by the tail of its replies
+    (still capped at ``limit`` rows).
 
     Args:
         shell: The shell whose conversation is read (any API mode).
         limit: How many of the most recent rows to return.
-        skip_roles: Roles excluded from the tail (default: the system row).
+        roles: Row roles kept in the tail (default: the user/assistant
+            dialogue).
 
     Returns:
-        The up-to-``limit`` most recent ``(role, content)`` rows that are not
-        in ``skip_roles``.
+        The up-to-``limit`` most recent ``(role, content)`` rows whose role
+        is in ``roles``, always including the most recent user row when one
+        exists.
     """
     rows = effective_rows(shell)
-    dialogue = [row for row in rows if row[0] not in skip_roles]
-    return dialogue[-limit:]
+    dialogue = [row for row in rows if row[0] in roles]
+    if not dialogue:
+        return []
+    tail = dialogue[-limit:]
+    if any(role == "user" for role, _ in tail):
+        return tail
+    # A long reply run pushed the latest user prompt out of the tail; anchor
+    # the recap on it so the user sees their last question and the tail of
+    # the answer that followed. Only meaningful when at least one reply can
+    # be shown alongside the question (limit >= 2).
+    user_indexes = [i for i, (role, _) in enumerate(dialogue) if role == "user"]
+    if limit < 2 or not user_indexes:
+        return tail
+    anchored = dialogue[user_indexes[-1]:]
+    if len(anchored) <= limit:
+        return anchored
+    # Keep the question and the most recent replies, dropping the oldest
+    # intermediate assistant rows so the recap stays bounded.
+    return [anchored[0]] + anchored[-(limit - 1):]
 
 
 __all__ = [

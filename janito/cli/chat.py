@@ -395,32 +395,28 @@ def _print_resume_recap(shell, *, limit: int = 5) -> None:
 
     Display-only recap so the user can see where the previous session left
     off: the full restored conversation is still what gets sent to the model;
-    this just prints the last ``limit`` dialogue rows (system prompt
-    excluded) in the same style as ``/history``.  No-op when there are no
-    dialogue rows to show.
+    this prints the last ``limit`` user/assistant messages **in full**
+    (tool-call / reasoning rows are hidden and the recap is anchored on the
+    most recent user prompt, see
+    :func:`janito.shell.conversation.recent_conversation_rows`).  No-op when
+    there are no messages to show.
     """
     from rich.console import Console
-    from rich.table import Table
+    from rich.rule import Rule
 
     from ..shell.conversation import recent_conversation_rows
 
     rows = recent_conversation_rows(shell, limit=limit)
     if not rows:
         return
-    table = Table(
-        title="Resumed conversation",
-        title_style="bold",
-        header_style="bold cyan",
-    )
-    table.add_column("Role", style="green", no_wrap=True)
-    table.add_column("Content", overflow="fold")
+    console = Console(markup=False)
+    console.print(Rule("Resumed conversation", style="bold cyan"))
     for role, content in rows:
-        # Same display treatment as /history: fold long content and flatten
-        # newlines so the table stays readable.
-        if len(content) > 200:
-            content = content[:200] + "..."
-        table.add_row(role, content.replace("\n", "\\n"))
-    Console(markup=False).print(table)
+        label = "You:" if role == "user" else "Assistant:"
+        style = "bold green" if role == "user" else "bold"
+        console.print(label, style=style)
+        console.print(content if content else "(no text)")
+        console.print()
 
 
 def run_interactive_chat(args):

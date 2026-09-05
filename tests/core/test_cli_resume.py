@@ -267,3 +267,39 @@ def test_print_resume_recap_noop_without_dialogue(capsys):
     shell.messages_history = [{"role": "system", "content": "SYS-PROMPT"}]
     _print_resume_recap(shell)
     assert capsys.readouterr().out == ""
+
+
+def test_print_resume_recap_hides_tool_noise(capsys):
+    # Tool-call plumbing and reasoning rows must not clutter the recap: only
+    # the user/assistant messages are printed.
+    shell = _chat_shell()
+    shell.messages_history = [
+        {"role": "system", "content": "SYS-PROMPT"},
+        {"role": "user", "content": "what is the weather?"},
+        {"role": "function", "content": '{"tool": "GetWeather"}'},
+        {"role": "function", "content": '{"temp": 22}'},
+        {"role": "assistant", "content": "It is 22C."},
+    ]
+    _print_resume_recap(shell)
+    out = capsys.readouterr().out
+    assert "what is the weather?" in out
+    assert "It is 22C." in out
+    assert "GetWeather" not in out
+    assert '{"temp": 22}' not in out
+    assert "SYS-PROMPT" not in out
+
+
+def test_print_resume_recap_anchors_on_last_user_prompt(capsys):
+    # A long tool-heavy reply must not hide the user's last question: the
+    # recap shows the question followed by the tail of the replies.
+    shell = _chat_shell()
+    messages = [{"role": "system", "content": "SYS-PROMPT"}, {"role": "user", "content": "last question"}]
+    for i in range(1, 10):
+        messages.append({"role": "assistant", "content": f"reply {i}"})
+    shell.messages_history = messages
+    _print_resume_recap(shell)
+    out = capsys.readouterr().out
+    assert "last question" in out
+    assert "reply 9" in out
+    assert "reply 1" not in out  # oldest intermediate replies are dropped
+    assert out.count("Assistant:") <= 4

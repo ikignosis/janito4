@@ -49,10 +49,11 @@ context stays valid (a server-side Responses conversation even resumes from
 its last response id). Because the snapshot is keyed to the directory, resume
 from the same directory you chatted in.
 
-On resume, janito echoes the **5 most recent messages** (a `Resumed
-conversation` table in the same style as `/history`, system prompt excluded)
-so you can see where the previous session left off — display-only; the whole
-restored context is still what gets sent to the model.
+On resume, janito prints the **5 most recent messages** (a `Resumed
+conversation` recap: the latest user prompt plus the replies that followed,
+shown in full text; tool-call and reasoning rows are hidden) so you can see
+where the previous session left off — display-only; the whole restored
+context is still what gets sent to the model.
 
 What gets restored:
 

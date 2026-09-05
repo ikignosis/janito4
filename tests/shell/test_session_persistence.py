@@ -372,7 +372,7 @@ def test_run_does_not_save_when_persistence_disabled(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_recent_rows_returns_last_five_skipping_system():
+def test_recent_rows_returns_last_five_skipping_tool_rows():
     shell = _shell()
     shell.messages_history = [
         {"role": "system", "content": "SYS-PROMPT"},
@@ -409,17 +409,50 @@ def test_recent_rows_empty_with_only_system_prompt():
     assert recent_conversation_rows(shell) == []
 
 
-def test_recent_rows_honours_custom_limit_and_keeps_tool_rows():
+def test_recent_rows_filters_out_tool_and_reasoning_rows():
     shell = _shell()
     shell.messages_history = [
         {"role": "system", "content": "SYS-PROMPT"},
+        {"role": "user", "content": "m1"},
         {"role": "function", "content": "tool-result"},
         {"role": "assistant", "content": "done"},
     ]
+    # Only user/assistant rows are kept; tool rows are hidden even when they
+    # are among the most recent.
     assert recent_conversation_rows(shell, limit=1) == [("assistant", "done")]
     assert recent_conversation_rows(shell) == [
-        ("function", "tool-result"),
+        ("user", "m1"),
         ("assistant", "done"),
+    ]
+
+
+def test_recent_rows_anchors_on_last_user_when_reply_run_exceeds_limit():
+    shell = _shell()
+    # A single user question answered by a long run of assistant messages
+    # (tool rounds): the plain tail would be assistant-only.
+    messages = [{"role": "system", "content": "SYS-PROMPT"}, {"role": "user", "content": "q"}]
+    for i in range(1, 10):
+        messages.append({"role": "assistant", "content": f"a{i}"})
+    shell.messages_history = messages
+    # The recap is re-anchored on the last user row: the question first,
+    # then the most recent replies (capped at `limit` rows total).
+    rows = recent_conversation_rows(shell)
+    assert rows[0] == ("user", "q")
+    assert len(rows) == 5
+    assert rows[-1] == ("assistant", "a9")
+    assert all(role in ("user", "assistant") for role, _ in rows)
+
+
+def test_recent_rows_no_user_rows_returns_tail():
+    shell = _shell()
+    shell.messages_history = [
+        {"role": "system", "content": "SYS-PROMPT"},
+        {"role": "assistant", "content": "a1"},
+        {"role": "assistant", "content": "a2"},
+    ]
+    assert recent_conversation_rows(shell) == [
+        ("assistant", "a1"),
+        ("assistant", "a2"),
     ]
 
 
