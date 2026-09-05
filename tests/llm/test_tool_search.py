@@ -12,8 +12,10 @@ from janito.ui.observer import RichTurnObserver
 
 
 def test_tool_search_flag_only_on_meta():
-    assert model_uses_tool_search("meta", "muse-spark-1.3") is True
-    assert model_uses_tool_search("meta", "muse-spark-1.3-contributor") is True
+    # Disabled in config for now (issue #128 misroutes tool calls):
+    # helper still resolves the flag, but no built-in model enables it.
+    assert model_uses_tool_search("meta", "muse-spark-1.3") is False
+    assert model_uses_tool_search("meta", "muse-spark-1.3-contributor") is False
     assert model_uses_tool_search("openai", "gpt-4o") is False
     assert model_uses_tool_search(None, "muse-spark-1.3") is False
     assert get_provider("openai").tool_search("gpt-4o") is False
