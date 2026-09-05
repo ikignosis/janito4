@@ -122,7 +122,10 @@ Pushing the tag triggers the release workflow
    `[Unreleased]` section is not enough.
 2. Builds the wheel and sdist.
 3. Publishes to PyPI.
-4. Creates the GitHub Release with generated release notes.
+4. Creates the GitHub Release with `CHANGELOG.md` as the source:
+   `scripts/extract_changelog_section.py` extracts the `## [v4.19.0]`
+   section body to `release-notes.md`, which is passed as `body_path`
+   to `softprops/action-gh-release` (`generate_release_notes: false`).
 
 ## 6. Reset the changelog
 
