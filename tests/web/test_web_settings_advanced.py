@@ -156,7 +156,7 @@ def test_patch_empty_endpoint_clears_override(client):
 @requires_fastapi
 def test_patch_api_type_persists_and_normalizes(client):
     """api_type is canonicalized (Responses/Completions) and stored per provider."""
-    cs.unset_config_value("openai.api-type")
+    cs.unset_config_value("openai.models.gpt-5.6-luna.api-type")
 
     resp = client.patch(
         "/api/config", json={"api_type": "completions", "provider": "openai"}
@@ -174,7 +174,7 @@ def test_patch_api_type_persists_and_normalizes(client):
 @requires_fastapi
 def test_patch_api_type_rejects_unknown_value(client):
     """A bogus API type is rejected with 400 and nothing is written."""
-    cs.unset_config_value("openai.api-type")
+    cs.unset_config_value("openai.models.gpt-5.6-luna.api-type")
     before = cs.load_config()
 
     resp = client.patch("/api/config", json={"api_type": "Bogus", "provider": "openai"})
@@ -189,7 +189,7 @@ def test_patch_api_type_anthropic_aborts_without_package(client):
     """The native Anthropic SDK API type is rejected with 400 (nothing is
     written) when the optional `anthropic` package is not installed, with a
     message naming the package."""
-    cs.unset_config_value("anthropic.api-type")
+    cs.unset_config_value("anthropic.models.claude-sonnet-5.api-type")
     before = cs.load_config()
 
     resp = client.patch(
@@ -206,7 +206,10 @@ def test_patch_api_type_anthropic_aborts_without_package(client):
 @requires_fastapi
 def test_patch_api_type_empty_clears_override(client):
     """An empty api_type removes the per-provider override."""
-    cs.set_config_value("openai.api-type", "Completions")
+    # api-type is model-scoped: seed the real key (not the flat
+    # "openai.api-type" form nothing reads) so this test passes
+    # regardless of execution order / xdist grouping.
+    cs.set_config_value("openai.models.gpt-5.6-luna.api-type", "Completions")
     assert cl.load_api_type("openai") == "Completions"
 
     resp = client.patch("/api/config", json={"api_type": "", "provider": "openai"})
@@ -258,7 +261,7 @@ def test_patch_stateless_mode_accepts_string_bool(client):
 @requires_fastapi
 def test_patch_stateless_mode_rejects_invalid(client):
     """A non-boolean stateless_mode is rejected with 400."""
-    cs.unset_config_value("openai.stateless-mode")
+    cs.unset_config_value("openai.models.gpt-5.6-luna.stateless-mode")
     before = cs.load_config()
 
     resp = client.patch(

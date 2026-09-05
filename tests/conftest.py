@@ -25,6 +25,49 @@ def _reset_browser_prompts_flag():
     prompting._browser_prompts_enabled = False
 
 
+@pytest.fixture(autouse=True)
+def _isolate_process_global_state():
+    """Snapshot/restore process-global mutable state around each test.
+
+    Multiprocess runners (``pytest -n auto``) execute many test files
+    sequentially inside each worker process, so a module global mutated
+    by one file (session ``running_privileges``, the tools registry,
+    the config-dir override) leaks into later files on the same worker
+    and makes failures depend on scheduling.  Restoring the pre-test
+    values here keeps every test order-independent under both serial
+    and parallel runs.  In-place restore (``clear``/``update``) preserves
+    object identity so it composes with ``monkeypatch`` teardowns.
+    """
+    import janito.config_dir as config_dir_mod
+    import janito.privileges as privileges_mod
+    import janito.tooling.tools_registry as tools_registry
+
+    saved_config_dir = config_dir_mod.get_base_config_dir()
+    saved_local_mode = config_dir_mod.is_local_config_mode()
+    saved_privileges = privileges_mod.running_privileges
+    saved_warning = privileges_mod.full_privileges_warning_pending
+    saved_tools = dict(tools_registry.AVAILABLE_TOOLS)
+    saved_initialized = tools_registry._tools_initialized
+    saved_loaded = set(tools_registry._loaded_toolsets)
+    saved_disabled = set(tools_registry._disabled_toolsets)
+    saved_skills = tools_registry._skills_enabled
+    saved_loading = tools_registry._tools_loading_enabled
+    yield
+    config_dir_mod.set_config_dir(saved_config_dir)
+    config_dir_mod.set_local_config_mode(saved_local_mode)
+    privileges_mod.running_privileges = saved_privileges
+    privileges_mod.full_privileges_warning_pending = saved_warning
+    tools_registry.AVAILABLE_TOOLS.clear()
+    tools_registry.AVAILABLE_TOOLS.update(saved_tools)
+    tools_registry._tools_initialized = saved_initialized
+    tools_registry._loaded_toolsets.clear()
+    tools_registry._loaded_toolsets.update(saved_loaded)
+    tools_registry._disabled_toolsets.clear()
+    tools_registry._disabled_toolsets.update(saved_disabled)
+    tools_registry._skills_enabled = saved_skills
+    tools_registry._tools_loading_enabled = saved_loading
+
+
 def make_config(
     *,
     provider: str = "openai",
