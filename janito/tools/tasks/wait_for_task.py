@@ -44,7 +44,7 @@ def _should_show_spinner() -> bool:
     return get_report_handler() is None
 
 
-def _task_summary(task_id: str) -> str:
+def _task_summary(task_id: int) -> str:
     """Best-effort one-line summary for a task id.
 
     Looks the task up in the ``task_manager`` so WaitForTask can present
@@ -65,7 +65,7 @@ def _task_summary(task_id: str) -> str:
             return task.summary
     except (AttributeError, KeyError):
         pass
-    return task_id
+    return str(task_id)
 
 
 def _format_duration(seconds: float | None) -> str:
@@ -159,7 +159,7 @@ def _summarize_outcomes(results: list[dict[str, Any]]) -> str:
 
 
 def _wait_with_spinner(
-    task_ids: list[str],
+    task_ids: list[int],
     timeout: float | None,
     on_task_complete: Any,
     max_output_lines: int | None = None,
@@ -250,7 +250,7 @@ class WaitForTask(BaseTool):
     StartTask.
 
     Args:
-        task_ids (list[str]): The ids of the tasks to wait for (returned by
+        task_ids (list[int]): The ids of the tasks to wait for (returned by
             StartTask).
         timeout (float, optional): Total wait budget in seconds.  None (the
             default) waits indefinitely.  When the budget expires before
@@ -268,7 +268,7 @@ class WaitForTask(BaseTool):
 
     def run(
         self,
-        task_ids: list[str],
+        task_ids: list[int],
         timeout: float | None = None,
         max_lines: int | None = None,
     ) -> dict[str, Any]:
@@ -282,7 +282,7 @@ class WaitForTask(BaseTool):
         stdout/stderr content is returned inline in the result.
 
         Args:
-            task_ids (list[str]): The ids of the tasks to wait for.
+            task_ids (list[int]): The ids of the tasks to wait for.
             timeout (float, optional): Total wait budget in seconds.  None
                 (default) waits indefinitely.  When it expires before every
                 task has finished, the results collected so far are returned
@@ -372,7 +372,7 @@ class WaitForTask(BaseTool):
             self.report_error(str(e))
             return {"success": False, "error": str(e), "task_ids": task_ids}
 
-        except Exception as e:
+        except (ValueError, OSError, RuntimeError) as e:
             self.report_error(f"Error: {e}")
             return {"success": False, "error": str(e), "task_ids": task_ids}
 
@@ -408,6 +408,7 @@ def main():
     parser.add_argument(
         "task_ids",
         nargs="+",
+        type=int,
         help="The ids of the tasks to wait for (returned by StartTask)",
     )
     parser.add_argument(
@@ -448,11 +449,11 @@ def main():
             if result.get("timed_out"):
                 print(
                     f"  ⏳ wait budget expired; still running: "
-                    f"{', '.join(result['pending_task_ids'])}"
+                    f"{', '.join(str(x) for x in result['pending_task_ids'])}"
                 )
             terminated = result.get("terminated_task_ids") or []
             if terminated:
-                print(f"  ⏹ terminated: {', '.join(terminated)}")
+                print(f"  ⏹ terminated: {', '.join(str(x) for x in terminated)}")
         else:
             print(f"  ❌ Failed: {result.get('error', 'Unknown error')}")
 

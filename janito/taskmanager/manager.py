@@ -12,7 +12,6 @@ import subprocess
 import tempfile
 import threading
 import time
-import uuid
 from collections.abc import Callable
 from typing import Any
 
@@ -41,12 +40,13 @@ class TaskManager:
     """Registry of parallel tasks, each a child ``janito`` process."""
 
     def __init__(self) -> None:
-        self._tasks: dict[str, Task] = {}
+        self._tasks: dict[int, Task] = {}
         self._lock = threading.Lock()
+        self._next_task_id: int = 1
         # task_ids in the order their child processes exited (appended by the
         # per-task wait threads), so wait_for_task() can drain them in true
         # completion order even when several finish near-simultaneously.
-        self._completion_order: list[str] = []
+        self._completion_order: list[int] = []
         self._completion_lock = threading.Lock()
         # Clean up running processes and temp files at interpreter exit.
         atexit.register(self.cleanup)
@@ -108,7 +108,9 @@ class TaskManager:
         if not os.path.isdir(cwd):
             raise ValueError(f"working_dir is not a directory: {cwd}")
 
-        task_id = uuid.uuid4().hex[:12]
+        with self._lock:
+            task_id = self._next_task_id
+            self._next_task_id += 1
         cmd = build_task_command(privileges)
 
         stdout_tmp = tempfile.NamedTemporaryFile(
@@ -414,7 +416,7 @@ class TaskManager:
             )
         return killed
 
-    def get_task(self, task_id: str) -> Task:
+    def get_task(self, task_id: int) -> Task:
         """Return the :class:`Task` registered under ``task_id``.
 
         Raises:
@@ -426,7 +428,7 @@ class TaskManager:
             raise KeyError(f"Unknown task id: {task_id}")
         return task
 
-    def stop_task(self, task_id: str) -> dict[str, Any]:
+    def stop_task(self, task_id: int) -> dict[str, Any]:
         """Stop a running task (SIGTERM, then SIGKILL after 10s).
 
         The task is labelled :data:`EXIT_STOPPED` *before* the signal is sent,
@@ -477,7 +479,7 @@ class TaskManager:
 
     def wait_for_task(
         self,
-        task_ids: list[str],
+        task_ids: list[int],
         on_task_complete: Callable[[dict[str, Any]], None] | None = None,
         timeout: float | None = None,
         max_output_lines: int | None = DEFAULT_MAX_OUTPUT_LINES,

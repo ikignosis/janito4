@@ -38,7 +38,7 @@ class Task:
             spawned, used to report ``duration_seconds``.
     """
 
-    task_id: str
+    task_id: int
     summary: str | None
     description: str
     working_dir: str

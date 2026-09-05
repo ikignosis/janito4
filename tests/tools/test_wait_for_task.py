@@ -377,7 +377,7 @@ def test_schema_exposes_required_task_ids():
 
     params = schema["function"]["parameters"]
     assert params["properties"]["task_ids"]["type"] == "array"
-    assert params["properties"]["task_ids"]["items"]["type"] == "string"
+    assert params["properties"]["task_ids"]["items"]["type"] == "integer"
     assert params["properties"]["timeout"]["type"] == "number"
     assert params["required"] == ["task_ids"]
 
