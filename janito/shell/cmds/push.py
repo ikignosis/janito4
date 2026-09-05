@@ -11,13 +11,22 @@ class PushCmdHandler(CmdHandler):
 
     @property
     def description(self) -> str:
-        return "Branch conversation to a new stack level"
+        return "Branch conversation to a new stack level, optionally starting a turn with a message"
 
     def handle(self, shell, user_input: str) -> bool:
-        if user_input.lower().strip() == self.name:
+        stripped = user_input.strip()
+        lowered = stripped.lower()
+        if (
+            lowered == self.name
+            or lowered.startswith(self.name + " ")
+            or lowered.startswith(self.name + "\t")
+        ):
+            msg = stripped[len(self.name) :].strip()
             stack = shell.conversation_stack
             depth = stack.push(shell)
             print(f"Entering new chat thread [{depth}]")
+            if msg:
+                shell._run_turn(msg)
             return True
         return False
 
