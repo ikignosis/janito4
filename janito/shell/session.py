@@ -128,6 +128,12 @@ class _SessionMixin:
             self.restart_requested = True
             event.app.exit(result=None)
 
+        @kb.add("f12")
+        def do_it_action(event: KeyPressEvent) -> None:
+            """Handle F12 key to trigger 'Do It' auto-execution."""
+            self.do_it_requested = True
+            event.app.exit(result="Do It")
+
         # Style for the chat shell
         chat_shell_style = Style.from_dict(
             {

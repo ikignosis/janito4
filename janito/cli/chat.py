@@ -351,6 +351,10 @@ def run_interactive_chat(args):
         f"Using [cyan]{provider}[/cyan], model [magenta]{model}[/magenta], "
         f"API: [yellow]{api_type}[/yellow] [green]({state})[/green]"
     )
+    Console().print(
+        "Keys: [bold green]F2[/bold green] - Clear conversation, "
+        '[bold green]F12[/bold green] - Send "Do It"'
+    )
     print(
         "Starting interactive chat session. Type '/exit' or CTRL-D to end the session"
     )

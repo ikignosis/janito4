@@ -12,6 +12,7 @@ Changes since `v4.38.0` (2026-09-04).
 ### Added
 - Add `/push` and `/pop` shell commands: nestable conversation-thread stack with deep-copy snapshots per level, `[n]` depth in the prompt, `Last Message:` replay on `/pop`, and full-stack clear on `clear`/`F2` (close #124).
 - Support `/push <msg>`: after cloning the history into a new thread, immediately start a turn with `<msg>` as the prompt (refs #124).
+- Restore `F12` "Do It" keybinding (auto-sends a `Do It` prompt to continue an existing plan) and print `Keys: F2 - Clear conversation, F12 - Send "Do It"` with rich styling before the interactive startup line.
 
 ### Changed
 - Show reasoning effort (`effort: <level>`) in the shell status bar instead of `[F2] clear [/exit] end`, using the same style as the provider segment.
