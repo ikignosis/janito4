@@ -216,9 +216,7 @@ class InteractiveShell(_SessionMixin):
             (Ctrl+C declined, or F2 restart requested).
         """
         # Use HTML formatting for prompt
-        depth = getattr(getattr(self, "conversation_stack", None), "depth", 0) or 0
-        prefix = f"[{depth}] " if depth else ""
-        prompt_text = HTML(f'<style bg="#00008b">{self.model} {prefix}# </style>')
+        prompt_text = HTML(f'<style bg="#00008b">{self.model} # </style>')
 
         try:
             result = self.session.prompt(prompt_text, multiline=self.multiline_mode)
@@ -745,11 +743,27 @@ class InteractiveShell(_SessionMixin):
             from ..privileges import privilege_badge
 
             _priv_label, _priv_style = privilege_badge()
-            _turn_title = Text.assemble(
-                f"Turn {len(self.history_turns) + 1} with ",
-                (_priv_label, _priv_style),
-                " privileges",
+            _thread_depth = (
+                getattr(getattr(self, "conversation_stack", None), "depth", 0) or 0
             )
+            if _thread_depth:
+                _turn_title = Text.assemble(
+                    "Turn ",
+                    (f"{len(self.history_turns) + 1}", "bold"),
+                    " / Thread ",
+                    (f"{_thread_depth}", "bold"),
+                    " with ",
+                    (_priv_label, _priv_style),
+                    " privileges",
+                )
+            else:
+                _turn_title = Text.assemble(
+                    "Turn ",
+                    (f"{len(self.history_turns) + 1}", "bold"),
+                    " with ",
+                    (_priv_label, _priv_style),
+                    " privileges",
+                )
             _rich_console.print(Rule(_turn_title))
             user_input = self._get_user_input()
             if user_input is None:
