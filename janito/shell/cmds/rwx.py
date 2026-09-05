@@ -1,20 +1,9 @@
-"""
-/rwx command handler - sends a prompt to the LLM using the main conversation
-history but restricted to the read, write and execute tools.
+""" /rwx command handler - switch the session privileges to full access.
 
-Unlike ``/ask`` (which starts a fresh, isolated chat history), ``/rwx`` sends
-the prompt through the main conversation: the model sees the ongoing history
-and the exchange is appended to it (rollback/cancel behaviour matches a normal
-prompt). The only difference is that ``tools=`` is filtered down to the
-read + write + execute tools -- the built-in tools whose ``@tool(permissions=...)``
-declares only ``"r"``, ``"w"`` and/or ``"x"``, so the model gets the full
-toolset (read, write and execute) in a single exchange.
+``/rwx`` changes the privileges of the whole session: subsequent prompts
+offer the full read + write + execute toolset. See issue #141.
 """
 
-from ._tool_filters import (
-    get_tool_schemas_by_permission_letters,
-    warn_if_privilege_override,
-)
 from .base import CmdHandler
 from .registry import register_command
 
@@ -31,11 +20,13 @@ def get_read_write_exec_tool_schemas() -> list[dict]:
     permission-restricted commands -- only the built-in read, write and
     execute tools are offered.
     """
+    from ._tool_filters import get_tool_schemas_by_permission_letters
+
     return get_tool_schemas_by_permission_letters("rwx")
 
 
 class RwxCmdHandler(CmdHandler):
-    """Command handler for /rwx - asks the LLM with read + write + execute tools."""
+    """Command handler for /rwx - switch session privileges to full access."""
 
     @property
     def name(self) -> str:
@@ -43,51 +34,24 @@ class RwxCmdHandler(CmdHandler):
 
     @property
     def description(self) -> str:
-        return "Send a prompt restricted to read, write and execute tools"
+        return "Switch session privileges to full access"
 
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /rwx command."""
-        # Match '/rwx' exactly or '/rwx <question>' (not '/rwxs', etc.)
-        if (
-            user_input.lower() != self.name.lower()
-            and not user_input.lower().startswith(self.name.lower() + " ")
+        # Match '/rwx' exactly or '/rwx ...' (extra text is ignored);
+        # not '/rwxs', etc.
+        text = user_input.strip()
+        if text.lower() != self.name.lower() and not text.lower().startswith(
+            self.name.lower() + " "
         ):
             return False
 
-        # Extract the question (everything after '/rwx ')
-        question = user_input[len(self.name) :].strip()
+        from janito import privileges as _privileges_mod
+        from janito.privileges import parse_privileges
 
-        if not question:
-            print("\nUsage: /rwx <your question>")
-            print(
-                "  Sends the prompt to the LLM using the main conversation"
-                " history, but restricted to the read, write and execute tools."
-            )
-            print(
-                "  The exchange stays in the main conversation history"
-                " (rollback/cancel behave like a normal prompt).\n"
-            )
-            return True
-
-        self._rwx(shell, question)
+        _privileges_mod.running_privileges = parse_privileges("rwx")
+        print("\nPrivileges switched to full access (rwx).\n")
         return True
-
-    def _rwx(self, shell, question: str) -> None:
-        """Send the prompt with the main history, using read/write/execute tools."""
-        turn_func = getattr(shell, "turn_func", None)
-        if turn_func is None:
-            print(
-                "\nError: No prompt function available. Are you in an active session?\n"
-            )
-            return
-
-        read_write_exec_schemas = get_read_write_exec_tool_schemas()
-        warn_if_privilege_override(read_write_exec_schemas, "rwx")
-        print()  # blank line before the streamed response, like /ask
-        # Reuse the shell's main-prompt path: same history, turns,
-        # Responses state sync and cancel/rollback handling -- only the tool
-        # set is restricted to the read, write and execute tools.
-        shell._run_turn(question, tools=read_write_exec_schemas)
 
 
 # Register this handler

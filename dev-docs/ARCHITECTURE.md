@@ -419,7 +419,7 @@ Tools are grouped in directories (`files/`, `system/`, `net/`, `tasks/`,
 runs their `should_load()` gate (missing binaries, credentials, platform)
 and wraps each class as a callable with the `run()` signature. Privilege
 restrictions are **not** applied at discovery time (everything is loaded so
-the per-command tool modes can override the session privileges);
+the session privilege switches can move beyond the startup privileges);
 the session tool selector applies them instead (see
 [Privileges](#privileges)). `wrap_tool_class()` / `discover_module_tools()`
 expose the same pipeline for arbitrary modules so the plugin manager can
@@ -465,10 +465,11 @@ allowed.
 Discovery loads every tool whose `should_load()` gate passes; the *session
 tool selector* (`get_session_tool_schemas` / `get_session_tool_names` in
 `janito/tooling/tools_registry.py`) applies the privilege filter to what a
-normal prompt may offer, and the per-command tool modes (`/read` `/write`
-`/rx` `/rw` `/rwx`) can override it for a single turn. The
+normal prompt may offer, and the session privilege switches (`/read`
+`/write` `/rx` `/rw` `/rwx`, issue #141) can move it beyond the privileges
+the session started with. The
 interactive CLI prints a startup hint (`Started read-only, use /rwx
-<prompt>...with full privileges..`) after the version banner
+...with full privileges..`) after the version banner
 when running with read-only privileges (the default or an explicit `-r`);
 sessions that grant WRITE or EXEC skip the hint, and single-prompt runs
 (`janito "prompt"` or piped stdin) skip it too, since `/rwx` is an

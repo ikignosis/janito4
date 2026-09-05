@@ -1,17 +1,9 @@
-"""
-/write command handler - sends a prompt to the LLM using the main conversation
-history but restricted to write-only tools.
+""" /write command handler - switch the session privileges to write-only.
 
-Unlike ``/ask`` (which starts a fresh, isolated chat history), ``/write`` sends
-the prompt through the main conversation: the model sees the ongoing history
-and the exchange is appended to it (rollback/cancel behaviour matches a normal
-prompt). The only difference is that ``tools=`` is filtered down to the
-write-only tools -- the built-in tools whose ``@tool(permissions="w")``
-declares write access and nothing else, so the model can create, modify or
-delete but cannot read, search or execute.
+``/write`` changes the privileges of the whole session: subsequent prompts
+only offer the write-only tools. See issue #141.
 """
 
-from ._tool_filters import get_tool_schemas_by_permission, warn_if_privilege_override
 from .base import CmdHandler
 from .registry import register_command
 
@@ -26,11 +18,13 @@ def get_write_only_tool_schemas() -> list[dict]:
     excluded. MCP tools carry no permission metadata here, so they are
     excluded too -- only the built-in write-only tools are offered.
     """
+    from ._tool_filters import get_tool_schemas_by_permission
+
     return get_tool_schemas_by_permission("w")
 
 
 class WriteCmdHandler(CmdHandler):
-    """Command handler for /write - asks the LLM with write-only tools."""
+    """Command handler for /write - switch session privileges to write-only."""
 
     @property
     def name(self) -> str:
@@ -38,51 +32,24 @@ class WriteCmdHandler(CmdHandler):
 
     @property
     def description(self) -> str:
-        return "Send a prompt restricted to write-only tools"
+        return "Switch session privileges to write-only"
 
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /write command."""
-        # Match '/write' exactly or '/write <question>' (not '/writes', etc.)
-        if (
-            user_input.lower() != self.name.lower()
-            and not user_input.lower().startswith(self.name.lower() + " ")
+        # Match '/write' exactly or '/write ...' (extra text is ignored);
+        # not '/writes', etc.
+        text = user_input.strip()
+        if text.lower() != self.name.lower() and not text.lower().startswith(
+            self.name.lower() + " "
         ):
             return False
 
-        # Extract the question (everything after '/write ')
-        question = user_input[len(self.name) :].strip()
+        from janito import privileges as _privileges_mod
+        from janito.privileges import parse_privileges
 
-        if not question:
-            print("\nUsage: /write <your question>")
-            print(
-                "  Sends the prompt to the LLM using the main conversation"
-                " history, but restricted to write-only tools."
-            )
-            print(
-                "  The exchange stays in the main conversation history"
-                " (rollback/cancel behave like a normal prompt).\n"
-            )
-            return True
-
-        self._write(shell, question)
+        _privileges_mod.running_privileges = parse_privileges("w")
+        print("\nPrivileges switched to write-only (w).\n")
         return True
-
-    def _write(self, shell, question: str) -> None:
-        """Send the prompt with the main history, using only write-only tools."""
-        turn_func = getattr(shell, "turn_func", None)
-        if turn_func is None:
-            print(
-                "\nError: No prompt function available. Are you in an active session?\n"
-            )
-            return
-
-        write_only_schemas = get_write_only_tool_schemas()
-        warn_if_privilege_override(write_only_schemas, "w")
-        print()  # blank line before the streamed response, like /ask
-        # Reuse the shell's main-prompt path: same history, turns,
-        # Responses state sync and cancel/rollback handling -- only the tool
-        # set is restricted to the write-only tools.
-        shell._run_turn(question, tools=write_only_schemas)
 
 
 # Register this handler

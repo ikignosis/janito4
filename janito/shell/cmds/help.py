@@ -47,11 +47,12 @@ class HelpCmdHandler(CmdHandler):
             table.add_row(cmd.name, cmd.description)
         console.print(table)
 
-        # The prompt tool modes: the same conversation history is sent with
-        # `tools=` filtered down to a different type of tool (or no tools).
-        # Split into its own table so the types are easy to compare.
+        # The session privilege switches: bare commands that change the
+        # privileges of the whole session (all subsequent prompts), plus the
+        # per-message /notools mode. Split into its own table so the types
+        # are easy to compare.
         tool_modes = Table(
-            title="Prompt tool modes",
+            title="Session privilege switches",
             title_style="bold",
             header_style="bold cyan",
             show_header=False,
@@ -62,29 +63,29 @@ class HelpCmdHandler(CmdHandler):
         tool_modes.add_column("Tool type", style="cyan", no_wrap=True)
         tool_modes.add_column("Description", overflow="fold")
         tool_modes.add_row(
-            "/read <question>",
+            "/read",
             "read-only",
-            "Ask the LLM using the main history but read-only tools",
+            "Switch the session privileges to read-only",
         )
         tool_modes.add_row(
-            "/rw <question>",
+            "/rw",
             "read + write",
-            "Ask the LLM using the main history but read + write tools",
+            "Switch the session privileges to read + write",
         )
         tool_modes.add_row(
-            "/rwx <question>",
+            "/rwx",
             "read + write + execute",
-            "Ask the LLM using the main history but read + write + execute tools",
+            "Switch the session privileges to full access",
         )
         tool_modes.add_row(
-            "/rx <question>",
+            "/rx",
             "read + execute",
-            "Ask the LLM using the main history but read + execute tools",
+            "Switch the session privileges to read + execute",
         )
         tool_modes.add_row(
-            "/write <question>",
+            "/write",
             "write-only",
-            "Ask the LLM using the main history but write-only tools",
+            "Switch the session privileges to write-only",
         )
         tool_modes.add_row(
             "/notools <message>",

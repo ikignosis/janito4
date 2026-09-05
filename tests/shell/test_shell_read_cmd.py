@@ -1,12 +1,10 @@
 """
 Tests for the /read shell command.
 
-``/read <question>`` sends the prompt to the LLM using the **main**
-conversation history (unlike ``/ask``, which starts a fresh history) but with
-``tools=`` filtered down to the read-only (``"r"`` permission) tools. These
-tests verify the command is registered, dispatches correctly, builds the
-read-only tool schema list, and routes the prompt through the shell's
-main-prompt path.
+``/read`` is a bare command that switches the privileges of the whole
+session to read-only (issue #141). These tests verify the command is
+registered, dispatches correctly, switches ``running_privileges``, and that
+the read-only tool schema helper still filters by the ``"r"`` permission.
 """
 
 import sys
@@ -17,8 +15,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
 
+from janito import privileges as _privileges_mod
+from janito.privileges import format_privileges
 from janito.shell import InteractiveShell
 from janito.shell.cmds.read import ReadCmdHandler, get_read_only_tool_schemas
+from tests.conftest import assert_command_matching, assert_command_registered
 
 # A fake tool schema pair: one read-only tool and one write tool.
 READ_SCHEMA = {
@@ -44,81 +45,85 @@ def _shell():
     return InteractiveShell(model="test-model", no_history=True)
 
 
+@pytest.fixture(autouse=True)
+def _restore_running_privileges():
+    """Privilege switches mutate the module-global; never leak it."""
+    old = _privileges_mod.running_privileges
+    yield
+    _privileges_mod.running_privileges = old
+
+
 # ---------------------------------------------------------------------------
 # Registry / dispatch
 # ---------------------------------------------------------------------------
 
 
 def test_read_command_is_registered():
-    from janito.shell.cmds import get_registered_commands
-
-    names = [c.name for c in get_registered_commands()]
-    assert "/read" in names
+    assert_command_registered("/read")
 
 
 def test_handler_name():
     assert ReadCmdHandler().name == "/read"
 
 
-def test_handle_dispatches_only_read_command(monkeypatch):
+def test_handle_dispatches_only_read_command():
+    assert_command_matching(ReadCmdHandler(), "/read")
     handler = ReadCmdHandler()
     shell = _shell()
-    shell.turn_func = lambda **kw: None
-    sent = {}
-
-    def fake_run_turn(prompt, tools=None):
-        sent["prompt"] = prompt
-        sent["tools"] = tools
-
-    monkeypatch.setattr(shell, "_run_turn", fake_run_turn)
-    monkeypatch.setattr(
-        "janito.shell.cmds.read.get_read_only_tool_schemas",
-        lambda: [READ_SCHEMA],
-    )
-
-    assert handler.handle(shell, "/read what is this?") is True
-    assert sent["prompt"] == "what is this?"
-    assert sent["tools"] == [READ_SCHEMA]
-
-    # Case-insensitive command, question preserved.
-    assert handler.handle(shell, "/READ tell me more") is True
-    assert sent["prompt"] == "tell me more"
-
-    # Bare '/read' matches but shows usage (no send).
-    assert handler.handle(shell, "/read") is True
-
-    # Non-matching inputs are not handled.
+    # Similar prefixes are not handled.
     assert handler.handle(shell, "/reads") is False
     assert handler.handle(shell, "/readme") is False
-    assert handler.handle(shell, "/tools") is False
-    assert handler.handle(shell, "hello") is False
 
 
-def test_read_without_question_shows_usage(monkeypatch, capfd):
+# ---------------------------------------------------------------------------
+# Session privilege switch
+# ---------------------------------------------------------------------------
+
+
+def test_read_switches_session_privileges(monkeypatch):
+    """Bare /read sets running_privileges to read-only."""
     handler = ReadCmdHandler()
     shell = _shell()
-    called = {"n": 0}
+    monkeypatch.setattr(
+        _privileges_mod, "running_privileges", _privileges_mod.Privileges()
+    )
+    assert handler.handle(shell, "/read") is True
+    assert format_privileges(_privileges_mod.running_privileges) == "r"
 
-    def fake_run_turn(prompt, tools=None):
-        called["n"] += 1
 
-    monkeypatch.setattr(shell, "_run_turn", fake_run_turn)
+def test_read_ignores_extra_text(monkeypatch):
+    """Extra text after /read is ignored; the switch still happens."""
+    handler = ReadCmdHandler()
+    shell = _shell()
+    monkeypatch.setattr(
+        _privileges_mod, "running_privileges", _privileges_mod.Privileges()
+    )
+    assert handler.handle(shell, "/read please summarize") is True
+    assert format_privileges(_privileges_mod.running_privileges) == "r"
 
+
+def test_read_prints_confirmation(monkeypatch, capfd):
+    handler = ReadCmdHandler()
+    shell = _shell()
+    monkeypatch.setattr(
+        _privileges_mod, "running_privileges", _privileges_mod.Privileges()
+    )
     assert handler.handle(shell, "/read") is True
     out = capfd.readouterr().out
-    assert "Usage: /read <your question>" in out
-    assert "read-only tools" in out
-    assert called["n"] == 0
+    assert out.strip(), "switch printed nothing"
 
 
-def test_read_requires_turn_func(monkeypatch, capfd):
-    """Without turn_func an error is printed instead of crashing."""
+def test_read_overwrites_previous_privileges(monkeypatch):
+    """A previous session level (e.g. rwx) is replaced by read-only."""
     handler = ReadCmdHandler()
     shell = _shell()
-    # The shell has no turn_func until run() sets it.
-    assert handler.handle(shell, "/read hello") is True
-    out = capfd.readouterr().out
-    assert "No prompt function available" in out
+    monkeypatch.setattr(
+        _privileges_mod,
+        "running_privileges",
+        _privileges_mod.Privileges(READ=True, WRITE=True, EXEC=True),
+    )
+    assert handler.handle(shell, "/read") is True
+    assert format_privileges(_privileges_mod.running_privileges) == "r"
 
 
 # ---------------------------------------------------------------------------
@@ -176,45 +181,6 @@ def test_get_read_only_tool_schemas_empty_without_r_tools(monkeypatch):
     )
 
     assert get_read_only_tool_schemas() == []
-
-
-# ---------------------------------------------------------------------------
-# End-to-end routing through the main conversation
-# ---------------------------------------------------------------------------
-
-
-def test_read_routes_through_main_history_with_read_only_tools(monkeypatch):
-    """/read goes through _run_turn, which uses the main history and the
-    filtered tools."""
-    handler = ReadCmdHandler()
-    shell = _shell()
-    shell.initialize_history(system_prompt="sys")
-    shell.verbose = False
-    shell.thinking = False
-    shell.no_tools = False
-
-    monkeypatch.setattr(
-        "janito.shell.cmds.read.get_read_only_tool_schemas",
-        lambda: [READ_SCHEMA],
-    )
-
-    kwargs = {}
-
-    def capture(prompt, **kw):
-        kwargs["prompt"] = prompt
-        kwargs.update(kw)
-        return "assistant"
-
-    shell.turn_func = capture
-
-    handler.handle(shell, "/read summarize the project")
-
-    # The main history is used (mutated in place by the Completions client),
-    # and only the read-only schemas are passed as tools.
-    assert kwargs["prompt"] == "summarize the project"
-    assert kwargs["previous_messages"] is shell.messages_history
-    assert kwargs["instructions"] == "sys"
-    assert kwargs["tools"] == [READ_SCHEMA]
 
 
 if __name__ == "__main__":  # pragma: no cover

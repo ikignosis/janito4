@@ -118,8 +118,8 @@ Warning: running with full privileges (rwx). Use -r/-w/-x to restrict.
 ```
 
 Explicit `-r`/`-w`/`-x` flags or a configured `privileges` value -- even
-`rwx` -- print no warning. In the interactive shell, `/rwx <prompt>` runs
-a single request with the full toolset.
+`rwx` -- print no warning. In the interactive shell, `/rwx` switches the
+session to the full toolset.
 
 ## Tools
 

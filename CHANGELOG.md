@@ -17,6 +17,7 @@ Changes since `v4.38.0` (2026-09-04).
 - Restore `F12` "Do It" keybinding (auto-sends a `Do It` prompt to continue an existing plan) and print `Keys: F2 - Clear conversation, F12 - Send "Do It"` with rich styling before the interactive startup line.
 
 ### Changed
+- Change `/read`, `/write`, `/rx`, `/rw` and `/rwx` from single-turn `/cmd <msg>` prompt overrides into bare session privilege switches: each command sets `running_privileges` for the whole session (all subsequent prompts), with extra text ignored, and the switch is reflected in `/priv`, the `/help` session-switches table and the Turn-rule privilege badge (close #141).
 - Show reasoning effort (`effort: <level>`) in the shell status bar instead of `[F2] clear [/exit] end`, using the same style as the provider segment.
 - Change task ids to incremental integers starting at 1 instead of random hex strings (close #111).
 - Expand `--no-tools` scope: it now disables skill tools, plugin tools, and server-side/builtin provider tools in addition to the autoload toolsets and MCP tools (close #127).

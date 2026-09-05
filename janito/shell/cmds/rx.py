@@ -1,17 +1,9 @@
-"""
-/rx command handler - sends a prompt to the LLM using the main conversation
-history but restricted to the read and execute tools.
+""" /rx command handler - switch the session privileges to read + execute.
 
-Unlike ``/ask`` (which starts a fresh, isolated chat history), ``/rx`` sends
-the prompt through the main conversation: the model sees the ongoing history
-and the exchange is appended to it (rollback/cancel behaviour matches a normal
-prompt). The only difference is that ``tools=`` is filtered down to the
-read + execute tools -- the built-in tools whose ``@tool(permissions=...)``
-declares ``"r"`` or ``"x"`` and nothing else, so the model can read, search,
-fetch and run commands but cannot write or modify anything.
+``/rx`` changes the privileges of the whole session: subsequent prompts
+only offer the read and execute tools. See issue #141.
 """
 
-from ._tool_filters import get_tool_schemas_by_permissions, warn_if_privilege_override
 from .base import CmdHandler
 from .registry import register_command
 
@@ -27,11 +19,13 @@ def get_read_exec_tool_schemas() -> list[dict]:
     permission metadata here, so they are excluded too -- only the built-in
     read and execute tools are offered.
     """
+    from ._tool_filters import get_tool_schemas_by_permissions
+
     return get_tool_schemas_by_permissions(["r", "x"])
 
 
 class RxCmdHandler(CmdHandler):
-    """Command handler for /rx - asks the LLM with read + execute tools."""
+    """Command handler for /rx - switch session privileges to read + execute."""
 
     @property
     def name(self) -> str:
@@ -39,51 +33,24 @@ class RxCmdHandler(CmdHandler):
 
     @property
     def description(self) -> str:
-        return "Send a prompt restricted to read and execute tools"
+        return "Switch session privileges to read + execute"
 
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /rx command."""
-        # Match '/rx' exactly or '/rx <question>' (not '/rxs', etc.)
-        if (
-            user_input.lower() != self.name.lower()
-            and not user_input.lower().startswith(self.name.lower() + " ")
+        # Match '/rx' exactly or '/rx ...' (extra text is ignored);
+        # not '/rxs', etc.
+        text = user_input.strip()
+        if text.lower() != self.name.lower() and not text.lower().startswith(
+            self.name.lower() + " "
         ):
             return False
 
-        # Extract the question (everything after '/rx ')
-        question = user_input[len(self.name) :].strip()
+        from janito import privileges as _privileges_mod
+        from janito.privileges import parse_privileges
 
-        if not question:
-            print("\nUsage: /rx <your question>")
-            print(
-                "  Sends the prompt to the LLM using the main conversation"
-                " history, but restricted to the read and execute tools."
-            )
-            print(
-                "  The exchange stays in the main conversation history"
-                " (rollback/cancel behave like a normal prompt).\n"
-            )
-            return True
-
-        self._rx(shell, question)
+        _privileges_mod.running_privileges = parse_privileges("rx")
+        print("\nPrivileges switched to read + execute (rx).\n")
         return True
-
-    def _rx(self, shell, question: str) -> None:
-        """Send the prompt with the main history, using only read/execute tools."""
-        turn_func = getattr(shell, "turn_func", None)
-        if turn_func is None:
-            print(
-                "\nError: No prompt function available. Are you in an active session?\n"
-            )
-            return
-
-        read_exec_schemas = get_read_exec_tool_schemas()
-        warn_if_privilege_override(read_exec_schemas, "rx")
-        print()  # blank line before the streamed response, like /ask
-        # Reuse the shell's main-prompt path: same history, turns,
-        # Responses state sync and cancel/rollback handling -- only the tool
-        # set is restricted to the read and execute tools.
-        shell._run_turn(question, tools=read_exec_schemas)
 
 
 # Register this handler

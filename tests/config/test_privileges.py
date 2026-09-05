@@ -4,10 +4,10 @@ Tests for the session privilege model (issue #87).
 The registry loads **every** tool whose ``should_load()`` gate passes --
 privilege restrictions (``-r``/``-w``/``-x``) are applied by the *session
 tool selector* (``get_session_tool_schemas`` / ``get_session_tool_names``)
-instead of at discovery time.  This lets the per-command tool modes (``/read``
-``/write`` ``/rx`` ``/rw`` ``/rwx``) override the session privileges for a
-single exchange: under ``janito -r``, ``/write <msg>`` still offers the
-write-only tools.  The execution-time gate (``allowed_tools`` on
+instead of at discovery time.  This lets the session privilege switches
+(``/read`` ``/write`` ``/rx`` ``/rw`` ``/rwx``, issue #141) move beyond the
+privileges the session started with: under ``janito -r``, ``/write`` still
+offers the write-only tools.  The execution-time gate (``allowed_tools`` on
 ``run_tool`` / ``ToolExecutor``) then ensures the model can only call the
 tools that were actually offered in the turn.
 

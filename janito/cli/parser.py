@@ -91,7 +91,7 @@ Examples:
   Defaults to READ-only when no -r/-w/-x flag is given. The 'privileges'
   config default (--set privileges=rwx) applies when no flag is given;
   explicit -r/-w/-x flags always take priority. In the interactive shell,
-  /rwx <prompt> runs a single request with full privileges.
+  /rwx switches the session to full privileges.
   janito -S "You are a cow"                                   # Override system prompt (tools stay enabled)
   janito --no-tools "Your prompt"                             # No tools loaded (all tool surfaces disabled)
   janito --no-tasks "Your prompt"                             # No tasks tools (other tools stay enabled)

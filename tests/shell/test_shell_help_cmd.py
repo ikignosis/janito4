@@ -57,7 +57,7 @@ if pytest is not None:
         handler = HelpCmdHandler()
         handler.handle(_DummyShell(), "/help")
         out = capfd.readouterr().out
-        for section in ("Prompt tool modes", "Additional features"):
+        for section in ("Session privilege switches", "Additional features"):
             assert section in out
 
 else:  # pragma: no cover - fallback runner without pytest

@@ -411,8 +411,7 @@ class InteractiveShell(_SessionMixin):
             tools: Optional explicit tool schemas to offer the model. When
                 ``None`` (default) the session default applies (all tools, or
                 none when ``no_tools`` is set); pass a list to restrict the
-                model to a subset of tools (e.g. the read-only tools used by
-                ``/read``).
+                model to a subset of tools (e.g. no tools for ``/notools``).
         """
         if tools is None:
             tools_to_use = [] if self.no_tools else None
@@ -431,10 +430,10 @@ class InteractiveShell(_SessionMixin):
         self.mirrored_turn = len(self.mirrored_history)
         # Track this turn's effective privileges so tools that spawn child
         # processes (StartTask) mirror the running turn, not just the
-        # session's cmdline privileges: /read /write /rx /rw /rwx override
-        # the tool set for a single turn and that override must propagate to
-        # the children (issue #94).  Reset when the turn ends so a
-        # restricted turn never leaks into the next one.
+        # session's cmdline privileges: a turn with an explicit tool set
+        # (e.g. /notools) must propagate that restriction to the children
+        # (issue #94).  Reset when the turn ends so a restricted turn never
+        # leaks into the next one.
         turn_privileges_token = set_turn_privileges(
             resolve_turn_privileges(tools_to_use)
         )

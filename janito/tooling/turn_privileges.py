@@ -1,27 +1,26 @@
 """Current-turn privilege tracking (used by the StartTask tool).
 
-The ``/read``, ``/write``, ``/rx``, ``/rw`` and ``/rwx`` commands run a
-single turn with a restricted (or expanded) tool set that is independent of
-the session's ``-r``/``-w``/``-x`` privileges (issue #87).  ``StartTask``
-spawns a child ``janito`` process and must mirror the privileges of the task
-that is currently running -- the turn in which the tool was called -- not
-just the privileges the parent was launched with.  This module tracks those
-*turn-specific privileges* through a ``ContextVar`` (mirroring the design of
+A turn may run with an explicit tool set that is independent of the
+session's ``-r``/``-w``/``-x`` privileges (issue #87; e.g. ``/notools``,
+or the pre-#141 single-turn ``/read``/``/write``/``/rx``/``/rw``/``/rwx``
+overrides).  ``StartTask`` spawns a child ``janito`` process and must
+mirror the privileges of the task that is currently running -- the turn in
+which the tool was called -- not just the privileges the parent was
+launched with.  This module tracks those *turn-specific privileges*
+through a ``ContextVar`` (mirroring the design of
 :mod:`janito.tooling.reporter` and :mod:`janito.tooling.prompting`): the
 shell sets it around each turn, ``StartTask`` reads it.
 
-The value is the canonical ``r``/``w``/``x`` string (e.g. ``"rx"`` for a
-``/rx`` turn, ``"rwx"`` for a ``/rwx`` turn, ``"rw"`` for a normal turn
-under ``janito -r -w``).  ``None`` means no turn is running in the current
-context (single-prompt mode, web mode, tests) -- callers then fall back to
-the session's ``running_privileges``.
+The value is the canonical ``r``/``w``/``x`` string (e.g. ``""`` for a
+``/notools`` turn, ``"rw"`` for a normal turn under ``janito -r -w``).
+``None`` means no turn is running in the current context (single-prompt
+mode, web mode, tests) -- callers then fall back to the session's
+``running_privileges``.
 """
 
 from contextvars import ContextVar, Token
 
-_turn_privileges: ContextVar[str | None] = ContextVar(
-    "_turn_privileges", default=None
-)
+_turn_privileges: ContextVar[str | None] = ContextVar("_turn_privileges", default=None)
 
 
 def set_turn_privileges(privileges: str | None) -> Token:
@@ -118,8 +117,8 @@ def current_turn_privileges() -> str:
     """Return the privileges a child spawned from this context should get.
 
     Prefers the turn running in the current context (set by the shell's
-    ``_run_turn`` for the ``/read`` ``/write`` ``/rx`` ``/rw`` ``/rwx``
-    turns), falling back to the session's ``running_privileges`` when no
+    ``_run_turn`` for turns with an explicit tool set such as ``/notools``),
+    falling back to the session's ``running_privileges`` when no
     turn is active here (single-prompt mode, web mode, tests).
 
     Returns:

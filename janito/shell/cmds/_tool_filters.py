@@ -2,20 +2,19 @@
 Shared tool-filtering helpers for the /read, /write, /rx, /rw and /rwx
 shell commands.
 
-These commands send the prompt through the shell's main-prompt path while
-restricting ``tools=`` to a permission subset of the built-in tools: /read
-offers the read-only (``"r"``) tools, /write offers the write-only (``"w"``)
-tools, /rx offers the read + execute (``"r"``/``"x"``) tools, /rw offers the
-read + write (``"r"``/``"w"``) tools and /rwx offers the read + write +
-execute tools. The filtering itself is identical, so it lives here.
+These commands switch the privileges of the whole session (issue #141):
+/read selects the read-only (``"r"``) tools, /write the write-only
+(``"w"``) tools, /rx the read + execute (``"r"``/``"x"``) tools, /rw the
+read + write (``"r"``/``"w"``) tools and /rwx the read + write + execute
+tools. The filtering itself is identical, so it lives here.
 
 The registry is **complete** (discovery loads every tool regardless of the
-``-r``/``-w``/``-x`` flags), so these commands can also *expand* beyond the
-session privileges for a single turn (issue #87): under ``janito -r``,
-``/write <msg>`` still offers the write-only tools.  When a command offers
-tools the session privileges would not normally allow,
-:func:`warn_if_privilege_override` prints a one-line note so the escalation
-is visible.
+``-r``/``-w``/``-x`` flags), so switching the session privileges can also
+*expand* beyond the privileges the session started with (issue #87):
+under ``janito -r``, ``/write`` still offers the write-only tools.  When a
+switch offers tools the previous session privileges would not normally
+allow, :func:`warn_if_privilege_override` prints a one-line note so the
+escalation is visible.
 """
 
 from collections.abc import Iterable
@@ -26,9 +25,9 @@ def warn_if_privilege_override(schemas: list[dict[str, Any]], permissions: str) 
     """Print a one-line warning when ``schemas`` expand beyond the session
     privileges.
 
-    The /read, /write, /rx, /rw and /rwx commands explicitly override the
-    runtime ``-r``/``-w``/``-x`` restrictions for the current turn (issue
-    #87); surface that so the escalation is visible, mirroring the
+    The /read, /write, /rx, /rw and /rwx session switches (issue #141) can
+    expand beyond the runtime ``-r``/``-w``/``-x`` restrictions the session
+    started with (issue #87); surface that so the escalation is visible, mirroring the
     full-privileges warning at startup.  ``permissions`` is the set of
     permission letters the command grants for the turn (e.g. ``"rx"`` for
     ``/rx``); it is rendered in the note as ``(-r/-x)`` so the message

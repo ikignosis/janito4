@@ -1,12 +1,10 @@
 """
 Tests for the /write shell command.
 
-``/write <question>`` sends the prompt to the LLM using the **main**
-conversation history (unlike ``/ask``, which starts a fresh history) but with
-``tools=`` filtered down to the write-only (``"w"`` permission) tools. These
-tests verify the command is registered, dispatches correctly, builds the
-write-only tool schema list, and routes the prompt through the shell's
-main-prompt path.
+``/write`` is a bare command that switches the privileges of the whole
+session to write-only (issue #141). These tests verify the command is
+registered, dispatches correctly, switches ``running_privileges``, and that
+the write-only tool schema helper still filters by the ``"w"`` permission.
 """
 
 import sys
@@ -17,10 +15,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
 
+from janito import privileges as _privileges_mod
+from janito.privileges import format_privileges
 from janito.shell import InteractiveShell
 from janito.shell.cmds.write import WriteCmdHandler, get_write_only_tool_schemas
+from tests.conftest import assert_command_matching, assert_command_registered
 
-# A fake tool schema pair: one write-only tool and one read-only tool.
+# A fake tool schema pair: one write tool and one read tool.
 WRITE_SCHEMA = {
     "type": "function",
     "function": {
@@ -44,81 +45,85 @@ def _shell():
     return InteractiveShell(model="test-model", no_history=True)
 
 
+@pytest.fixture(autouse=True)
+def _restore_running_privileges():
+    """Privilege switches mutate the module-global; never leak it."""
+    old = _privileges_mod.running_privileges
+    yield
+    _privileges_mod.running_privileges = old
+
+
 # ---------------------------------------------------------------------------
 # Registry / dispatch
 # ---------------------------------------------------------------------------
 
 
 def test_write_command_is_registered():
-    from janito.shell.cmds import get_registered_commands
-
-    names = [c.name for c in get_registered_commands()]
-    assert "/write" in names
+    assert_command_registered("/write")
 
 
 def test_handler_name():
     assert WriteCmdHandler().name == "/write"
 
 
-def test_handle_dispatches_only_write_command(monkeypatch):
+def test_handle_dispatches_only_write_command():
+    assert_command_matching(WriteCmdHandler(), "/write")
     handler = WriteCmdHandler()
     shell = _shell()
-    shell.turn_func = lambda **kw: None
-    sent = {}
-
-    def fake_run_turn(prompt, tools=None):
-        sent["prompt"] = prompt
-        sent["tools"] = tools
-
-    monkeypatch.setattr(shell, "_run_turn", fake_run_turn)
-    monkeypatch.setattr(
-        "janito.shell.cmds.write.get_write_only_tool_schemas",
-        lambda: [WRITE_SCHEMA],
-    )
-
-    assert handler.handle(shell, "/write create a file") is True
-    assert sent["prompt"] == "create a file"
-    assert sent["tools"] == [WRITE_SCHEMA]
-
-    # Case-insensitive command, question preserved.
-    assert handler.handle(shell, "/WRITE create another") is True
-    assert sent["prompt"] == "create another"
-
-    # Bare '/write' matches but shows usage (no send).
-    assert handler.handle(shell, "/write") is True
-
-    # Non-matching inputs are not handled.
+    # Similar prefixes are not handled.
     assert handler.handle(shell, "/writes") is False
     assert handler.handle(shell, "/writeup") is False
-    assert handler.handle(shell, "/tools") is False
-    assert handler.handle(shell, "hello") is False
 
 
-def test_write_without_question_shows_usage(monkeypatch, capfd):
+# ---------------------------------------------------------------------------
+# Session privilege switch
+# ---------------------------------------------------------------------------
+
+
+def test_write_switches_session_privileges(monkeypatch):
+    """Bare /write sets running_privileges to write-only."""
     handler = WriteCmdHandler()
     shell = _shell()
-    called = {"n": 0}
+    monkeypatch.setattr(
+        _privileges_mod, "running_privileges", _privileges_mod.Privileges()
+    )
+    assert handler.handle(shell, "/write") is True
+    assert format_privileges(_privileges_mod.running_privileges) == "w"
 
-    def fake_run_turn(prompt, tools=None):
-        called["n"] += 1
 
-    monkeypatch.setattr(shell, "_run_turn", fake_run_turn)
+def test_write_ignores_extra_text(monkeypatch):
+    """Extra text after /write is ignored; the switch still happens."""
+    handler = WriteCmdHandler()
+    shell = _shell()
+    monkeypatch.setattr(
+        _privileges_mod, "running_privileges", _privileges_mod.Privileges()
+    )
+    assert handler.handle(shell, "/write create a file") is True
+    assert format_privileges(_privileges_mod.running_privileges) == "w"
 
+
+def test_write_prints_confirmation(monkeypatch, capfd):
+    handler = WriteCmdHandler()
+    shell = _shell()
+    monkeypatch.setattr(
+        _privileges_mod, "running_privileges", _privileges_mod.Privileges()
+    )
     assert handler.handle(shell, "/write") is True
     out = capfd.readouterr().out
-    assert "Usage: /write <your question>" in out
-    assert "write-only tools" in out
-    assert called["n"] == 0
+    assert out.strip(), "switch printed nothing"
 
 
-def test_write_requires_turn_func(monkeypatch, capfd):
-    """Without turn_func an error is printed instead of crashing."""
+def test_write_overwrites_previous_privileges(monkeypatch):
+    """A previous session level (e.g. r-only) is replaced by write-only."""
     handler = WriteCmdHandler()
     shell = _shell()
-    # The shell has no turn_func until run() sets it.
-    assert handler.handle(shell, "/write hello") is True
-    out = capfd.readouterr().out
-    assert "No prompt function available" in out
+    monkeypatch.setattr(
+        _privileges_mod,
+        "running_privileges",
+        _privileges_mod.Privileges(READ=True),
+    )
+    assert handler.handle(shell, "/write") is True
+    assert format_privileges(_privileges_mod.running_privileges) == "w"
 
 
 # ---------------------------------------------------------------------------
@@ -176,45 +181,6 @@ def test_get_write_only_tool_schemas_empty_without_w_tools(monkeypatch):
     )
 
     assert get_write_only_tool_schemas() == []
-
-
-# ---------------------------------------------------------------------------
-# End-to-end routing through the main conversation
-# ---------------------------------------------------------------------------
-
-
-def test_write_routes_through_main_history_with_write_only_tools(monkeypatch):
-    """/write goes through _run_turn, which uses the main history and the
-    filtered tools."""
-    handler = WriteCmdHandler()
-    shell = _shell()
-    shell.initialize_history(system_prompt="sys")
-    shell.verbose = False
-    shell.thinking = False
-    shell.no_tools = False
-
-    monkeypatch.setattr(
-        "janito.shell.cmds.write.get_write_only_tool_schemas",
-        lambda: [WRITE_SCHEMA],
-    )
-
-    kwargs = {}
-
-    def capture(prompt, **kw):
-        kwargs["prompt"] = prompt
-        kwargs.update(kw)
-        return "assistant"
-
-    shell.turn_func = capture
-
-    handler.handle(shell, "/write create a summary file")
-
-    # The main history is used (mutated in place by the Completions client),
-    # and only the write-only schemas are passed as tools.
-    assert kwargs["prompt"] == "create a summary file"
-    assert kwargs["previous_messages"] is shell.messages_history
-    assert kwargs["instructions"] == "sys"
-    assert kwargs["tools"] == [WRITE_SCHEMA]
 
 
 if __name__ == "__main__":  # pragma: no cover

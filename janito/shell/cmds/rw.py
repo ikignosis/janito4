@@ -1,21 +1,9 @@
-"""
-/rw command handler - sends a prompt to the LLM using the main conversation
-history but restricted to the read and write tools.
+""" /rw command handler - switch the session privileges to read + write.
 
-Unlike ``/ask`` (which starts a fresh, isolated chat history), ``/rw`` sends
-the prompt through the main conversation: the model sees the ongoing history
-and the exchange is appended to it (rollback/cancel behaviour matches a normal
-prompt). The only difference is that ``tools=`` is filtered down to the
-read + write tools -- the built-in tools whose ``@tool(permissions=...)``
-declares only ``"r"`` and/or ``"w"`` (e.g. ``"r"``, ``"w"`` or ``"rw"``), so
-the model can read, search, fetch and modify files but cannot execute
-anything.
+``/rw`` changes the privileges of the whole session: subsequent prompts
+only offer the read and write tools. See issue #141.
 """
 
-from ._tool_filters import (
-    get_tool_schemas_by_permission_letters,
-    warn_if_privilege_override,
-)
 from .base import CmdHandler
 from .registry import register_command
 
@@ -31,11 +19,13 @@ def get_read_write_tool_schemas() -> list[dict]:
     carry no permission metadata here, so they are excluded too -- only the
     built-in read and write tools are offered.
     """
+    from ._tool_filters import get_tool_schemas_by_permission_letters
+
     return get_tool_schemas_by_permission_letters("rw")
 
 
 class RwCmdHandler(CmdHandler):
-    """Command handler for /rw - asks the LLM with read + write tools."""
+    """Command handler for /rw - switch session privileges to read + write."""
 
     @property
     def name(self) -> str:
@@ -43,51 +33,24 @@ class RwCmdHandler(CmdHandler):
 
     @property
     def description(self) -> str:
-        return "Send a prompt restricted to read and write tools"
+        return "Switch session privileges to read + write"
 
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /rw command."""
-        # Match '/rw' exactly or '/rw <question>' (not '/rws', etc.)
-        if (
-            user_input.lower() != self.name.lower()
-            and not user_input.lower().startswith(self.name.lower() + " ")
+        # Match '/rw' exactly or '/rw ...' (extra text is ignored);
+        # not '/rws', etc.
+        text = user_input.strip()
+        if text.lower() != self.name.lower() and not text.lower().startswith(
+            self.name.lower() + " "
         ):
             return False
 
-        # Extract the question (everything after '/rw ')
-        question = user_input[len(self.name) :].strip()
+        from janito import privileges as _privileges_mod
+        from janito.privileges import parse_privileges
 
-        if not question:
-            print("\nUsage: /rw <your question>")
-            print(
-                "  Sends the prompt to the LLM using the main conversation"
-                " history, but restricted to the read and write tools."
-            )
-            print(
-                "  The exchange stays in the main conversation history"
-                " (rollback/cancel behave like a normal prompt).\n"
-            )
-            return True
-
-        self._rw(shell, question)
+        _privileges_mod.running_privileges = parse_privileges("rw")
+        print("\nPrivileges switched to read + write (rw).\n")
         return True
-
-    def _rw(self, shell, question: str) -> None:
-        """Send the prompt with the main history, using only read/write tools."""
-        turn_func = getattr(shell, "turn_func", None)
-        if turn_func is None:
-            print(
-                "\nError: No prompt function available. Are you in an active session?\n"
-            )
-            return
-
-        read_write_schemas = get_read_write_tool_schemas()
-        warn_if_privilege_override(read_write_schemas, "rw")
-        print()  # blank line before the streamed response, like /ask
-        # Reuse the shell's main-prompt path: same history, turns,
-        # Responses state sync and cancel/rollback handling -- only the tool
-        # set is restricted to the read and write tools.
-        shell._run_turn(question, tools=read_write_schemas)
 
 
 # Register this handler

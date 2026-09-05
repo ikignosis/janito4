@@ -1,12 +1,11 @@
 """
 Tests for the /rwx shell command.
 
-``/rwx <question>`` sends the prompt to the LLM using the **main**
-conversation history (unlike ``/ask``, which starts a fresh history) but with
-``tools=`` filtered down to the read, write and execute (``"r"``/``"w"``/
-``"x"`` permission) tools. These tests verify the command is registered,
-dispatches correctly, builds the read + write + execute tool schema list, and
-routes the prompt through the shell's main-prompt path.
+``/rwx`` is a bare command that switches the privileges of the whole
+session to full access (issue #141). These tests verify the command is
+registered, dispatches correctly, switches ``running_privileges``, and that
+the read + write + execute tool schema helper still filters by the
+``"rwx"`` subset.
 """
 
 import sys
@@ -17,8 +16,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
 
+from janito import privileges as _privileges_mod
+from janito.privileges import format_privileges
 from janito.shell import InteractiveShell
 from janito.shell.cmds.rwx import RwxCmdHandler, get_read_write_exec_tool_schemas
+from tests.conftest import assert_command_matching, assert_command_registered
 
 # A fake tool schema quartet: one read-only tool, one write tool, one read +
 # write tool and one execute tool.
@@ -61,81 +63,85 @@ def _shell():
     return InteractiveShell(model="test-model", no_history=True)
 
 
+@pytest.fixture(autouse=True)
+def _restore_running_privileges():
+    """Privilege switches mutate the module-global; never leak it."""
+    old = _privileges_mod.running_privileges
+    yield
+    _privileges_mod.running_privileges = old
+
+
 # ---------------------------------------------------------------------------
 # Registry / dispatch
 # ---------------------------------------------------------------------------
 
 
 def test_rwx_command_is_registered():
-    from janito.shell.cmds import get_registered_commands
-
-    names = [c.name for c in get_registered_commands()]
-    assert "/rwx" in names
+    assert_command_registered("/rwx")
 
 
 def test_handler_name():
     assert RwxCmdHandler().name == "/rwx"
 
 
-def test_handle_dispatches_only_rwx_command(monkeypatch):
+def test_handle_dispatches_only_rwx_command():
+    assert_command_matching(RwxCmdHandler(), "/rwx")
     handler = RwxCmdHandler()
     shell = _shell()
-    shell.turn_func = lambda **kw: None
-    sent = {}
-
-    def fake_run_turn(prompt, tools=None):
-        sent["prompt"] = prompt
-        sent["tools"] = tools
-
-    monkeypatch.setattr(shell, "_run_turn", fake_run_turn)
-    monkeypatch.setattr(
-        "janito.shell.cmds.rwx.get_read_write_exec_tool_schemas",
-        lambda: [READ_SCHEMA, WRITE_SCHEMA, MOVE_SCHEMA, EXEC_SCHEMA],
-    )
-
-    assert handler.handle(shell, "/rwx what is this?") is True
-    assert sent["prompt"] == "what is this?"
-    assert sent["tools"] == [READ_SCHEMA, WRITE_SCHEMA, MOVE_SCHEMA, EXEC_SCHEMA]
-
-    # Case-insensitive command, question preserved.
-    assert handler.handle(shell, "/RWX tell me more") is True
-    assert sent["prompt"] == "tell me more"
-
-    # Bare '/rwx' matches but shows usage (no send).
-    assert handler.handle(shell, "/rwx") is True
-
-    # Non-matching inputs are not handled.
+    # Similar prefixes are not handled.
     assert handler.handle(shell, "/rwxs") is False
     assert handler.handle(shell, "/rwxd") is False
-    assert handler.handle(shell, "/tools") is False
-    assert handler.handle(shell, "hello") is False
 
 
-def test_rwx_without_question_shows_usage(monkeypatch, capfd):
+# ---------------------------------------------------------------------------
+# Session privilege switch
+# ---------------------------------------------------------------------------
+
+
+def test_rwx_switches_session_privileges(monkeypatch):
+    """Bare /rwx sets running_privileges to full access."""
     handler = RwxCmdHandler()
     shell = _shell()
-    called = {"n": 0}
+    monkeypatch.setattr(
+        _privileges_mod, "running_privileges", _privileges_mod.Privileges()
+    )
+    assert handler.handle(shell, "/rwx") is True
+    assert format_privileges(_privileges_mod.running_privileges) == "rwx"
 
-    def fake_run_turn(prompt, tools=None):
-        called["n"] += 1
 
-    monkeypatch.setattr(shell, "_run_turn", fake_run_turn)
+def test_rwx_ignores_extra_text(monkeypatch):
+    """Extra text after /rwx is ignored; the switch still happens."""
+    handler = RwxCmdHandler()
+    shell = _shell()
+    monkeypatch.setattr(
+        _privileges_mod, "running_privileges", _privileges_mod.Privileges()
+    )
+    assert handler.handle(shell, "/rwx build the project") is True
+    assert format_privileges(_privileges_mod.running_privileges) == "rwx"
 
+
+def test_rwx_prints_confirmation(monkeypatch, capfd):
+    handler = RwxCmdHandler()
+    shell = _shell()
+    monkeypatch.setattr(
+        _privileges_mod, "running_privileges", _privileges_mod.Privileges()
+    )
     assert handler.handle(shell, "/rwx") is True
     out = capfd.readouterr().out
-    assert "Usage: /rwx <your question>" in out
-    assert "read, write and execute tools" in out
-    assert called["n"] == 0
+    assert out.strip(), "switch printed nothing"
 
 
-def test_rwx_requires_turn_func(monkeypatch, capfd):
-    """Without turn_func an error is printed instead of crashing."""
+def test_rwx_overwrites_previous_privileges(monkeypatch):
+    """A previous session level (e.g. r-only) is replaced by full access."""
     handler = RwxCmdHandler()
     shell = _shell()
-    # The shell has no turn_func until run() sets it.
-    assert handler.handle(shell, "/rwx hello") is True
-    out = capfd.readouterr().out
-    assert "No prompt function available" in out
+    monkeypatch.setattr(
+        _privileges_mod,
+        "running_privileges",
+        _privileges_mod.Privileges(READ=True),
+    )
+    assert handler.handle(shell, "/rwx") is True
+    assert format_privileges(_privileges_mod.running_privileges) == "rwx"
 
 
 # ---------------------------------------------------------------------------
@@ -203,45 +209,6 @@ def test_get_read_write_exec_tool_schemas_empty_without_any_tools(monkeypatch):
     )
 
     assert get_read_write_exec_tool_schemas() == []
-
-
-# ---------------------------------------------------------------------------
-# End-to-end routing through the main conversation
-# ---------------------------------------------------------------------------
-
-
-def test_rwx_routes_through_main_history_with_all_tools(monkeypatch):
-    """/rwx goes through _run_turn, which uses the main history and the
-    filtered tools."""
-    handler = RwxCmdHandler()
-    shell = _shell()
-    shell.initialize_history(system_prompt="sys")
-    shell.verbose = False
-    shell.thinking = False
-    shell.no_tools = False
-
-    monkeypatch.setattr(
-        "janito.shell.cmds.rwx.get_read_write_exec_tool_schemas",
-        lambda: [READ_SCHEMA, WRITE_SCHEMA, MOVE_SCHEMA, EXEC_SCHEMA],
-    )
-
-    kwargs = {}
-
-    def capture(prompt, **kw):
-        kwargs["prompt"] = prompt
-        kwargs.update(kw)
-        return "assistant"
-
-    shell.turn_func = capture
-
-    handler.handle(shell, "/rwx build and test the project")
-
-    # The main history is used (mutated in place by the Completions client),
-    # and the full read/write/execute schemas are passed as tools.
-    assert kwargs["prompt"] == "build and test the project"
-    assert kwargs["previous_messages"] is shell.messages_history
-    assert kwargs["instructions"] == "sys"
-    assert kwargs["tools"] == [READ_SCHEMA, WRITE_SCHEMA, MOVE_SCHEMA, EXEC_SCHEMA]
 
 
 if __name__ == "__main__":  # pragma: no cover

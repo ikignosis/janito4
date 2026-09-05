@@ -1,17 +1,10 @@
-"""
-/read command handler - sends a prompt to the LLM using the main conversation
-history but restricted to read-only tools.
+""" /read command handler - switch the session privileges to read-only.
 
-Unlike ``/ask`` (which starts a fresh, isolated chat history), ``/read`` sends
-the prompt through the main conversation: the model sees the ongoing history
-and the exchange is appended to it (rollback/cancel behaviour matches a normal
-prompt). The only difference is that ``tools=`` is filtered down to the
-read-only tools -- the built-in tools whose ``@tool(permissions="r")``
-declares read access and nothing else, so the model can inspect, search and
-fetch but cannot write or execute.
+Unlike ``/ask`` (which starts a fresh, isolated chat history), ``/read``
+changes the privileges of the whole session: subsequent prompts only offer
+the read-only tools. See issue #141.
 """
 
-from ._tool_filters import get_tool_schemas_by_permission, warn_if_privilege_override
 from .base import CmdHandler
 from .registry import register_command
 
@@ -26,11 +19,13 @@ def get_read_only_tool_schemas() -> list[dict]:
     excluded. MCP tools carry no permission metadata here, so they are
     excluded too -- only the built-in read-only tools are offered.
     """
+    from ._tool_filters import get_tool_schemas_by_permission
+
     return get_tool_schemas_by_permission("r")
 
 
 class ReadCmdHandler(CmdHandler):
-    """Command handler for /read - asks the LLM with read-only tools."""
+    """Command handler for /read - switch session privileges to read-only."""
 
     @property
     def name(self) -> str:
@@ -38,51 +33,24 @@ class ReadCmdHandler(CmdHandler):
 
     @property
     def description(self) -> str:
-        return "Send a prompt restricted to read-only tools"
+        return "Switch session privileges to read-only"
 
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /read command."""
-        # Match '/read' exactly or '/read <question>' (not '/reads', etc.)
-        if (
-            user_input.lower() != self.name.lower()
-            and not user_input.lower().startswith(self.name.lower() + " ")
+        # Match '/read' exactly or '/read ...' (extra text is ignored);
+        # not '/reads', etc.
+        text = user_input.strip()
+        if text.lower() != self.name.lower() and not text.lower().startswith(
+            self.name.lower() + " "
         ):
             return False
 
-        # Extract the question (everything after '/read ')
-        question = user_input[len(self.name) :].strip()
+        from janito import privileges as _privileges_mod
+        from janito.privileges import parse_privileges
 
-        if not question:
-            print("\nUsage: /read <your question>")
-            print(
-                "  Sends the prompt to the LLM using the main conversation"
-                " history, but restricted to read-only tools."
-            )
-            print(
-                "  The exchange stays in the main conversation history"
-                " (rollback/cancel behave like a normal prompt).\n"
-            )
-            return True
-
-        self._read(shell, question)
+        _privileges_mod.running_privileges = parse_privileges("r")
+        print("\nPrivileges switched to read-only (r).\n")
         return True
-
-    def _read(self, shell, question: str) -> None:
-        """Send the prompt with the main history, using only read-only tools."""
-        turn_func = getattr(shell, "turn_func", None)
-        if turn_func is None:
-            print(
-                "\nError: No prompt function available. Are you in an active session?\n"
-            )
-            return
-
-        read_only_schemas = get_read_only_tool_schemas()
-        warn_if_privilege_override(read_only_schemas, "r")
-        print()  # blank line before the streamed response, like /ask
-        # Reuse the shell's main-prompt path: same history, turns,
-        # Responses state sync and cancel/rollback handling -- only the tool
-        # set is restricted to the read-only tools.
-        shell._run_turn(question, tools=read_only_schemas)
 
 
 # Register this handler
