@@ -11,7 +11,7 @@ derived from git tags via `setuptools-scm`, so the tag **is** the release.
 Prerequisites:
 
 - Working tree on `main`, clean (no uncommitted changes).
-- `uv` available (see [README_DEV.md](README_DEV.md) for setup).
+- `uv` available (see [README_DEV.md](dev-docs/README_DEV.md) for setup).
 - `CHANGELOG.md` has been kept up to date while developing — new entries
   go under the `## [Unreleased]` section.
 
@@ -172,7 +172,7 @@ git commit -m "chore(release): reset CHANGELOG after v4.19.0"
 
 ## Related
 
-- [README_DEV.md](README_DEV.md) — development guide, version management,
+- [README_DEV.md](dev-docs/README_DEV.md) — development guide, version management,
   and the release checklist.
 - [.github/workflows/release.yaml](.github/workflows/release.yaml) — release
   automation.

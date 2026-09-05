@@ -149,7 +149,7 @@ def test_import_graph_respects_domain_boundaries():
             f"  {where}: {source} -> {target}" for where, source, target in violations
         )
         + "\nUpdate the code (or, only after a deliberate boundary decision, "
-        "the ALLOWED_EDGES matrix in this test and ARCHITECTURE.md)."
+        "the ALLOWED_EDGES matrix in this test and dev-docs/ARCHITECTURE.md)."
     )
 
 
