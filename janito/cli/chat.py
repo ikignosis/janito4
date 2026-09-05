@@ -390,6 +390,39 @@ def _resolve_resume(args, provider, model, api_type) -> tuple[dict | None, bool]
     return resume_state, persist_session
 
 
+def _print_resume_recap(shell, *, limit: int = 5) -> None:
+    """Echo the most recent messages after a ``-C/--continue`` resume.
+
+    Display-only recap so the user can see where the previous session left
+    off: the full restored conversation is still what gets sent to the model;
+    this just prints the last ``limit`` dialogue rows (system prompt
+    excluded) in the same style as ``/history``.  No-op when there are no
+    dialogue rows to show.
+    """
+    from rich.console import Console
+    from rich.table import Table
+
+    from ..shell.conversation import recent_conversation_rows
+
+    rows = recent_conversation_rows(shell, limit=limit)
+    if not rows:
+        return
+    table = Table(
+        title="Resumed conversation",
+        title_style="bold",
+        header_style="bold cyan",
+    )
+    table.add_column("Role", style="green", no_wrap=True)
+    table.add_column("Content", overflow="fold")
+    for role, content in rows:
+        # Same display treatment as /history: fold long content and flatten
+        # newlines so the table stays readable.
+        if len(content) > 200:
+            content = content[:200] + "..."
+        table.add_row(role, content.replace("\n", "\\n"))
+    Console(markup=False).print(table)
+
+
 def run_interactive_chat(args):
     """Run the interactive chat session.
 
@@ -481,6 +514,11 @@ def run_interactive_chat(args):
         if not shell.restore_conversation(resume_state):
             print("Could not restore the saved conversation; starting a new one.")
             shell.initialize_history(system_prompt=effective_system_prompt)
+        else:
+            # Echo the last few messages so the user can see where the
+            # previous session left off. Display-only: the full restored
+            # conversation is still what gets sent to the model.
+            _print_resume_recap(shell)
     else:
         shell.initialize_history(system_prompt=effective_system_prompt)
     # Mirror the conversation to ./.janito/session.json after every

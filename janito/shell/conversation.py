@@ -134,9 +134,35 @@ def effective_rows(shell) -> list[tuple[str, str]]:
     return rows
 
 
+def recent_conversation_rows(
+    shell, limit: int = 5, skip_roles: tuple[str, ...] = ("system",)
+) -> list[tuple[str, str]]:
+    """Return up to ``limit`` of the most recent non-skipped conversation rows.
+
+    Used by the ``-C/--continue`` resume recap so the user can see where the
+    previous session left off without dumping the whole transcript.  Delegates
+    to :func:`effective_rows` -- the single source ``/history`` uses in every
+    API mode -- and returns the tail after dropping the ``skip_roles`` rows
+    (by default the system prompt, which is not part of the dialogue).
+
+    Args:
+        shell: The shell whose conversation is read (any API mode).
+        limit: How many of the most recent rows to return.
+        skip_roles: Roles excluded from the tail (default: the system row).
+
+    Returns:
+        The up-to-``limit`` most recent ``(role, content)`` rows that are not
+        in ``skip_roles``.
+    """
+    rows = effective_rows(shell)
+    dialogue = [row for row in rows if row[0] not in skip_roles]
+    return dialogue[-limit:]
+
+
 __all__ = [
     "effective_rows",
     "is_stateless_conversation",
     "items_to_rows",
     "messages_to_rows",
+    "recent_conversation_rows",
 ]

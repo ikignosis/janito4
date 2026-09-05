@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import pytest
 
 from janito.shell import InteractiveShell
-from janito.shell.conversation import effective_rows
+from janito.shell.conversation import effective_rows, recent_conversation_rows
 from janito.shell.persistence import (
     clear_conversation_state,
     get_state_path,
@@ -365,3 +365,104 @@ def test_run_does_not_save_when_persistence_disabled(monkeypatch):
         thinking=False,
     )
     assert not get_state_path().exists()
+
+
+# ---------------------------------------------------------------------------
+# recent_conversation_rows (resume recap tail)
+# ---------------------------------------------------------------------------
+
+
+def test_recent_rows_returns_last_five_skipping_system():
+    shell = _shell()
+    shell.messages_history = [
+        {"role": "system", "content": "SYS-PROMPT"},
+        {"role": "user", "content": "m1"},
+        {"role": "assistant", "content": "a1"},
+        {"role": "user", "content": "m2"},
+        {"role": "assistant", "content": "a2"},
+        {"role": "user", "content": "m3"},
+        {"role": "assistant", "content": "a3"},
+        {"role": "user", "content": "m4"},
+        {"role": "assistant", "content": "a4"},
+    ]
+    assert recent_conversation_rows(shell) == [
+        ("assistant", "a2"),
+        ("user", "m3"),
+        ("assistant", "a3"),
+        ("user", "m4"),
+        ("assistant", "a4"),
+    ]
+
+
+def test_recent_rows_returns_all_when_fewer_than_limit():
+    shell = _shell()
+    shell.messages_history = [
+        {"role": "system", "content": "SYS-PROMPT"},
+        {"role": "user", "content": "only"},
+    ]
+    assert recent_conversation_rows(shell) == [("user", "only")]
+
+
+def test_recent_rows_empty_with_only_system_prompt():
+    shell = _shell()
+    shell.messages_history = [{"role": "system", "content": "SYS-PROMPT"}]
+    assert recent_conversation_rows(shell) == []
+
+
+def test_recent_rows_honours_custom_limit_and_keeps_tool_rows():
+    shell = _shell()
+    shell.messages_history = [
+        {"role": "system", "content": "SYS-PROMPT"},
+        {"role": "function", "content": "tool-result"},
+        {"role": "assistant", "content": "done"},
+    ]
+    assert recent_conversation_rows(shell, limit=1) == [("assistant", "done")]
+    assert recent_conversation_rows(shell) == [
+        ("function", "tool-result"),
+        ("assistant", "done"),
+    ]
+
+
+def test_recent_rows_reads_mirrored_history_for_server_side_responses():
+    shell = _shell(api_type="Responses")
+    shell.messages_history = [{"role": "system", "content": "SYS-PROMPT"}]
+    shell.mirrored_history = [
+        {
+            "type": "message",
+            "role": "user",
+            "content": [{"type": "input_text", "text": "q1"}],
+        },
+        {
+            "type": "message",
+            "role": "assistant",
+            "content": [{"type": "output_text", "text": "a1"}],
+        },
+        {
+            "type": "message",
+            "role": "user",
+            "content": [{"type": "input_text", "text": "q2"}],
+        },
+        {
+            "type": "message",
+            "role": "assistant",
+            "content": [{"type": "output_text", "text": "a2"}],
+        },
+        {
+            "type": "message",
+            "role": "user",
+            "content": [{"type": "input_text", "text": "q3"}],
+        },
+        {
+            "type": "message",
+            "role": "assistant",
+            "content": [{"type": "output_text", "text": "a3"}],
+        },
+    ]
+    assert recent_conversation_rows(shell) == [
+        ("assistant", "a1"),
+        ("user", "q2"),
+        ("assistant", "a2"),
+        ("user", "q3"),
+        ("assistant", "a3"),
+    ]
+

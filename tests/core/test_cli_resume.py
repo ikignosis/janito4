@@ -19,6 +19,7 @@ import janito.__main__ as _main
 import janito.shell.persistence as persistence
 from janito.cli.chat import (
     _normalize_identity,
+    _print_resume_recap,
     _resume_identity_matches,
     _resolve_resume,
 )
@@ -215,3 +216,54 @@ def test_resolve_resume_mismatch_starts_fresh_without_persisting(monkeypatch, ca
     assert state is None
     assert persist is False
     assert "does not match" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# _print_resume_recap (janito.cli.chat): echo last messages after -C resume
+# ---------------------------------------------------------------------------
+
+
+def _chat_shell(**kwargs):
+    from janito.shell import InteractiveShell
+
+    kwargs.setdefault("model", "gpt-5.6-luna")
+    kwargs.setdefault("no_history", True)
+    return InteractiveShell(**kwargs)
+
+
+def test_print_resume_recap_shows_last_messages(capsys):
+    shell = _chat_shell()
+    shell.messages_history = [
+        {"role": "system", "content": "SYS-PROMPT"},
+        {"role": "user", "content": "m1"},
+        {"role": "assistant", "content": "a1"},
+        {"role": "user", "content": "m2"},
+        {"role": "assistant", "content": "a2"},
+    ]
+    _print_resume_recap(shell)
+    out = capsys.readouterr().out
+    assert "Resumed conversation" in out
+    assert "a2" in out
+    assert "SYS-PROMPT" not in out
+
+
+def test_print_resume_recap_limits_to_five(capsys):
+    shell = _chat_shell()
+    messages = [{"role": "system", "content": "SYS-PROMPT"}]
+    for i in range(1, 6):
+        messages.append({"role": "user", "content": f"m{i}"})
+        messages.append({"role": "assistant", "content": f"a{i}"})
+    shell.messages_history = messages
+    _print_resume_recap(shell)
+    out = capsys.readouterr().out
+    assert "Resumed conversation" in out
+    assert "a5" in out
+    assert "m1" not in out
+    assert "a2" not in out  # only the 5 most recent rows are echoed
+
+
+def test_print_resume_recap_noop_without_dialogue(capsys):
+    shell = _chat_shell()
+    shell.messages_history = [{"role": "system", "content": "SYS-PROMPT"}]
+    _print_resume_recap(shell)
+    assert capsys.readouterr().out == ""

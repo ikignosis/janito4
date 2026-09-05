@@ -13,6 +13,7 @@ Changes since `v4.38.0` (2026-09-04).
 - Expand `--no-tools` scope: it now disables skill tools, plugin tools, and server-side/builtin provider tools in addition to the autoload toolsets and MCP tools (close #127).
 - Add `/effort <level>` shell command: show or switch the session reasoning effort at runtime, validated against the current model's supported levels (`/effort clear` restores config/default) (close #121).
 - Add `-C`/`--continue` to resume the previous interactive conversation in a working directory: the shell now mirrors its conversation to `./.janito/session.json` after every interaction (disabled by `--no-history`), and `-C` restores it together with its provider/model/API type (server-side Responses conversations resume from their last response id).
+- `janito -C` / `--continue` now prints the 5 most recent conversation messages on resume (a `Resumed conversation` recap, display-only), so you can see where the previous session left off; the full restored context is still sent to the model.
 
 ### Removed
 - Drop backwards-compat shims: legacy top-level `endpoint` config fallback (use `providers.<name>.endpoint`), `get_skills_dir` alias (use `get_default_skills_dir`), `MCP_CONFIG_PATH` constant (use `get_mcp_config_path()`), legacy web session `<id>.jsonl` files (sessions are now only `<id>/metadata.json`), and the two-source `/skills` summary format (always `home, agents, local`).
