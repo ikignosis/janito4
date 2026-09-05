@@ -643,6 +643,16 @@ Resolution order: `--reasoning-effort` > per-provider config value
 finalized its default effort, so janito declares none and the API's default
 applies).
 
+### Reasoning Summaries
+
+The raw chain of thought stays private, but janito requests a
+human-readable summary on the Responses API
+(`reasoning.summary="auto"`, merged with `reasoning.effort` when set).
+The summary streams as `response.reasoning_summary_text` deltas and is
+shown in the reasoning panel (the existing `on_reasoning` observer). A
+summary is optional: when the model does little reasoning the summary is
+empty. Chat Completions has no reasoning summary.
+
 ### Example
 
 ```bash

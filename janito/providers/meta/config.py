@@ -37,6 +37,11 @@ PROVIDER_CONFIG: dict = {
             # (without replay the model loses chain-of-thought context
             # across turns).
             "responses_include": ["reasoning.encrypted_content"],
+            # Request a human-readable reasoning summary on the Responses
+            # API (reasoning.summary="auto", streamed as
+            # response.reasoning_summary_text deltas and surfaced via
+            # on_reasoning).  The raw chain of thought stays private.
+            "thinking_summary": True,
             # 1M-token context window per the official model page
             # (https://developer.meta.com/ai/models/muse-spark/).
             "max_input_tokens": 1048576,  # 1M (2**20)
@@ -81,6 +86,11 @@ PROVIDER_CONFIG: dict = {
             "default_api_type": "Responses",
             "stateless_mode": True,
             "responses_include": ["reasoning.encrypted_content"],
+            # Request a human-readable reasoning summary on the Responses
+            # API (reasoning.summary="auto", streamed as
+            # response.reasoning_summary_text deltas and surfaced via
+            # on_reasoning).  The raw chain of thought stays private.
+            "thinking_summary": True,
             "max_input_tokens": 1048576,  # 1M (2**20)
             "default_reasoning_effort": "minimal",
             "supported_reasoning_efforts": [

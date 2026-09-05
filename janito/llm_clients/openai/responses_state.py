@@ -102,6 +102,39 @@ def _init_conversation_state(
     )
 
 
+def _responses_include(provider: str | None, model: str) -> list[str] | None:
+    """Return the model's declared Responses ``include`` values, if any."""
+    found = get_provider(provider) if provider else None
+    include = found.responses_include(model) if found is not None else None
+    if isinstance(include, (list, tuple)) and include:
+        return [str(entry) for entry in include]
+    return None
+
+
+def _reasoning_param(
+    model: str, reasoning_effort: str | None, provider: str | None
+) -> dict[str, Any] | None:
+    """Return the Responses ``reasoning`` param, or ``None`` to omit it.
+
+    Models declaring ``thinking_summary`` (e.g. Meta's Muse Spark) request
+    ``reasoning.summary="auto"`` so the private chain of thought is
+    returned as summary text (``response.reasoning_summary_text`` deltas,
+    surfaced via ``on_reasoning``).  Responses-only: Chat Completions has
+    no summary.
+    """
+    found = get_provider(provider) if provider else None
+    summary_fn = getattr(found, "thinking_summary", None)
+    summary = bool(summary_fn(model)) if callable(summary_fn) else False
+    if not reasoning_effort and not summary:
+        return None
+    reasoning: dict[str, Any] = {}
+    if reasoning_effort:
+        reasoning["effort"] = reasoning_effort
+    if summary:
+        reasoning["summary"] = "auto"
+    return reasoning
+
+
 def _build_call_kwargs(
     model: str,
     input_items: str | list[dict[str, Any]],
@@ -149,19 +182,17 @@ def _build_call_kwargs(
         # Request the model's declared optional output fields (e.g. Meta's
         # "reasoning.encrypted_content") so the reasoning output items carry
         # the encrypted chain of thought needed for stateless replay.
-        found = get_provider(provider) if provider else None
-        include = found.responses_include(model) if found is not None else None
-        if isinstance(include, (list, tuple)) and include:
-            call_kwargs["include"] = [str(entry) for entry in include]
+        include = _responses_include(provider, model)
+        if include:
+            call_kwargs["include"] = include
 
     # Add max_output_tokens if max output tokens is set in config
     if max_output_tokens is not None:
         call_kwargs["max_output_tokens"] = max_output_tokens
 
-    # Reasoning effort: sent whenever a reasoning level resolves (None means
-    # the API's own default applies).
-    if reasoning_effort:
-        call_kwargs["reasoning"] = {"effort": reasoning_effort}
+    reasoning = _reasoning_param(model, reasoning_effort, provider)
+    if reasoning is not None:
+        call_kwargs["reasoning"] = reasoning
 
     # Pass preserve_thinking in extra_body if defined in config
     if preserve_thinking is not None:

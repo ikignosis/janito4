@@ -125,6 +125,18 @@ class ModelConfig:
             return [str(entry) for entry in value]
         return None
 
+    def thinking_summary(self) -> bool:
+        """Whether to request a Responses reasoning summary.
+
+        When ``True`` (e.g. Meta's Muse Spark), Responses calls send
+        ``reasoning.summary="auto"`` so the private chain of thought is
+        returned as human-readable summary text streamed via
+        ``response.reasoning_summary_text.delta`` events and surfaced
+        through the existing ``on_reasoning`` observer.  Absent/``False``
+        sends no summary (the API's own default applies).
+        """
+        return bool(self._data.get("thinking_summary", False))
+
 
 class Provider:
     """A supported provider from :data:`janito.providers._PROVIDER_CONFIGS` with typed accessors.
@@ -343,6 +355,14 @@ class Provider:
         declares none (no ``include`` parameter is sent).
         """
         return self.model_config(model).responses_include()
+
+    def thinking_summary(self, model: str | None = None) -> bool:
+        """Whether to request a Responses reasoning summary.
+
+        See :meth:`ModelConfig.thinking_summary`.  ``False`` when the model
+        declares none.
+        """
+        return self.model_config(model).thinking_summary()
 
     def endpoint_for(self, api_type: str | None = None) -> str | None:
         """Get the base URL for this provider, honoring ``endpoint_by_api_type``.
