@@ -53,6 +53,11 @@ class ResponsesStreamConsumer:
         # loaded tool definitions.
         self.tool_search_calls: list[dict[str, Any]] = []
         self.tool_search_outputs: list[dict[str, Any]] = []
+        # Search grounding (issue #131): finished web_search_call items
+        # (one per performed search) and url_citation annotations collected
+        # from the completed response's message output.
+        self.web_search_calls: list[dict[str, Any]] = []
+        self.web_search_citations: list[dict[str, Any]] = []
         self._events_seen = 0
 
     # ------------------------------------------------------------------
@@ -115,6 +120,8 @@ class ResponsesStreamConsumer:
             self.reasoning_items,
             self.tool_search_calls,
             self.tool_search_outputs,
+            self.web_search_calls,
+            self.web_search_citations,
         )
 
     # ------------------------------------------------------------------
@@ -155,7 +162,7 @@ class ResponsesStreamConsumer:
             self.handle_output_item(event)
 
     def handle_completion_event(self, event) -> None:
-        """Record the response id (and usage on the completed event)."""
+        """Record the response id (usage + citations on the completed event)."""
         # The response id is the handle used to chain the next turn; it is
         # known as soon as the server creates (or completes) the response.
         self.response_id = event.response.id
@@ -164,10 +171,16 @@ class ResponsesStreamConsumer:
         self.raw_attrs.update(
             _extract_raw_attrs(event.response, skip=("output", "usage"))
         )
-        if event.type == "response.completed" and event.response.usage:
-            # Usage is delivered on the final event by default (it is part of
-            # the Response object; "usage" is no longer a valid include value).
-            self.usage_info = event.response.usage
+        if event.type == "response.completed":
+            if event.response.usage:
+                # Usage is delivered on the final event by default (it is part of
+                # the Response object; "usage" is no longer a valid include value).
+                self.usage_info = event.response.usage
+            # Search grounding (issue #131): url_citation annotations live
+            # on the assembled message output, not in stream deltas.
+            self.web_search_citations.extend(
+                _citations_from_output(getattr(event.response, "output", None))
+            )
 
     def handle_text_delta(self, event) -> None:
         """Collect assistant text and reasoning deltas."""
@@ -217,6 +230,8 @@ class ResponsesStreamConsumer:
             self.tool_search_calls.append(_tool_search_call_dict(item))
         elif item_type == "tool_search_output":
             self.tool_search_outputs.append(_tool_search_output_dict(item))
+        elif item_type == "web_search_call":
+            self.web_search_calls.append(_web_search_call_dict(item))
 
 
 def _reasoning_item_dict(item) -> dict[str, Any]:
@@ -313,6 +328,56 @@ def _tool_search_output_dict(item) -> dict[str, Any]:
     for entry in tools:
         names.extend(_tool_names_from_entry(entry))
     return {"tool_names": names}
+
+
+def _web_search_call_dict(item) -> dict[str, Any]:
+    """Normalized dict for a finished ``web_search_call`` item (issue #131)."""
+    return {
+        "id": getattr(item, "id", None),
+        "status": getattr(item, "status", None),
+    }
+
+
+def _citations_from_output(output) -> list[dict[str, Any]]:
+    """Collect ``url_citation`` annotations from a completed response output."""
+    citations: list[dict[str, Any]] = []
+    for entry in output or []:
+        content = (
+            entry.get("content")
+            if isinstance(entry, dict)
+            else getattr(entry, "content", None)
+        )
+        for block in content or []:
+            anns = (
+                block.get("annotations")
+                if isinstance(block, dict)
+                else getattr(block, "annotations", None)
+            )
+            for ann in anns or []:
+                atype = (
+                    ann.get("type") if isinstance(ann, dict) else getattr(ann, "type", None)
+                )
+                if atype != "url_citation":
+                    continue
+                if isinstance(ann, dict):
+                    citations.append(
+                        {
+                            "url": ann.get("url", ""),
+                            "title": ann.get("title", ""),
+                            "start_index": ann.get("start_index"),
+                            "end_index": ann.get("end_index"),
+                        }
+                    )
+                else:
+                    citations.append(
+                        {
+                            "url": getattr(ann, "url", ""),
+                            "title": getattr(ann, "title", ""),
+                            "start_index": getattr(ann, "start_index", None),
+                            "end_index": getattr(ann, "end_index", None),
+                        }
+                    )
+    return citations
 
 
 def _handle_untyped_error(event) -> None:

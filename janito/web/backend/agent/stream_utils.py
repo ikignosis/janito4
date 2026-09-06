@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from ..events import ImageEvent, ReasoningEvent, TokenEvent
+from ..events import ImageEvent, ReasoningEvent, SourcesEvent, TokenEvent, WebSearchEvent
 
 
 def _next_or_none(gen):
@@ -42,6 +42,7 @@ async def emit_stream_events(
             image-generation results (Responses runner).
     """
     emitted_images = 0
+    emitted_searches = 0
     async for item in stream:
         reasoning_delta, content_delta = acc.handle(item)
         if reasoning_delta:
@@ -55,8 +56,14 @@ async def emit_stream_events(
                     revised_prompt=img.get("revised_prompt", ""),
                 )
                 emitted_images += 1
+        for call in getattr(acc, "web_search_calls", [])[emitted_searches:]:
+            yield WebSearchEvent(status=call.get("status") or "completed")
+            emitted_searches += 1
         if break_on_done and acc.done:
             break
+    citations = list(getattr(acc, "web_search_citations", []) or [])
+    if citations:
+        yield SourcesEvent(sources=citations)
 
 
 __all__ = [

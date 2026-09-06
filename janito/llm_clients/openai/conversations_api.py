@@ -98,6 +98,14 @@ from .responses_stream import _stream_response
 logger = logging.getLogger(__name__)
 
 
+def _emit_web_search_events(observer, calls, citations) -> None:
+    """Fan out search-grounding events (issue #131)."""
+    for _call in calls or []:
+        observer.on_web_search_call()
+    if calls or citations:
+        observer.on_web_search_done(list(citations or []))
+
+
 def run_turn(
     api_config: APIConfig,
     prompt: str,
@@ -339,6 +347,8 @@ class ResponsesClient(Client):
                 reasoning_items,
                 tool_search_calls,
                 tool_search_outputs,
+                web_search_calls,
+                web_search_citations,
             ) = self._invoke_stream_runner(
                 _stream_response, client, call_kwargs, tools_schemas
             )
@@ -346,6 +356,9 @@ class ResponsesClient(Client):
                 self.observer.on_tool_search_call(call.get("paths", []))
             for output in tool_search_outputs or []:
                 self.observer.on_tool_search_output(output.get("tool_names", []))
+            _emit_web_search_events(
+                self.observer, web_search_calls, web_search_citations
+            )
             # Only server-side conversations chain with the returned id;
             # stateless providers never send previous_response_id.
             if not state["stateless_mode"]:

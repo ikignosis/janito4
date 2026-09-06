@@ -145,6 +145,19 @@ const CHAT_EVENT_HANDLERS = {
         }
     },
 
+    web_search(c) {
+        // Search grounding (issue #131): the model searched the web.
+        c.comp._setStatus(c.store, 'waiting');
+        if (c.isActive) c.comp.status = 'waiting';
+    },
+
+    sources(c) {
+        // Search grounding (issue #131): cited sources for the answer.
+        // Stored for future display; the citation markers are already
+        // inlined into the message text (see 'done').
+        c.msg.sources = c.event.sources || [];
+    },
+
     done(c) {
         c.msg.streaming = false;
         c.msg.done = true;

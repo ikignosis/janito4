@@ -129,6 +129,14 @@ class TurnObserver(Protocol):
         """A hosted tool-search lookup finished and loaded tools (issue #128)."""
         ...
 
+    def on_web_search_call(self) -> None:
+        """A web search was performed (issue #131)."""
+        ...
+
+    def on_web_search_done(self, citations: list[dict[str, Any]]) -> None:
+        """Web search finished with url_citation annotations (issue #131)."""
+        ...
+
     def on_turn_complete(
         self,
         token_stats: TurnInfo | None,
@@ -218,6 +226,12 @@ class NullObserver:
         pass
 
     def on_tool_search_output(self, tool_names: list[str]) -> None:
+        pass
+
+    def on_web_search_call(self) -> None:
+        pass
+
+    def on_web_search_done(self, citations: list[dict[str, Any]]) -> None:
         pass
 
     def on_turn_complete(

@@ -46,6 +46,12 @@ PROVIDER_CONFIG: dict = {
             # it misroutes tool calls (incorrect arguments), so flat tools
             # are sent until the namespaced path is fixed.
             "tool_search": False,
+            # Search grounding (issue #131): Responses-only web_search
+            # builtin tool (https://dev.meta.ai/docs/search-grounding).
+            # Not available through Chat Completions.
+            "tools_by_api_type": {
+                "Responses": [{"type": "web_search"}],
+            },
             # 1M-token context window per the official model page
             # (https://developer.meta.com/ai/models/muse-spark/).
             "max_input_tokens": 1048576,  # 1M (2**20)
@@ -99,6 +105,12 @@ PROVIDER_CONFIG: dict = {
             # it misroutes tool calls (incorrect arguments), so flat tools
             # are sent until the namespaced path is fixed.
             "tool_search": False,
+            # Search grounding (issue #131): Responses-only web_search
+            # builtin tool (https://dev.meta.ai/docs/search-grounding).
+            # Not available through Chat Completions.
+            "tools_by_api_type": {
+                "Responses": [{"type": "web_search"}],
+            },
             "max_input_tokens": 1048576,  # 1M (2**20)
             "default_reasoning_effort": "minimal",
             "supported_reasoning_efforts": [

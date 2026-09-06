@@ -222,6 +222,30 @@ class ImageEvent:
 
 
 @dataclass
+class WebSearchEvent:
+    """A web search was performed (issue #131)."""
+
+    status: str = "completed"
+
+    type: ClassVar[str] = "web_search"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"type": self.type, "status": self.status}
+
+
+@dataclass
+class SourcesEvent:
+    """Cited web sources for a search-grounded answer (issue #131)."""
+
+    sources: list = None  # [{url, title, start_index, end_index}]
+
+    type: ClassVar[str] = "sources"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"type": self.type, "sources": list(self.sources or [])}
+
+
+@dataclass
 class DoneEvent:
     """Conversation turn complete."""
 
@@ -258,6 +282,8 @@ AgentEvent = (
     | WaitingEvent
     | ToolProgressEvent
     | ImageEvent
+    | WebSearchEvent
+    | SourcesEvent
     | UsageEvent
     | DoneEvent
     | ErrorEvent

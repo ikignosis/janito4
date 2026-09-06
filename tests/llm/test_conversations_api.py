@@ -121,6 +121,8 @@ def test_consume_stream_assembles_text_and_usage():
         _reasoning_items,
         _tool_search_calls,
         _tool_search_outputs,
+        _web_search_calls,
+        _web_search_citations,
     ) = _consume_response_stream(events)
     assert content == "Hello world"
     assert reasoning is None
@@ -163,6 +165,8 @@ def test_consume_stream_assembles_split_tool_call_arguments():
         _reasoning_items,
         _tool_search_calls,
         _tool_search_outputs,
+        _web_search_calls,
+        _web_search_citations,
     ) = _consume_response_stream(events)
     assert content == "Let me check"
     assert reasoning == "thinking..."
@@ -188,7 +192,7 @@ def test_consume_stream_prefers_full_arguments_from_done_event():
             _Event("response.completed", response=_Response("resp_3")),
         ]
     )
-    _, _, tools, _, response_id, _, _, _, _ = _consume_response_stream(events)
+    _, _, tools, _, response_id, _, _, _, _, _, _ = _consume_response_stream(events)
     assert tools == [{"call_id": "call_9", "name": "run_bash", "arguments": '{"x": 1}'}]
     assert response_id == "resp_3"
 

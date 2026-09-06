@@ -100,6 +100,8 @@ if pytest is not None:
             _items,
             _search_calls,
             _search_outputs,
+            _web_search_calls,
+            _web_search_citations,
         ) = c.consume(events(), cancel_event=cancel)
         # Cancel short-circuit must not raise the empty-stream error.
         assert content == ""

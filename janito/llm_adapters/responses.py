@@ -229,6 +229,50 @@ def _save_base64_image(b64_data: str) -> str | None:
         return None
 
 
+def _citations_from_output(output) -> list[dict]:
+    """Collect ``url_citation`` annotations from a completed response output."""
+    citations: list[dict] = []
+    for entry in output or []:
+        content = (
+            entry.get("content")
+            if isinstance(entry, dict)
+            else getattr(entry, "content", None)
+        )
+        for block in content or []:
+            anns = (
+                block.get("annotations")
+                if isinstance(block, dict)
+                else getattr(block, "annotations", None)
+            )
+            for ann in anns or []:
+                atype = (
+                    ann.get("type")
+                    if isinstance(ann, dict)
+                    else getattr(ann, "type", None)
+                )
+                if atype != "url_citation":
+                    continue
+                if isinstance(ann, dict):
+                    citations.append(
+                        {
+                            "url": ann.get("url", ""),
+                            "title": ann.get("title", ""),
+                            "start_index": ann.get("start_index"),
+                            "end_index": ann.get("end_index"),
+                        }
+                    )
+                else:
+                    citations.append(
+                        {
+                            "url": getattr(ann, "url", ""),
+                            "title": getattr(ann, "title", ""),
+                            "start_index": getattr(ann, "start_index", None),
+                            "end_index": getattr(ann, "end_index", None),
+                        }
+                    )
+    return citations
+
+
 def _text_of(content) -> str:
     """Coerce a message's content to the plain text the Responses API expects."""
     if content is None:
@@ -405,6 +449,9 @@ class ResponsesTurnAccumulator:
         # Hosted tool search (issue #128).
         self.tool_search_calls: list[dict] = []
         self.tool_search_outputs: list[dict] = []
+        # Search grounding (issue #131).
+        self.web_search_calls: list[dict] = []
+        self.web_search_citations: list[dict] = []
         # Native image generation results: [{path, revised_prompt}].  The
         # built-in ``image_generation`` tool returns base64 images directly
         # in the stream; the accumulator saves each to a temp PNG file.
@@ -450,6 +497,12 @@ class ResponsesTurnAccumulator:
         usage = getattr(response, "usage", None)
         if usage:
             self.usage = usage
+        if getattr(event, "type", None) == "response.completed":
+            # Search grounding (issue #131): url_citation annotations live
+            # on the assembled message output, not in stream deltas.
+            self.web_search_citations.extend(
+                _citations_from_output(getattr(response, "output", None))
+            )
 
     def handle_text_delta(self, event) -> str | None:
         """Collect one text/reasoning delta; returns the delta (or ``None``)."""
@@ -494,6 +547,13 @@ class ResponsesTurnAccumulator:
         elif item_type == "tool_search_output":
             self.tool_search_outputs.append(
                 {"tool_names": _tool_search_names(getattr(item, "tools", None))}
+            )
+        elif item_type == "web_search_call":
+            self.web_search_calls.append(
+                {
+                    "id": getattr(item, "id", None),
+                    "status": getattr(item, "status", None),
+                }
             )
 
     def _record_function_call(self, item) -> None:
@@ -590,6 +650,7 @@ __all__ = [
     "_convert_tools",
     "_convert_tools_to_responses_format",
     "_messages_to_input_items",
+    "_citations_from_output",
     "_model_supports_image_generation",
     "_save_base64_image",
     "_text_of",
