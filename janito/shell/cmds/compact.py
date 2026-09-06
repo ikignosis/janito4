@@ -31,6 +31,7 @@ from ..conversation import (
     is_stateless_conversation,
     items_to_rows,
     messages_to_rows,
+    slice_items_by_row_range,
 )
 from .base import CmdHandler
 from .registry import register_command
@@ -116,6 +117,68 @@ def _history_mode(shell) -> str:
     return "completions"
 
 
+def _sanitize_response_items(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Drop unpaired ``function_call`` / ``function_call_output`` items.
+
+    The Responses API rejects a history where a ``function_call`` has no
+    matching ``function_call_output`` ("No tool output found for function
+    call ...").  Slicing the compact/keep zones by turn boundaries can
+    strand one side of a tool round, so the compaction payload keeps only
+    complete pairs (matched on ``call_id``); ``message`` / ``reasoning``
+    items pass through untouched.
+    """
+    calls = {e.get("call_id") for e in entries if e.get("type") == "function_call"}
+    outputs = {
+        e.get("call_id") for e in entries if e.get("type") == "function_call_output"
+    }
+    complete = calls & outputs
+    return [
+        e
+        for e in entries
+        if e.get("type") not in ("function_call", "function_call_output")
+        or e.get("call_id") in complete
+    ]
+
+
+def _sanitize_messages(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Drop unpaired Completions ``tool_calls`` / ``tool`` messages.
+
+    Mirrors :func:`_sanitize_response_items` for the Completions shape: an
+    assistant message whose ``tool_calls`` have no matching ``tool`` reply
+    (or a ``tool`` reply with no call) makes some providers reject the
+    compaction call, so the orphan side is removed.  Assistant ``tool_calls``
+    without any output are stripped (the text is kept); lone ``tool``
+    messages are dropped.
+    """
+    wanted: set[str] = set()
+    for e in entries:
+        for tc in (e.get("tool_calls") or []):
+            wanted.add(tc.get("id"))
+    have = {
+        e.get("tool_call_id") for e in entries if e.get("role") == "tool"
+    }
+    complete = wanted & have
+    out: list[dict[str, Any]] = []
+    for e in entries:
+        if e.get("role") == "tool":
+            if e.get("tool_call_id") in complete:
+                out.append(e)
+            continue
+        tcs = e.get("tool_calls")
+        if tcs:
+            kept = [tc for tc in tcs if tc.get("id") in complete]
+            if len(kept) != len(tcs):
+                e = dict(e)
+                if kept:
+                    e["tool_calls"] = kept
+                else:
+                    e.pop("tool_calls", None)
+            out.append(e)
+        else:
+            out.append(e)
+    return out
+
+
 class _HistoryStrategy:
     """Per-API-mode strategy for reading and rebuilding the conversation.
 
@@ -191,10 +254,10 @@ class _CompletionsStrategy(_HistoryStrategy):
         return messages_to_rows(shell.messages_history)
 
     def compact_zone(self, shell, skip: int, keep_start: int) -> list[dict[str, Any]]:
-        return list(shell.messages_history[skip:keep_start])
+        return _sanitize_messages(list(shell.messages_history[skip:keep_start]))
 
     def keep_zone(self, shell, keep_start: int) -> list[dict[str, Any]]:
-        return list(shell.messages_history[keep_start:])
+        return _sanitize_messages(list(shell.messages_history[keep_start:]))
 
     def compaction_call_args(
         self, compact_entries: list[dict[str, Any]]
@@ -219,10 +282,16 @@ class _StatelessStrategy(_HistoryStrategy):
         return items_to_rows(shell.conversation_items or [])
 
     def compact_zone(self, shell, skip: int, keep_start: int) -> list[dict[str, Any]]:
-        return list((shell.conversation_items or [])[skip:keep_start])
+        return _sanitize_response_items(
+            slice_items_by_row_range(shell.conversation_items or [], skip, keep_start)
+        )
 
     def keep_zone(self, shell, keep_start: int) -> list[dict[str, Any]]:
-        return list((shell.conversation_items or [])[keep_start:])
+        items = list(shell.conversation_items or [])
+        rows = len(items_to_rows(items))
+        return _sanitize_response_items(
+            slice_items_by_row_range(items, keep_start, rows)
+        )
 
     def compaction_call_args(
         self, compact_entries: list[dict[str, Any]]
@@ -280,7 +349,7 @@ class _ServerSideStrategy(_HistoryStrategy):
             hi = keep_start - pend_start
             if lo < hi:
                 entries.extend(pending[lo:hi])
-        return entries
+        return _sanitize_messages(_sanitize_response_items(entries))
 
     def keep_zone(self, shell, keep_start: int) -> list[dict[str, Any]]:
         msgs_len = len(shell.messages_history)
@@ -290,8 +359,10 @@ class _ServerSideStrategy(_HistoryStrategy):
             return list(mirrored) + list(pending)
         offset = keep_start - msgs_len
         if offset >= len(mirrored):
-            return list(pending[offset - len(mirrored) :])
-        return list(mirrored[offset:]) + list(pending)
+            keep = list(pending[offset - len(mirrored) :])
+        else:
+            keep = list(mirrored[offset:]) + list(pending)
+        return _sanitize_messages(_sanitize_response_items(keep))
 
     def compaction_call_args(
         self, compact_entries: list[dict[str, Any]]

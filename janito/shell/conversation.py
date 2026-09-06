@@ -136,6 +136,40 @@ def items_to_rows(items) -> list[tuple[str, str]]:
     return rows
 
 
+def items_row_to_item_index(items) -> list[int]:
+    """Map each display row of Responses ``items`` to its item index.
+
+    Encrypted-only ``reasoning`` items render no row (see :func:`items_to_rows`),
+    so row indexes drift from item indexes -- e.g. Muse Spark emits such an
+    item every turn.  The returned list has one entry per display row; entry
+    ``i`` is the index into ``items`` of the item that produced row ``i``.
+    """
+    mapping: list[int] = []
+    for idx, item in enumerate(items or []):
+        if _responses_item_to_row(item) is not None:
+            mapping.append(idx)
+    return mapping
+
+
+def slice_items_by_row_range(items, start_row: int, end_row: int) -> list[dict[str, Any]]:
+    """Slice Responses ``items`` by display-row range ``[start_row, end_row)``.
+
+    Items without a display row (encrypted-only ``reasoning``) that fall
+    inside the span are included so stateless replay keeps its chain-of-
+    thought context.  Out-of-range rows clamp to the item bounds.
+    """
+    items = list(items or [])
+    mapping = items_row_to_item_index(items)
+    n_rows = len(mapping)
+    start_row = max(0, min(start_row, n_rows))
+    end_row = max(0, min(end_row, n_rows))
+    if start_row >= end_row:
+        return []
+    start_item = mapping[start_row]
+    end_item = mapping[end_row] if end_row < n_rows else len(items)
+    return items[start_item:end_item]
+
+
 def messages_to_rows(messages_history) -> list[tuple[str, str]]:
     """Render Completions-style history messages as display rows.
 
@@ -239,7 +273,9 @@ def recent_conversation_rows(
 __all__ = [
     "effective_rows",
     "is_stateless_conversation",
+    "items_row_to_item_index",
     "items_to_rows",
     "messages_to_rows",
     "recent_conversation_rows",
+    "slice_items_by_row_range",
 ]

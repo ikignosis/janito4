@@ -146,3 +146,94 @@ def test_min_compact_tokens_threshold_constant():
 
 def test_keep_turns_constant():
     assert KEEP_TURNS == 3
+
+
+def _stateless_shell_with_tools():
+    from janito.shell.cmds.compact import _history_strategy
+
+    shell = _shell()
+    shell.messages_history = []
+    LONG2 = "y" * 5000
+    shell.conversation_items = [
+        {"type": "message", "role": "system",
+         "content": [{"type": "input_text", "text": "sys"}]},
+        {"type": "reasoning", "encrypted_content": "opaque"},
+        {"type": "message", "role": "user",
+         "content": [{"type": "input_text", "text": LONG}]},
+        {"type": "message", "role": "assistant",
+         "content": [{"type": "output_text", "text": LONG2}]},
+        {"type": "function_call", "call_id": "call_1",
+         "name": "read", "arguments": "{}"},
+        {"type": "function_call_output", "call_id": "call_1",
+         "output": "file contents"},
+        {"type": "message", "role": "user",
+         "content": [{"type": "input_text", "text": "u2"}]},
+        {"type": "message", "role": "assistant",
+         "content": [{"type": "output_text", "text": "a2"}]},
+        {"type": "function_call", "call_id": "call_2",
+         "name": "read", "arguments": "{}"},
+        {"type": "function_call_output", "call_id": "call_2",
+         "output": "more contents"},
+        {"type": "message", "role": "user",
+         "content": [{"type": "input_text", "text": "u3"}]},
+        {"type": "message", "role": "assistant",
+         "content": [{"type": "output_text", "text": "a3"}]},
+        {"type": "message", "role": "user",
+         "content": [{"type": "input_text", "text": "u4"}]},
+        {"type": "message", "role": "assistant",
+         "content": [{"type": "output_text", "text": "a4"}]},
+    ]
+    # rows: sys(0) user(1) asst(2) fc1(3) fco1(4) u2(5) a2(6) fc2(7) fco2(8)
+    #   u3(9) a3(10) u4(11) a4(12). The compact zone ends at the u3 row, right
+    #   after a tool round: with the pre-fix item slicing (off by the leading
+    #   encrypted reasoning item) the window ended between fc2 and fco2, so
+    #   the compaction call sent an unpaired function_call (API 400).
+    shell.history_turns = [3, 9, 11, 13]
+    assert _history_strategy(shell).mode == "stateless"
+    return shell
+
+
+def test_compact_stateless_keeps_tool_pairs(capsys):
+    """Regression: encrypted reasoning must not misalign the slice (issue: No
+    tool output found for function call on muse-spark)."""
+    shell = _stateless_shell_with_tools()
+    captured = {}
+
+    def turn_func(prompt, **kwargs):
+        captured.update(kwargs)
+        return COMPACTION_JSON
+
+    shell.turn_func = turn_func
+    _compact_handler()._do_compact(shell)
+    capsys.readouterr()
+    assert captured, "compaction LLM call was not made"
+    sent = captured.get("previous_items") or []
+    calls = {e.get("call_id") for e in sent if e.get("type") == "function_call"}
+    outputs = {e.get("call_id") for e in sent
+               if e.get("type") == "function_call_output"}
+    assert calls, "expected the tool round in the compaction payload"
+    assert calls == outputs, f"unpaired calls: {calls} vs {outputs}"
+
+
+def test_compact_stateless_drops_orphan_call():
+    from janito.shell.cmds.compact import _sanitize_response_items
+
+    entries = [
+        {"type": "function_call", "call_id": "orphan",
+         "name": "read", "arguments": "{}"},
+        {"type": "message", "role": "user",
+         "content": [{"type": "input_text", "text": "hi"}]},
+    ]
+    assert _sanitize_response_items(entries) == [entries[1]]
+
+
+def test_compact_completions_drops_orphan_tool_call():
+    from janito.shell.cmds.compact import _sanitize_messages
+
+    entries = [
+        {"role": "assistant", "content": "hi",
+         "tool_calls": [{"id": "tc1", "function": {"name": "f", "arguments": "{}"}}]},
+        {"role": "user", "content": "next"},
+    ]
+    out = _sanitize_messages(entries)
+    assert out[0].get("tool_calls") is None
