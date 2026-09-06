@@ -47,11 +47,23 @@ def _object_items(obj: Any):
     if hasattr(obj, "__dict__"):
         return vars(obj).items()
     if callable(getattr(obj, "keys", None)):
-        try:
-            return [(k, obj[k]) for k in obj.keys()]
-        except Exception:  # noqa: BLE001 - intentional boundary, log/convert and continue
-            return []
+        return _dict_like_items(obj)
     return []
+
+
+def _dict_like_items(obj: Any):
+    """Return ``(key, value)`` pairs from a dict-like object with ``keys``."""
+    try:
+        keys = list(obj.keys())
+    except (AttributeError, TypeError, ValueError, RuntimeError):
+        return []
+    items = []
+    for k in keys:
+        try:
+            items.append((k, obj[k]))
+        except (AttributeError, TypeError, KeyError, ValueError, RuntimeError):
+            continue
+    return items
 
 
 def _extract_raw_attrs(obj: Any, *, skip: tuple[str, ...] = (), max_list: int = 3) -> dict[str, Any]:

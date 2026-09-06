@@ -90,7 +90,7 @@ def _is_rate_limit(e: Exception) -> bool:
         try:
             if getattr(e, attr, None) == 429:
                 return True
-        except Exception:  # noqa: BLE001 - intentional boundary, log/convert and continue
+        except (AttributeError, TypeError, ValueError, RuntimeError):
             pass
     message = str(e).lower()
     return "429" in message or "rate limit" in message or "rate_limit" in message or "too many requests" in message
@@ -122,7 +122,7 @@ def _headers_retry_after(headers: Any) -> float | None:
             value = headers.get("retry-after", headers.get("Retry-After"))
         else:
             value = headers.get("retry-after", headers.get("Retry-After"))
-    except Exception:  # noqa: BLE001 - intentional boundary, log/convert and continue
+    except (AttributeError, TypeError, ValueError, RuntimeError):
         return None
     if value is None:
         return None
