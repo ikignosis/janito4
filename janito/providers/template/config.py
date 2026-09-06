@@ -195,6 +195,15 @@ PROVIDER_CONFIG: dict = {
                     {"type": "web_extractor"},
                 ],
             },
+            #: External function tools disabled for this model (optional,
+            #: issue #144).  Names external tools (e.g. ``["WebSearch"]``)
+            #: that must not be advertised when the model already offers
+            #: the capability server-side (native ``web_search``).  Absent
+            #: means the derived default applies (native search disables
+            #: external ``WebSearch``); an explicit empty list disables
+            #: nothing.  Overridable per model via the ``disabled-tools``
+            #: config key.
+            "disabled_tools": ["WebSearch"],
         },
     },
 }

@@ -105,6 +105,20 @@ class ModelConfig:
             return by_type[api_type]
         return self._data.get("tools")
 
+    def disabled_tools(self) -> list | None:
+        """The model's built-in disabled external tools, or ``None``.
+
+        Returns the raw ``disabled_tools`` value from the model entry
+        (e.g. ``["WebSearch"]`` for models with a native server-side
+        ``web_search`` tool).  These name external function tools that
+        must not be advertised to the model.  ``None``/empty means no
+        built-in default (user override or derived default applies).
+        """
+        value = self._data.get("disabled_tools")
+        if isinstance(value, (list, tuple)):
+            return [str(entry) for entry in value]
+        return None
+
     def stateless_mode(self) -> bool:
         """Whether the model's Responses API keeps state server-side.
 
@@ -329,6 +343,14 @@ class Provider:
     def default_api_type(self, model: str | None = None) -> str | None:
         """The built-in default API type, from the model's ``default_api_type`` entry."""
         return self.model_config(model).default_api_type()
+
+    def disabled_tools(self, model: str | None = None) -> list | None:
+        """The model's built-in disabled external tools, or ``None``.
+
+        See :meth:`ModelConfig.disabled_tools`.  ``None`` when the model
+        declares none.
+        """
+        return self.model_config(model).disabled_tools()
 
     def stateless_mode(self, model: str | None = None) -> bool:
         """Whether the model's Responses API keeps conversation state server-side.

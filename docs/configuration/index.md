@@ -45,6 +45,7 @@ keys per provider **and** model (see the note below and
 | `reasoning-effort` | per provider/model | Reasoning depth (`none`…`max`) | model built-in |
 | `api-type` | per provider/model | API type (`Responses`, `Completions`, `Anthropic`, `DashScope`, `Gemini`) | model built-in default |
 | `stateless-mode` | per provider/model | Whether the Responses API keeps conversation state server-side | model built-in default |
+| `disabled-tools` | per provider/model | External tools hidden from the model (e.g. `WebSearch` when native server-side search exists; comma-separated or JSON list) | derived default (`WebSearch` for native-search models) |
 | `used-files` | flat | Whether the end-of-turn `Used files` report is printed by the CLI/shell | `false` |
 | `system-prompt` | flat | Literal text used as the system prompt's `start` section | built-in base prompt |
 | `system-prompt-file` | flat | Path to a file whose content becomes the `start` section (`~` is expanded, relative paths resolve against the working directory); wins over `system-prompt` when both are set | unset |
@@ -93,7 +94,21 @@ the provider/model's built-in limit (e.g. OpenAI's `gpt-5.6-luna`:
 1,050,000 in / 128,000 out); the generic fallback used when even the model
 has none is `128000` input / `100000` output.
 
-> Provider base URLs are built in for known providers, so you normally only need `endpoint` for the `custom` provider. At runtime the endpoint is used directly as the API base URL. The model-level keys (`max-input-tokens`, `max-output-tokens`, `reasoning-effort`, `api-type`, `stateless-mode`) are stored per provider **and** model, under `providers.<provider>.models.<model>.<key>` in `config.json`.
+> Provider base URLs are built in for known providers, so you normally only need `endpoint` for the `custom` provider. At runtime the endpoint is used directly as the API base URL. The model-level keys (`max-input-tokens`, `max-output-tokens`, `reasoning-effort`, `api-type`, `stateless-mode`, `disabled-tools`) are stored per provider **and** model, under `providers.<provider>.models.<model>.<key>` in `config.json`.
+
+### Disabled tools (`disabled-tools`)
+
+```bash
+janito --provider alibaba --set disabled-tools=WebSearch
+janito --provider alibaba --set disabled-tools='["WebSearch"]'
+janito --provider alibaba --unset disabled-tools
+```
+
+Models with native server-side search (Alibaba/Qwen, Meta Muse Spark) hide
+the external `WebSearch` (Brave API) function tool by default so the model
+uses its built-in search. Set `disabled-tools` to override per model (an
+empty value re-enables every tool); the session tool list and the web
+tool router both honor it.
 
 ### Used files report (`used-files`)
 

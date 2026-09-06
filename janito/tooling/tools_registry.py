@@ -198,6 +198,28 @@ class ToolsRegistry:
             for name, tool in AVAILABLE_TOOLS.items()
         }
 
+    def _disabled_tool_names(self) -> set[str]:
+        """Names of external tools disabled for the active provider/model.
+
+        Resolved via :func:`janito.config_loaders.resolve_disabled_tools`
+        (issue #144); empty when no provider/model resolves or nothing is
+        disabled.  Imported lazily so the tooling -> root edge stays
+        one-way and failure here never breaks tool listing.
+        """
+        try:
+            from janito.config_loaders import resolve_disabled_tools
+
+            return set(resolve_disabled_tools())
+        except Exception:  # noqa: BLE001 - tool listing must never break
+            return set()
+
+    def disabled_tool_names(self) -> set[str]:
+        """Names of external tools disabled for the active provider/model.
+
+        Public accessor for :meth:`_disabled_tool_names` (issue #144).
+        """
+        return self._disabled_tool_names()
+
     def session_schemas(self) -> list[dict[str, Any]]:
         """Schemas of the tools the current session may offer by default.
 
@@ -216,10 +238,12 @@ class ToolsRegistry:
             the current session privileges.
         """
         self.ensure_initialized()
+        disabled = self._disabled_tool_names()
         return [
             get_function_schema(tool)
-            for tool in AVAILABLE_TOOLS.values()
-            if tool_is_allowed_by_privileges(
+            for name, tool in AVAILABLE_TOOLS.items()
+            if name not in disabled
+            and tool_is_allowed_by_privileges(
                 getattr(tool, "_tool_permissions", "") or ""
             )
         ]
@@ -236,10 +260,12 @@ class ToolsRegistry:
             privileges.
         """
         self.ensure_initialized()
+        disabled = self._disabled_tool_names()
         return {
             name
             for name, tool in AVAILABLE_TOOLS.items()
-            if tool_is_allowed_by_privileges(
+            if name not in disabled
+            and tool_is_allowed_by_privileges(
                 getattr(tool, "_tool_permissions", "") or ""
             )
         }
@@ -451,6 +477,18 @@ def get_session_tool_names() -> set[str]:
         privileges.
     """
     return _registry.session_tool_names()
+
+
+def get_disabled_tool_names() -> set[str]:
+    """Names of external tools disabled for the active provider/model.
+
+    Resolved via :func:`janito.config_loaders.resolve_disabled_tools`
+    (issue #144); empty when nothing is disabled.
+
+    Returns:
+        Set[str]: Names of the model-disabled tools.
+    """
+    return _registry.disabled_tool_names()
 
 
 def get_tool_by_name(name: str) -> Callable:

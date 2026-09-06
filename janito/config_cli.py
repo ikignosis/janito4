@@ -31,6 +31,7 @@ import logging
 from .config_keys import (
     BOOL_VALUED_KEYS,
     INT_VALUED_KEYS,
+    LIST_VALUED_KEYS,
     MODEL_SCOPED_KEYS,
     PROVIDER_SCOPED_KEYS,
     model_scoped_config_key,
@@ -154,6 +155,47 @@ def _coerce_int_value(key: str, value) -> int:
         )
 
 
+def _coerce_list_value(key: str, value) -> list[str]:
+    """Coerce a config value to a list of tool names.
+
+    Accepts a comma-separated string (``WebSearch, Other``), a JSON list
+    string (``'["WebSearch"]'``), or an already-list value.  Entries are
+    stripped; empty entries are dropped.  An empty string yields ``[]``
+    (no disabled tools).
+    """
+    import json as _json
+
+    if isinstance(value, (list, tuple)):
+        items = list(value)
+    elif isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return []
+        if raw.startswith("["):
+            try:
+                parsed = _json.loads(raw)
+            except ValueError:
+                raise ValueError(
+                    f"Config key '{key}' requires a comma-separated list "
+                    f"or JSON list, got: {value!r}"
+                )
+            if not isinstance(parsed, list):
+                raise ValueError(
+                    f"Config key '{key}' requires a comma-separated list "
+                    f"or JSON list, got: {value!r}"
+                )
+            items = parsed
+        else:
+            items = raw.split(",")
+    else:
+        raise ValueError(
+            f"Config key '{key}' requires a comma-separated list "
+            f"or JSON list, got: {value!r}"
+        )
+    result = [str(entry).strip() for entry in items]
+    return [entry for entry in result if entry]
+
+
 def _coerce_bool_value(key: str, value) -> bool:
     """Coerce a config value to a boolean, raising ValueError on failure."""
     if isinstance(value, str):
@@ -193,6 +235,34 @@ def _canonicalize_privileges_value(base_key: str, value: str) -> str:
     from .privileges import format_privileges, parse_privileges
 
     return format_privileges(parse_privileges(value))
+
+
+def _coerce_cli_value(key: str, base_key: str, value):
+    """Coerce/validate a CLI config value for its key type."""
+    if key == "provider":
+        from .providers.validation import validate_provider_name
+
+        value = validate_provider_name(value)
+    if key.endswith(".model"):
+        from .providers.validation import validate_model_name
+
+        value = validate_model_name(key.rsplit(".", 1)[0], value)
+    if base_key in INT_VALUED_KEYS:
+        value = _coerce_int_value(key, value)
+    if base_key in BOOL_VALUED_KEYS:
+        value = _coerce_bool_value(key, value)
+    if base_key in LIST_VALUED_KEYS:
+        value = _coerce_list_value(key, value)
+    if base_key == "api-type":
+        value = normalize_api_type(value)
+        from .providers.validation import ensure_api_type_available
+
+        ensure_api_type_available(value)
+    if key == "system-prompt-file":
+        from .config_loaders import validate_system_prompt_file_path
+
+        validate_system_prompt_file_path(value)
+    return _canonicalize_privileges_value(base_key, value)
 
 
 def set_config_from_cli(
@@ -240,57 +310,8 @@ def set_config_from_cli(
     elif key in MODEL_SCOPED_KEYS:
         key = _resolve_model_scoped_key(key, cli_provider, cli_model)
 
-    # Validate provider name against supported providers (those that map to a
-    # base URL) and normalize it to the canonical casing.
-    if key == "provider":
-        from .providers.validation import validate_provider_name
-
-        value = validate_provider_name(value)
-
-    # Validate the model name against the provider's built-in models (the
-    # base provider's models for variants); "custom" and "openrouter" have no
-    # usable built-in model list and accept any model name.  A matching name
-    # is normalized to its canonical casing before storing.
-    if key.endswith(".model"):
-        from .providers.validation import validate_model_name
-
-        provider = key.rsplit(".", 1)[0]
-        value = validate_model_name(provider, value)
-
-    # Coerce values for keys that should be stored as integers.
     base_key = key.rsplit(".", 1)[-1]
-    if base_key in INT_VALUED_KEYS:
-        value = _coerce_int_value(key, value)
-
-    # Coerce values for keys that should be stored as booleans (accepts
-    # true/false/1/0/yes/no/on/off in any case).
-    if base_key in BOOL_VALUED_KEYS:
-        value = _coerce_bool_value(key, value)
-
-    # Normalize API type values to their canonical casing (accepts
-    # completions/responses/... in any case) and reject anything else, so a
-    # typo is reported when the value is set rather than at the first API
-    # call. Native-SDK API types (e.g. "Anthropic") also require their
-    # optional package to be installed: when it is missing, the change is
-    # aborted (nothing is written) with a message naming the package.
-    if base_key == "api-type":
-        value = normalize_api_type(value)
-        from .providers.validation import ensure_api_type_available
-
-        ensure_api_type_available(value)
-
-    # A system-prompt-file value must point at an existing file: a missing
-    # file is rejected when the value is set (mirroring the startup check in
-    # cli.setup.validate_system_prompt_file) instead of failing only at the
-    # first session start.
-    if key == "system-prompt-file":
-        from .config_loaders import validate_system_prompt_file_path
-
-        validate_system_prompt_file_path(value)
-
-    # Validate the privileges value (--set privileges=rwx, issue #89): see
-    # _canonicalize_privileges_value.
-    value = _canonicalize_privileges_value(base_key, value)
+    value = _coerce_cli_value(key, base_key, value)
 
     set_config_value(key, value)
 

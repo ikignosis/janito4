@@ -25,7 +25,11 @@ MODEL_SCOPED_KEYS = {
     "reasoning-effort",
     "api-type",
     "stateless-mode",
+    "disabled-tools",
 }
+
+# Config keys whose values are lists of tool names set via CLI.
+LIST_VALUED_KEYS = {"disabled-tools"}
 
 # Config keys whose values should be coerced to int when set via CLI.
 INT_VALUED_KEYS = {"max-input-tokens", "max-output-tokens"}

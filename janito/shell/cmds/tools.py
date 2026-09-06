@@ -16,17 +16,24 @@ def _load_builtin_tools():
     model may actually call in a normal prompt (the session tool set); the
     tools excluded by the session privileges are returned separately so
     ``/tools`` can list them as "Privilege-restricted" (issue #87).
+    Tools disabled for the active provider/model (issue #144, e.g.
+    ``WebSearch`` when the model offers native server-side search) are
+    returned separately so ``/tools`` can list them as "disabled for this
+    model" instead of mislabeling them as privilege-restricted.
 
     Returns:
-        Tuple of ``(offered_tools, offered_schemas, restricted)`` where
-        ``restricted`` maps the names of the loaded-but-privilege-excluded
-        tools to a human-readable reason.
+        Tuple of ``(offered_tools, offered_schemas, restricted, disabled)``
+        where ``restricted`` maps the names of the loaded-but-privilege-
+        excluded tools to a human-readable reason and ``disabled`` maps
+        the names of the model-disabled tools to ``"disabled for this
+        model"``.
     """
     try:
         from janito import privileges as _privileges_mod
         from janito.tooling.tools_registry import (
             get_all_tool_permissions,
             get_all_tools,
+            get_disabled_tool_names,
             get_session_tool_names,
             get_session_tool_schemas,
         )
@@ -41,18 +48,25 @@ def _load_builtin_tools():
             s["function"]["name"]: s["function"] for s in get_session_tool_schemas()
         }
         restricted = {}
-        if _privileges_mod.running_privileges is not None:
-            permissions = get_all_tool_permissions()
-            for name in all_tools:
-                if name not in session_names:
-                    reason = privilege_restriction_reason(permissions.get(name, ""))
-                    restricted[name] = reason or "restricted by session privileges"
-    except Exception as e:
+        disabled = {}
+        disabled_names = get_disabled_tool_names()
+        permissions = get_all_tool_permissions()
+        for name in all_tools:
+            if name in session_names:
+                continue
+            if name in disabled_names:
+                disabled[name] = "disabled for this model"
+                continue
+            if _privileges_mod.running_privileges is not None:
+                reason = privilege_restriction_reason(permissions.get(name, ""))
+                restricted[name] = reason or "restricted by session privileges"
+    except Exception as e:  # noqa: BLE001 - advisory display must never break
         offered_tools = {}
         offered_schemas = {}
         restricted = {}
+        disabled = {}
         print(f"Warning: Could not load built-in tools: {e}")
-    return offered_tools, offered_schemas, restricted
+    return offered_tools, offered_schemas, restricted, disabled
 
 
 def _load_mcp_tools():
@@ -65,7 +79,7 @@ def _load_mcp_tools():
         if mcp_manager:
             for schema in mcp_manager.get_all_tools():
                 mcp_tools.append(schema["function"])
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - advisory display must never break
         print(f"Warning: Could not load MCP tools: {e}")
     return mcp_tools
 
@@ -126,8 +140,8 @@ class ToolsCmdHandler(CmdHandler):
             )
 
         # Get built-in tools from tools_registry (the session/offered set,
-        # privilege-filtered under -r/-w/-x; restricted tools listed below).
-        builtin_tools, builtin_schemas, restricted = _load_builtin_tools()
+        # privilege-filtered under -r/-w/-x; restricted/model-disabled below).
+        builtin_tools, builtin_schemas, restricted, disabled = _load_builtin_tools()
 
         # Get MCP tools from MCP manager
         mcp_tools = _load_mcp_tools()
@@ -148,12 +162,18 @@ class ToolsCmdHandler(CmdHandler):
             restricted_rows = sorted(restricted.items())
             _tools_table("Privilege-restricted", restricted_rows)
 
+        # Tools disabled for the active provider/model (issue #144, e.g.
+        # WebSearch when the model offers native server-side search).
+        if disabled:
+            disabled_rows = sorted(disabled.items())
+            _tools_table("Model-disabled", disabled_rows)
+
         skipped_rows = []
         try:
             from janito.tools import get_skipped_tools
 
             skipped_tools = get_skipped_tools()
-        except Exception:
+        except Exception:  # noqa: BLE001 - advisory display must never break
             skipped_tools = {}
         for name, reason in sorted(skipped_tools.items()):
             skipped_rows.append((name, reason))

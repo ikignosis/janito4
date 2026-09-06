@@ -286,6 +286,41 @@ class ProviderConfigLoader:
             return value.strip().lower() in ("true", "1", "yes", "on")
         return bool(value)
 
+    def load_disabled_tools(
+        self, cli_provider: str | None = None, model: str | None = None
+    ) -> list[str] | None:
+        """Load the disabled-tools override for a provider/model.
+
+        Stored under ``providers.<provider>.models.<model>.disabled-tools``
+        as a list of external tool names (e.g. ``["WebSearch"]``).
+
+        Returns:
+            The configured list, or ``None`` when no override is stored
+            (the built-in/derived default applies).  A stored empty list
+            means explicitly nothing disabled.
+        """
+        from .config_keys import model_scoped_config_key
+        from .config_store import get_config_value
+
+        provider = self._resolve_provider(cli_provider)
+        if not provider:
+            return None
+        model = self._resolve_model(cli_provider, model)
+        if not model:
+            return None
+        value = get_config_value(
+            model_scoped_config_key(provider, model, "disabled-tools")
+        )
+        if value is None:
+            return None
+        if isinstance(value, str):
+            items = [entry.strip() for entry in value.split(",")]
+            return [entry for entry in items if entry]
+        if isinstance(value, (list, tuple)):
+            items = [str(entry).strip() for entry in value]
+            return [entry for entry in items if entry]
+        return None
+
     def load_endpoint(self, cli_provider: str | None = None) -> str | None:
         """Load custom endpoint URL from ~/.janito/config.json if it exists.
 
@@ -442,6 +477,105 @@ def load_stateless_mode_from_config(
             no override is stored (the built-in default applies).
     """
     return _loader.load_stateless_mode(cli_provider, model)
+
+
+def load_disabled_tools_from_config(
+    cli_provider: str | None = None,
+    model: str | None = None,
+) -> list[str] | None:
+    """Load the disabled-tools override for a provider/model.
+
+    Returns the stored list, or ``None`` when no override is stored.
+    """
+    return _loader.load_disabled_tools(cli_provider, model)
+
+
+# Native server-side search tool types that make the external WebSearch
+# function tool redundant (issue #144).
+_NATIVE_SEARCH_TOOL_TYPES = {"web_search", "web_extractor"}
+
+
+def _has_native_search(entries) -> bool:
+    """Whether native tool entries include server-side search."""
+    for entry in entries or []:
+        if (
+            isinstance(entry, dict)
+            and str(entry.get("type", "")).lower() in _NATIVE_SEARCH_TOOL_TYPES
+        ):
+            return True
+    return False
+
+
+def _derived_search_default(found, resolved_model, api_type: str | None) -> list[str]:
+    """Derived default: ``["WebSearch"]`` when native search exists."""
+    try:
+        native = found.tools(resolved_model, api_type=api_type) if api_type else None
+        if not native:
+            native = found.tools(resolved_model)
+    except (
+        AttributeError,
+        KeyError,
+        TypeError,
+        ValueError,
+    ):  # noqa: BLE001 - best effort default
+        native = None
+    if _has_native_search(native):
+        return ["WebSearch"]
+    if api_type:
+        return []
+    try:
+        by_type = found.model_config(resolved_model).data.get("tools_by_api_type")
+    except (
+        AttributeError,
+        KeyError,
+        TypeError,
+        ValueError,
+    ):  # noqa: BLE001 - best effort default
+        by_type = None
+    if isinstance(by_type, dict):
+        for tools in by_type.values():
+            if _has_native_search(tools):
+                return ["WebSearch"]
+    return []
+
+
+def resolve_disabled_tools(
+    cli_provider: str | None = None,
+    model: str | None = None,
+    api_type: str | None = None,
+) -> list[str]:
+    """Resolve the effective disabled external tools for a provider/model.
+
+    Priority: user override (``disabled-tools`` key, empty list disables
+    nothing) -> built-in ``disabled_tools`` model entry -> derived default
+    (``["WebSearch"]`` when the model's native tools for ``api_type``
+    include a server-side search type).
+
+    Args:
+        cli_provider: Provider name (or ``None`` to use the configured one).
+        model: Model name (or ``None`` to use the configured/default one).
+        api_type: Canonical API type used for per-API-type native tools
+            resolution (``None`` checks every declared list).
+
+    Returns:
+        Sorted list of disabled external tool names (possibly empty).
+    """
+    from .providers.registry import get_provider
+
+    override = load_disabled_tools_from_config(cli_provider, model)
+    if override is not None:
+        return sorted(set(override))
+    provider_name = ProviderConfigLoader._resolve_provider(cli_provider)
+    if not provider_name:
+        return []
+    resolved_model = ProviderConfigLoader._resolve_model(cli_provider, model)
+    found = get_provider(provider_name)
+    if found is None:
+        return []
+    builtin = found.disabled_tools(resolved_model)
+    if builtin:
+        return sorted(set(str(entry) for entry in builtin if str(entry).strip()))
+    return _derived_search_default(found, resolved_model, api_type)
 
 
 def load_endpoint_from_config(cli_provider: str | None = None) -> str | None:
