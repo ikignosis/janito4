@@ -42,10 +42,6 @@ PROVIDER_CONFIG: dict = {
             # response.reasoning_summary_text deltas and surfaced via
             # on_reasoning).  The raw chain of thought stays private.
             "thinking_summary": True,
-            # Hosted deferred tool loading (issue #128) is disabled for now:
-            # it misroutes tool calls (incorrect arguments), so flat tools
-            # are sent until the namespaced path is fixed.
-            "tool_search": False,
             # Search grounding (issue #131): Responses-only web_search
             # builtin tool (https://dev.meta.ai/docs/search-grounding).
             # Not available through Chat Completions.
@@ -101,10 +97,6 @@ PROVIDER_CONFIG: dict = {
             # response.reasoning_summary_text deltas and surfaced via
             # on_reasoning).  The raw chain of thought stays private.
             "thinking_summary": True,
-            # Hosted deferred tool loading (issue #128) is disabled for now:
-            # it misroutes tool calls (incorrect arguments), so flat tools
-            # are sent until the namespaced path is fixed.
-            "tool_search": False,
             # Search grounding (issue #131): Responses-only web_search
             # builtin tool (https://dev.meta.ai/docs/search-grounding).
             # Not available through Chat Completions.

@@ -98,8 +98,6 @@ if pytest is not None:
             response_id,
             raw_attrs,
             _items,
-            _search_calls,
-            _search_outputs,
             _web_search_calls,
             _web_search_citations,
         ) = c.consume(events(), cancel_event=cancel)

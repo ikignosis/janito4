@@ -48,11 +48,6 @@ class ResponsesStreamConsumer:
         # raw item dicts in stream order, replayed verbatim in the next
         # round's ``input`` by the stateless client.
         self.reasoning_items: list[dict[str, Any]] = []
-        # Hosted tool search (issue #128): finished tool_search_call items
-        # carry {"paths": [...]} and tool_search_output items carry the
-        # loaded tool definitions.
-        self.tool_search_calls: list[dict[str, Any]] = []
-        self.tool_search_outputs: list[dict[str, Any]] = []
         # Search grounding (issue #131): finished web_search_call items
         # (one per performed search) and url_citation annotations collected
         # from the completed response's message output.
@@ -118,8 +113,6 @@ class ResponsesStreamConsumer:
             self.response_id,
             self.raw_attrs,
             self.reasoning_items,
-            self.tool_search_calls,
-            self.tool_search_outputs,
             self.web_search_calls,
             self.web_search_citations,
         )
@@ -216,20 +209,13 @@ class ResponsesStreamConsumer:
             self.tool_calls.append(
                 {
                     "call_id": item.call_id,
-                    "name": _bare_tool_name(
-                        getattr(item, "name", ""),
-                        getattr(item, "namespace", None),
-                    ),
+                    "name": item.name,
                     "arguments": item.arguments
                     or self.partial_arguments.get(item.id, ""),
                 }
             )
         elif item_type == "reasoning":
             self.reasoning_items.append(_reasoning_item_dict(item))
-        elif item_type == "tool_search_call":
-            self.tool_search_calls.append(_tool_search_call_dict(item))
-        elif item_type == "tool_search_output":
-            self.tool_search_outputs.append(_tool_search_output_dict(item))
         elif item_type == "web_search_call":
             self.web_search_calls.append(_web_search_call_dict(item))
 
@@ -258,78 +244,6 @@ def _reasoning_item_dict(item) -> dict[str, Any]:
     return replay
 
 
-def _bare_tool_name(name: str | None, namespace: str | None = None) -> str:
-    """Strip a ``namespace.`` prefix from a function-call name (issue #128).
-
-    Meta returns namespaced calls as ``name="ListFiles"`` plus
-    ``namespace="files"`` or as a dotted ``"files.ListFiles"``; the local
-    registry is keyed by the bare tool name, so both collapse to
-    ``"ListFiles"``.
-    """
-    if not name:
-        return ""
-    if "." in name:
-        return name.rsplit(".", 1)[-1]
-    return name
-
-
-def _tool_search_call_dict(item) -> dict[str, Any]:
-    """Normalized dict for a finished ``tool_search_call`` item (issue #128)."""
-    arguments = getattr(item, "arguments", None) or {}
-    if isinstance(arguments, str):
-        import json as _json
-
-        try:
-            arguments = _json.loads(arguments) if arguments else {}
-        except ValueError:
-            arguments = {}
-    paths = arguments.get("paths", []) if isinstance(arguments, dict) else []
-    return {"paths": list(paths or [])}
-
-
-def _entry_nested(entry) -> list | None:
-    """Nested functions of a namespace entry, if any."""
-    if isinstance(entry, dict):
-        return entry.get("tools")
-    return getattr(entry, "tools", None)
-
-
-def _entry_type(entry) -> str | None:
-    """Type of a tool-search output entry."""
-    if isinstance(entry, dict):
-        return entry.get("type")
-    return getattr(entry, "type", None)
-
-
-def _entry_name(entry) -> str | None:
-    """Bare name of a single tool entry."""
-    if isinstance(entry, dict):
-        return _bare_tool_name(entry.get("name")) if entry.get("name") else None
-    name = getattr(entry, "name", None)
-    return _bare_tool_name(name) if name else None
-
-
-def _tool_names_from_entry(entry) -> list[str]:
-    """Bare tool names contributed by one output entry."""
-    nested = _entry_nested(entry)
-    if nested:
-        names = [_entry_name(fn) for fn in nested or []]
-        return [name for name in names if name]
-    if _entry_type(entry) == "namespace":
-        return []
-    name = _entry_name(entry)
-    return [name] if name else []
-
-
-def _tool_search_output_dict(item) -> dict[str, Any]:
-    """Normalized dict for a finished ``tool_search_output`` item (issue #128)."""
-    tools = getattr(item, "tools", None) or []
-    names: list[str] = []
-    for entry in tools:
-        names.extend(_tool_names_from_entry(entry))
-    return {"tool_names": names}
-
-
 def _web_search_call_dict(item) -> dict[str, Any]:
     """Normalized dict for a finished ``web_search_call`` item (issue #131)."""
     return {
@@ -355,7 +269,9 @@ def _citations_from_output(output) -> list[dict[str, Any]]:
             )
             for ann in anns or []:
                 atype = (
-                    ann.get("type") if isinstance(ann, dict) else getattr(ann, "type", None)
+                    ann.get("type")
+                    if isinstance(ann, dict)
+                    else getattr(ann, "type", None)
                 )
                 if atype != "url_citation":
                     continue

@@ -77,114 +77,6 @@ def _convert_tools(tools_schemas: list[dict]) -> list[dict]:
     return _convert_tools_to_responses_format(tools_schemas)
 
 
-def convert_tools_for_tool_search(tools_schemas: list[dict]) -> list[dict]:
-    """Group flat function schemas into namespaces + tool_search (issue #128).
-
-    Used when the effective model declares ``tool_search: True`` (Meta
-    models): every function is marked ``defer_loading`` and grouped by its
-    ``namespace`` key (falling back to ``default``), and a single
-    ``{"type": "tool_search"}`` entry is appended.  Callers must pass
-    schemas that already carry ``namespace`` (see
-    ``janito.tooling.schema.group_schemas_by_namespace``); plain schemas
-    without one are grouped under ``default``.
-    """
-    from collections import OrderedDict
-
-    grouped: dict[str, list[dict]] = OrderedDict()
-    for schema in tools_schemas or []:
-        function = schema.get("function", schema)
-        namespace = schema.get("namespace") or function.get("namespace") or "default"
-        # Skill tools are never deferred (issue #128): they stay immediate
-        # so hosted tool search always has something callable up front.
-        defer = namespace != "skills"
-        grouped.setdefault(namespace, []).append(
-            {
-                "type": "function",
-                "name": function.get("name"),
-                "description": function.get("description", ""),
-                "parameters": function.get("parameters", {}),
-                "defer_loading": defer,
-            }
-        )
-    namespaced = [
-        {
-            "type": "namespace",
-            "name": namespace,
-            "description": f"{namespace} tools.",
-            "tools": functions,
-        }
-        for namespace, functions in grouped.items()
-    ]
-    namespaced.append({"type": "tool_search"})
-    return namespaced
-
-
-def model_uses_tool_search(provider: str | None, model: str) -> bool:
-    """Whether the effective model enables hosted tool search (issue #128)."""
-    if not provider:
-        return False
-    from janito.providers.registry import get_provider
-
-    found = get_provider(provider)
-    return bool(found.tool_search(model)) if found is not None else False
-
-
-def _bare_tool_name(name: str | None) -> str:
-    """Strip a ``namespace.`` prefix from a tool name (issue #128)."""
-    if not name:
-        return ""
-    return name.rsplit(".", 1)[-1] if "." in name else name
-
-
-def _tool_search_paths(arguments) -> list[str]:
-    """Paths searched by a ``tool_search_call`` item (issue #128)."""
-    if isinstance(arguments, str):
-        try:
-            arguments = json.loads(arguments) if arguments else {}
-        except ValueError:
-            arguments = {}
-    if not isinstance(arguments, dict):
-        return []
-    return list(arguments.get("paths", []) or [])
-
-
-def _single_tool_name(entry) -> str | None:
-    """Bare name of one tool entry, or ``None``."""
-    if isinstance(entry, dict):
-        name = entry.get("name")
-    else:
-        name = getattr(entry, "name", None)
-    return _bare_tool_name(name) if name else None
-
-
-def _tool_search_names(tools) -> list[str]:
-    """Bare tool names loaded by a ``tool_search_output`` item (issue #128)."""
-    names: list[str] = []
-    for entry in tools or []:
-        nested = (
-            entry.get("tools")
-            if isinstance(entry, dict)
-            else getattr(entry, "tools", None)
-        )
-        if nested:
-            for fn in nested:
-                name = _single_tool_name(fn)
-                if name:
-                    names.append(name)
-            continue
-        entry_type = (
-            entry.get("type")
-            if isinstance(entry, dict)
-            else getattr(entry, "type", None)
-        )
-        if entry_type == "namespace":
-            continue
-        name = _single_tool_name(entry)
-        if name:
-            names.append(name)
-    return names
-
-
 def _model_supports_image_generation(model: str) -> bool:
     """Whether a mainline Responses model supports the ``image_generation`` tool.
 
@@ -446,9 +338,6 @@ class ResponsesTurnAccumulator:
         self.tool_calls: list[dict] = []  # [{call_id, name, arguments}]
         self.partial_arguments: dict[str, str] = {}
         self.usage = None
-        # Hosted tool search (issue #128).
-        self.tool_search_calls: list[dict] = []
-        self.tool_search_outputs: list[dict] = []
         # Search grounding (issue #131).
         self.web_search_calls: list[dict] = []
         self.web_search_citations: list[dict] = []
@@ -537,17 +426,16 @@ class ResponsesTurnAccumulator:
         item = getattr(event, "item", None)
         item_type = getattr(item, "type", None)
         if item_type == "function_call":
-            self._record_function_call(item)
+            self.tool_calls.append(
+                {
+                    "call_id": getattr(item, "call_id", ""),
+                    "name": getattr(item, "name", ""),
+                    "arguments": getattr(item, "arguments", None)
+                    or self.partial_arguments.get(getattr(item, "id", ""), ""),
+                }
+            )
         elif item_type == "image_generation_call":
             self._capture_image_generation(item)
-        elif item_type == "tool_search_call":
-            self.tool_search_calls.append(
-                {"paths": _tool_search_paths(getattr(item, "arguments", None))}
-            )
-        elif item_type == "tool_search_output":
-            self.tool_search_outputs.append(
-                {"tool_names": _tool_search_names(getattr(item, "tools", None))}
-            )
         elif item_type == "web_search_call":
             self.web_search_calls.append(
                 {
@@ -645,8 +533,6 @@ __all__ = [
     "ResponsesTurnAccumulator",
     "accumulator",
     "build_call_kwargs",
-    "convert_tools_for_tool_search",
-    "model_uses_tool_search",
     "_convert_tools",
     "_convert_tools_to_responses_format",
     "_messages_to_input_items",

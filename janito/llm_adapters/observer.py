@@ -121,14 +121,6 @@ class TurnObserver(Protocol):
         """Rate-limit wait (issue #116): render, wait, return to retry."""
         ...
 
-    def on_tool_search_call(self, paths: list[str]) -> None:
-        """A hosted tool-search lookup started (issue #128)."""
-        ...
-
-    def on_tool_search_output(self, tool_names: list[str]) -> None:
-        """A hosted tool-search lookup finished and loaded tools (issue #128)."""
-        ...
-
     def on_web_search_call(self) -> None:
         """A web search was performed (issue #131)."""
         ...
@@ -221,12 +213,6 @@ class NullObserver:
 
     def on_limits(self, http_error_msg: str, retry_interval: float) -> None:
         time.sleep(retry_interval)
-
-    def on_tool_search_call(self, paths: list[str]) -> None:
-        pass
-
-    def on_tool_search_output(self, tool_names: list[str]) -> None:
-        pass
 
     def on_web_search_call(self) -> None:
         pass

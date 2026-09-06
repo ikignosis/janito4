@@ -14,15 +14,6 @@ janito includes built-in tools for common tasks.
 | **Skills** | Extensions | Install and use task-specific skills |
 | **MCP** | Extensions | Connect to MCP servers for custom tools |
 
-## Tool namespaces and deferred loading
-
-Every tool belongs to a namespace (its toolset: `files`, `system`, `net`,
-`tasks`, ...). Models with hosted tool search enabled (Meta `muse-spark`,
-`tool_search: true` in the provider config) receive tools grouped as
-`namespace` entries with `defer_loading`, plus a single `tool_search`
-entry, so the model loads schemas on demand (Responses API only). All other
-models receive flat function tools. The CLI prints `Searching for tools on
-<paths>` when a lookup starts and `Loaded (n) tools` when it finishes.
 
 ## Interactive Tools
 

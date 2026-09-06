@@ -106,16 +106,8 @@ class ToolsRegistry:
 
         # Add skill tools if enabled. Never gated by _tools_loading_enabled:
         # --no-tools disables the other tools but leaves skills enabled.
-        # Skill tools are never deferred (issue #128): they stay immediate
-        # so hosted tool search always has something callable up front.
         if _skills_enabled:
-            skill_tools = get_skills_tools()
-            for skill_fn in skill_tools.values():
-                try:
-                    setattr(skill_fn, "_tool_namespace", "skills")
-                except AttributeError:
-                    pass
-            AVAILABLE_TOOLS.update(skill_tools)
+            AVAILABLE_TOOLS.update(get_skills_tools())
 
     def add_toolset(self, toolset_name: str) -> bool:
         """
@@ -338,13 +330,7 @@ You should load a skill when the user's request matches its description or you n
         global _skills_enabled
         self.ensure_initialized()
         _skills_enabled = True
-        skill_tools = get_skills_tools()
-        for skill_fn in skill_tools.values():
-            try:
-                setattr(skill_fn, "_tool_namespace", "skills")
-            except AttributeError:
-                pass
-        AVAILABLE_TOOLS.update(skill_tools)
+        AVAILABLE_TOOLS.update(get_skills_tools())
 
     def disable_skills(self) -> None:
         """Disable skills support."""
@@ -465,17 +451,6 @@ def get_session_tool_names() -> set[str]:
         privileges.
     """
     return _registry.session_tool_names()
-
-
-def get_tool_namespace(name: str) -> str:
-    """Namespace a tool belongs to (issue #128).
-
-    Read from the wrapped callable's ``_tool_namespace`` (the toolset name
-    at discovery); unknown tools fall back to ``default``.
-    """
-    _registry.ensure_initialized()
-    tool = AVAILABLE_TOOLS.get(name)
-    return getattr(tool, "_tool_namespace", "") or "default"
 
 
 def get_tool_by_name(name: str) -> Callable:

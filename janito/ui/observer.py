@@ -147,19 +147,9 @@ class RichTurnObserver(NullObserver):
             progress.add_task(message, total=None)
             time.sleep(retry_interval)
 
-    def on_tool_search_call(self, paths: list[str]) -> None:
-        """Hosted tool-search lookup started (issue #128)."""
-        self.console.print(f"Searching for tools on {','.join(paths)}", style="bold")
-
-    def on_tool_search_output(self, tool_names: list[str]) -> None:
-        """Hosted tool-search lookup finished (issue #128)."""
-        self.console.print(f"Loaded ({len(tool_names)}) tools")
-
     def on_web_search_call(self) -> None:
         """Web search performed (issue #131)."""
         self.console.print("Searching the web...", style="bold")
-
-
 
     def on_turn_complete(self, token_stats, api_config) -> None:
         """End-of-turn report: record accounting, then render the usage summary.
