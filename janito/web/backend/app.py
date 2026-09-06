@@ -169,7 +169,7 @@ def run_web(args) -> None:
         def _open():
             try:
                 webbrowser.open(url)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
                 logger.debug(f"Could not open browser: {e}")
 
         # Open the browser slightly after the server starts listening
@@ -189,5 +189,5 @@ def run_web(args) -> None:
 
         try:
             shutdown_mcp_manager()
-        except Exception:
+        except Exception:  # noqa: BLE001 - intentional boundary, log/convert and continue
             pass

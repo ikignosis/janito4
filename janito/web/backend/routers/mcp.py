@@ -46,7 +46,7 @@ async def connect_service(name: str, request: Request):
     manager = _get_manager()
     try:
         await asyncio.to_thread(manager.load_services, [name])
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
         logger.error(f"Failed to connect MCP service {name}: {e}")
         return JSONResponse({"detail": str(e)}, status_code=500)
 
@@ -67,7 +67,7 @@ async def list_mcp_tools(request: Request):
     manager = _get_manager()
     try:
         tools = await asyncio.to_thread(manager.get_all_tools, False)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
         logger.warning(f"Failed to list MCP tools: {e}")
         tools = []
     return {"tools": tools, "count": len(tools)}

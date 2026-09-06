@@ -160,7 +160,7 @@ class ReplaceTextInFile(BaseTool):
 
             return result_dict
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             self.report_error(f"Error replacing text: {e!s}")
             return {
                 "success": False,

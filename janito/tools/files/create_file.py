@@ -78,7 +78,7 @@ class CreateFile(BaseTool):
                 "overwrite": overwrite,
             }
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             self.report_error(f"Error creating file: {e!s}")
             return {
                 "success": False,

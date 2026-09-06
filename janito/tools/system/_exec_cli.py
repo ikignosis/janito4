@@ -124,7 +124,7 @@ def _read_code(args, parser) -> str | None:
         try:
             with open(args.file, encoding="utf-8") as f:
                 code = f.read()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             print(f"Error reading file: {e}")
             return None
     return code

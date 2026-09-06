@@ -117,7 +117,7 @@ class CreateDirectory(BaseTool):
                 "parents": parents,
                 "exist_ok": exist_ok,
             }
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             self.report_error(f"Error creating directory: {e!s}")
             return {
                 "success": False,

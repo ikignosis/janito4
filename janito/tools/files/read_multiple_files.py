@@ -115,7 +115,7 @@ class ReadMultipleFiles(BaseTool):
                     results.append(result)
                     if result["success"]:
                         successful_count += 1
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
                     results.append(
                         {
                             "filepath": filepath,
@@ -143,7 +143,7 @@ class ReadMultipleFiles(BaseTool):
                 "successful_files": successful_count,
             }
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             self.report_error(f"Error during multiple file reading: {e!s}")
             return {
                 "success": False,

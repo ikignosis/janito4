@@ -121,7 +121,7 @@ class WebPromptHandler:
         try:
             send = asyncio.run_coroutine_threadsafe(self._send_prompt(prompt_id, question), self._loop)
             send.result(timeout=self._SEND_TIMEOUT)
-        except Exception:
+        except Exception:  # noqa: BLE001 - intentional boundary, log/convert and continue
             # The socket is dead / the loop closed: nothing will ever answer
             # this question. Wake the waiter so the tool returns empty.
             self._registry.cancel_all()

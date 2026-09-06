@@ -224,7 +224,7 @@ class RemoveDirectory(BaseTool):
                 "recursive": recursive,
                 "force": force,
             }
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             self.report_error(f"Error removing directory: {e!s}")
             return {
                 "success": False,

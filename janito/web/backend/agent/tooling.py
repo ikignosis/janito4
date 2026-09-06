@@ -55,7 +55,7 @@ async def resolve_tools(config, tools: list[dict] | None, use_mcp: bool) -> list
             await asyncio.to_thread(mcp_manager.load_services)
             mcp_tools = await asyncio.to_thread(mcp_manager.get_all_tools)
             logger.info(f"Loaded {len(mcp_tools)} MCP tools from " f"{len(mcp_manager.connected_services)} services")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             logger.warning(f"Failed to load MCP tools: {e}")
 
     built_in_tools = get_session_tool_schemas()

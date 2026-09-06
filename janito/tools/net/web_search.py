@@ -58,7 +58,7 @@ def _resolve_api_key() -> str | None:
         from ...secrets_config import get_secret
 
         return get_secret(_BRAVE_SECRET_KEY)
-    except Exception:
+    except Exception:  # noqa: BLE001 - intentional boundary, log/convert and continue
         return None
 
 
@@ -198,7 +198,7 @@ class WebSearch(BaseTool):
                 err_body = e.read().decode("utf-8", errors="replace")
                 err_data = json.loads(err_body)
                 detail = (err_data.get("error") or {}).get("detail", "")
-            except Exception:
+            except Exception:  # noqa: BLE001 - intentional boundary, log/convert and continue
                 pass
             msg = f"HTTP Error {e.code}: {e.reason}"
             if detail:
@@ -311,7 +311,7 @@ class WebSearch(BaseTool):
                 "execution_time_ms": execution_time_ms,
             }
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             self.report_error(f"Execution error: {e!s}")
             return {
                 "success": False,

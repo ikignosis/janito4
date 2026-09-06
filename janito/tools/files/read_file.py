@@ -149,7 +149,7 @@ class ReadFile(BaseTool):
                 "lines_read": lines_read,
             }
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             self.report_error(f"Error reading file: {e!s}")
             return {
                 "success": False,

@@ -89,7 +89,7 @@ class MCPTransport(ABC):
             tools = result.get("tools", [])
             logger.debug(f"Listed {len(tools)} tools from MCP server")
             return tools
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             logger.error(f"Failed to list tools: {e}")
             return []
 

@@ -69,7 +69,7 @@ class OpenBrowser(BaseTool):
                     "url": url,
                 }
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             self.report_error(f"Error: {e}")
             return {
                 "success": False,

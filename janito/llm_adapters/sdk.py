@@ -42,14 +42,14 @@ def _object_items(obj: Any):
                     except TypeError:
                         pass
                 return method().items()
-            except Exception:
+            except Exception:  # noqa: BLE001 - intentional boundary, log/convert and continue
                 continue
     if hasattr(obj, "__dict__"):
         return vars(obj).items()
     if callable(getattr(obj, "keys", None)):
         try:
             return [(k, obj[k]) for k in obj.keys()]
-        except Exception:
+        except Exception:  # noqa: BLE001 - intentional boundary, log/convert and continue
             return []
     return []
 

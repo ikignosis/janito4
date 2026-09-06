@@ -634,7 +634,7 @@ class CompactCmdHandler(CmdHandler):
         except RequestCancelled:
             print("Compaction cancelled (Enter); conversation left unchanged.")
             return None
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             print(f"Error during compaction: {e}")
             return None
         # Responses returns a ConversationResult; the stateless clients return

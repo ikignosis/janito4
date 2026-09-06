@@ -63,7 +63,7 @@ class HttpTransport(MCPTransport):
 
             return True
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             logger.error(f"Failed to connect to MCP server: {e}")
             return False
 
@@ -199,7 +199,7 @@ class HttpTransport(MCPTransport):
 
         try:
             requests.post(self.url, json=notification, headers=headers, timeout=5)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             # A failed notification also means the connection is gone.
             self._connected = False
             logger.debug(f"Notification send failed (ignored): {e}")

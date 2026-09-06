@@ -153,7 +153,7 @@ class RunPythonFile(BaseTool):
                 "working_directory": working_directory or os.getcwd(),
                 "execution_time_ms": int((time.time() - start_time) * 1000),
             }
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             execution_time_ms = int((time.time() - start_time) * 1000)
             self.report_error(f"Execution error: {e!s}")
             return {

@@ -277,7 +277,7 @@ class HeadlessBrowse(BaseTool):
             finally:
                 shutil.rmtree(profile_dir, ignore_errors=True)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             self.report_error(f"Execution error: {e!s}")
             return {
                 "success": False,

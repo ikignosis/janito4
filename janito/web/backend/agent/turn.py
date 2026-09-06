@@ -66,7 +66,7 @@ async def run_tool_turn(
         if not is_mcp_tool(tool_name):
             try:
                 permissions = get_tool_permissions(tool_name)
-            except Exception:
+            except Exception:  # noqa: BLE001 - intentional boundary, log/convert and continue
                 permissions = ""
 
         yield ToolCallEvent(

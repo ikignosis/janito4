@@ -61,7 +61,7 @@ class MCPManager:
                     logger.info(f"Loaded MCP service: {name}")
                 else:
                     logger.warning(f"Failed to connect to MCP service: {name}")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
                 logger.error(f"Error loading MCP service '{name}': {e}")
 
         # Invalidate cache when services change
@@ -78,7 +78,7 @@ class MCPManager:
         if name in self._clients:
             try:
                 self._clients[name].disconnect()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
                 logger.debug(f"Error disconnecting service '{name}': {e}")
             finally:
                 del self._clients[name]
@@ -128,7 +128,7 @@ class MCPManager:
                     openai_tool = self._convert_tool_to_openai(service_name, tool)
                     all_tools.append(openai_tool)
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
                 logger.error(f"Error getting tools from service '{service_name}': {e}")
 
         # Cache the results
@@ -262,7 +262,7 @@ class MCPManager:
 
         try:
             tools = client.list_tools()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             logger.error(f"Error listing tools from service '{service_name}': {e}")
             return False
 

@@ -57,7 +57,7 @@ def _is_enter_pressed() -> bool:
             sys.stdin.readline()
             return True
         return False
-    except Exception:
+    except Exception:  # noqa: BLE001 - intentional boundary, log/convert and continue
         # Never let input detection break the request flow.
         return False
 
@@ -84,7 +84,7 @@ def _run_with_progress_bar(func, *args, **kwargs):
     def target():
         try:
             result[0] = func(*args, **kwargs, cancel_event=cancel_event)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             exception[0] = e
 
     # Create and start the thread

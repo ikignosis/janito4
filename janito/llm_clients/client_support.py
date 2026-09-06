@@ -68,7 +68,7 @@ def _load_mcp(use_mcp: bool) -> tuple[Any, list[dict[str, Any]]]:
             mcp_manager.load_services()
             mcp_tools = mcp_manager.get_all_tools()
             logger.info(f"Loaded {len(mcp_tools)} MCP tools from {len(mcp_manager.connected_services)} services")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             logger.warning(f"Failed to load MCP tools: {e}")
             mcp_tools = []
     else:
@@ -90,7 +90,7 @@ def _is_rate_limit(e: Exception) -> bool:
         try:
             if getattr(e, attr, None) == 429:
                 return True
-        except Exception:
+        except Exception:  # noqa: BLE001 - intentional boundary, log/convert and continue
             pass
     message = str(e).lower()
     return "429" in message or "rate limit" in message or "rate_limit" in message or "too many requests" in message
@@ -122,7 +122,7 @@ def _headers_retry_after(headers: Any) -> float | None:
             value = headers.get("retry-after", headers.get("Retry-After"))
         else:
             value = headers.get("retry-after", headers.get("Retry-After"))
-    except Exception:
+    except Exception:  # noqa: BLE001 - intentional boundary, log/convert and continue
         return None
     if value is None:
         return None

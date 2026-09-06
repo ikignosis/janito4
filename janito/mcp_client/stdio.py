@@ -116,7 +116,7 @@ class StdioTransport(MCPTransport):
 
             return True
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             logger.error(f"Failed to connect to MCP server: {e}")
             self.disconnect()
             return False
@@ -131,7 +131,7 @@ class StdioTransport(MCPTransport):
                 self.process.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 self.process.kill()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
                 logger.debug(f"Error during disconnect: {e}")
             # Give the stderr drain thread a moment to hit EOF and exit;
             # safe to skip if it is stuck on a non-terminating server.
@@ -157,7 +157,7 @@ class StdioTransport(MCPTransport):
 
                 self._dispatch_message(message)
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
                 logger.debug(f"Error reading from MCP server: {e}")
 
     def _stderr_loop(self) -> None:
@@ -179,7 +179,7 @@ class StdioTransport(MCPTransport):
                 if line:
                     self._stderr_lines.append(line)
                     logger.debug("MCP server stderr: %s", line)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
                 logger.debug(f"Error reading stderr from MCP server: {e}")
                 break
 

@@ -73,7 +73,7 @@ class AskCmdHandler(CmdHandler):
             # request. The /ask history is local to this command, so there is
             # nothing to roll back.
             print("Request cancelled (Enter).")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional boundary, log/convert and continue
             print(f"Error: {e}")
 
 
