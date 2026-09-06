@@ -131,19 +131,27 @@ def _call_on_start(plugin: Plugin) -> None:
 
 def _register_plugin_tools(plugin: Plugin) -> None:
     """Register the plugin's tool classes into the tools registry."""
-    wrapped: dict[str, Any] = {}
-    for cls in plugin.tools:
-        callable_tool = wrap_tool_class(cls)
-        if callable_tool is not None:
-            wrapped[callable_tool.__name__] = callable_tool
-    # Fallback: if TOOLS is empty, discover tool classes from the plugin's
-    # ``tools`` subpackage (the issue requires tools live under tools/).
-    if not wrapped and plugin.module is not None:
-        tools_submodule = getattr(plugin.module, "tools", None)
-        if tools_submodule is not None:
-            wrapped.update(discover_module_tools(tools_submodule))
-    if wrapped:
-        register_plugin_tools(wrapped)
+    try:
+        wrapped: dict[str, Any] = {}
+        for cls in plugin.tools:
+            callable_tool = wrap_tool_class(cls)
+            if callable_tool is not None:
+                wrapped[callable_tool.__name__] = callable_tool
+        # Fallback: if TOOLS is empty, discover tool classes from the plugin's
+        # ``tools`` subpackage (the issue requires tools live under tools/).
+        if not wrapped and plugin.module is not None:
+            tools_submodule = getattr(plugin.module, "tools", None)
+            if tools_submodule is not None:
+                wrapped.update(discover_module_tools(tools_submodule))
+        if wrapped:
+            register_plugin_tools(wrapped)
+    except Exception as e:  # noqa: BLE001 - a plugin must never crash startup
+        msg = f"failed to register tools: {e}"
+        print(f"Plugin {plugin.name} {msg}")
+        if plugin.load_error is None:
+            plugin.load_error = msg
+        else:
+            plugin.load_error += f"; {msg}"
 
 
 def _register_plugin_commands(plugin: Plugin) -> None:
@@ -154,10 +162,12 @@ def _register_plugin_commands(plugin: Plugin) -> None:
         try:
             register_command(handler_cls())
         except Exception as e:  # noqa: BLE001 - never break startup
+            msg = f"failed to register command: {e}"
+            print(f"Plugin {plugin.name} {msg}")
             if plugin.load_error is None:
-                plugin.load_error = f"failed to register command: {e}"
+                plugin.load_error = msg
             else:
-                plugin.load_error += f"; failed to register command: {e}"
+                plugin.load_error += f"; {msg}"
 
 
 def _load_plugin_contents(plugin: Plugin, plugin_name: str) -> None:
@@ -172,37 +182,50 @@ def _load_plugin_contents(plugin: Plugin, plugin_name: str) -> None:
         module = importlib.import_module(plugin_name)
     except Exception as e:  # noqa: BLE001 - never crash startup
         plugin.load_error = f"failed to import plugin {plugin_name}: {e}"
+        print(f"Plugin {plugin_name} {plugin.load_error}")
         return
 
-    error = _validate_plugin_module(plugin.path, module)
-    if error is not None:
-        plugin.load_error = error
-        return
+    try:
+        error = _validate_plugin_module(plugin.path, module)
+        if error is not None:
+            plugin.load_error = error
+            return
 
-    plugin.module = module
-    plugin.name = getattr(module, "name", plugin_name)
-    plugin.system_prompt = getattr(module, "SYSTEM_PROMPT", "") or ""
-    plugin.tools = list(getattr(module, "TOOLS", []) or [])
-    plugin.cmd_handlers = list(getattr(module, "CMD_HANDLERS", []) or [])
+        plugin.module = module
+        plugin.name = getattr(module, "name", plugin_name)
+        plugin.system_prompt = getattr(module, "SYSTEM_PROMPT", "") or ""
+        plugin.tools = list(getattr(module, "TOOLS", []) or [])
+        plugin.cmd_handlers = list(getattr(module, "CMD_HANDLERS", []) or [])
 
-    _call_on_start(plugin)
-    # A failed on_start (e.g. required secrets missing) means the plugin
-    # does not load: none of its tools, commands or system-prompt text
-    # are registered.
-    if plugin.load_error is not None:
-        return
+        _call_on_start(plugin)
+        # A failed on_start (e.g. required secrets missing) means the plugin
+        # does not load: none of its tools, commands or system-prompt text
+        # are registered.
+        if plugin.load_error is not None:
+            return
 
-    _register_plugin_tools(plugin)
-    _register_plugin_commands(plugin)
-    if plugin.system_prompt:
-        section_name = f"{SECTION_PLUGINS}:{plugin.name}"
-        try:
-            SYSTEM_PROMPT_MANAGER.add_section(section_name, plugin.system_prompt)
-        except ValueError:
-            # A plugin with this name is already registered (e.g. the same
-            # directory passed twice): replace its prompt text instead of
-            # crashing on the duplicate section name.
-            SYSTEM_PROMPT_MANAGER.update_section(section_name, plugin.system_prompt)
+        _register_plugin_tools(plugin)
+        if plugin.load_error is not None:
+            return
+        _register_plugin_commands(plugin)
+        if plugin.load_error is not None:
+            return
+        if plugin.system_prompt:
+            section_name = f"{SECTION_PLUGINS}:{plugin.name}"
+            try:
+                SYSTEM_PROMPT_MANAGER.add_section(section_name, plugin.system_prompt)
+            except ValueError:
+                # A plugin with this name is already registered (e.g. the same
+                # directory passed twice): replace its prompt text instead of
+                # crashing on the duplicate section name.
+                SYSTEM_PROMPT_MANAGER.update_section(section_name, plugin.system_prompt)
+    except Exception as e:  # noqa: BLE001 - a plugin must never crash startup
+        msg = f"failed to load plugin {plugin_name}: {e}"
+        print(f"Plugin {plugin_name} {msg}")
+        if plugin.load_error is None:
+            plugin.load_error = msg
+        else:
+            plugin.load_error += f"; {msg}"
 
 
 def load_plugin(plugin_dir: str | Path) -> Plugin:
@@ -236,8 +259,16 @@ def load_plugin(plugin_dir: str | Path) -> Plugin:
         plugin.load_error = f"plugin directory has no __init__.py: {plugin_path} " "(a plugin must be a Python package)"
 
     if plugin.load_error is None:
-        with _plugin_parent_on_sys_path(plugin_path):
-            _load_plugin_contents(plugin, plugin_name)
+        try:
+            with _plugin_parent_on_sys_path(plugin_path):
+                _load_plugin_contents(plugin, plugin_name)
+        except Exception as e:  # noqa: BLE001 - a plugin must never crash startup
+            msg = f"failed to load plugin {plugin_name}: {e}"
+            print(f"Plugin {plugin_name} {msg}")
+            if plugin.load_error is None:
+                plugin.load_error = msg
+            else:
+                plugin.load_error += f"; {msg}"
 
     if plugin.loaded:
         print(" OK")
@@ -258,7 +289,16 @@ def load_plugins(plugin_dirs: list[str | Path] | None) -> list[Plugin]:
     """
     if not plugin_dirs:
         return []
-    plugins = [load_plugin(d) for d in plugin_dirs]
+    plugins: list[Plugin] = []
+    for d in plugin_dirs:
+        try:
+            plugins.append(load_plugin(d))
+        except Exception as e:  # noqa: BLE001 - one bad plugin must not stop the rest
+            name = Path(d).name
+            msg = f"failed to load plugin {name}: {e}"
+            print(f"Plugin {name} {msg}")
+            plugins.append(Plugin(name=name, path=Path(d), load_error=msg))
+            continue
     LOADED_PLUGINS.extend(plugins)
     return plugins
 
@@ -276,13 +316,19 @@ def load_installed_plugins() -> list[Plugin]:
     if not plugins_dir.is_dir():
         return []
 
-    plugins = []
+    plugins: list[Plugin] = []
     for entry in sorted(plugins_dir.iterdir()):
         if not entry.is_dir() or entry.name.startswith("."):
             continue
         if not (entry / "__init__.py").is_file():
             continue
-        plugins.append(load_plugin(entry))
+        try:
+            plugins.append(load_plugin(entry))
+        except Exception as e:  # noqa: BLE001 - one bad plugin must not stop the rest
+            msg = f"failed to load plugin {entry.name}: {e}"
+            print(f"Plugin {entry.name} {msg}")
+            plugins.append(Plugin(name=entry.name, path=entry, load_error=msg))
+            continue
 
     LOADED_PLUGINS.extend(plugins)
     return plugins
