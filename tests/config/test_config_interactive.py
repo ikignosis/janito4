@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from janito.cli.handlers.config import _prompt_max_input_tokens, _prompt_provider
+from janito.providers.models import ModelConfig
 
 
 class _FakeQuestionary:
@@ -116,7 +117,9 @@ def test_prompt_max_input_tokens_defaults_to_provider_builtin(monkeypatch):
     )
     monkeypatch.setattr(
         "janito.cli.handlers.config.get_provider",
-        lambda provider: Mock(max_input_tokens=lambda model=None: 200000),
+        lambda provider: Mock(
+            model_config=lambda model=None: ModelConfig({"max_input_tokens": 200000})
+        ),
     )
     result = _prompt_max_input_tokens("openai", "gpt-5.6-luna", None)
     assert result == 200000
@@ -130,7 +133,7 @@ def test_prompt_max_input_tokens_falls_back_to_128k(monkeypatch):
     # No existing value and no provider built-in (e.g. 'custom').
     monkeypatch.setattr(
         "janito.cli.handlers.config.get_provider",
-        lambda provider: Mock(max_input_tokens=lambda model=None: None),
+        lambda provider: Mock(model_config=lambda model=None: ModelConfig({})),
     )
     result = _prompt_max_input_tokens("custom", None, None)
     assert result == 128000

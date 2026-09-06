@@ -25,10 +25,10 @@ def _use_temp_config(monkeypatch, tmp_path):
 if pytest is not None:
 
     def test_model_config_disabled_tools():
-        assert ModelConfig({"disabled_tools": ["WebSearch"]}).disabled_tools() == [
+        assert ModelConfig({"disabled_tools": ["WebSearch"]}).get("disabled_tools") == [
             "WebSearch"
         ]
-        assert ModelConfig({}).disabled_tools() is None
+        assert ModelConfig({}).get("disabled_tools") is None
 
     def test_resolve_derived_default_native_search():
         assert resolve_disabled_tools("alibaba", "qwen3.8-flash") == ["WebSearch"]

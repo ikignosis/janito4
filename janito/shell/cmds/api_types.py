@@ -62,8 +62,8 @@ class ApiTypesCmdHandler(CmdHandler):
             if found is None:
                 continue
             for model in sorted(found.model_names()):
-                api_types = found.supported_api_types(model) or []
-                default_api_type = found.default_api_type(model)
+                api_types = found.model_config(model).get("supported_api_types") or []
+                default_api_type = found.model_config(model).get("default_api_type")
                 if api_types:
                     display = ", ".join(
                         f"{api_type} (default)"

@@ -572,7 +572,7 @@ def resolve_disabled_tools(
     found = get_provider(provider_name)
     if found is None:
         return []
-    builtin = found.disabled_tools(resolved_model)
+    builtin = found.model_config(resolved_model).get("disabled_tools")
     if builtin:
         return sorted(set(str(entry) for entry in builtin if str(entry).strip()))
     return _derived_search_default(found, resolved_model, api_type)

@@ -126,12 +126,26 @@ def build_api_config(
     )
 
     found = get_provider(provider)
-    found_max_output = found.max_output_tokens(model) if found is not None else None
-    found_max_input = found.max_input_tokens(model) if found is not None else None
-    found_reasoning = found.reasoning_effort(model) if found is not None else None
-    found_thinking = found.default_thinking(model) if found is not None else False
+    found_max_output = (
+        found.model_config(model).get("max_output_tokens")
+        if found is not None
+        else None
+    )
+    found_max_input = (
+        found.model_config(model).get("max_input_tokens") if found is not None else None
+    )
+    found_reasoning = (
+        found.model_config(model).get("default_reasoning_effort")
+        if found is not None
+        else None
+    )
+    found_thinking = (
+        found.model_config(model).get("thinking", False) if found is not None else False
+    )
     found_preserve_thinking = (
-        found.preserve_thinking(model) if found is not None else None
+        found.model_config(model).get("preserve_thinking")
+        if found is not None
+        else None
     )
 
     max_output_tokens = (

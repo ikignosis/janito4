@@ -34,7 +34,11 @@ def stateless_mode(provider: str, model: str | None) -> bool:
     if override is not None:
         return override
     found = get_provider(provider)
-    return found.stateless_mode(model) if found is not None else False
+    return (
+        bool(found.model_config(model).get("stateless_mode", False))
+        if found is not None
+        else False
+    )
 
 
 def _init_conversation_state(
@@ -110,7 +114,11 @@ def _init_conversation_state(
 def _responses_include(provider: str | None, model: str) -> list[str] | None:
     """Return the model's declared Responses ``include`` values, if any."""
     found = get_provider(provider) if provider else None
-    include = found.responses_include(model) if found is not None else None
+    include = (
+        found.model_config(model).get("responses_include")
+        if found is not None
+        else None
+    )
     if isinstance(include, (list, tuple)) and include:
         return [str(entry) for entry in include]
     return None
@@ -128,8 +136,11 @@ def _reasoning_param(
     no summary.
     """
     found = get_provider(provider) if provider else None
-    summary_fn = getattr(found, "thinking_summary", None)
-    summary = bool(summary_fn(model)) if callable(summary_fn) else False
+    summary = (
+        bool(found.model_config(model).get("thinking_summary", False))
+        if found is not None
+        else False
+    )
     if not reasoning_effort and not summary:
         return None
     reasoning: dict[str, Any] = {}

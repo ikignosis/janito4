@@ -81,15 +81,25 @@ def _resolve_turn_config(config, effective_provider, model):
         # Fall back to the provider's built-in default (from the provider
         # config).
         max_output_tokens = (
-            found.max_output_tokens(model) if found is not None else None
+            found.model_config(model).get("max_output_tokens")
+            if found is not None
+            else None
         )
-    preserve_thinking = found.preserve_thinking(model) if found is not None else None
+    preserve_thinking = (
+        found.model_config(model).get("preserve_thinking")
+        if found is not None
+        else None
+    )
 
     # Reasoning level (reasoning_effort): model-scoped config value first,
     # then the model's built-in default (e.g. "low" for qwen3.8-max).
     reasoning_effort = load_reasoning_effort(effective_provider, model)
     if reasoning_effort is None:
-        reasoning_effort = found.reasoning_effort(model) if found is not None else None
+        reasoning_effort = (
+            found.model_config(model).get("default_reasoning_effort")
+            if found is not None
+            else None
+        )
 
     return max_output_tokens, preserve_thinking, reasoning_effort
 

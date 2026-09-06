@@ -25,19 +25,26 @@ def test_meta_models_declare_stateless_and_include():
     found = get_provider("meta")
     assert found is not None
     for model in ("muse-spark-1.3", "muse-spark-1.3-contributor"):
-        assert found.stateless_mode(model) is True
-        assert found.responses_include(model) == ["reasoning.encrypted_content"]
+        assert bool(found.model_config(model).get("stateless_mode", False)) is True
+        assert found.model_config(model).get("responses_include") == [
+            "reasoning.encrypted_content"
+        ]
 
 
 def test_models_without_declaration_default_to_no_include():
     found = get_provider("openai")
     assert found is not None
     # OpenAI models declare no include values (the API default applies).
-    assert found.responses_include("gpt-5.6-luna") is None
-    assert found.stateless_mode("gpt-5.6-luna") is False
+    assert found.model_config("gpt-5.6-luna").get("responses_include") is None
+    assert (
+        bool(found.model_config("gpt-5.6-luna").get("stateless_mode", False)) is False
+    )
 
 
 def test_responses_include_malformed_value_returns_none():
+    import janito.llm_clients.openai.responses_state as state_mod
+    from janito.llm_clients.openai.responses_state import _responses_include
+
     provider = Provider(
         "test-include",
         data={
@@ -47,10 +54,20 @@ def test_responses_include_malformed_value_returns_none():
             }
         },
     )
-    assert provider.responses_include("m") is None
+    # Raw get() passes the value through; the call-site normalizer drops it.
+    assert provider.model_config("m").get("responses_include") == "not-a-list"
+    original = state_mod.get_provider
+    state_mod.get_provider = lambda p: provider
+    try:
+        assert _responses_include("test-include", "m") is None
+    finally:
+        state_mod.get_provider = original
 
 
 def test_responses_include_normalizes_entries_to_strings():
+    import janito.llm_clients.openai.responses_state as state_mod
+    from janito.llm_clients.openai.responses_state import _responses_include
+
     provider = Provider(
         "test-include",
         data={
@@ -60,16 +77,24 @@ def test_responses_include_normalizes_entries_to_strings():
             }
         },
     )
-    assert provider.responses_include("m") == ["a", "42"]
+    assert provider.model_config("m").get("responses_include") == ["a", 42]
+    original = state_mod.get_provider
+    state_mod.get_provider = lambda p: provider
+    try:
+        assert _responses_include("test-include", "m") == ["a", "42"]
+    finally:
+        state_mod.get_provider = original
 
 
 # ---- Call kwargs wiring ---------------------------------------------------
 
 
 def _kwargs(stateless_mode, include=None):
+    from janito.providers.models import ModelConfig
+
     class _Found:
-        def responses_include(self, model=None):
-            return include
+        def model_config(self, model=None):
+            return ModelConfig({"responses_include": include})
 
     import janito.llm_clients.openai.responses_state as state_mod
 

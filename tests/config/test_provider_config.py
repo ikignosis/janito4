@@ -82,37 +82,57 @@ def get_default_model_from_provider(provider):
 def get_default_max_output_tokens_from_provider(provider, model=None):
     """The model's built-in max output tokens, or ``None``."""
     found = get_provider(provider)
-    return found.max_output_tokens(model) if found is not None else None
+    return (
+        found.model_config(model).get("max_output_tokens")
+        if found is not None
+        else None
+    )
 
 
 def get_default_max_input_tokens_from_provider(provider, model=None):
     """The model's built-in max input tokens, or ``None``."""
     found = get_provider(provider)
-    return found.max_input_tokens(model) if found is not None else None
+    return (
+        found.model_config(model).get("max_input_tokens") if found is not None else None
+    )
 
 
 def get_default_reasoning_effort_from_provider(provider, model=None):
     """The model's built-in default reasoning effort, or ``None``."""
     found = get_provider(provider)
-    return found.reasoning_effort(model) if found is not None else None
+    return (
+        found.model_config(model).get("default_reasoning_effort")
+        if found is not None
+        else None
+    )
 
 
 def get_supported_reasoning_efforts_from_provider(provider, model=None):
     """The model's supported reasoning efforts, or ``None``."""
     found = get_provider(provider)
-    return found.supported_reasoning_efforts(model) if found is not None else None
+    return (
+        found.model_config(model).get("supported_reasoning_efforts")
+        if found is not None
+        else None
+    )
 
 
 def get_default_thinking_from_provider(provider, model=None):
     """The model's built-in thinking default (``True`` / dict / ``False``)."""
     found = get_provider(provider)
-    return found.default_thinking(model) if found is not None else False
+    return (
+        found.model_config(model).get("thinking", False) if found is not None else False
+    )
 
 
 def get_preserve_thinking_from_provider(provider, model=None):
     """The model's built-in preserve_thinking default, or ``None``."""
     found = get_provider(provider)
-    return found.preserve_thinking(model) if found is not None else None
+    return (
+        found.model_config(model).get("preserve_thinking")
+        if found is not None
+        else None
+    )
 
 
 def get_default_tools_from_provider(provider, model=None, api_type=None):
@@ -130,13 +150,19 @@ def get_gemini_flavor_from_provider(provider):
 def get_supported_api_types_from_provider(provider, model=None):
     """The API types the model supports, or ``None``."""
     found = get_provider(provider)
-    return found.supported_api_types(model) if found is not None else None
+    return (
+        found.model_config(model).get("supported_api_types")
+        if found is not None
+        else None
+    )
 
 
 def get_default_api_type_from_provider(provider, model=None):
     """The model's built-in default API type, or ``None``."""
     found = get_provider(provider)
-    return found.default_api_type(model) if found is not None else None
+    return (
+        found.model_config(model).get("default_api_type") if found is not None else None
+    )
 
 
 def get_stateless_mode_from_provider(provider, model=None):
@@ -217,16 +243,22 @@ if pytest is not None:
         assert get_provider("openai").info is PACKAGE_PROVIDER_CONFIGS["openai"]
         # Provider-level fields and per-model entries come from that dict.
         assert get_provider("minimax").info["endpoint"] == "https://api.minimax.io/v1"
-        assert get_provider("openai").max_output_tokens("gpt-5.6-luna") == 128000
-        assert get_provider("minimax").default_thinking("MiniMax-M3") == {
-            "type": "adaptive"
-        }
+        assert (
+            get_provider("openai").model_config("gpt-5.6-luna").get("max_output_tokens")
+            == 128000
+        )
+        assert get_provider("minimax").model_config("MiniMax-M3").get(
+            "thinking", False
+        ) == {"type": "adaptive"}
         # Case-insensitive provider lookup works.
         assert get_provider("MiniMax").default_model() == "MiniMax-M3"
         # Unknown provider -> None.
         assert get_provider("bogus") is None
         # The "custom" provider has no built-in models (empty config -> None).
-        assert get_provider("custom").max_output_tokens("any-model") is None
+        assert (
+            get_provider("custom").model_config("any-model").get("max_output_tokens")
+            is None
+        )
 
     def test_deepseek_provider():
         info = get_provider_config("deepseek")
@@ -1269,8 +1301,8 @@ if pytest is not None:
         # The Provider class exposes the same empties.
         provider = pm.Provider("custom")
         assert provider.model_names() == []
-        assert provider.model_config("any-model").max_output_tokens() is None
-        assert provider.model_config("any-model").supported_api_types() is None
+        assert provider.model_config("any-model").get("max_output_tokens") is None
+        assert provider.model_config("any-model").get("supported_api_types") is None
 
     def test_canonical_provider_name_exact_and_case_insensitive():
         assert canonical_provider_name("openai") == "openai"

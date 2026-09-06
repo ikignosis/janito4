@@ -206,8 +206,13 @@ def test_variant_inherits_base_defaults(monkeypatch, tmp_path):
     cv.create_variant("alibaba-tokenplan")
     # The base provider's built-in defaults apply to the variant.
     assert get_provider("alibaba-tokenplan").default_model() == "qwen3.8-flash"
-    assert get_provider("alibaba-tokenplan").default_api_type() == "Responses"
-    assert get_provider("alibaba-tokenplan").default_thinking() is True
+    assert (
+        get_provider("alibaba-tokenplan").model_config().get("default_api_type")
+        == "Responses"
+    )
+    assert (
+        get_provider("alibaba-tokenplan").model_config().get("thinking", False) is True
+    )
     assert get_provider("alibaba-tokenplan").endpoint_for(
         "Completions"
     ) == get_provider("alibaba").endpoint_for("Completions")
@@ -236,10 +241,13 @@ def test_variant_inherits_base_models_dict(monkeypatch, tmp_path):
     ]
     # Per-model accessors resolve through the inherited models dict.
     assert provider.default_model() == "gpt-5.6-luna"
-    assert provider.max_input_tokens() == 1050000
-    assert provider.max_output_tokens() == 128000
-    assert provider.supported_api_types() == ["Responses", "Completions"]
-    assert provider.default_api_type() == "Responses"
+    assert provider.model_config().get("max_input_tokens") == 1050000
+    assert provider.model_config().get("max_output_tokens") == 128000
+    assert provider.model_config().get("supported_api_types") == [
+        "Responses",
+        "Completions",
+    ]
+    assert provider.model_config().get("default_api_type") == "Responses"
     # A per-model override lands under the VARIANT name (providers.<variant>.
     # models.<model>.<key>), not the base provider's.
     key, value = cc.set_config_from_cli("max-output-tokens=32000", "openai-tokenplan")

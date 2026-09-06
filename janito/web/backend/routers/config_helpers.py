@@ -319,7 +319,9 @@ def _build_provider_entry(
         base_url = endpoint_override
     else:
         built_in_url = (
-            provider_obj.endpoint_for(provider_obj.default_api_type(entry_model))
+            provider_obj.endpoint_for(
+                provider_obj.model_config(entry_model).get("default_api_type")
+            )
             if provider_obj is not None
             else None
         )
@@ -336,7 +338,9 @@ def _build_provider_entry(
     # flag (configured override first, else the built-in default).
     api_type_override = load_api_type(name, entry_model)
     stateless_mode = (
-        provider_obj.stateless_mode(entry_model) if provider_obj is not None else True
+        bool(provider_obj.model_config(entry_model).get("stateless_mode", False))
+        if provider_obj is not None
+        else True
     )
 
     # Per-API-type availability for the Settings drawer's API Type
@@ -348,7 +352,7 @@ def _build_provider_entry(
     # so the user sees why a type is missing and how to enable it.
     api_types = []
     supported_api_types = (
-        provider_obj.supported_api_types(entry_model)
+        provider_obj.model_config(entry_model).get("supported_api_types")
         if provider_obj is not None
         else None
     ) or []
@@ -375,16 +379,32 @@ def _build_provider_entry(
                 {
                     "name": model_name,
                     "default": model_name == default_model,
-                    "supported_api_types": provider_obj.supported_api_types(model_name),
-                    "default_api_type": provider_obj.default_api_type(model_name),
-                    "max_input_tokens": provider_obj.max_input_tokens(model_name),
-                    "max_output_tokens": provider_obj.max_output_tokens(model_name),
-                    "reasoning_effort": provider_obj.reasoning_effort(model_name),
-                    "supported_reasoning_efforts": provider_obj.supported_reasoning_efforts(
-                        model_name
+                    "supported_api_types": provider_obj.model_config(model_name).get(
+                        "supported_api_types"
                     ),
-                    "thinking": provider_obj.default_thinking(model_name),
-                    "stateless_mode": provider_obj.stateless_mode(model_name),
+                    "default_api_type": provider_obj.model_config(model_name).get(
+                        "default_api_type"
+                    ),
+                    "max_input_tokens": provider_obj.model_config(model_name).get(
+                        "max_input_tokens"
+                    ),
+                    "max_output_tokens": provider_obj.model_config(model_name).get(
+                        "max_output_tokens"
+                    ),
+                    "reasoning_effort": provider_obj.model_config(model_name).get(
+                        "default_reasoning_effort"
+                    ),
+                    "supported_reasoning_efforts": provider_obj.model_config(
+                        model_name
+                    ).get("supported_reasoning_efforts"),
+                    "thinking": provider_obj.model_config(model_name).get(
+                        "thinking", False
+                    ),
+                    "stateless_mode": bool(
+                        provider_obj.model_config(model_name).get(
+                            "stateless_mode", False
+                        )
+                    ),
                 }
             )
 
@@ -392,7 +412,7 @@ def _build_provider_entry(
     # NOT the config-overridden effective value, so the drawer can show the
     # built-in default next to the effective flag and the override.
     default_stateless_mode = (
-        provider_obj.model_config(entry_model).stateless_mode()
+        provider_obj.model_config(entry_model).get("stateless_mode", False)
         if provider_obj is not None
         else True
     )
@@ -404,12 +424,12 @@ def _build_provider_entry(
         "default_model": default_model,
         "api_type": api_type_override,
         "default_api_type": (
-            provider_obj.default_api_type(entry_model)
+            provider_obj.model_config(entry_model).get("default_api_type")
             if provider_obj is not None
             else None
         ),
         "supported_api_types": (
-            provider_obj.supported_api_types(entry_model)
+            provider_obj.model_config(entry_model).get("supported_api_types")
             if provider_obj is not None
             else None
         ),
@@ -419,27 +439,27 @@ def _build_provider_entry(
         "default_stateless_mode": default_stateless_mode,
         "stateless_mode_override": load_stateless_mode_from_config(name, entry_model),
         "default_max_input_tokens": (
-            provider_obj.max_input_tokens(entry_model)
+            provider_obj.model_config(entry_model).get("max_input_tokens")
             if provider_obj is not None
             else None
         ),
         "default_max_output_tokens": (
-            provider_obj.max_output_tokens(entry_model)
+            provider_obj.model_config(entry_model).get("max_output_tokens")
             if provider_obj is not None
             else None
         ),
         "default_reasoning_effort": (
-            provider_obj.reasoning_effort(entry_model)
+            provider_obj.model_config(entry_model).get("default_reasoning_effort")
             if provider_obj is not None
             else None
         ),
         "supported_reasoning_efforts": (
-            provider_obj.supported_reasoning_efforts(entry_model)
+            provider_obj.model_config(entry_model).get("supported_reasoning_efforts")
             if provider_obj is not None
             else None
         ),
         "default_thinking": (
-            provider_obj.default_thinking(entry_model)
+            provider_obj.model_config(entry_model).get("thinking", False)
             if provider_obj is not None
             else False
         ),

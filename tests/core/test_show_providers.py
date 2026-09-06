@@ -56,7 +56,7 @@ def test_alibaba_tools_driven_from_registry(monkeypatch, tmp_path, capsys):
     _, out = _run(monkeypatch, tmp_path, capsys)
     assert out.strip() != ""
     # Every tool type named by the registry appears in the output.
-    for api_type in found.supported_api_types(default_model) or []:
+    for api_type in found.model_config(default_model).get("supported_api_types") or []:
         for tool in found.tools(default_model, api_type=api_type) or []:
             t = tool.get("type") if isinstance(tool, dict) else str(tool)
             assert t in out
@@ -78,7 +78,7 @@ def test_google_thinking_driven_from_registry(monkeypatch, tmp_path, capsys):
     found = get_provider("google")
     default_model = found.default_model()
     expected = format_thinking_display(
-        found.default_thinking(default_model), provider="google"
+        found.model_config(default_model).get("thinking", False), provider="google"
     )
     _, out = _run(monkeypatch, tmp_path, capsys)
     assert out.strip() != ""

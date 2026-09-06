@@ -228,7 +228,7 @@ def handle_show_config(args=None) -> int:
     # for MiniMax-M3).
     found = get_provider(provider)
     thinking = getattr(args, "thinking", False) or (
-        found.default_thinking(model) if found is not None else False
+        found.model_config(model).get("thinking", False) if found is not None else False
     )
     thinking_display = resolve_thinking_display(
         thinking,

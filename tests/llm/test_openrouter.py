@@ -62,8 +62,8 @@ def test_provider_config_shape():
     p = Provider("openrouter")
     assert p.default_model() == "custom"
     assert p.model_names() == ["custom"]
-    assert p.supported_api_types() == ["Completions"]
-    assert p.default_api_type() == "Completions"
+    assert p.model_config().get("supported_api_types") == ["Completions"]
+    assert p.model_config().get("default_api_type") == "Completions"
     assert p.endpoint_for("Completions") == "https://openrouter.ai/api/v1"
     # Not the special "custom" provider itself (it has a real endpoint).
     assert p.is_custom is False
@@ -72,7 +72,10 @@ def test_provider_config_shape():
 def test_placeholder_model_entry_carries_defaults():
     """The placeholder 'custom' model entry provides the default API type,
     so API-type resolution works before a model is configured."""
-    assert get_provider("openrouter").default_api_type() == "Completions"
+    assert (
+        get_provider("openrouter").model_config().get("default_api_type")
+        == "Completions"
+    )
     assert get_provider("openrouter").default_model() == "custom"
 
 

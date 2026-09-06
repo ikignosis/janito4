@@ -100,7 +100,11 @@ class WebServerConfig:
         from janito.providers.registry import get_provider
 
         found = get_provider(self.effective_provider)
-        return found.default_thinking(self.model) if found is not None else False
+        return (
+            found.model_config(self.model).get("thinking", False)
+            if found is not None
+            else False
+        )
 
     def effective_tools_for(self, api_type: str):
         """The effective model's built-in (native) tools for an API type.

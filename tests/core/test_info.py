@@ -47,17 +47,17 @@ def _fake_provider(name, *, default_model=_MISSING, default_thinking=False):
                 return default_model
             return real.default_model()
 
-        def default_thinking(self, model=None):
-            return default_thinking
+        def model_config(self, model=None):
+            from janito.providers.models import ModelConfig
+
+            base = real.model_config(model).data if real is not None else {}
+            return ModelConfig({**base, "thinking": default_thinking})
 
         def endpoint_for(self, api_type=None):
             return None
 
         def gemini_flavor(self):
             return real.gemini_flavor() if real is not None else False
-
-        def stateless_mode(self, model=None):
-            return real.stateless_mode(model) if real is not None else True
 
     return _P()
 

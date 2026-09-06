@@ -6,6 +6,25 @@ over the static provider registry
 (:data:`janito.providers._PROVIDER_CONFIGS`).
 Part of the split provider-config module family (see
 :mod:`janito.providers.registry`).
+
+Accessor policy (kept small on purpose):
+
+- Plain model keys are read with :meth:`ModelConfig.get` -- no
+  per-property method. That covers ``max_input_tokens``,
+  ``max_output_tokens``, ``supported_api_types``, ``default_api_type``,
+  ``default_reasoning_effort``, ``supported_reasoning_efforts``,
+  ``thinking``, ``preserve_thinking``, ``responses_include``,
+  ``disabled_tools``, ``stateless_mode`` and ``thinking_summary``.
+  Missing keys return ``None`` (or the caller-supplied default);
+  callers coerce with ``bool(...)`` where a bool is needed.
+- A dedicated method exists only when there is routing/fallback logic
+  callers must not repeat: :meth:`ModelConfig.tools` (the
+  ``tools_by_api_type`` map), :meth:`Provider.model_config`
+  (requested -> default -> empty fallback),
+  :meth:`Provider.endpoint_for` (``endpoint_by_api_type`` rules) and
+  :meth:`Provider.has_usable_builtin_models`.
+- Do not add new ``Provider`` model-level pass-throughs -- call
+  ``provider.model_config(model).get("...")`` instead.
 """
 
 from . import _PROVIDER_CONFIGS
@@ -15,10 +34,11 @@ class ModelConfig:
     """Typed accessors over one model entry of
     ``_PROVIDER_CONFIGS[...]["models"]``.
 
-    Wraps a raw model entry dict (e.g. ``{"supported_api_types": [...],
-    "max_output_tokens": 128000, ...}``); an empty dict (unknown model /
-    provider without built-in models) yields ``None``/empty defaults from
-    every accessor.
+    Wraps a raw model entry dict; an empty dict (unknown model /
+    provider without built-in models) yields ``None`` from :meth:`get`
+    unless a default is given. See the module docstring for the
+    accessor policy: plain keys go through :meth:`get`, dedicated
+    methods exist only for routing/fallback logic.
     """
 
     def __init__(self, data: dict | None):
@@ -29,61 +49,13 @@ class ModelConfig:
         """The raw model entry dict backing this config."""
         return self._data
 
-    def max_input_tokens(self) -> int | None:
-        """The built-in max input-token (context window) limit, or ``None``."""
-        return self._data.get("max_input_tokens")
+    def get(self, key: str, default=None):
+        """Return the raw model entry value for ``key``.
 
-    def max_output_tokens(self) -> int | None:
-        """The built-in max output-token limit, or ``None``."""
-        return self._data.get("max_output_tokens")
-
-    def supported_api_types(self) -> list | None:
-        """The API types the model supports, or ``None``."""
-        return self._data.get("supported_api_types")
-
-    def default_api_type(self) -> str | None:
-        """The built-in default API type, from the model's ``default_api_type`` entry.
-
-        The model entry declares it explicitly (usually the first of its
-        ``supported_api_types``, e.g. ``"Responses"`` for OpenAI's default
-        model).  ``None`` when the model declares no default (unknown model /
-        provider without built-in models).
+        No normalization or coercion -- missing keys return ``default``
+        (``None``). Callers coerce with ``bool(...)`` where needed.
         """
-        return self._data.get("default_api_type")
-
-    def reasoning_effort(self) -> str | None:
-        """The built-in default reasoning effort, or ``None``."""
-        return self._data.get("default_reasoning_effort")
-
-    def supported_reasoning_efforts(self) -> list | None:
-        """The list of supported reasoning efforts, or ``None``."""
-        return self._data.get("supported_reasoning_efforts")
-
-    def default_thinking(self):
-        """The model's built-in thinking default, or ``False`` when none.
-
-        Returns the raw ``thinking`` value from the model entry: a plain
-        ``True`` flag for flag-style providers (DeepSeek, Alibaba/Qwen) or a
-        pass-through dict for providers whose API takes a structured
-        thinking parameter (MiniMax-M3: ``{'type': 'adaptive'}``).  Callers
-        must not coerce the dict to a bool -- use
-        :func:`~janito.providers.payloads.apply_thinking_to_extra_body` to
-        turn the value into the API's ``extra_body`` payload.
-        """
-        return self._data.get("thinking", False)
-
-    def preserve_thinking(self) -> bool | None:
-        """The model's built-in ``preserve_thinking`` default, or ``None``.
-
-        ``preserve_thinking`` is a Qwen extension (see the QwenCloud
-        Thinking guide): when ``True``, the API appends the assistant
-        messages' ``reasoning_content`` to the next input in multi-turn
-        conversations, letting the model reference its own prior reasoning.
-        The built-in Qwen models (``qwen3.8-max`` / ``qwen3.8-flash``)
-        declare it ``True``; other models declare nothing (``None``), so the
-        callers send no flag and the API's own default applies.
-        """
-        return self._data.get("preserve_thinking")
+        return self._data.get(key, default)
 
     def tools(self, api_type: str | None = None) -> list | None:
         """The model's built-in (native) tool entries, or ``None``.
@@ -105,52 +77,6 @@ class ModelConfig:
             return by_type[api_type]
         return self._data.get("tools")
 
-    def disabled_tools(self) -> list | None:
-        """The model's built-in disabled external tools, or ``None``.
-
-        Returns the raw ``disabled_tools`` value from the model entry
-        (e.g. ``["WebSearch"]`` for models with a native server-side
-        ``web_search`` tool).  These name external function tools that
-        must not be advertised to the model.  ``None``/empty means no
-        built-in default (user override or derived default applies).
-        """
-        value = self._data.get("disabled_tools")
-        if isinstance(value, (list, tuple)):
-            return [str(entry) for entry in value]
-        return None
-
-    def stateless_mode(self) -> bool:
-        """Whether the model's Responses API keeps state server-side.
-
-        Absent defaults to ``True`` (the Responses API design).
-        """
-        return bool(self._data.get("stateless_mode", False))
-
-    def responses_include(self) -> list | None:
-        """Extra ``include`` values to request on every Responses call.
-
-        A list of strings (e.g. ``["reasoning.encrypted_content"]`` for
-        Meta's Muse Spark, whose chain of thought is only exposed in
-        encrypted form for replay across turns), or ``None`` when the model
-        declares none (no ``include`` parameter is sent).
-        """
-        value = self._data.get("responses_include")
-        if isinstance(value, (list, tuple)):
-            return [str(entry) for entry in value]
-        return None
-
-    def thinking_summary(self) -> bool:
-        """Whether to request a Responses reasoning summary.
-
-        When ``True`` (e.g. Meta's Muse Spark), Responses calls send
-        ``reasoning.summary="auto"`` so the private chain of thought is
-        returned as human-readable summary text streamed via
-        ``response.reasoning_summary_text.delta`` events and surfaced
-        through the existing ``on_reasoning`` observer.  Absent/``False``
-        sends no summary (the API's own default applies).
-        """
-        return bool(self._data.get("thinking_summary", False))
-
 
 class Provider:
     """A supported provider from :data:`janito.providers._PROVIDER_CONFIGS` with typed accessors.
@@ -162,11 +88,12 @@ class Provider:
     entry, so the variant inherits the base's built-in defaults (including
     its ``models`` dict) while keeping its own per-variant config overrides.
 
-    The model-level accessors (``max_output_tokens``, ``reasoning_effort``,
-    ...) accept an optional ``model`` argument; ``None`` (the default)
-    resolves to the provider's ``default_model``.  When the requested model
-    has no built-in entry, the default model's entry applies; when neither
-    exists (e.g. the ``custom`` provider), an empty config applies.
+    Model-level values are read via :meth:`model_config` plus
+    :meth:`ModelConfig.get` (``provider.model_config(model).get("...")``);
+    ``model=None`` resolves to the provider's ``default_model``.  When the
+    requested model has no built-in entry, the default model's entry
+    applies; when neither exists (e.g. the ``custom`` provider), an empty
+    config applies.
 
     Args:
         name: The provider name (a ``_PROVIDER_CONFIGS`` key, or a registered
@@ -244,6 +171,10 @@ class Provider:
         """Read an attribute from the provider's info entry."""
         return self._info.get(key, default)
 
+    def get(self, key: str, default=None):
+        """Return the raw provider-level value for ``key``."""
+        return self._get(key, default)
+
     # ------------------------------------------------------------------
     # Provider-level accessors
     # ------------------------------------------------------------------
@@ -277,7 +208,7 @@ class Provider:
         Fallback chain: the requested model's entry, then the default
         model's entry, then an empty config (unknown model / provider
         without built-in models).  ``model=None`` starts at the default
-        model.
+        model. Read plain keys with ``.get("...")`` on the result.
         """
         models = self.models()
         if model is not None and model in models:
@@ -286,44 +217,6 @@ class Provider:
         if default is not None and default in models:
             return ModelConfig(models[default])
         return ModelConfig({})
-
-    # ------------------------------------------------------------------
-    # Model-level accessors (model=None means the default model)
-    # ------------------------------------------------------------------
-
-    def max_input_tokens(self, model: str | None = None) -> int | None:
-        """The built-in max input-token (context window) limit, or ``None``."""
-        return self.model_config(model).max_input_tokens()
-
-    def max_output_tokens(self, model: str | None = None) -> int | None:
-        """The built-in max output-token limit, or ``None``."""
-        return self.model_config(model).max_output_tokens()
-
-    def reasoning_effort(self, model: str | None = None) -> str | None:
-        """The built-in default reasoning effort, or ``None``."""
-        return self.model_config(model).reasoning_effort()
-
-    def supported_reasoning_efforts(self, model: str | None = None) -> list | None:
-        """The list of supported reasoning efforts, or ``None``."""
-        return self.model_config(model).supported_reasoning_efforts()
-
-    def default_thinking(self, model: str | None = None):
-        """The model's built-in thinking default, or ``False`` when none.
-
-        See :meth:`ModelConfig.default_thinking` for the value shape (a
-        ``True`` flag or a pass-through dict such as MiniMax-M3's
-        ``{'type': 'adaptive'}``).
-        """
-        return self.model_config(model).default_thinking()
-
-    def preserve_thinking(self, model: str | None = None) -> bool | None:
-        """The model's built-in ``preserve_thinking`` default, or ``None``.
-
-        See :meth:`ModelConfig.preserve_thinking`.  ``None`` (no built-in
-        declaration) means the caller sends no flag and the API's own default
-        applies.
-        """
-        return self.model_config(model).preserve_thinking()
 
     def tools(
         self, model: str | None = None, api_type: str | None = None
@@ -335,53 +228,6 @@ class Provider:
         ``api_type`` per-API-type resolution.
         """
         return self.model_config(model).tools(api_type=api_type)
-
-    def supported_api_types(self, model: str | None = None) -> list | None:
-        """The API types the model supports (``"Responses"``/``"Completions"``/...)."""
-        return self.model_config(model).supported_api_types()
-
-    def default_api_type(self, model: str | None = None) -> str | None:
-        """The built-in default API type, from the model's ``default_api_type`` entry."""
-        return self.model_config(model).default_api_type()
-
-    def disabled_tools(self, model: str | None = None) -> list | None:
-        """The model's built-in disabled external tools, or ``None``.
-
-        See :meth:`ModelConfig.disabled_tools`.  ``None`` when the model
-        declares none.
-        """
-        return self.model_config(model).disabled_tools()
-
-    def stateless_mode(self, model: str | None = None) -> bool:
-        """Whether the model's Responses API keeps conversation state server-side.
-
-        Absent defaults to ``True`` (the Responses API design).
-
-        This returns the *built-in* default only.  A per-provider/model
-        override stored in ``~/.janito/config.json`` under
-        ``providers.<name>.models.<model>.stateless-mode`` is applied by the
-        caller (see :func:`janito.config_loaders.load_stateless_mode_from_config`
-        and the single effective resolution point
-        :func:`janito.llm_clients.openai.responses_state.stateless_mode`):
-        the provider layer never imports the config layer (issue #110).
-        """
-        return self.model_config(model).stateless_mode()
-
-    def responses_include(self, model: str | None = None) -> list | None:
-        """Extra ``include`` values to request on every Responses call.
-
-        See :meth:`ModelConfig.responses_include`.  ``None`` when the model
-        declares none (no ``include`` parameter is sent).
-        """
-        return self.model_config(model).responses_include()
-
-    def thinking_summary(self, model: str | None = None) -> bool:
-        """Whether to request a Responses reasoning summary.
-
-        See :meth:`ModelConfig.thinking_summary`.  ``False`` when the model
-        declares none.
-        """
-        return self.model_config(model).thinking_summary()
 
     def endpoint_for(self, api_type: str | None = None) -> str | None:
         """Get the base URL for this provider, honoring ``endpoint_by_api_type``.

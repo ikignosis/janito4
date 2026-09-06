@@ -266,9 +266,10 @@ def build_call_kwargs(
     # on_reasoning).  Responses-only: Chat Completions has no summary.
     provider = getattr(config, "effective_provider", None)
     found_reasoning = get_provider(provider) if provider else None
-    thinking_summary_fn = getattr(found_reasoning, "thinking_summary", None)
     thinking_summary = (
-        bool(thinking_summary_fn(model)) if callable(thinking_summary_fn) else False
+        bool(found_reasoning.model_config(model).get("thinking_summary", False))
+        if found_reasoning is not None
+        else False
     )
     if reasoning_effort or thinking_summary:
         reasoning: dict = {}

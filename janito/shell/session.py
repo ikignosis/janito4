@@ -104,7 +104,11 @@ class _SessionMixin:
                 from janito.providers.registry import get_provider
 
                 found = get_provider(provider) if provider else None
-                effort = found.reasoning_effort(model) if found is not None else None
+                effort = (
+                    found.model_config(model).get("default_reasoning_effort")
+                    if found is not None
+                    else None
+                )
             tokens.append(("", " \u2502 "))
             tokens.append(
                 ("class:provider", f" effort: {effort if effort else '(not set)'} ")

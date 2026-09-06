@@ -125,7 +125,9 @@ def _print_config_info(
         max_output_tokens_display = str(max_output_tokens)
     else:
         default_max_output_tokens = (
-            found.max_output_tokens(model) if found is not None else None
+            found.model_config(model).get("max_output_tokens")
+            if found is not None
+            else None
         )
         max_output_tokens_display = (
             f"{default_max_output_tokens} (default)"
@@ -142,7 +144,9 @@ def _print_config_info(
         reasoning_effort_display = reasoning_effort
     else:
         default_reasoning_effort = (
-            found.reasoning_effort(model) if found is not None else None
+            found.model_config(model).get("default_reasoning_effort")
+            if found is not None
+            else None
         )
         reasoning_effort_display = (
             f"{default_reasoning_effort} (default)"
@@ -156,7 +160,7 @@ def _print_config_info(
     # (True for DeepSeek/Alibaba-Qwen; a pass-through dict such as
     # {'type': 'adaptive'} for MiniMax-M3).
     effective_thinking = thinking or (
-        found.default_thinking(model) if found is not None else False
+        found.model_config(model).get("thinking", False) if found is not None else False
     )
     thinking_display = resolve_thinking_display(
         effective_thinking, explicit_thinking=bool(thinking), provider=provider

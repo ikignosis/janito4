@@ -500,7 +500,9 @@ async def get_status(request: Request, provider: str | None = None):
     if not base_url:
         found = get_provider(target)
         if found is not None:
-            provider_default = found.endpoint_for(found.default_api_type())
+            provider_default = found.endpoint_for(
+                found.model_config().get("default_api_type")
+            )
             if provider_default and provider_default != CUSTOM_ENDPOINT_MARKER:
                 base_url = provider_default
 

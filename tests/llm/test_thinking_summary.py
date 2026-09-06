@@ -20,13 +20,15 @@ def test_meta_models_request_thinking_summary():
     found = get_provider("meta")
     assert found is not None
     for model in ("muse-spark-1.3", "muse-spark-1.3-contributor"):
-        assert found.thinking_summary(model) is True
+        assert bool(found.model_config(model).get("thinking_summary", False)) is True
 
 
 def test_models_without_declaration_default_to_false():
     found = get_provider("openai")
     assert found is not None
-    assert found.thinking_summary("gpt-5.6-luna") is False
+    assert (
+        bool(found.model_config("gpt-5.6-luna").get("thinking_summary", False)) is False
+    )
 
 
 def _cli_kwargs(provider, model, effort):

@@ -32,6 +32,7 @@ import janito.tooling.used_files as used_files
 from janito.llm_adapters.responses import _convert_tools_to_responses_format
 from janito.llm_clients.openai import conversations_api as api
 from janito.llm_clients.openai.responses_stream import _consume_response_stream
+from janito.providers.models import ModelConfig
 
 
 def _responses_config(model="gpt-4o", provider="openai"):
@@ -353,7 +354,9 @@ def test_run_turn_stateless_replays_full_history(monkeypatch):
     as input items on every request and never chains with an id."""
     monkeypatch.setattr(
         "janito.llm_clients.openai.responses_state.get_provider",
-        lambda p: mock.Mock(stateless_mode=lambda model=None: True),
+        lambda p: mock.Mock(
+            model_config=lambda model=None: ModelConfig({"stateless_mode": True})
+        ),
     )
     seen = []
 
@@ -454,7 +457,9 @@ def test_run_turn_stateless_continues_with_previous_items(monkeypatch):
     """The next turn re-sends the previous turn's items plus the new prompt."""
     monkeypatch.setattr(
         "janito.llm_clients.openai.responses_state.get_provider",
-        lambda p: mock.Mock(stateless_mode=lambda model=None: True),
+        lambda p: mock.Mock(
+            model_config=lambda model=None: ModelConfig({"stateless_mode": True})
+        ),
     )
     seen = []
 
@@ -529,8 +534,12 @@ def test_run_turn_stateless_sends_store_false_and_include(monkeypatch):
     monkeypatch.setattr(
         "janito.llm_clients.openai.responses_state.get_provider",
         lambda p: mock.Mock(
-            stateless_mode=lambda model=None: True,
-            responses_include=lambda model=None: ["reasoning.encrypted_content"],
+            model_config=lambda model=None: ModelConfig(
+                {
+                    "stateless_mode": True,
+                    "responses_include": ["reasoning.encrypted_content"],
+                }
+            ),
         ),
     )
     seen = []
@@ -561,8 +570,12 @@ def test_run_turn_stateless_replays_reasoning_items(monkeypatch):
     monkeypatch.setattr(
         "janito.llm_clients.openai.responses_state.get_provider",
         lambda p: mock.Mock(
-            stateless_mode=lambda model=None: True,
-            responses_include=lambda model=None: ["reasoning.encrypted_content"],
+            model_config=lambda model=None: ModelConfig(
+                {
+                    "stateless_mode": True,
+                    "responses_include": ["reasoning.encrypted_content"],
+                }
+            ),
         ),
     )
     seen = []

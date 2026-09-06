@@ -33,17 +33,21 @@ if pytest is not None:
         # The default model (qwen3.8-flash) declares configurable reasoning
         # levels (low/medium/xhigh) with the lowest (low) as the built-in
         # default (see test_provider_config).
-        assert p.reasoning_effort() == "low"
-        assert p.default_thinking() is True
-        assert p.supported_api_types() == ["Completions", "Responses", "DashScope"]
-        assert p.default_api_type() == "Responses"
+        assert p.model_config().get("default_reasoning_effort") == "low"
+        assert p.model_config().get("thinking", False) is True
+        assert p.model_config().get("supported_api_types") == [
+            "Completions",
+            "Responses",
+            "DashScope",
+        ]
+        assert p.model_config().get("default_api_type") == "Responses"
         assert p.is_custom is False
 
     def test_provider_custom():
         p = Provider("custom")
         assert p.is_custom is True
         assert p.default_model() is None
-        assert p.max_input_tokens() is None
+        assert p.model_config().get("max_input_tokens") is None
 
     def test_provider_unknown_raises():
         with pytest.raises(ValueError):
@@ -126,14 +130,12 @@ if pytest is not None:
         assert (
             get_provider("openai").default_model() == reg.get("openai").default_model()
         )
-        assert (
-            get_provider("deepseek").default_thinking()
-            == reg.get("deepseek").default_thinking()
-        )
-        assert (
-            get_provider("anthropic").default_api_type()
-            == reg.get("anthropic").default_api_type()
-        )
+        assert get_provider("deepseek").model_config().get(
+            "thinking", False
+        ) == reg.get("deepseek").model_config().get("thinking", False)
+        assert get_provider("anthropic").model_config().get(
+            "default_api_type"
+        ) == reg.get("anthropic").model_config().get("default_api_type")
         assert pv.list_supported_providers() == reg.names()
         assert pv.validate_provider_name("OpenAI") == reg.require("OpenAI").name
         assert pv.canonical_provider_name("  MiniMax ") == reg.canonical_name(
@@ -141,9 +143,9 @@ if pytest is not None:
         )
 
     def test_stateless_mode_override_honored(monkeypatch, tmp_path):
-        """The effective stateless_mode() honors a model-scoped config override.
+        """The effective stateless mode honors a model-scoped config override.
 
-        Provider.stateless_mode() returns the built-in default only (the
+        Provider.model_config().get("stateless_mode", False) returns the built-in default only (the
         provider layer never imports the config layer, issue #110); the
         override is applied by the effective resolution point in
         llm_clients.openai.responses_state.
@@ -153,9 +155,11 @@ if pytest is not None:
 
         monkeypatch.setattr(config_dir_mod, "_config_dir", tmp_path)
         gc.set_config_value("openai.models.gpt-5.6-luna.stateless-mode", True)
-        assert Provider("openai").stateless_mode() is False
+        assert Provider("openai").model_config().get("stateless_mode", False) is False
         assert stateless_mode("openai", None) is True
-        assert get_provider("openai").stateless_mode() is False
+        assert (
+            get_provider("openai").model_config().get("stateless_mode", False) is False
+        )
 
     def test_get_provider_cost():
         """get_provider_cost() delegates to the provider's cost module and

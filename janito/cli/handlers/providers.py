@@ -29,7 +29,7 @@ def _tools_display(provider: str, model: str) -> str | None:
     if found is None:
         return None
     segments = []
-    for api_type in found.supported_api_types(model) or []:
+    for api_type in found.model_config(model).get("supported_api_types") or []:
         tools = found.tools(model, api_type=api_type)
         if tools:
             joined = ", ".join(
@@ -57,7 +57,7 @@ def _resolve_endpoint_display(provider: str) -> tuple[str, str]:
     found = get_provider(provider)
     if found is None:
         return "", "default OpenAI (no custom base URL)"
-    built_in = found.endpoint_for(found.default_api_type())
+    built_in = found.endpoint_for(found.model_config().get("default_api_type"))
     if built_in is None:
         return "", "default OpenAI (no custom base URL)"
     if built_in == CUSTOM_ENDPOINT_MARKER:
@@ -75,8 +75,14 @@ def _model_rows(
         label += " (default)"
 
     found = get_provider(provider)
-    api_types = (found.supported_api_types(model) if found is not None else None) or []
-    default_api_type = found.default_api_type(model) if found is not None else None
+    api_types = (
+        found.model_config(model).get("supported_api_types")
+        if found is not None
+        else None
+    ) or []
+    default_api_type = (
+        found.model_config(model).get("default_api_type") if found is not None else None
+    )
     if api_types:
         api_types_display = ", ".join(
             f"{api_type} (default)" if api_type == default_api_type else api_type
@@ -86,7 +92,9 @@ def _model_rows(
         api_types_display = "(none)"
     rows.append((f"{label} API types", api_types_display))
 
-    thinking = found.default_thinking(model) if found is not None else False
+    thinking = (
+        found.model_config(model).get("thinking", False) if found is not None else False
+    )
     rows.append(
         (f"{label} thinking", format_thinking_display(thinking, provider=provider))
     )
@@ -99,12 +107,22 @@ def _model_rows(
     if tools_display:
         rows.append((f"{label} tools", tools_display))
 
-    reasoning = found.reasoning_effort(model) if found is not None else None
+    reasoning = (
+        found.model_config(model).get("default_reasoning_effort")
+        if found is not None
+        else None
+    )
     if reasoning:
         rows.append((f"{label} reasoning", f"{reasoning} (default)"))
 
-    max_input = found.max_input_tokens(model) if found is not None else None
-    max_output = found.max_output_tokens(model) if found is not None else None
+    max_input = (
+        found.model_config(model).get("max_input_tokens") if found is not None else None
+    )
+    max_output = (
+        found.model_config(model).get("max_output_tokens")
+        if found is not None
+        else None
+    )
     if max_input is not None or max_output is not None:
         rows.append(
             (

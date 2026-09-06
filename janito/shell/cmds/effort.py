@@ -24,7 +24,11 @@ def available_effort_names(
     from janito.providers.registry import get_provider
 
     found = get_provider(provider) if provider else None
-    supported = found.supported_reasoning_efforts(model) if found is not None else None
+    supported = (
+        found.model_config(model).get("supported_reasoning_efforts")
+        if found is not None
+        else None
+    )
     names: list[str] = []
     for entry in supported or []:
         if isinstance(entry, dict):
@@ -51,7 +55,11 @@ def _effective_effort(shell) -> tuple[str | None, str]:
     if configured:
         return configured, "config"
     found = get_provider(provider) if provider else None
-    default = found.reasoning_effort(model) if found is not None else None
+    default = (
+        found.model_config(model).get("default_reasoning_effort")
+        if found is not None
+        else None
+    )
     if default:
         return default, "default"
     return None, "unset"

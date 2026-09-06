@@ -595,20 +595,25 @@ Key modules:
   these entries: it is not a real provider (never registered in
   `_PROVIDER_CONFIGS`) and comments every possible CONFIG option, so new
   providers are written by copying it and filling in the values.
-- **`provider_models.py`** — the typed accessors: `Provider` (with
-  `model_config(model)` and per-model accessors defaulting to the provider's
-  default model) and `ModelConfig` (typed accessors over one model entry).
-- **`provider_registry.py`** — `ProviderRegistry` (case-insensitive lookup
+- **`providers/models.py`** — the typed accessors: `Provider` (with
+  `model_config(model)` and the routing helpers `tools` / `endpoint_for`)
+  and `ModelConfig` (raw `get(key)` over one model entry plus the
+  `tools(api_type)` routing helper). Accessor policy: plain model keys go
+  through `model_config(model).get("...")` — a dedicated method exists
+  only for routing/fallback logic (`tools`, `model_config`,
+  `endpoint_for`, `has_usable_builtin_models`); no new `Provider`
+  model-level pass-throughs.
+- **`providers/registry.py`** — `ProviderRegistry` (case-insensitive lookup
   over `janito.providers._PROVIDER_CONFIGS`, including registered variants),
   the `parse_variant_name` / `is_variant_style_name` helpers, and the
   module-level `get_provider(name)` entry point that callers use to obtain a
   typed `Provider` (the former `get_*_from_provider` facade).
-- **`provider_payloads.py`** — pure request-payload helpers
+- **`providers/payloads.py`** — pure request-payload helpers
   (`apply_thinking_to_extra_body`, `apply_builtin_tools_to_extra_body`,
   `builtin_tools_enable_flags`, `format_thinking_display`).
-- **`provider_cost.py`** — cost estimation (`get_provider_cost`,
+- **`providers/costing.py`** — cost estimation (`get_provider_cost`,
   `get_provider_cost_value`, adaptive `format_cost`).
-- **`provider_validation.py`** — provider name validation / listing helpers
+- **`providers/validation.py`** — provider name validation / listing helpers
   (`validate_provider_name`, `is_supported_provider`, `list_variants`, ...)
   and API-type availability (`get_all_api_types`,
   `ensure_api_type_available`, ...).

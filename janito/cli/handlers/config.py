@@ -278,7 +278,11 @@ def _prompt_max_input_tokens(
     default_max_input = existing_max_input_tokens
     if default_max_input is None:
         found = get_provider(provider)
-        default_max_input = found.max_input_tokens(model) if found is not None else None
+        default_max_input = (
+            found.model_config(model).get("max_input_tokens")
+            if found is not None
+            else None
+        )
     if default_max_input is None:
         default_max_input = 128000
     max_input_str = _prompt_with_default(
@@ -359,7 +363,8 @@ def _save_configuration(
         print("Configuration saved successfully!")
         return 0
 
-    except Exception as e:
+    # Top-level CLI guard: report any save failure.
+    except Exception as e:  # noqa: BLE001
         print(f"Error saving configuration: {e}", file=sys.stderr)
         return 1
 

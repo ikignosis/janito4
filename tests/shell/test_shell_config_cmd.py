@@ -26,25 +26,19 @@ def _fake_provider(
                 default_model, real.default_model() if real is not None else None
             )
 
-        def max_output_tokens(self, model=None):
-            return _pick(
-                default_max_tokens,
-                real.max_output_tokens(model) if real is not None else None,
-            )
+        def model_config(self, model=None):
+            from janito.providers.models import ModelConfig
 
-        def stateless_mode(self, model=None):
-            return _pick(
-                stateless_mode, real.stateless_mode(model) if real is not None else True
-            )
+            base = real.model_config(model).data if real is not None else {}
+            data = dict(base)
+            if default_max_tokens is not _MISSING:
+                data["max_output_tokens"] = default_max_tokens
+            if stateless_mode is not _MISSING:
+                data["stateless_mode"] = stateless_mode
+            return ModelConfig(data)
 
         def endpoint_for(self, api_type=None):
             return real.endpoint_for(api_type) if real is not None else None
-
-        def default_thinking(self, model=None):
-            return real.default_thinking(model) if real is not None else False
-
-        def reasoning_effort(self, model=None):
-            return real.reasoning_effort(model) if real is not None else None
 
         def gemini_flavor(self):
             return real.gemini_flavor() if real is not None else False
