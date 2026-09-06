@@ -61,9 +61,7 @@ def _convert_tools_to_anthropic_format(
             {
                 "name": function.get("name"),
                 "description": function.get("description", ""),
-                "input_schema": function.get(
-                    "parameters", {"type": "object", "properties": {}}
-                ),
+                "input_schema": function.get("parameters", {"type": "object", "properties": {}}),
             }
         )
     return converted
@@ -93,11 +91,7 @@ def _to_anthropic(messages: list[dict]) -> tuple[list[dict], str | None]:
     messages (one per tool call in a turn) are merged into a single ``user``
     message so the user/assistant roles keep alternating as the API requires.
     """
-    system_parts = [
-        str(m["content"])
-        for m in messages
-        if m.get("role") == "system" and m.get("content")
-    ]
+    system_parts = [str(m["content"]) for m in messages if m.get("role") == "system" and m.get("content")]
     system = "\n\n".join(system_parts) if system_parts else None
 
     converted: list[dict] = []

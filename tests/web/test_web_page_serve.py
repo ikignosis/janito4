@@ -31,9 +31,7 @@ try:
 except ModuleNotFoundError:
     _HAS_FASTAPI = False
 
-requires_fastapi = pytest.mark.skipif(
-    not _HAS_FASTAPI, reason="fastapi (web extra) is not installed"
-)
+requires_fastapi = pytest.mark.skipif(not _HAS_FASTAPI, reason="fastapi (web extra) is not installed")
 
 LOCAL_ASSET = re.compile(r'(?:src|href)="(/(?:js|css)/[^"]+)"')
 
@@ -82,9 +80,7 @@ def test_index_injects_escaped_auth_token(client):
     from janito.web.backend.app import create_app
     from janito.web.backend.config import WebServerConfig
 
-    config = WebServerConfig(
-        web_host="127.0.0.1", web_port=0, no_web_open=True, auth_token='tok"en<>&'
-    )
+    config = WebServerConfig(web_host="127.0.0.1", web_port=0, no_web_open=True, auth_token='tok"en<>&')
     app = create_app(config)
     with TestClient(app) as c:
         html = c.get("/").text

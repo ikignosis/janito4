@@ -33,9 +33,7 @@ def _run_handler(provider, user_input="/skills"):
 
     handler = SkillsCmdHandler()
     output = io.StringIO()
-    with patch("sys.stdout", output), patch.object(
-        sp, "get_skills_provider", return_value=provider
-    ):
+    with patch("sys.stdout", output), patch.object(sp, "get_skills_provider", return_value=provider):
         handled = handler.handle(object(), user_input)
     return handled, output.getvalue()
 

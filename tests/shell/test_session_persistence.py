@@ -126,9 +126,7 @@ def test_save_never_raises_when_path_blocked(tmp_path, monkeypatch):
     # the way); persistence must degrade to a logged no-op instead of raising.
     blocker = tmp_path / ".janito"
     blocker.write_text("a file, so .janito cannot be a directory")
-    monkeypatch.setattr(
-        "janito.shell.persistence.get_state_path", lambda: blocker / "session.json"
-    )
+    monkeypatch.setattr("janito.shell.persistence.get_state_path", lambda: blocker / "session.json")
     # No exception raised is the assertion.
     save_conversation_state(
         make_state(

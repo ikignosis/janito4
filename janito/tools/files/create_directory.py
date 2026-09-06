@@ -24,9 +24,7 @@ class CreateDirectory(BaseTool):
     Tool for creating a new directory.
     """
 
-    def run(
-        self, directory: str, parents: bool = False, exist_ok: bool = False
-    ) -> dict[str, Any]:
+    def run(self, directory: str, parents: bool = False, exist_ok: bool = False) -> dict[str, Any]:
         """
         Create a new directory.
 
@@ -63,9 +61,7 @@ class CreateDirectory(BaseTool):
                         "exist_ok": exist_ok,
                     }
                 else:
-                    self.report_error(
-                        f"Directory already exists: {norm_path_str} (use exist_ok=True to ignore)"
-                    )
+                    self.report_error(f"Directory already exists: {norm_path_str} (use exist_ok=True to ignore)")
                     return {
                         "success": False,
                         "error": f"Directory already exists: {norm_path_str} (use exist_ok=True to ignore)",
@@ -137,9 +133,7 @@ def main():
     """Command line interface for testing the CreateDirectoryTool."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Create directory tool for AI function calling"
-    )
+    parser = argparse.ArgumentParser(description="Create directory tool for AI function calling")
     parser.add_argument("directory", help="Directory path to create")
     parser.add_argument(
         "--parents",
@@ -153,16 +147,12 @@ def main():
         action="store_true",
         help="Don't raise error if directory already exists",
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
 
     args = parser.parse_args()
 
     tool_instance = CreateDirectory()
-    result = tool_instance.run(
-        directory=args.directory, parents=args.parents, exist_ok=args.exist_ok
-    )
+    result = tool_instance.run(directory=args.directory, parents=args.parents, exist_ok=args.exist_ok)
 
     if args.json:
         print(json.dumps(result, indent=2))

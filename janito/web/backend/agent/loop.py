@@ -80,26 +80,14 @@ def _resolve_turn_config(config, effective_provider, model):
     if max_output_tokens is None:
         # Fall back to the provider's built-in default (from the provider
         # config).
-        max_output_tokens = (
-            found.model_config(model).get("max_output_tokens")
-            if found is not None
-            else None
-        )
-    preserve_thinking = (
-        found.model_config(model).get("preserve_thinking")
-        if found is not None
-        else None
-    )
+        max_output_tokens = found.model_config(model).get("max_output_tokens") if found is not None else None
+    preserve_thinking = found.model_config(model).get("preserve_thinking") if found is not None else None
 
     # Reasoning level (reasoning_effort): model-scoped config value first,
     # then the model's built-in default (e.g. "low" for qwen3.8-max).
     reasoning_effort = load_reasoning_effort(effective_provider, model)
     if reasoning_effort is None:
-        reasoning_effort = (
-            found.model_config(model).get("default_reasoning_effort")
-            if found is not None
-            else None
-        )
+        reasoning_effort = found.model_config(model).get("default_reasoning_effort") if found is not None else None
 
     return max_output_tokens, preserve_thinking, reasoning_effort
 
@@ -185,8 +173,7 @@ def _build_assistant_message(acc: Any, full_content: str) -> dict:
     image_results = getattr(acc, "image_results", None) or []
     if image_results:
         assistant_message["images"] = [
-            {"path": img["path"], "revised_prompt": img.get("revised_prompt", "")}
-            for img in image_results
+            {"path": img["path"], "revised_prompt": img.get("revised_prompt", "")} for img in image_results
         ]
     return assistant_message
 
@@ -253,9 +240,7 @@ def _attach_turn_stats(usage_event, turn_stats: TurnInfo | None) -> None:
     usage_event.turn_output = turn_stats.turn_output
 
 
-def _record_web_turn(
-    provider: str | None, model: str | None, turn_stats: TurnInfo | None
-) -> None:
+def _record_web_turn(provider: str | None, model: str | None, turn_stats: TurnInfo | None) -> None:
     """Append one overall-use accounting row for a completed web turn.
 
     Mirrors the CLI's end-of-turn accounting (issue #72): the turn-wide
@@ -265,21 +250,9 @@ def _record_web_turn(
     """
     if turn_stats is None:
         return
-    input_tokens = (
-        turn_stats.turn_input
-        if turn_stats.turn_input is not None
-        else turn_stats.last_input
-    )
-    cached_tokens = (
-        turn_stats.turn_cached
-        if turn_stats.turn_cached is not None
-        else turn_stats.last_cached
-    )
-    output_tokens = (
-        turn_stats.turn_output
-        if turn_stats.turn_output is not None
-        else turn_stats.last_output
-    )
+    input_tokens = turn_stats.turn_input if turn_stats.turn_input is not None else turn_stats.last_input
+    cached_tokens = turn_stats.turn_cached if turn_stats.turn_cached is not None else turn_stats.last_cached
+    output_tokens = turn_stats.turn_output if turn_stats.turn_output is not None else turn_stats.last_output
     cost = None
     if provider and model:
         cost = get_provider_cost_value(
@@ -324,9 +297,7 @@ async def stream_prompt(
     # the chat-page combo wins over the CLI --provider, which wins over the
     # persisted default (config.json / auth.json).  The session override is
     # never written to disk -- see WebServerConfig.session_provider.
-    effective_provider = (
-        config.session_provider or config.provider or get_active_provider()
-    )
+    effective_provider = config.session_provider or config.provider or get_active_provider()
     # The API type for this turn: --api-type first, then the provider's
     # configured api-type (the web Settings drawer's per-provider combo, the
     # same value the CLI's --set api-type=... writes), then the provider's
@@ -365,9 +336,7 @@ async def stream_prompt(
     # the web UI has no per-message tool override).
     allowed_tool_names = extract_tool_names(tools_schemas)
 
-    max_output_tokens, preserve_thinking, reasoning_effort = _resolve_turn_config(
-        config, effective_provider, model
-    )
+    max_output_tokens, preserve_thinking, reasoning_effort = _resolve_turn_config(config, effective_provider, model)
 
     messages.append({"role": "user", "content": prompt})
 
@@ -423,9 +392,7 @@ async def stream_prompt(
         # --- No tool calls: final response ---
         messages.append(_build_assistant_message(acc, full_content))
 
-        usage_event = usage_event_from_usage(
-            acc.usage_object(), max_tokens=max_output_tokens
-        )
+        usage_event = usage_event_from_usage(acc.usage_object(), max_tokens=max_output_tokens)
         if usage_event:
             # Attach the cumulative turn totals (tool-call rounds included)
             # to the final-round usage event when the turn spanned several

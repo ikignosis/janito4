@@ -94,9 +94,7 @@ Examples:
     )
 
     parser.add_argument("url", help="URL to open in the browser")
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
 
     args = parser.parse_args()
 

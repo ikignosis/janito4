@@ -29,10 +29,7 @@ class NoToolsCmdHandler(CmdHandler):
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /notools command."""
         # Match '/notools' exactly or '/notools <question>' (not '/notoolsx')
-        if (
-            user_input.lower() != self.name.lower()
-            and not user_input.lower().startswith(self.name.lower() + " ")
-        ):
+        if user_input.lower() != self.name.lower() and not user_input.lower().startswith(self.name.lower() + " "):
             return False
 
         # Extract the message (everything after '/notools ')
@@ -59,9 +56,7 @@ class NoToolsCmdHandler(CmdHandler):
         """Send the prompt with the main history and no tools for this turn."""
         turn_func = getattr(shell, "turn_func", None)
         if turn_func is None:
-            print(
-                "\nError: No prompt function available. Are you in an active session?\n"
-            )
+            print("\nError: No prompt function available. Are you in an active session?\n")
             return
 
         print()  # blank line before the streamed response, like /ask

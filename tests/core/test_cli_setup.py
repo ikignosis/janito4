@@ -52,9 +52,7 @@ if pytest is not None:
         config_path.write_text(json.dumps({"system-prompt-file": "~/base-prompt.md"}))
         validate_system_prompt_file()  # must not raise
 
-    def test_validate_system_prompt_file_relative_path_resolved_against_cwd(
-        monkeypatch, tmp_path
-    ):
+    def test_validate_system_prompt_file_relative_path_resolved_against_cwd(monkeypatch, tmp_path):
         monkeypatch.chdir(tmp_path)
         (tmp_path / "prompt.md").write_text("relative", encoding="utf-8")
         config_path = _use_temp_config(monkeypatch, tmp_path)
@@ -75,9 +73,7 @@ if pytest is not None:
         assert str(missing) in err
         assert "does not exist" in err
 
-    def test_validate_system_prompt_file_directory_is_not_a_file(
-        monkeypatch, tmp_path, capsys
-    ):
+    def test_validate_system_prompt_file_directory_is_not_a_file(monkeypatch, tmp_path, capsys):
         # A directory path is not a file: validation fails too.
         config_path = _use_temp_config(monkeypatch, tmp_path)
         config_path.parent.mkdir(parents=True, exist_ok=True)

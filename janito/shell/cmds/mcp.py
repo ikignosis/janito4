@@ -114,9 +114,7 @@ class McpCmdHandler(CmdHandler):
 
         warnings: list[str] = []
         try:
-            service_config = spec.build_config(
-                args[2:] if len(args) > 2 else [], warnings
-            )
+            service_config = spec.build_config(args[2:] if len(args) > 2 else [], warnings)
         except ValueError as e:
             print(f"Error: {e}")
             print(spec.usage_line)
@@ -158,12 +156,8 @@ class McpCmdHandler(CmdHandler):
             table.add_column("Key", style="green", no_wrap=True)
             table.add_column("Value", overflow="fold")
             table.add_row("Status", "No MCP services configured.")
-            table.add_row(
-                "Add stdio", "/mcp add <name> stdio <command> to add a stdio service"
-            )
-            table.add_row(
-                "Add http", "/mcp add <name> http <url> to add an HTTP service"
-            )
+            table.add_row("Add stdio", "/mcp add <name> stdio <command> to add a stdio service")
+            table.add_row("Add http", "/mcp add <name> http <url> to add an HTTP service")
             table.add_row("Config file", str(get_mcp_config_path()))
             console.print(table)
             return
@@ -241,9 +235,7 @@ class McpCmdHandler(CmdHandler):
         )
         transports.add_column("Transport", style="green", no_wrap=True)
         transports.add_column("Description", overflow="fold")
-        transports.add_row(
-            "stdio", "Local process via stdin/stdout (default for local servers)"
-        )
+        transports.add_row("stdio", "Local process via stdin/stdout (default for local servers)")
         transports.add_row("http", "HTTP/SSE endpoint (for remote MCP servers)")
         console.print(transports)
 
@@ -257,9 +249,7 @@ class McpCmdHandler(CmdHandler):
         )
         options.add_column("Option", style="green", no_wrap=True)
         options.add_column("Description", overflow="fold")
-        options.add_row(
-            "--header KEY:VALUE", "Add HTTP header (can be used multiple times)"
-        )
+        options.add_row("--header KEY:VALUE", "Add HTTP header (can be used multiple times)")
         console.print(options)
 
         examples = Table(
@@ -273,9 +263,7 @@ class McpCmdHandler(CmdHandler):
         examples.add_column("Command", style="green", no_wrap=True)
         examples.add_column("Description", overflow="fold")
         examples.add_row("/mcp add myserver stdio python -m mcp.server", "")
-        examples.add_row(
-            '/mcp add myserver stdio "python -m mcp.server --port 5000"', ""
-        )
+        examples.add_row('/mcp add myserver stdio "python -m mcp.server --port 5000"', "")
         examples.add_row("/mcp add remote http https://api.example.com/mcp", "")
         examples.add_row(
             "/mcp add remote http https://api.example.com/mcp --header Authorization:Bearer xxx",

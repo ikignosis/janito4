@@ -113,11 +113,7 @@ def get_cost(
     now = _utcnow() if now is None else now
     peak = is_reference or (not _is_weekend(now) and _is_peak_hour(now))
     multiplier = 2.0 if peak else 1.0
-    cost = (
-        ((input - cached) * input_miss + cached * input_hit + output * output_rate)
-        / 1_000_000
-        * multiplier
-    )
+    cost = ((input - cached) * input_miss + cached * input_hit + output * output_rate) / 1_000_000 * multiplier
     if is_reference:
         return f"{cost:.6f}$"
     return f"{cost:.6f}$ ({'peak' if peak else 'off-peak'})"

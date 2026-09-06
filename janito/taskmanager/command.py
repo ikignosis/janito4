@@ -37,8 +37,7 @@ def privilege_flags(privileges: str | None) -> list[str]:
             flags.append("-x")
         else:
             raise ValueError(
-                f"Invalid privilege character {char!r} in {privileges!r}: "
-                "expected a combination of 'r', 'w' and 'x'"
+                f"Invalid privilege character {char!r} in {privileges!r}: " "expected a combination of 'r', 'w' and 'x'"
             )
     return flags
 

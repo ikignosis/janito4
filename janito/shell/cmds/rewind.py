@@ -46,9 +46,7 @@ class RewindCmdHandler(CmdHandler):
         turns = getattr(shell, "history_turns", None) or []
         removed = truncate_to_last_turn(shell.messages_history, turns)
         if removed:
-            print(
-                f"Rewound {removed} message(s). History now has {len(shell.messages_history)} message(s)."
-            )
+            print(f"Rewound {removed} message(s). History now has {len(shell.messages_history)} message(s).")
             return
 
         # Responses API mode: the conversation lives outside
@@ -61,10 +59,7 @@ class RewindCmdHandler(CmdHandler):
             if conversation_turn < len(conversation_items):
                 del conversation_items[conversation_turn:]
                 _pop_turn(turns)
-                print(
-                    "Rewound: conversation history truncated "
-                    "(stateless Responses API / pending items)."
-                )
+                print("Rewound: conversation history truncated " "(stateless Responses API / pending items).")
                 return
 
         # Server-side Responses (e.g. OpenAI): undo the last completed turn
@@ -77,9 +72,7 @@ class RewindCmdHandler(CmdHandler):
             response_turn = getattr(shell, "response_turn", 0)
             if response_turn < len(response_chain):
                 del response_chain[response_turn:]
-                shell.previous_response_id = (
-                    response_chain[-1] if response_chain else None
-                )
+                shell.previous_response_id = response_chain[-1] if response_chain else None
                 # Also truncate the /history display mirror of completed
                 # server-side turns back to its recorded start, so /history no
                 # longer shows the rewound exchange (the real conversation
@@ -90,15 +83,9 @@ class RewindCmdHandler(CmdHandler):
                     del mirrored[mirrored_turn:]
                 _pop_turn(turns)
                 if shell.previous_response_id:
-                    print(
-                        "Rewound: server-side conversation rewound to "
-                        "the previous response (Responses API)."
-                    )
+                    print("Rewound: server-side conversation rewound to " "the previous response (Responses API).")
                 else:
-                    print(
-                        "Rewound: server-side conversation reset to a "
-                        "fresh conversation (Responses API)."
-                    )
+                    print("Rewound: server-side conversation reset to a " "fresh conversation (Responses API).")
                 return
             if response_chain and getattr(shell, "previous_response_id", None):
                 # Already at the recorded start: nothing to undo (mirrors the

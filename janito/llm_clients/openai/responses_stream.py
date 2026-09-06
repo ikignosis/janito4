@@ -99,12 +99,8 @@ class ResponsesStreamConsumer:
         # produce a response (e.g. an error that was never surfaced). Fail
         # loudly instead of returning an empty answer. An Enter-to-cancel
         # short-circuit must not be treated as an empty stream.
-        if self._events_seen == 0 and (
-            cancel_event is None or not cancel_event.is_set()
-        ):
-            raise RuntimeError(
-                "The Responses API returned no stream events (empty response)."
-            )
+        if self._events_seen == 0 and (cancel_event is None or not cancel_event.is_set()):
+            raise RuntimeError("The Responses API returned no stream events (empty response).")
         return (
             self.full_content,
             self.reasoning_content,
@@ -161,9 +157,7 @@ class ResponsesStreamConsumer:
         self.response_id = event.response.id
         # Keep the raw top-level response metadata for the verbose dump;
         # output (content/function calls) and usage are surfaced elsewhere.
-        self.raw_attrs.update(
-            _extract_raw_attrs(event.response, skip=("output", "usage"))
-        )
+        self.raw_attrs.update(_extract_raw_attrs(event.response, skip=("output", "usage")))
         if event.type == "response.completed":
             if event.response.usage:
                 # Usage is delivered on the final event by default (it is part of
@@ -171,9 +165,7 @@ class ResponsesStreamConsumer:
                 self.usage_info = event.response.usage
             # Search grounding (issue #131): url_citation annotations live
             # on the assembled message output, not in stream deltas.
-            self.web_search_citations.extend(
-                _citations_from_output(getattr(event.response, "output", None))
-            )
+            self.web_search_citations.extend(_citations_from_output(getattr(event.response, "output", None)))
 
     def handle_text_delta(self, event) -> None:
         """Collect assistant text and reasoning deltas."""
@@ -190,9 +182,7 @@ class ResponsesStreamConsumer:
             self.partial_arguments[event.item_id] = event.arguments or ""
             return
         item_id = event.item_id
-        self.partial_arguments[item_id] = self.partial_arguments.get(item_id, "") + (
-            event.delta or ""
-        )
+        self.partial_arguments[item_id] = self.partial_arguments.get(item_id, "") + (event.delta or "")
 
     def handle_output_item(self, event) -> None:
         """Append a finished output item to the tool calls / reasoning items.
@@ -210,8 +200,7 @@ class ResponsesStreamConsumer:
                 {
                     "call_id": item.call_id,
                     "name": item.name,
-                    "arguments": item.arguments
-                    or self.partial_arguments.get(item.id, ""),
+                    "arguments": item.arguments or self.partial_arguments.get(item.id, ""),
                 }
             )
         elif item_type == "reasoning":
@@ -256,23 +245,11 @@ def _citations_from_output(output) -> list[dict[str, Any]]:
     """Collect ``url_citation`` annotations from a completed response output."""
     citations: list[dict[str, Any]] = []
     for entry in output or []:
-        content = (
-            entry.get("content")
-            if isinstance(entry, dict)
-            else getattr(entry, "content", None)
-        )
+        content = entry.get("content") if isinstance(entry, dict) else getattr(entry, "content", None)
         for block in content or []:
-            anns = (
-                block.get("annotations")
-                if isinstance(block, dict)
-                else getattr(block, "annotations", None)
-            )
+            anns = block.get("annotations") if isinstance(block, dict) else getattr(block, "annotations", None)
             for ann in anns or []:
-                atype = (
-                    ann.get("type")
-                    if isinstance(ann, dict)
-                    else getattr(ann, "type", None)
-                )
+                atype = ann.get("type") if isinstance(ann, dict) else getattr(ann, "type", None)
                 if atype != "url_citation":
                     continue
                 if isinstance(ann, dict):

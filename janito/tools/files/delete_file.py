@@ -55,9 +55,7 @@ class DeleteFile(BaseTool):
                 }
 
             if not force and not os.path.isfile(abs_filepath):
-                self.report_error(
-                    f"Path is not a file: {norm_path_str} (use force=True to delete directories)"
-                )
+                self.report_error(f"Path is not a file: {norm_path_str} (use force=True to delete directories)")
                 return {
                     "success": False,
                     "error": f"Path is not a file: {norm_path_str} (use force=True to delete directories)",
@@ -92,9 +90,7 @@ class DeleteFile(BaseTool):
 
         except OSError as e:
             if e.errno == 39:  # Directory not empty
-                self.report_error(
-                    f"Cannot delete non-empty directory: {norm_path_str} (use force=True with caution)"
-                )
+                self.report_error(f"Cannot delete non-empty directory: {norm_path_str} (use force=True with caution)")
                 return {
                     "success": False,
                     "error": f"Cannot delete non-empty directory: {norm_path_str} (use force=True with caution)",
@@ -124,9 +120,7 @@ def main():
     """Command line interface for testing the DeleteFileTool."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Delete file tool for AI function calling"
-    )
+    parser = argparse.ArgumentParser(description="Delete file tool for AI function calling")
     parser.add_argument("filepath", help="File path to delete")
     parser.add_argument(
         "--force",
@@ -134,9 +128,7 @@ def main():
         action="store_true",
         help="Force deletion (allows deleting directories)",
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
 
     args = parser.parse_args()
 

@@ -113,12 +113,8 @@ class TaskManager:
             self._next_task_id += 1
         cmd = build_task_command(privileges)
 
-        stdout_tmp = tempfile.NamedTemporaryFile(
-            prefix=f"janito-{task_id}-", suffix=".out", delete=False
-        )
-        stderr_tmp = tempfile.NamedTemporaryFile(
-            prefix=f"janito-{task_id}-", suffix=".err", delete=False
-        )
+        stdout_tmp = tempfile.NamedTemporaryFile(prefix=f"janito-{task_id}-", suffix=".out", delete=False)
+        stderr_tmp = tempfile.NamedTemporaryFile(prefix=f"janito-{task_id}-", suffix=".err", delete=False)
         stdout_filename = stdout_tmp.name
         stderr_filename = stderr_tmp.name
 
@@ -161,9 +157,7 @@ class TaskManager:
                     os.unlink(filename)
                 except OSError:
                     pass
-            raise RuntimeError(
-                f"failed to send description to the task process: {e}"
-            ) from e
+            raise RuntimeError(f"failed to send description to the task process: {e}") from e
 
         task = Task(
             task_id=task_id,
@@ -182,9 +176,7 @@ class TaskManager:
             # child's real lifetime).
             started_at=spawned_at,
         )
-        task.thread = threading.Thread(
-            target=self._wait_for_exit, args=(task,), daemon=True
-        )
+        task.thread = threading.Thread(target=self._wait_for_exit, args=(task,), daemon=True)
         with self._lock:
             self._tasks[task_id] = task
         task.thread.start()
@@ -254,9 +246,7 @@ class TaskManager:
             task.exit_reason = EXIT_TIMEOUT
             task.exit_code = _own_exit_code(returncode)
             if task.exit_code is None:
-                task.error = (
-                    f"task exceeded its timeout of {task.timeout:g}s and was killed"
-                )
+                task.error = f"task exceeded its timeout of {task.timeout:g}s and was killed"
             else:
                 # It exited during the grace period, so it has a real code --
                 # but it still did not finish within its budget.
@@ -334,9 +324,7 @@ class TaskManager:
         """
         with self._lock:
             tasks = list(self._tasks.values())
-        tasks.sort(
-            key=lambda t: (0 if t.exit_reason == EXIT_RUNNING else 1, t.started_at)
-        )
+        tasks.sort(key=lambda t: (0 if t.exit_reason == EXIT_RUNNING else 1, t.started_at))
         return [self._task_snapshot(task) for task in tasks]
 
     def running_tasks(self) -> list[dict[str, Any]]:
@@ -398,8 +386,7 @@ class TaskManager:
             task.error = (
                 "task was stopped before it finished"
                 if task.exit_code is None
-                else f"task was stopped; it exited with code {task.exit_code} "
-                "during shutdown"
+                else f"task was stopped; it exited with code {task.exit_code} " "during shutdown"
             )
             task.duration_seconds = time.monotonic() - task.started_at
             self._record_completion(task)
@@ -505,8 +492,7 @@ class TaskManager:
             task.error = (
                 "task was stopped before it finished"
                 if task.exit_code is None
-                else f"task was stopped; it exited with code {task.exit_code} "
-                "during shutdown"
+                else f"task was stopped; it exited with code {task.exit_code} " "during shutdown"
             )
             task.duration_seconds = time.monotonic() - task.started_at
         else:
@@ -632,12 +618,8 @@ class TaskManager:
 
             pending.remove(task_id)
             task = self.get_task(task_id)
-            stdout, stdout_truncated = _read_output_file(
-                task.stdout_filename, max_output_lines
-            )
-            stderr, stderr_truncated = _read_output_file(
-                task.stderr_filename, max_output_lines
-            )
+            stdout, stdout_truncated = _read_output_file(task.stdout_filename, max_output_lines)
+            stderr, stderr_truncated = _read_output_file(task.stderr_filename, max_output_lines)
             result = {
                 "task_id": task.task_id,
                 "pid": task.pid,
@@ -670,9 +652,7 @@ class TaskManager:
             # their own -- their ``exit_code`` is None unless they shut down
             # cleanly during the termination grace period.
             "terminated_task_ids": [
-                result["task_id"]
-                for result in results
-                if result["exit_reason"] in TERMINATED_REASONS
+                result["task_id"] for result in results if result["exit_reason"] in TERMINATED_REASONS
             ],
         }
 

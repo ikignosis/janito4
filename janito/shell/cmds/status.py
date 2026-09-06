@@ -21,9 +21,7 @@ from .base import CmdHandler
 from .registry import register_command
 
 
-def _resolve_effective_model(
-    provider: str, model: str | None
-) -> tuple[str | None, bool]:
+def _resolve_effective_model(provider: str, model: str | None) -> tuple[str | None, bool]:
     """Resolve the effective model for the session and whether it is a default.
 
     The session's model (``--model``, ``/model`` or the startup resolution)
@@ -124,15 +122,9 @@ def _print_config_info(
     if max_output_tokens:
         max_output_tokens_display = str(max_output_tokens)
     else:
-        default_max_output_tokens = (
-            found.model_config(model).get("max_output_tokens")
-            if found is not None
-            else None
-        )
+        default_max_output_tokens = found.model_config(model).get("max_output_tokens") if found is not None else None
         max_output_tokens_display = (
-            f"{default_max_output_tokens} (default)"
-            if default_max_output_tokens
-            else "(not set)"
+            f"{default_max_output_tokens} (default)" if default_max_output_tokens else "(not set)"
         )
 
     # Resolve the effective reasoning level: the --reasoning-effort CLI flag
@@ -144,27 +136,17 @@ def _print_config_info(
         reasoning_effort_display = reasoning_effort
     else:
         default_reasoning_effort = (
-            found.model_config(model).get("default_reasoning_effort")
-            if found is not None
-            else None
+            found.model_config(model).get("default_reasoning_effort") if found is not None else None
         )
-        reasoning_effort_display = (
-            f"{default_reasoning_effort} (default)"
-            if default_reasoning_effort
-            else "(not set)"
-        )
+        reasoning_effort_display = f"{default_reasoning_effort} (default)" if default_reasoning_effort else "(not set)"
 
     # Resolve the effective thinking mode: the --thinking flag first,
     # otherwise the effective model's built-in default from the provider
     # config
     # (True for DeepSeek/Alibaba-Qwen; a pass-through dict such as
     # {'type': 'adaptive'} for MiniMax-M3).
-    effective_thinking = thinking or (
-        found.model_config(model).get("thinking", False) if found is not None else False
-    )
-    thinking_display = resolve_thinking_display(
-        effective_thinking, explicit_thinking=bool(thinking), provider=provider
-    )
+    effective_thinking = thinking or (found.model_config(model).get("thinking", False) if found is not None else False)
+    thinking_display = resolve_thinking_display(effective_thinking, explicit_thinking=bool(thinking), provider=provider)
 
     # When the effective API type is the Responses API, surface whether the
     # model keeps the conversation state server-side (chained with

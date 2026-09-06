@@ -24,10 +24,7 @@ class AskCmdHandler(CmdHandler):
     def handle(self, shell, user_input: str) -> bool:
         """Handle the /ask command."""
         # Match '/ask' exactly or '/ask <question>' (not '/askme', etc.)
-        if (
-            user_input.lower() != self.name.lower()
-            and not user_input.lower().startswith(self.name.lower() + " ")
-        ):
+        if user_input.lower() != self.name.lower() and not user_input.lower().startswith(self.name.lower() + " "):
             return False
 
         # Extract the question (everything after '/ask ')
@@ -35,9 +32,7 @@ class AskCmdHandler(CmdHandler):
 
         if not question:
             print("\nUsage: /ask <your question>")
-            print(
-                "  Sends an individual question to the LLM with a fresh chat history."
-            )
+            print("  Sends an individual question to the LLM with a fresh chat history.")
             print("  The chat history is cleared on every /ask invocation.\n")
             return True
 
@@ -52,9 +47,7 @@ class AskCmdHandler(CmdHandler):
         # Ensure turn_func is available on the shell
         turn_func = getattr(shell, "turn_func", None)
         if turn_func is None:
-            print(
-                "\nError: No prompt function available. Are you in an active session?\n"
-            )
+            print("\nError: No prompt function available. Are you in an active session?\n")
             return
 
         verbose = getattr(shell, "verbose", False)
@@ -74,9 +67,7 @@ class AskCmdHandler(CmdHandler):
                 tools=[],
             )
         except KeyboardInterrupt:
-            print(
-                "Request interrupted, previous prompt/answer removed from the conversation history."
-            )
+            print("Request interrupted, previous prompt/answer removed from the conversation history.")
         except RequestCancelled:
             # Enter was pressed while waiting for the API: interrupt the
             # request. The /ask history is local to this command, so there is

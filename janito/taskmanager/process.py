@@ -67,9 +67,7 @@ def _normalise_timeout(timeout: float | None) -> float | None:
     except (TypeError, ValueError) as e:
         raise ValueError(f"timeout must be a number of seconds, got {timeout!r}") from e
     if seconds <= 0:
-        raise ValueError(
-            f"timeout must be a positive number of seconds, got {seconds:g}"
-        )
+        raise ValueError(f"timeout must be a positive number of seconds, got {seconds:g}")
     return seconds
 
 

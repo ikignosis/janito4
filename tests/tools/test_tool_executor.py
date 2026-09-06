@@ -110,9 +110,7 @@ if pytest is not None:
     def test_build_assistant_message_empty_content_becomes_none():
         """An empty assistant text is stored as ``None`` in the message."""
         ex = ToolExecutor()
-        msg = ex.build_assistant_message(
-            "", {0: {"id": "c", "name": "Tool", "arguments": "{}"}}
-        )
+        msg = ex.build_assistant_message("", {0: {"id": "c", "name": "Tool", "arguments": "{}"}})
         assert msg["content"] is None
 
     def test_build_assistant_message_preserves_extra_content():
@@ -147,9 +145,7 @@ if pytest is not None:
     def test_build_assistant_message_omits_extra_content_when_absent():
         """Calls without provider extras keep the plain OpenAI shape."""
         ex = ToolExecutor()
-        msg = ex.build_assistant_message(
-            "", {0: {"id": "call_1", "name": "FindFiles", "arguments": "{}"}}
-        )
+        msg = ex.build_assistant_message("", {0: {"id": "call_1", "name": "FindFiles", "arguments": "{}"}})
         assert msg["tool_calls"] == [
             {
                 "id": "call_1",
@@ -162,9 +158,7 @@ if pytest is not None:
         """A built-in call is routed to the registry and its result returned."""
         _register(monkeypatch, "MyTool", "r")
         ex = ToolExecutor()
-        message = ex.execute_tool_call(
-            _tool_call("call_1", "MyTool", '{"filepath": "a.txt"}')
-        )
+        message = ex.execute_tool_call(_tool_call("call_1", "MyTool", '{"filepath": "a.txt"}'))
         assert message["tool_call_id"] == "call_1"
         assert message["role"] == "tool"
         assert message["name"] == "MyTool"
@@ -231,9 +225,7 @@ if pytest is not None:
         """A raising tool is not tracked as a used file."""
         _register(monkeypatch, "MyTool", "rw")
         ex = ToolExecutor()
-        ex.execute_tool_call(
-            _tool_call("call_1", "NoSuchTool", '{"filepath": "/a.py"}')
-        )
+        ex.execute_tool_call(_tool_call("call_1", "NoSuchTool", '{"filepath": "/a.py"}'))
         assert used_files.get_used_files() == {"READ": [], "WRITE": []}
 
     def test_execute_tool_call_routes_to_mcp_manager(monkeypatch):

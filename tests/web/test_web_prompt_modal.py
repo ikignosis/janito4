@@ -38,9 +38,7 @@ try:
 except ModuleNotFoundError:
     _HAS_FASTAPI = False
 
-requires_fastapi = pytest.mark.skipif(
-    not _HAS_FASTAPI, reason="fastapi (web extra) is not installed"
-)
+requires_fastapi = pytest.mark.skipif(not _HAS_FASTAPI, reason="fastapi (web extra) is not installed")
 
 
 # ---------------------------------------------------------------------------
@@ -119,9 +117,7 @@ def test_await_cancel_resolves_prompt_answer():
 
     ws = _FakeWebSocket(
         [
-            json.dumps(
-                {"type": "prompt_answer", "prompt_id": "abc123", "answer": "42"}
-            ),
+            json.dumps({"type": "prompt_answer", "prompt_id": "abc123", "answer": "42"}),
             json.dumps({"type": "cancel"}),
         ]
     )
@@ -144,9 +140,7 @@ def test_await_cancel_continues_after_prompt_answer():
     registry = PromptRegistry()
     ws = _FakeWebSocket(
         [
-            json.dumps(
-                {"type": "prompt_answer", "prompt_id": "abc123", "answer": "42"}
-            ),
+            json.dumps({"type": "prompt_answer", "prompt_id": "abc123", "answer": "42"}),
             json.dumps({"type": "prompt", "content": "queued"}),
             json.dumps({"type": "cancel"}),
         ]
@@ -238,9 +232,7 @@ def test_web_prompt_handler_round_trip():
             # Run the tool in a worker thread, exactly like the web loop's
             # execute_tool (asyncio.to_thread copies the current context, so
             # the handler installed above is visible to prompt_user).
-            task = asyncio.ensure_future(
-                asyncio.to_thread(AskUser().run, question="Your name?")
-            )
+            task = asyncio.ensure_future(asyncio.to_thread(AskUser().run, question="Your name?"))
             # The "browser" receives the question…
             await ws.wait_for_prompt(timeout=2.0)
             prompt = ws.last_prompt
@@ -275,9 +267,7 @@ def test_web_prompt_handler_turn_cancel_returns_empty():
         handler = WebPromptHandler(ws, asyncio.get_running_loop(), registry)
         set_prompt_handler(handler)
         try:
-            task = asyncio.ensure_future(
-                asyncio.to_thread(AskUser().run, question="Are you there?")
-            )
+            task = asyncio.ensure_future(asyncio.to_thread(AskUser().run, question="Are you there?"))
             await ws.wait_for_prompt(timeout=2.0)
             # The turn was cancelled / the socket died: wake every waiter.
             assert registry.cancel_all() == 1

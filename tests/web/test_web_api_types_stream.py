@@ -22,9 +22,7 @@ try:
 except ModuleNotFoundError:
     _HAS_DASHSCOPE = False
 
-requires_dashscope = pytest.mark.skipif(
-    not _HAS_DASHSCOPE, reason="dashscope package is not installed"
-)
+requires_dashscope = pytest.mark.skipif(not _HAS_DASHSCOPE, reason="dashscope package is not installed")
 
 FRONTEND = Path(__file__).parent.parent.parent / "janito" / "web" / "frontend"
 
@@ -100,9 +98,7 @@ def test_stream_prompt_responses_round_trip(monkeypatch):
         [
             # First round: a tool call (no final text yet).
             [
-                SimpleNamespace(
-                    type="response.output_text.delta", delta="Let me check."
-                ),
+                SimpleNamespace(type="response.output_text.delta", delta="Let me check."),
                 SimpleNamespace(
                     type="response.function_call_arguments.done",
                     item_id="fc1",
@@ -117,9 +113,7 @@ def test_stream_prompt_responses_round_trip(monkeypatch):
                         id="fc1",
                     ),
                 ),
-                SimpleNamespace(
-                    type="response.completed", response=SimpleNamespace(id="r1")
-                ),
+                SimpleNamespace(type="response.completed", response=SimpleNamespace(id="r1")),
             ],
             # Second round: the final answer.
             [
@@ -128,9 +122,7 @@ def test_stream_prompt_responses_round_trip(monkeypatch):
                     type="response.completed",
                     response=SimpleNamespace(
                         id="r2",
-                        usage=SimpleNamespace(
-                            total_tokens=8, input_tokens=5, output_tokens=3
-                        ),
+                        usage=SimpleNamespace(total_tokens=8, input_tokens=5, output_tokens=3),
                     ),
                 ),
             ],
@@ -178,9 +170,7 @@ def test_stream_prompt_responses_round_trip(monkeypatch):
 
     async def _run():
         events = []
-        async for ev in loop.stream_prompt(
-            "hi", messages, config, tools=[], use_mcp=False
-        ):
+        async for ev in loop.stream_prompt("hi", messages, config, tools=[], use_mcp=False):
             events.append(ev)
         return events
 
@@ -299,9 +289,7 @@ def test_stream_prompt_responses_emits_image_event(monkeypatch):
                     type="response.completed",
                     response=SimpleNamespace(
                         id="r1",
-                        usage=SimpleNamespace(
-                            total_tokens=8, input_tokens=5, output_tokens=3
-                        ),
+                        usage=SimpleNamespace(total_tokens=8, input_tokens=5, output_tokens=3),
                     ),
                 ),
             ],
@@ -317,9 +305,7 @@ def test_stream_prompt_responses_emits_image_event(monkeypatch):
 
     async def _run():
         events = []
-        async for ev in loop.stream_prompt(
-            "draw a cat", messages, config, tools=[], use_mcp=False
-        ):
+        async for ev in loop.stream_prompt("draw a cat", messages, config, tools=[], use_mcp=False):
             events.append(ev)
         return events
 
@@ -342,9 +328,7 @@ def test_stream_prompt_responses_emits_image_event(monkeypatch):
     # frontend can rebuild the content card from history.
     assistant_msg = [m for m in messages if m["role"] == "assistant"][0]
     assert assistant_msg["content"] == "Here is your image:"
-    assert assistant_msg["images"] == [
-        {"path": img_path, "revised_prompt": "A tabby cat hugging an otter"}
-    ]
+    assert assistant_msg["images"] == [{"path": img_path, "revised_prompt": "A tabby cat hugging an otter"}]
 
     # The image_generation tool was advertised to the model (gpt-5 model).
     assert fake_client.calls[0]["tools"][-1] == {"type": "image_generation"}
@@ -441,16 +425,12 @@ def test_stream_prompt_completions_round_trip(monkeypatch):
         lambda base_url, api_key: fake_client,
     )
 
-    config = WebServerConfig(
-        provider="openai", api_type="Completions", no_tools=True, verbose=False
-    )
+    config = WebServerConfig(provider="openai", api_type="Completions", no_tools=True, verbose=False)
     messages: list[dict] = []
 
     async def _run():
         events = []
-        async for ev in loop.stream_prompt(
-            "hi", messages, config, tools=[], use_mcp=False
-        ):
+        async for ev in loop.stream_prompt("hi", messages, config, tools=[], use_mcp=False):
             events.append(ev)
         return events
 
@@ -465,9 +445,7 @@ def test_stream_prompt_completions_round_trip(monkeypatch):
 
     # Reasoning + content deltas stream as events; usage and done follow.
     assert isinstance(events[0], WaitingEvent)
-    assert (
-        isinstance(events[1], ReasoningEvent) and events[1].content == "Let me think..."
-    )
+    assert isinstance(events[1], ReasoningEvent) and events[1].content == "Let me think..."
     assert isinstance(events[2], TokenEvent) and events[2].content == "Hi there!"
     usage = next(e for e in events if getattr(e, "type", "") == "usage")
     assert (usage.last_input, usage.last_cached, usage.last_output, usage.total) == (

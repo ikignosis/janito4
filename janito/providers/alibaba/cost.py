@@ -52,7 +52,5 @@ def get_cost(
     if rates is None:
         return "N/A"
     input_miss, input_hit, output_rate = rates
-    cost = (
-        (input - cached) * input_miss + cached * input_hit + output * output_rate
-    ) / 1_000_000
+    cost = ((input - cached) * input_miss + cached * input_hit + output * output_rate) / 1_000_000
     return f"{cost:.6f}$"

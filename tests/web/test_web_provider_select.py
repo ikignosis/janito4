@@ -46,9 +46,7 @@ try:
 except ModuleNotFoundError:
     _HAS_FASTAPI = False
 
-requires_fastapi = pytest.mark.skipif(
-    not _HAS_FASTAPI, reason="fastapi (web extra) is not installed"
-)
+requires_fastapi = pytest.mark.skipif(not _HAS_FASTAPI, reason="fastapi (web extra) is not installed")
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -182,9 +180,7 @@ def test_session_provider_switch_does_not_persist(client):
     assert status.json()["active_provider"] == "openai"
 
     # The providers list flags alibaba as effective, openai as active.
-    entries = {
-        p["name"]: p for p in client.get("/api/config/providers").json()["providers"]
-    }
+    entries = {p["name"]: p for p in client.get("/api/config/providers").json()["providers"]}
     assert entries["alibaba"]["effective"] is True
     assert entries["openai"]["effective"] is False
     assert entries["openai"]["active"] is True
@@ -209,9 +205,7 @@ def test_session_provider_without_key_is_rejected(client):
 
 @requires_fastapi
 def test_session_provider_invalid_name_rejected(client):
-    resp = client.post(
-        "/api/config/session-provider", json={"provider": "not-a-provider"}
-    )
+    resp = client.post("/api/config/session-provider", json={"provider": "not-a-provider"})
     assert resp.status_code == 400
     assert resp.json()["detail"]
 
@@ -258,8 +252,6 @@ def test_default_provider_without_key_is_rejected(client):
 @requires_fastapi
 def test_default_provider_invalid_name_rejected(client):
     """Unknown provider names are still rejected with 400."""
-    resp = client.post(
-        "/api/config/default-provider", json={"provider": "not-a-provider"}
-    )
+    resp = client.post("/api/config/default-provider", json={"provider": "not-a-provider"})
     assert resp.status_code == 400
     assert resp.json()["detail"]

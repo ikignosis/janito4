@@ -137,9 +137,7 @@ def handle_unset_config(keys: list[str], cli_provider: str = None) -> int:
     return 1 if errors else 0
 
 
-def _prompt_with_default(
-    prompt_text: str, default: str = None, is_password: bool = False
-) -> str:
+def _prompt_with_default(prompt_text: str, default: str = None, is_password: bool = False) -> str:
     """Prompt the user for input, offering ``default`` when the input is empty."""
     if default:
         display_default = get_masked_api_key(default) if is_password else default
@@ -210,18 +208,13 @@ def _prompt_api_key(provider: str) -> str | None:
     # Check if API key already exists for this provider in auth config
     existing_api_key = get_api_key(provider)
     if existing_api_key:
-        print(
-            f"  Found existing API key for '{provider}': "
-            f"{get_masked_api_key(existing_api_key)}"
-        )
+        print(f"  Found existing API key for '{provider}': " f"{get_masked_api_key(existing_api_key)}")
     else:
         print(f"  No API key found for '{provider}' in auth config")
     print()
 
     _prompt_section("Authentication")
-    api_key = _prompt_with_default(
-        "Enter API key", default=existing_api_key, is_password=True
-    )
+    api_key = _prompt_with_default("Enter API key", default=existing_api_key, is_password=True)
     if not api_key:
         print("Error: API key is required.", file=sys.stderr)
         return None
@@ -249,12 +242,8 @@ def _prompt_model(provider: str, existing_model: str | None) -> str | None:
 def _prompt_max_output_tokens(existing_max_output_tokens: int | None) -> int | None:
     """Prompt for the max output tokens; returns None to abort."""
     _prompt_section("Max Output Tokens")
-    default_max_tokens = (
-        existing_max_output_tokens if existing_max_output_tokens else 65536
-    )
-    max_tokens_str = _prompt_with_default(
-        "Enter max output tokens", default=str(default_max_tokens)
-    )
+    default_max_tokens = existing_max_output_tokens if existing_max_output_tokens else 65536
+    max_tokens_str = _prompt_with_default("Enter max output tokens", default=str(default_max_tokens))
     if not max_tokens_str:
         return 65536
     try:
@@ -267,9 +256,7 @@ def _prompt_max_output_tokens(existing_max_output_tokens: int | None) -> int | N
     return max_output_tokens
 
 
-def _prompt_max_input_tokens(
-    provider: str, model: str | None, existing_max_input_tokens: int | None
-) -> int | None:
+def _prompt_max_input_tokens(provider: str, model: str | None, existing_max_input_tokens: int | None) -> int | None:
     """Prompt for the max input tokens (context window); None to abort."""
     _prompt_section("Max Input Tokens")
     # Default to the value already configured for the provider's model,
@@ -278,16 +265,10 @@ def _prompt_max_input_tokens(
     default_max_input = existing_max_input_tokens
     if default_max_input is None:
         found = get_provider(provider)
-        default_max_input = (
-            found.model_config(model).get("max_input_tokens")
-            if found is not None
-            else None
-        )
+        default_max_input = found.model_config(model).get("max_input_tokens") if found is not None else None
     if default_max_input is None:
         default_max_input = 128000
-    max_input_str = _prompt_with_default(
-        "Enter max input tokens", default=str(default_max_input)
-    )
+    max_input_str = _prompt_with_default("Enter max input tokens", default=str(default_max_input))
     if not max_input_str:
         return default_max_input
     try:
@@ -422,9 +403,7 @@ def handle_config_interactive() -> int:
     # Default to the value already configured for the newly selected
     # provider/model, otherwise the effective model's built-in context
     # window, otherwise 128k.
-    max_input_tokens = _prompt_max_input_tokens(
-        provider, model, load_max_input_tokens(provider, model)
-    )
+    max_input_tokens = _prompt_max_input_tokens(provider, model, load_max_input_tokens(provider, model))
     if max_input_tokens is None:
         return 1
 
@@ -463,6 +442,4 @@ def handle_config_interactive() -> int:
         print("Configuration cancelled.")
         return 0
 
-    return _save_configuration(
-        provider, model, api_key, max_output_tokens, max_input_tokens, endpoint
-    )
+    return _save_configuration(provider, model, api_key, max_output_tokens, max_input_tokens, endpoint)

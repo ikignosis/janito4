@@ -127,9 +127,7 @@ class AccountingStore:
         working_dir = Path.cwd() if cwd is None else Path(cwd)
         if cwd is not None and not str(cwd).strip():
             return
-        stamp = (
-            datetime.now(timezone.utc).isoformat() if timestamp is None else timestamp
-        )
+        stamp = datetime.now(timezone.utc).isoformat() if timestamp is None else timestamp
 
         try:
             with self._lock:
@@ -492,9 +490,7 @@ def main() -> None:
     import argparse
     import json
 
-    parser = argparse.ArgumentParser(
-        description="Inspect the Janito overall-use accounting database."
-    )
+    parser = argparse.ArgumentParser(description="Inspect the Janito overall-use accounting database.")
     parser.add_argument(
         "--json",
         "-j",

@@ -203,9 +203,7 @@ if pytest is not None:
         assert _arg_completer_completions_for("op") == []
         assert _arg_completer_completions_for("hello /provider op") == []
 
-    def test_provider_argument_leading_whitespace_still_completes(
-        monkeypatch, tmp_path
-    ):
+    def test_provider_argument_leading_whitespace_still_completes(monkeypatch, tmp_path):
         _use_temp_config(monkeypatch, tmp_path)
         _set_api_key("openai")
 
@@ -232,9 +230,7 @@ if pytest is not None:
 
         shell = InteractiveShell(model="test-model", no_history=True)
         doc = Document("/provider op", cursor_position=len("/provider op"))
-        completions = list(
-            shell.session.completer.get_completions(doc, CompleteEvent())
-        )
+        completions = list(shell.session.completer.get_completions(doc, CompleteEvent()))
         assert len(completions) == 1
         assert completions[0].start_position == -len("op")
         meta = completions[0].display_meta
@@ -283,17 +279,12 @@ if pytest is not None:
     def test_model_argument_no_completion_after_second_space():
         # Only the first argument is completed; a second space means the user
         # has moved past it.
-        assert (
-            _arg_completer_completions_for("/model gpt-5.6-luna ", provider="openai")
-            == []
-        )
+        assert _arg_completer_completions_for("/model gpt-5.6-luna ", provider="openai") == []
 
     def test_model_argument_no_completion_without_command_prefix():
         # A plain chat line mentioning the word must not offer models.
         assert _arg_completer_completions_for("gpt", provider="openai") == []
-        assert (
-            _arg_completer_completions_for("hello /model gpt", provider="openai") == []
-        )
+        assert _arg_completer_completions_for("hello /model gpt", provider="openai") == []
 
     def test_model_argument_leading_whitespace_still_completes():
         names = _arg_completer_completions_for("  /model gpt", provider="openai")
@@ -304,9 +295,7 @@ if pytest is not None:
 
         shell = InteractiveShell(model="test-model", no_history=True, provider="openai")
         doc = Document("/model gpt", cursor_position=len("/model gpt"))
-        completions = list(
-            shell.session.completer.get_completions(doc, CompleteEvent())
-        )
+        completions = list(shell.session.completer.get_completions(doc, CompleteEvent()))
         assert len(completions) == 4
         assert completions[0].start_position == -len("gpt")
         meta = completions[0].display_meta

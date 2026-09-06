@@ -22,9 +22,7 @@ def _fake_provider(
 
     class _P:
         def default_model(self):
-            return _pick(
-                default_model, real.default_model() if real is not None else None
-            )
+            return _pick(default_model, real.default_model() if real is not None else None)
 
         def model_config(self, model=None):
             from janito.providers.models import ModelConfig
@@ -166,9 +164,7 @@ def test_status_handler_forwards_shell_api_type(capsys):
         patch("janito.shell.cmds.status.load_endpoint_from_config", return_value=None),
         patch(
             "janito.shell.cmds.status.get_provider",
-            return_value=_fake_provider(
-                "google", default_max_tokens=None, stateless_mode=False
-            ),
+            return_value=_fake_provider("google", default_max_tokens=None, stateless_mode=False),
         ),
         patch("janito.shell.cmds.status.resolve_api_type", side_effect=fake_resolve),
     ):

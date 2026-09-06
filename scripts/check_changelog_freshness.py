@@ -94,9 +94,7 @@ def main() -> int:
 
     # --- Freshness mode (local pre-commit) -------------------------------
     try:
-        max_age = float(
-            os.environ.get("CHANGELOG_MAX_AGE_SECONDS", DEFAULT_MAX_AGE_SECONDS)
-        )
+        max_age = float(os.environ.get("CHANGELOG_MAX_AGE_SECONDS", DEFAULT_MAX_AGE_SECONDS))
     except ValueError:
         max_age = float(DEFAULT_MAX_AGE_SECONDS)
 
@@ -106,9 +104,7 @@ def main() -> int:
 
     age = time.time() - os.path.getmtime(CHANGELOG)
     if age <= max_age:
-        print(
-            f"✓ {CHANGELOG} was modified {_human(age)} ago (limit: {_human(max_age)})."
-        )
+        print(f"✓ {CHANGELOG} was modified {_human(age)} ago (limit: {_human(max_age)}).")
         return 0
 
     print(

@@ -34,11 +34,7 @@ def stateless_mode(provider: str, model: str | None) -> bool:
     if override is not None:
         return override
     found = get_provider(provider)
-    return (
-        bool(found.model_config(model).get("stateless_mode", False))
-        if found is not None
-        else False
-    )
+    return bool(found.model_config(model).get("stateless_mode", False)) if found is not None else False
 
 
 def _init_conversation_state(
@@ -48,13 +44,7 @@ def _init_conversation_state(
     previous_items: list[dict[str, Any]] | None,
     instructions: str | None,
     prompt: str,
-) -> tuple[
-    bool,
-    str | None,
-    list[dict[str, Any]] | None,
-    str | list[dict[str, Any]],
-    list[dict[str, Any]] | None,
-]:
+) -> tuple[bool, str | None, list[dict[str, Any]] | None, str | list[dict[str, Any]], list[dict[str, Any]] | None,]:
     """Set up the server-side or stateless conversation state.
 
     Returns ``(stateless_mode, response_id, conversation_items,
@@ -114,19 +104,13 @@ def _init_conversation_state(
 def _responses_include(provider: str | None, model: str) -> list[str] | None:
     """Return the model's declared Responses ``include`` values, if any."""
     found = get_provider(provider) if provider else None
-    include = (
-        found.model_config(model).get("responses_include")
-        if found is not None
-        else None
-    )
+    include = found.model_config(model).get("responses_include") if found is not None else None
     if isinstance(include, (list, tuple)) and include:
         return [str(entry) for entry in include]
     return None
 
 
-def _reasoning_param(
-    model: str, reasoning_effort: str | None, provider: str | None
-) -> dict[str, Any] | None:
+def _reasoning_param(model: str, reasoning_effort: str | None, provider: str | None) -> dict[str, Any] | None:
     """Return the Responses ``reasoning`` param, or ``None`` to omit it.
 
     Models declaring ``thinking_summary`` (e.g. Meta's Muse Spark) request
@@ -136,11 +120,7 @@ def _reasoning_param(
     no summary.
     """
     found = get_provider(provider) if provider else None
-    summary = (
-        bool(found.model_config(model).get("thinking_summary", False))
-        if found is not None
-        else False
-    )
+    summary = bool(found.model_config(model).get("thinking_summary", False)) if found is not None else False
     if not reasoning_effort and not summary:
         return None
     reasoning: dict[str, Any] = {}
@@ -212,9 +192,7 @@ def _build_call_kwargs(
 
     # Pass preserve_thinking in extra_body if defined in config
     if preserve_thinking is not None:
-        call_kwargs.setdefault("extra_body", {})[
-            "preserve_thinking"
-        ] = preserve_thinking
+        call_kwargs.setdefault("extra_body", {})["preserve_thinking"] = preserve_thinking
 
     # Pass the thinking mode in extra_body: enable_thinking for flag-style
     # defaults, or the raw dict for providers with a structured thinking

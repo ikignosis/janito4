@@ -130,11 +130,7 @@ def _resolve_model_scoped_key(
             f"or pass --provider <name>."
         )
     found = get_provider(provider)
-    model = (
-        cli_model
-        or load_model_from_config(provider)
-        or (found.default_model() if found is not None else None)
-    )
+    model = cli_model or load_model_from_config(provider) or (found.default_model() if found is not None else None)
     if not model:
         raise ModelRequiredError(
             f"Cannot determine the model for config key '{key}' "
@@ -150,9 +146,7 @@ def _coerce_int_value(key: str, value) -> int:
     try:
         return int(value)
     except ValueError:
-        raise ValueError(
-            f"Config key '{key}' requires an integer value, got: {value!r}"
-        )
+        raise ValueError(f"Config key '{key}' requires an integer value, got: {value!r}")
 
 
 def _coerce_list_value(key: str, value) -> list[str]:
@@ -175,23 +169,14 @@ def _coerce_list_value(key: str, value) -> list[str]:
             try:
                 parsed = _json.loads(raw)
             except ValueError:
-                raise ValueError(
-                    f"Config key '{key}' requires a comma-separated list "
-                    f"or JSON list, got: {value!r}"
-                )
+                raise ValueError(f"Config key '{key}' requires a comma-separated list " f"or JSON list, got: {value!r}")
             if not isinstance(parsed, list):
-                raise ValueError(
-                    f"Config key '{key}' requires a comma-separated list "
-                    f"or JSON list, got: {value!r}"
-                )
+                raise ValueError(f"Config key '{key}' requires a comma-separated list " f"or JSON list, got: {value!r}")
             items = parsed
         else:
             items = raw.split(",")
     else:
-        raise ValueError(
-            f"Config key '{key}' requires a comma-separated list "
-            f"or JSON list, got: {value!r}"
-        )
+        raise ValueError(f"Config key '{key}' requires a comma-separated list " f"or JSON list, got: {value!r}")
     result = [str(entry).strip() for entry in items]
     return [entry for entry in result if entry]
 

@@ -38,9 +38,7 @@ def handle_create_variant(name: str) -> int:
     print(f"  janito --provider {variant} --set model=<name>    # per-variant model")
     print(f"  janito --provider {variant} --set endpoint=<url>  # per-variant endpoint")
     print(f"  janito --set-api-key <key> --provider {variant}   # per-variant API key")
-    print(
-        f"  janito --set provider={variant}                   # use as the default provider"
-    )
+    print(f"  janito --set provider={variant}                   # use as the default provider")
     print()
     print(
         f"The variant inherits its base provider's built-in defaults and keeps its "
@@ -86,7 +84,5 @@ def handle_delete_variant(name: str) -> int:
     if had_key:
         print(f"[OK] Deleted provider variant '{name}' (config and API key removed)")
     else:
-        print(
-            f"[OK] Deleted provider variant '{name}' (config removed; no API key was stored)"
-        )
+        print(f"[OK] Deleted provider variant '{name}' (config removed; no API key was stored)")
     return 0

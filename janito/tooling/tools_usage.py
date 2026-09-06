@@ -154,8 +154,7 @@ class ToolUsageStore:
                 conn = self._connect()
                 try:
                     cursor = conn.execute(
-                        "SELECT tool_name, use_count FROM tools_use "
-                        "ORDER BY use_count DESC, tool_name ASC"
+                        "SELECT tool_name, use_count FROM tools_use " "ORDER BY use_count DESC, tool_name ASC"
                     )
                     return {name: int(count) for name, count in cursor.fetchall()}
                 finally:
@@ -220,9 +219,7 @@ def main() -> None:
     import argparse
     import json
 
-    parser = argparse.ArgumentParser(
-        description="Inspect the Janito tool usage database."
-    )
+    parser = argparse.ArgumentParser(description="Inspect the Janito tool usage database.")
     parser.add_argument(
         "tool",
         nargs="?",

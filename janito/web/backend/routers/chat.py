@@ -93,13 +93,9 @@ async def rename_session(session_id: str, request: Request):
 # ---------------------------------------------------------------------------
 
 
-async def _accept_session(
-    websocket: WebSocket, session_id: str
-) -> ConversationSession | None:
+async def _accept_session(websocket: WebSocket, session_id: str) -> ConversationSession | None:
     """Accept the socket and resolve its session, or close with an error."""
-    logger.warning(
-        "[ws] handshake received session=%s client=%s", session_id, websocket.client
-    )
+    logger.warning("[ws] handshake received session=%s client=%s", session_id, websocket.client)
     await websocket.accept()
     logger.warning("[ws] accepted session=%s", session_id)
 
@@ -277,9 +273,7 @@ async def chat_websocket(websocket: WebSocket, session_id: str):
             msg = await _read_client_message(websocket)
             if msg is None:  # disconnect
                 break
-            await _dispatch_client_message(
-                websocket, session, session_id, sessions, config, prompt_registry, msg
-            )
+            await _dispatch_client_message(websocket, session, session_id, sessions, config, prompt_registry, msg)
     except WebSocketDisconnect:
         logger.debug(f"WebSocket client disconnected: {session_id}")
     except Exception as e:
@@ -315,9 +309,7 @@ async def one_shot_prompt(request: Request):
     session_id = body.get("session_id")
     content = (body.get("content") or "").strip()
     if not session_id or not content:
-        return JSONResponse(
-            {"detail": "session_id and content are required"}, status_code=400
-        )
+        return JSONResponse({"detail": "session_id and content are required"}, status_code=400)
 
     session = sessions.get(session_id)
     if not session:

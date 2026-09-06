@@ -34,11 +34,7 @@ def _print_input_capacity_warning(
     console: Console,
 ) -> None:
     """Warn (bold yellow) when input tokens exceed 80% of the model capacity."""
-    if (
-        max_input_tokens is not None
-        and input_tokens is not None
-        and input_tokens > 0.8 * max_input_tokens
-    ):
+    if max_input_tokens is not None and input_tokens is not None and input_tokens > 0.8 * max_input_tokens:
         console.print(
             "Reached 80% of input capacity, consider running /compact or /clear",
             style="bold yellow",
@@ -114,9 +110,7 @@ def _display_usage(
     input_tokens = stats["input"]
     output_tokens = stats["output"]
     cached_tokens = stats["cached"]
-    cost_input, cost_output, cost_cached = _cost_counters(
-        usage_info, input_tokens, output_tokens, cached_tokens
-    )
+    cost_input, cost_output, cost_cached = _cost_counters(usage_info, input_tokens, output_tokens, cached_tokens)
 
     parts = []
     elapsed_time = getattr(usage_info, "elapsed_time", None)
@@ -124,9 +118,7 @@ def _display_usage(
         parts.append(f"Time: {format_elapsed(elapsed_time)}")
     if input_tokens is not None:
         if max_input_tokens is not None:
-            parts.append(
-                f"In: {format_tokens(input_tokens)}/{format_tokens(max_input_tokens)}"
-            )
+            parts.append(f"In: {format_tokens(input_tokens)}/{format_tokens(max_input_tokens)}")
         else:
             parts.append(f"In: {format_tokens(input_tokens)}")
     if output_tokens is not None:

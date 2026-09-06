@@ -22,9 +22,7 @@ try:
 except ModuleNotFoundError:
     _HAS_DASHSCOPE = False
 
-requires_dashscope = pytest.mark.skipif(
-    not _HAS_DASHSCOPE, reason="dashscope package is not installed"
-)
+requires_dashscope = pytest.mark.skipif(not _HAS_DASHSCOPE, reason="dashscope package is not installed")
 
 FRONTEND = Path(__file__).parent.parent.parent / "janito" / "web" / "frontend"
 
@@ -70,9 +68,7 @@ def test_responses_build_call_kwargs_converts_history_and_tools():
             "function": {"name": "ReadFile", "description": "read", "parameters": {}},
         }
     ]
-    kwargs = responses.build_call_kwargs(
-        "gpt-4", messages, tools, _cfg(thinking=True), 1000, None, "high"
-    )
+    kwargs = responses.build_call_kwargs("gpt-4", messages, tools, _cfg(thinking=True), 1000, None, "high")
     assert kwargs["model"] == "gpt-4"
     assert kwargs["max_output_tokens"] == 1000
     assert kwargs["reasoning"] == {"effort": "high"}
@@ -310,9 +306,7 @@ def test_responses_accumulator_folds_stream_events():
         SimpleNamespace(type="response.created", response=SimpleNamespace(id="r1")),
         SimpleNamespace(type="response.reasoning_text.delta", delta="think"),
         SimpleNamespace(type="response.output_text.delta", delta="Hello"),
-        SimpleNamespace(
-            type="response.function_call_arguments.delta", item_id="fc1", delta='{"a"'
-        ),
+        SimpleNamespace(type="response.function_call_arguments.delta", item_id="fc1", delta='{"a"'),
         SimpleNamespace(
             type="response.function_call_arguments.done",
             item_id="fc1",
@@ -320,9 +314,7 @@ def test_responses_accumulator_folds_stream_events():
         ),
         SimpleNamespace(
             type="response.output_item.done",
-            item=SimpleNamespace(
-                type="function_call", call_id="call_1", name="ReadFile", id="fc1"
-            ),
+            item=SimpleNamespace(type="function_call", call_id="call_1", name="ReadFile", id="fc1"),
         ),
         SimpleNamespace(
             type="response.completed",
@@ -418,9 +410,7 @@ def test_responses_accumulator_ignores_invalid_image_generation_call():
     acc.handle(
         SimpleNamespace(
             type="response.output_item.done",
-            item=SimpleNamespace(
-                type="image_generation_call", id="img_1", result="!!!not-base64!!!"
-            ),
+            item=SimpleNamespace(type="image_generation_call", id="img_1", result="!!!not-base64!!!"),
         )
     )
     assert acc.image_results == []

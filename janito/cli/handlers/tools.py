@@ -45,10 +45,7 @@ def _categorize_tools(schemas, permissions) -> dict[str, list[dict]]:
             categories["System Operations"].append(tool_info)
         elif name == "CodeSearch":
             categories["Code Search Operations"].append(tool_info)
-        elif (
-            name.startswith(("Send", "Read", "Compose", "SearchEmail"))
-            or "Email" in name
-        ):
+        elif name.startswith(("Send", "Read", "Compose", "SearchEmail")) or "Email" in name:
             categories["Email Operations"].append(tool_info)
         else:
             categories["Other"].append(tool_info)
@@ -117,9 +114,7 @@ def handle_list_tools(args) -> int:
     return 0
 
 
-def _mcp_service_rows(
-    manager, name: str, config: dict
-) -> tuple[str, str, str, str, str]:
+def _mcp_service_rows(manager, name: str, config: dict) -> tuple[str, str, str, str, str]:
     """Build the (name, transport, status, config, tools) row for one MCP service."""
     transport = config.get("transport", "unknown")
     connected = name in manager.connected_services
@@ -139,11 +134,7 @@ def _mcp_service_rows(
         try:
             # Refresh tools to get updated list
             tools = manager.get_all_tools(force_refresh=True)
-            service_tools = [
-                t
-                for t in tools
-                if t.get("function", {}).get("name", "").startswith(f"{name}_")
-            ]
+            service_tools = [t for t in tools if t.get("function", {}).get("name", "").startswith(f"{name}_")]
             tool_names = []
             for tool in service_tools:
                 func = tool.get("function", {})

@@ -83,9 +83,7 @@ class ReadFile(BaseTool):
             else:
                 range_info = f" (line {start_line}, until EOF)"
 
-            self.report_start(
-                f"\U0001f4d6 Reading file {norm_path_str}{range_info}", end=""
-            )
+            self.report_start(f"\U0001f4d6 Reading file {norm_path_str}{range_info}", end="")
 
             if not os.path.exists(abs_filepath):
                 self.report_error(f"File does not exist: {norm_path_str}")
@@ -115,9 +113,7 @@ class ReadFile(BaseTool):
             total_lines = len(all_lines)
 
             try:
-                actual_from, effective_max = self._resolve_slice(
-                    start_line, max_lines, total_lines
-                )
+                actual_from, effective_max = self._resolve_slice(start_line, max_lines, total_lines)
             except ValueError as e:
                 error_msg = str(e)
                 self.report_error(error_msg)
@@ -131,11 +127,7 @@ class ReadFile(BaseTool):
             # A max_lines beyond the end of the file is not an error: clamp it
             # to the last available line so the caller gets all the lines the
             # tool could read instead of a failure.
-            actual_to = (
-                min(actual_from + effective_max, total_lines)
-                if effective_max is not None
-                else total_lines
-            )
+            actual_to = min(actual_from + effective_max, total_lines) if effective_max is not None else total_lines
 
             # Extract the requested lines
             selected_lines = all_lines[actual_from:actual_to]
@@ -200,10 +192,7 @@ class ReadFile(BaseTool):
             )
 
         if max_lines is not None and max_lines < 1:
-            raise ValueError(
-                f"max_lines ({max_lines}) is out of range. "
-                "max_lines must be at least 1."
-            )
+            raise ValueError(f"max_lines ({max_lines}) is out of range. " "max_lines must be at least 1.")
 
         if start_line < 0:
             # Tail mode: -1 is the last line, -N is N lines from the end. The
@@ -215,10 +204,7 @@ class ReadFile(BaseTool):
             return max(total_lines + start_line, 0), None
 
         if start_line > total_lines:
-            raise ValueError(
-                f"start_line ({start_line}) is out of range. "
-                f"File has {total_lines} lines."
-            )
+            raise ValueError(f"start_line ({start_line}) is out of range. " f"File has {total_lines} lines.")
 
         return start_line - 1, max_lines
 
@@ -228,9 +214,7 @@ def main():
     """Command line interface for testing the ReadFileTool."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Read file tool for AI function calling"
-    )
+    parser = argparse.ArgumentParser(description="Read file tool for AI function calling")
     parser.add_argument("filepath", help="File path to read")
     parser.add_argument(
         "--start-line",
@@ -247,14 +231,9 @@ def main():
         "-m",
         type=int,
         default=None,
-        help=(
-            "Maximum number of lines to read (default: end of file). "
-            "Ignored when --start-line is negative."
-        ),
+        help=("Maximum number of lines to read (default: end of file). " "Ignored when --start-line is negative."),
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
 
     args = parser.parse_args()
 

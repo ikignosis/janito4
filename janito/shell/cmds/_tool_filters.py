@@ -44,20 +44,13 @@ def warn_if_privilege_override(schemas: list[dict[str, Any]], permissions: str) 
         return
     from janito.tooling.tools_registry import get_session_tool_names
 
-    offered = {
-        schema.get("function", {}).get("name")
-        for schema in schemas
-        if schema.get("function", {}).get("name")
-    }
+    offered = {schema.get("function", {}).get("name") for schema in schemas if schema.get("function", {}).get("name")}
     extra = offered - get_session_tool_names()
     if extra:
         from rich.console import Console
 
         flags = "/".join(f"-{letter}" for letter in sorted(permissions))
-        Console().print(
-            f"[bold yellow]Note:[/bold yellow] this turn runs with "
-            f"privileges ({flags})"
-        )
+        Console().print(f"[bold yellow]Note:[/bold yellow] this turn runs with " f"privileges ({flags})")
 
 
 def get_tool_schemas_by_permission(permission: str) -> list[dict[str, Any]]:
@@ -95,15 +88,9 @@ def get_tool_schemas_by_permissions(
 
     allowed = set(permissions)
     matching_names = {
-        name
-        for name, tool_permissions in get_all_tool_permissions().items()
-        if tool_permissions in allowed
+        name for name, tool_permissions in get_all_tool_permissions().items() if tool_permissions in allowed
     }
-    return [
-        schema
-        for schema in get_all_tool_schemas()
-        if schema.get("function", {}).get("name") in matching_names
-    ]
+    return [schema for schema in get_all_tool_schemas() if schema.get("function", {}).get("name") in matching_names]
 
 
 def get_tool_schemas_by_permission_letters(
@@ -134,8 +121,4 @@ def get_tool_schemas_by_permission_letters(
         for name, tool_permissions in get_all_tool_permissions().items()
         if tool_permissions and set(tool_permissions) <= allowed
     }
-    return [
-        schema
-        for schema in get_all_tool_schemas()
-        if schema.get("function", {}).get("name") in matching_names
-    ]
+    return [schema for schema in get_all_tool_schemas() if schema.get("function", {}).get("name") in matching_names]

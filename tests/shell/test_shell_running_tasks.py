@@ -52,11 +52,7 @@ def test_notice_prints_nothing_when_no_tasks(monkeypatch, capfd):
 
 def test_running_tasks_returns_empty_when_manager_unavailable(monkeypatch):
     shell = _shell()
-    real_import = (
-        __builtins__["__import__"]
-        if isinstance(__builtins__, dict)
-        else __builtins__.__import__
-    )
+    real_import = __builtins__["__import__"] if isinstance(__builtins__, dict) else __builtins__.__import__
 
     def broken_import(name, *args, **kwargs):
         if name == "janito.taskmanager":

@@ -289,9 +289,7 @@ MARGIN_B = 80
 # janito output parsing
 # ---------------------------------------------------------------------------
 
-MODEL_RE = re.compile(
-    r"^----- Model:\s*(.+?)\s*\|\s*Backend:\s*(.*?)\s*$", re.MULTILINE
-)
+MODEL_RE = re.compile(r"^----- Model:\s*(.+?)\s*\|\s*Backend:\s*(.*?)\s*$", re.MULTILINE)
 
 # Exact per-round usage from the --log=info line emitted by
 # janito.ui.usage._display_usage, e.g.:
@@ -307,9 +305,7 @@ USAGE_LOG_RE = re.compile(
 # The human-readable summary line, e.g.:
 #   === Total: 1.2k | In: 1k | Out: 234 | Cost: N/A ===
 SUMMARY_LINE_RE = re.compile(r"^=== .* ===\s*$", re.MULTILINE)
-OUT_PART_RE = re.compile(
-    r"Out:\s*([0-9]+(?:\.[0-9]+)?[km]?)(?:\s*/\s*[0-9]+(?:\.[0-9]+)?[km]?)?"
-)
+OUT_PART_RE = re.compile(r"Out:\s*([0-9]+(?:\.[0-9]+)?[km]?)(?:\s*/\s*[0-9]+(?:\.[0-9]+)?[km]?)?")
 
 # Provider lines from `janito --list-keys`, e.g. "openai  ***" (rich table row).
 LIST_KEYS_PROVIDER_RE = re.compile(r"^(\S+)\s+\*{3}\s*$", re.MULTILINE)
@@ -359,9 +355,7 @@ def parse_usage_log(stderr: str) -> list[dict]:
     """Extract exact per-round usage dicts from the ``--log=info`` lines."""
     rounds: list[dict] = []
     for match in USAGE_LOG_RE.finditer(stderr):
-        values = {
-            name: match.group(name) for name in ("total", "in", "out", "cached", "max")
-        }
+        values = {name: match.group(name) for name in ("total", "in", "out", "cached", "max")}
         count = match.group("count")
         elapsed = match.group("elapsed")
         rounds.append(
@@ -429,18 +423,14 @@ def build_result(provider: str, returncode: int, stdout: str, stderr: str) -> di
     }
     if returncode != 0:
         entry["status"] = "error"
-        entry["error"] = (
-            _first_error(stdout, stderr) or f"janito exited with code {returncode}"
-        )
+        entry["error"] = _first_error(stdout, stderr) or f"janito exited with code {returncode}"
         return entry
 
     log_rounds = parse_usage_log(stderr)
     if log_rounds:
         entry["out_tokens"] = sum(r["out"] for r in log_rounds if r["out"] is not None)
         entry["in_tokens"] = sum(r["in"] for r in log_rounds if r["in"] is not None)
-        entry["total_tokens"] = sum(
-            r["total"] for r in log_rounds if r["total"] is not None
-        )
+        entry["total_tokens"] = sum(r["total"] for r in log_rounds if r["total"] is not None)
         entry["rounds"] = len(log_rounds)
         entry["out_tokens_source"] = "log"
     else:
@@ -480,9 +470,7 @@ def discover_providers(janito_cmd: str, timeout: int = 60) -> list[str]:
     return parse_list_keys(proc.stdout)
 
 
-def run_janito(
-    janito_cmd: str, provider: str, prompt: str, timeout: int
-) -> subprocess.CompletedProcess:
+def run_janito(janito_cmd: str, provider: str, prompt: str, timeout: int) -> subprocess.CompletedProcess:
     """Run janito for one provider.
 
     The prompt is passed both as the CLI argument and piped through stdin:
@@ -584,9 +572,7 @@ class Canvas:
             for x in range(x0, x1 + 1):
                 row[x] = color
 
-    def text(
-        self, x: int, y: int, text: str, color: tuple, scale: int = 2, spacing: int = 1
-    ) -> int:
+    def text(self, x: int, y: int, text: str, color: tuple, scale: int = 2, spacing: int = 1) -> int:
         """Draw text with the embedded 8x8 font; returns the end x coordinate."""
         for char in text:
             code = ord(char)
@@ -634,25 +620,17 @@ def _truncate(text: str, width: int, scale: int = 2, spacing: int = 1) -> str:
     return text + ellipsis
 
 
-def render_chart(
-    entries: list[tuple[str, int]], out_path: Path, prompt: str, generated_at: str
-) -> None:
+def render_chart(entries: list[tuple[str, int]], out_path: Path, prompt: str, generated_at: str) -> None:
     """Render a horizontal bar chart of output tokens per model as a PNG."""
     if not entries:
         raise ValueError("render_chart() requires at least one entry")
 
     scale = CHAR_SCALE
     spacing = CHAR_SPACING
-    label_w = max(
-        110, max(text_width(label, scale, spacing) for label, _ in entries) + 16
-    )
+    label_w = max(110, max(text_width(label, scale, spacing) for label, _ in entries) + 16)
     value_w = max(
         56,
-        max(
-            text_width(format_tokens(value) or "0", scale, spacing)
-            for _, value in entries
-        )
-        + 16,
+        max(text_width(format_tokens(value) or "0", scale, spacing) for _, value in entries) + 16,
     )
     chart_x0 = MARGIN_L + label_w + 16
     value_x0 = chart_x0 + CHART_W + 10
@@ -662,9 +640,7 @@ def render_chart(
     canvas = Canvas(width, height)
 
     # Title + subtitle
-    canvas.text(
-        MARGIN_L, 26, "Output tokens per model", INK, scale=TITLE_SCALE, spacing=2
-    )
+    canvas.text(MARGIN_L, 26, "Output tokens per model", INK, scale=TITLE_SCALE, spacing=2)
     subtitle = _truncate(
         f'Prompt: "{prompt}"  |  {generated_at}',
         width - MARGIN_L - MARGIN_R,
@@ -733,12 +709,7 @@ def encode_png(canvas: Canvas) -> bytes:
             raw += bytes((red, green, blue))
 
     def chunk(tag: bytes, data: bytes) -> bytes:
-        return (
-            struct.pack(">I", len(data))
-            + tag
-            + data
-            + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
-        )
+        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
 
     header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
     return (
@@ -845,9 +816,7 @@ def main(argv: list[str] | None = None) -> int:
             }
             results.append(entry)
             continue
-        results.append(
-            build_result(provider, proc.returncode, proc.stdout, proc.stderr)
-        )
+        results.append(build_result(provider, proc.returncode, proc.stdout, proc.stderr))
 
     results = sort_results(results)
     json_path = resolve_artifact_path(args.json, "provider_tokens.json")

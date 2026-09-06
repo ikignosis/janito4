@@ -104,9 +104,7 @@ def test_default_model_marked(monkeypatch, tmp_path, capsys):
 
 
 def test_model_override_is_current(monkeypatch, tmp_path, capsys):
-    _, out = _run(
-        monkeypatch, tmp_path, capsys, provider="custom", model="my-custom-model"
-    )
+    _, out = _run(monkeypatch, tmp_path, capsys, provider="custom", model="my-custom-model")
     assert out.strip() != ""
     assert "my-custom-model (current)" in out  # single marker
 

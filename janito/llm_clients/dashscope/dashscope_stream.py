@@ -131,12 +131,8 @@ class DashScopeStreamConsumer:
         # producing anything.  Fail loudly instead of returning an empty
         # answer.  An Enter-to-cancel short-circuit must not be treated as an
         # empty stream.
-        if self._chunks_seen == 0 and (
-            cancel_event is None or not cancel_event.is_set()
-        ):
-            raise RuntimeError(
-                "The DashScope API returned no stream chunks (empty response)."
-            )
+        if self._chunks_seen == 0 and (cancel_event is None or not cancel_event.is_set()):
+            raise RuntimeError("The DashScope API returned no stream chunks (empty response).")
         tool_use_blocks = _build_tool_use_blocks(self.tool_calls)
         return (
             self.full_content,
@@ -185,9 +181,7 @@ class DashScopeStreamConsumer:
         if isinstance(content, list):
             # Multimodal responses carry content as a list of modality items
             # (e.g. [{"text": "..."}]); join the text parts.
-            content = "".join(
-                item.get("text", "") for item in content if isinstance(item, dict)
-            )
+            content = "".join(item.get("text", "") for item in content if isinstance(item, dict))
         if content:
             self.content.append(content)
 
@@ -234,9 +228,7 @@ def _raise_dashscope_error(chunk, status_code: int) -> None:
         # The model was sent to the wrong generation endpoint
         # (multimodal vs text).  Signal the caller to retry once on
         # the other endpoint.
-        raise _ModelEndpointMismatch(
-            f"DashScope API error (code={code}): {message}{detail}"
-        )
+        raise _ModelEndpointMismatch(f"DashScope API error (code={code}): {message}{detail}")
     raise RuntimeError(f"DashScope API error (code={code}): {message}{detail}")
 
 
@@ -256,11 +248,7 @@ def _build_tool_use_blocks(
 
 def _build_usage_info(state: dict[str, Any]) -> Any:
     """Build the usage SimpleNamespace when the API reported usage."""
-    if (
-        state["input_tokens"] is not None
-        or state["output_tokens"] is not None
-        or state["total_tokens"] is not None
-    ):
+    if state["input_tokens"] is not None or state["output_tokens"] is not None or state["total_tokens"] is not None:
         return SimpleNamespace(
             total_tokens=state["total_tokens"],
             input_tokens=state["input_tokens"],
@@ -306,9 +294,7 @@ def _stream_response(client, call_kwargs, tools_schemas, cancel_event=None):
     kwargs = dict(call_kwargs)
     kwargs["api_key"] = client.api_key
     if tools_schemas:
-        logger.debug(
-            f"Calling DashScope Generation API (streaming) with {len(tools_schemas)} tools"
-        )
+        logger.debug(f"Calling DashScope Generation API (streaming) with {len(tools_schemas)} tools")
         kwargs["tools"] = tools_schemas
     else:
         logger.debug("Calling DashScope Generation API (streaming) without tools")
@@ -340,8 +326,7 @@ def _stream_response(client, call_kwargs, tools_schemas, cancel_event=None):
                 if use_multimodal == attempts[-1]:
                     raise
                 logger.debug(
-                    "DashScope rejected the model for this endpoint; "
-                    "retrying on the other generation endpoint"
+                    "DashScope rejected the model for this endpoint; " "retrying on the other generation endpoint"
                 )
                 continue
         finally:

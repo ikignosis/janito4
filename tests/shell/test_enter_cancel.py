@@ -163,10 +163,7 @@ def test_shell_enter_cancel_preserves_history(monkeypatch, capsys):
         _appending_run_turn_factory(RequestCancelled("cancelled by Enter")),
     )
 
-    assert any(
-        m.get("role") == "user" and m.get("content") == "hello"
-        for m in shell.messages_history
-    )
+    assert any(m.get("role") == "user" and m.get("content") == "hello" for m in shell.messages_history)
     out = capsys.readouterr().out
     assert out.strip() != ""
 
@@ -186,9 +183,7 @@ def test_shell_enter_cancel_keeps_turn_count(monkeypatch):
 
 def test_shell_ctrl_c_still_rolls_back(monkeypatch, capsys):
     """Ctrl+C keeps rolling the conversation history back (regression)."""
-    shell = _run_shell_turn(
-        monkeypatch, _appending_run_turn_factory(KeyboardInterrupt())
-    )
+    shell = _run_shell_turn(monkeypatch, _appending_run_turn_factory(KeyboardInterrupt()))
 
     assert not any(m.get("role") == "user" for m in shell.messages_history)
     out = capsys.readouterr().out
@@ -199,9 +194,7 @@ def test_shell_ctrl_c_decrements_turn_count(monkeypatch, capsys):
     """Ctrl+C rolls the running turn back, so the turn must not be counted:
     the recorded turn start is dropped and the pre-prompt rule shows the
     same Turn N again for the retry (issue #78)."""
-    shell = _run_shell_turn(
-        monkeypatch, _appending_run_turn_factory(KeyboardInterrupt())
-    )
+    shell = _run_shell_turn(monkeypatch, _appending_run_turn_factory(KeyboardInterrupt()))
 
     # Turn 1 was recorded then rolled back -> no recorded turns left.
     assert shell.history_turns == []
@@ -387,11 +380,7 @@ def test_shell_enter_cancel_server_side_next_turn_resends_cancelled_message(
     # The next turn still chains from the completed response (never from an
     # aborted id) and re-sends the cancelled message as input items.
     assert sent[1]["previous_response_id"] == "r1"
-    user_texts = [
-        item["content"][0]["text"]
-        for item in sent[1]["previous_items"]
-        if item.get("role") == "user"
-    ]
+    user_texts = [item["content"][0]["text"] for item in sent[1]["previous_items"] if item.get("role") == "user"]
     assert user_texts == ["which files did you read?"]
 
 
@@ -418,11 +407,7 @@ def test_shell_enter_cancel_stateless_keeps_cancelled_message(monkeypatch):
 
     _run_shell_turn(monkeypatch, turn_func, shell=shell)
 
-    user_texts = [
-        item["content"][0]["text"]
-        for item in shell.conversation_items
-        if item.get("role") == "user"
-    ]
+    user_texts = [item["content"][0]["text"] for item in shell.conversation_items if item.get("role") == "user"]
     # The cancelled message was persisted alongside the previous ones.
     assert user_texts == ["first", "hello"]
 
@@ -457,11 +442,7 @@ def test_shell_enter_cancel_stateless_fresh_conversation_keeps_context(monkeypat
 
     _run_shell_turn(monkeypatch, turn_func, shell=shell)
 
-    user_texts = [
-        item["content"][0]["text"]
-        for item in shell.conversation_items
-        if item.get("role") == "user"
-    ]
+    user_texts = [item["content"][0]["text"] for item in shell.conversation_items if item.get("role") == "user"]
     # The cancelled first message is kept for the next turn.
     assert user_texts == ["hello"]
     assert shell.previous_response_id is None  # stateless: never chains
@@ -512,11 +493,7 @@ def test_shell_enter_cancel_stateless_next_turn_sends_full_items(monkeypatch):
     shell.run(turn_func, no_tools=True)
 
     assert len(sent_items) == 1
-    user_texts = [
-        item["content"][0]["text"]
-        for item in sent_items[0]
-        if item.get("role") == "user"
-    ]
+    user_texts = [item["content"][0]["text"] for item in sent_items[0] if item.get("role") == "user"]
     # The second turn saw the cancelled message, so the LLM has the context.
     assert user_texts == ["read these files"]
 

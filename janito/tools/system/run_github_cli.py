@@ -50,9 +50,7 @@ def _well_known_gh_paths() -> list[str]:
             ]
         )
         if local_app_data:
-            paths.append(
-                os.path.join(local_app_data, "Programs", "GitHub CLI", "gh.exe")
-            )
+            paths.append(os.path.join(local_app_data, "Programs", "GitHub CLI", "gh.exe"))
     elif sys.platform == "darwin":
         paths.extend(
             [
@@ -334,12 +332,8 @@ Examples:
         "cmdline",
         help="Arguments to pass to gh (e.g. 'repo list --limit 5')",
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output result as JSON"
-    )
-    parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Show verbose output"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output result as JSON")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show verbose output")
 
     args = parser.parse_args()
 
@@ -351,9 +345,7 @@ Examples:
     else:
         if result["success"]:
             print(f"✓ gh execution successful (exit code {result['exit_code']})")
-            print(
-                f"  Execution time: {format_duration_ms(result['execution_time_ms'])}"
-            )
+            print(f"  Execution time: {format_duration_ms(result['execution_time_ms'])}")
             if args.verbose:
                 print(f"  Executable: {result.get('gh_executable', 'unknown')}")
                 print(f"  Command: {result['command']}")

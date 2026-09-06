@@ -277,9 +277,7 @@ class DashScopeClient(Client):
                 tool_calls,
                 usage_info,
                 raw_attrs,
-            ) = self._invoke_stream_runner(
-                _stream_response, client, call_kwargs, tools_schemas
-            )
+            ) = self._invoke_stream_runner(_stream_response, client, call_kwargs, tools_schemas)
         except Exception as e:
             # The dashscope SDK raises its own exception types; classify the
             # failure explicitly (auth / not-found / unknown) so the observer
@@ -295,16 +293,12 @@ class DashScopeClient(Client):
             raise
         return full_content, reasoning_content, tool_calls, usage_info, raw_attrs
 
-    def _handle_tool_calls(
-        self, tool_calls, full_content, reasoning_content, state, tool_executor
-    ):
+    def _handle_tool_calls(self, tool_calls, full_content, reasoning_content, state, tool_executor):
         # Record the assistant's message with its content and tool_calls in
         # the client-side history, then execute every call and send the
         # results back as tool-role messages before looping to get the final
         # answer.
-        _handle_tool_blocks(
-            tool_calls, full_content, reasoning_content, state, tool_executor
-        )
+        _handle_tool_blocks(tool_calls, full_content, reasoning_content, state, tool_executor)
         return state
 
     def _finalize(

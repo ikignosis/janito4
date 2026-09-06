@@ -104,12 +104,8 @@ class AnthropicStreamConsumer:
         # events means the API failed before producing anything. Fail loudly
         # instead of returning an empty answer. An Enter-to-cancel
         # short-circuit must not be treated as an empty stream.
-        if self._events_seen == 0 and (
-            cancel_event is None or not cancel_event.is_set()
-        ):
-            raise RuntimeError(
-                "The Anthropic API returned no stream events (empty response)."
-            )
+        if self._events_seen == 0 and (cancel_event is None or not cancel_event.is_set()):
+            raise RuntimeError("The Anthropic API returned no stream events (empty response).")
         return (
             self.full_content,
             self.reasoning_content,
@@ -149,9 +145,7 @@ class AnthropicStreamConsumer:
             # Raw top-level message metadata (id, model, role, stop_reason,
             # ...) for the verbose dump; content and usage are surfaced
             # elsewhere.
-            self.raw_attrs.update(
-                _extract_raw_attrs(message, skip=("content", "usage"))
-            )
+            self.raw_attrs.update(_extract_raw_attrs(message, skip=("content", "usage")))
             usage = getattr(message, "usage", None)
             if usage is not None:
                 self.input_tokens = getattr(usage, "input_tokens", None)
@@ -262,9 +256,7 @@ def _stream_response(client, call_kwargs, tools_schemas, cancel_event=None):
     stream is abandoned and the underlying connection is closed.
     """
     if tools_schemas:
-        logger.debug(
-            f"Calling Anthropic Messages API (streaming) with {len(tools_schemas)} tools"
-        )
+        logger.debug(f"Calling Anthropic Messages API (streaming) with {len(tools_schemas)} tools")
         stream = client.messages.create(**call_kwargs, tools=tools_schemas)
     else:
         logger.debug("Calling Anthropic Messages API (streaming) without tools")

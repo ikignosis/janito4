@@ -20,15 +20,11 @@ def _parse_docstring(docstring: str, func_name: str):
     param_descriptions = {}
     if docstring:
         # Look for Args section in docstring
-        args_match = re.search(
-            r"Args:\s*(.*?)(?:\n\s*\w+:|\Z)", docstring, re.DOTALL | re.IGNORECASE
-        )
+        args_match = re.search(r"Args:\s*(.*?)(?:\n\s*\w+:|\Z)", docstring, re.DOTALL | re.IGNORECASE)
         if args_match:
             args_section = args_match.group(1)
             # Match parameter descriptions like "param_name (type): description"
-            param_pattern = (
-                r"(\w+)\s*(?:\([^)]*\))?:\s*(.*?)(?=\n\s*\w+\s*(?:\([^)]*\))?:|\Z)"
-            )
+            param_pattern = r"(\w+)\s*(?:\([^)]*\))?:\s*(.*?)(?=\n\s*\w+\s*(?:\([^)]*\))?:|\Z)"
             matches = re.findall(param_pattern, args_section, re.DOTALL)
             for param_name, desc in matches:
                 # Clean up the description

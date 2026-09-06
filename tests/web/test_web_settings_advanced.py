@@ -59,9 +59,7 @@ try:
 except ModuleNotFoundError:
     _HAS_FASTAPI = False
 
-requires_fastapi = pytest.mark.skipif(
-    not _HAS_FASTAPI, reason="fastapi (web extra) is not installed"
-)
+requires_fastapi = pytest.mark.skipif(not _HAS_FASTAPI, reason="fastapi (web extra) is not installed")
 
 try:
     import anthropic  # noqa: F401
@@ -124,10 +122,7 @@ def test_patch_endpoint_persists_per_provider(client):
     assert resp.status_code == 200
     assert resp.json()["updated"]["endpoint"] == "https://minimax.example/v1"
 
-    assert (
-        cs.load_config().get("providers", {}).get("minimax", {}).get("endpoint")
-        == "https://minimax.example/v1"
-    )
+    assert cs.load_config().get("providers", {}).get("minimax", {}).get("endpoint") == "https://minimax.example/v1"
     # ...and the providers endpoint reflects the override (base_url wins).
     entry = _providers_by_name(client)["minimax"]
     assert entry["endpoint"] == "https://minimax.example/v1"
@@ -144,13 +139,9 @@ def test_patch_empty_endpoint_clears_override(client):
     assert resp.status_code == 200
     assert resp.json()["updated"]["endpoint"] == ""
 
-    assert (
-        cs.load_config().get("providers", {}).get("minimax", {}).get("endpoint") is None
-    )
+    assert cs.load_config().get("providers", {}).get("minimax", {}).get("endpoint") is None
     # Falls back to the built-in endpoint.
-    assert (
-        _providers_by_name(client)["minimax"]["base_url"] == "https://api.minimax.io/v1"
-    )
+    assert _providers_by_name(client)["minimax"]["base_url"] == "https://api.minimax.io/v1"
 
 
 @requires_fastapi
@@ -158,9 +149,7 @@ def test_patch_api_type_persists_and_normalizes(client):
     """api_type is canonicalized (Responses/Completions) and stored per provider."""
     cs.unset_config_value("openai.models.gpt-5.6-luna.api-type")
 
-    resp = client.patch(
-        "/api/config", json={"api_type": "completions", "provider": "openai"}
-    )
+    resp = client.patch("/api/config", json={"api_type": "completions", "provider": "openai"})
     assert resp.status_code == 200
     assert resp.json()["updated"]["api_type"] == "Completions"
 
@@ -192,9 +181,7 @@ def test_patch_api_type_anthropic_aborts_without_package(client):
     cs.unset_config_value("anthropic.models.claude-sonnet-5.api-type")
     before = cs.load_config()
 
-    resp = client.patch(
-        "/api/config", json={"api_type": "Anthropic", "provider": "anthropic"}
-    )
+    resp = client.patch("/api/config", json={"api_type": "Anthropic", "provider": "anthropic"})
     assert resp.status_code == 400
     detail = resp.json()["detail"]
     assert "Anthropic" in detail

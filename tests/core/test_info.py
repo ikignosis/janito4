@@ -203,9 +203,7 @@ def _run_show_config(
 
 def test_show_config_uses_provider_default_model_when_unset(capsys):
     """No explicit model -> the provider's built-in default model is shown."""
-    out = _run_show_config(
-        capsys, provider="deepseek", default_model="deepseek-v4-flash"
-    )
+    out = _run_show_config(capsys, provider="deepseek", default_model="deepseek-v4-flash")
     assert out.strip() != ""
     assert "deepseek-v4-flash" in out
 
@@ -243,9 +241,7 @@ def test_show_config_no_default_model(capsys):
 # --- --show-system-prompt -------------------------------------------------
 
 
-def _run_show_system_prompt(
-    capsys, monkeypatch, tmp_path, skills_section, config_start=None, config_label=None
-):
+def _run_show_system_prompt(capsys, monkeypatch, tmp_path, skills_section, config_start=None, config_label=None):
     """Run handle_show_system_prompt and return its captured output.
 
     ``skills_section`` is what ``get_skills_section`` should return; pass
@@ -263,9 +259,7 @@ def _run_show_system_prompt(
         lambda: (config_start, config_label),
     )
     if skills_section is not None:
-        monkeypatch.setattr(
-            tools_registry_mod, "get_skills_section", lambda: skills_section
-        )
+        monkeypatch.setattr(tools_registry_mod, "get_skills_section", lambda: skills_section)
     args = SimpleNamespace(system_prompt=None, no_system_prompt=False)
     handle_show_system_prompt(args)
     return capsys.readouterr().out
@@ -291,9 +285,7 @@ def test_show_system_prompt_no_skills_section_row(capsys, monkeypatch, tmp_path)
     assert out.strip() != ""
 
 
-def test_show_system_prompt_config_start_shown_in_section_table(
-    capsys, monkeypatch, tmp_path
-):
+def test_show_system_prompt_config_start_shown_in_section_table(capsys, monkeypatch, tmp_path):
     """A configured start appears in the start row of the default section table."""
     out = _run_show_system_prompt(
         capsys,

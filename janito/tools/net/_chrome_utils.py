@@ -72,12 +72,8 @@ def _windows_chrome_candidates() -> list[str]:
     local_app_data = os.environ.get("LOCALAPPDATA", "")
     roots = [p for p in (program_files, program_files_x86, local_app_data) if p]
     for root in roots:
-        candidates.append(
-            os.path.join(root, "Google", "Chrome", "Application", "chrome.exe")
-        )
-        candidates.append(
-            os.path.join(root, "Microsoft", "Edge", "Application", "msedge.exe")
-        )
+        candidates.append(os.path.join(root, "Google", "Chrome", "Application", "chrome.exe"))
+        candidates.append(os.path.join(root, "Microsoft", "Edge", "Application", "msedge.exe"))
     return candidates
 
 
@@ -93,9 +89,7 @@ def _find_chrome() -> str | None:
     return None
 
 
-def _truncate_content(
-    content: str, max_length: int | None, max_lines: int | None
-) -> str:
+def _truncate_content(content: str, max_length: int | None, max_lines: int | None) -> str:
     """Apply the caller's length/line limits, appending truncation markers."""
     if max_length is not None and len(content) > max_length:
         content = content[:max_length] + "... [truncated]"

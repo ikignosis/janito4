@@ -113,9 +113,7 @@ class _ImportVisitor(ast.NodeVisitor):
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         if self._type_checking:
             return
-        abs_base = _resolve_importfrom(
-            self.module.name, self.module.is_package, node.level or 0, node.module
-        )
+        abs_base = _resolve_importfrom(self.module.name, self.module.is_package, node.level or 0, node.module)
         if abs_base is None:
             return
         if node.module is None:
@@ -151,9 +149,7 @@ def _is_type_checking_guard(test: ast.expr) -> bool:
     return False
 
 
-def _resolve_importfrom(
-    current: str, is_package: bool, level: int, module: str | None
-) -> str | None:
+def _resolve_importfrom(current: str, is_package: bool, level: int, module: str | None) -> str | None:
     """Resolve a ``from ... import ...`` to an absolute module name."""
     if level == 0:
         return module
@@ -313,10 +309,7 @@ def find_circular_dependencies(root: Path) -> list[CircularGroup]:
     groups = []
     for scc in _strongly_connected(graph):
         member_edges = [
-            info
-            for (src, dst), infos in edge_lookup.items()
-            for info in infos
-            if src in scc and dst in scc
+            info for (src, dst), infos in edge_lookup.items() for info in infos if src in scc and dst in scc
         ]
         groups.append(CircularGroup(modules=scc, edges=member_edges))
     return groups
@@ -349,9 +342,7 @@ def test_detector_ignores_type_checking_imports(tmp_path):
     pkg.mkdir()
     (pkg / "__init__.py").write_text("")
     (pkg / "alpha.py").write_text(
-        "from typing import TYPE_CHECKING\n"
-        "if TYPE_CHECKING:\n"
-        "    from mypkg import beta\n"
+        "from typing import TYPE_CHECKING\n" "if TYPE_CHECKING:\n" "    from mypkg import beta\n"
     )
     (pkg / "beta.py").write_text("from mypkg import alpha\n")
 
@@ -367,7 +358,5 @@ def test_no_circular_dependencies_in_package():
         rendered.append("cycle: " + " -> ".join(group.modules))
         for edge in sorted(group.edges, key=lambda e: (e.src, e.dst)):
             tag = "lazy" if edge.lazy else "top-level"
-            rendered.append(
-                f"  {edge.src} -> {edge.dst} [{tag}] {edge.filepath}:{edge.lineno}"
-            )
+            rendered.append(f"  {edge.src} -> {edge.dst} [{tag}] {edge.filepath}:{edge.lineno}")
     assert not groups, "circular dependencies found:\n" + "\n".join(rendered)

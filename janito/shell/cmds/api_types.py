@@ -66,10 +66,7 @@ class ApiTypesCmdHandler(CmdHandler):
                 default_api_type = found.model_config(model).get("default_api_type")
                 if api_types:
                     display = ", ".join(
-                        f"{api_type} (default)"
-                        if api_type == default_api_type
-                        else api_type
-                        for api_type in api_types
+                        f"{api_type} (default)" if api_type == default_api_type else api_type for api_type in api_types
                     )
                 else:
                     display = "(none)"

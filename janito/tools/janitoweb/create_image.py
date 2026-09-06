@@ -135,8 +135,7 @@ class CreateImage(BaseTool):
             active = get_active_provider()
             if active.lower() != "alibaba":
                 cls._load_skip_reason = (
-                    f"Active provider is '{active}', not 'alibaba'; "
-                    "CreateImage requires the alibaba provider"
+                    f"Active provider is '{active}', not 'alibaba'; " "CreateImage requires the alibaba provider"
                 )
                 return False
         except (ImportError, AttributeError, ValueError):
@@ -144,10 +143,7 @@ class CreateImage(BaseTool):
             return False
 
         if _generation_endpoint() is None:
-            cls._load_skip_reason = (
-                "Could not resolve an 'alibaba' provider endpoint for image "
-                "generation"
-            )
+            cls._load_skip_reason = "Could not resolve an 'alibaba' provider endpoint for image " "generation"
             return False
         return True
 
@@ -220,9 +216,7 @@ class CreateImage(BaseTool):
         """Download the generated image to a kept temp file; returns (path, error)."""
         # Download the generated image into a temp file that is kept
         # (delete=False) so it can be served to the frontend / inspected.
-        tmp = tempfile.NamedTemporaryFile(
-            suffix=".png", prefix="janito_image_", delete=False
-        )
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", prefix="janito_image_", delete=False)
         tmp_path = tmp.name
         tmp.close()
         try:
@@ -276,9 +270,7 @@ class CreateImage(BaseTool):
             self.report_error(msg)
             return {"success": False, "error": msg, "prompt": prompt}
 
-        self.report_start(
-            f"\ud83c\udfa8 Generating image with {_MODEL} ({size})", end=""
-        )
+        self.report_start(f"\ud83c\udfa8 Generating image with {_MODEL} ({size})", end="")
 
         payload = self._build_payload(prompt, size)
 
@@ -374,9 +366,7 @@ def main():
     """Command line interface for testing the CreateImage tool."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Generate an image from a text prompt (Wan 2.7 Image Pro)"
-    )
+    parser = argparse.ArgumentParser(description="Generate an image from a text prompt (Wan 2.7 Image Pro)")
     parser.add_argument("prompt", help="Text description of the image to generate")
     parser.add_argument(
         "--size",
@@ -384,9 +374,7 @@ def main():
         choices=_VALID_SIZES,
         help="Output resolution (default: %(default)s)",
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
     args = parser.parse_args()
 
     result = CreateImage().run(prompt=args.prompt, size=args.size)

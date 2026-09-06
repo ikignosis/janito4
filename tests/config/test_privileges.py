@@ -146,9 +146,7 @@ def test_write_cmd_offers_write_tools_under_read_only_privileges(monkeypatch):
         "janito.tooling.tools_registry.get_all_tool_permissions",
         lambda: permissions,
     )
-    monkeypatch.setattr(
-        "janito.tooling.tools_registry.get_all_tool_schemas", lambda: schemas
-    )
+    monkeypatch.setattr("janito.tooling.tools_registry.get_all_tool_schemas", lambda: schemas)
     _privileges_mod.running_privileges = Privileges(READ=True, WRITE=False, EXEC=False)
 
     names = [s["function"]["name"] for s in get_write_only_tool_schemas()]
@@ -165,9 +163,7 @@ def test_rwx_cmd_offers_everything_under_read_only_privileges(monkeypatch):
         "janito.tooling.tools_registry.get_all_tool_permissions",
         lambda: permissions,
     )
-    monkeypatch.setattr(
-        "janito.tooling.tools_registry.get_all_tool_schemas", lambda: schemas
-    )
+    monkeypatch.setattr("janito.tooling.tools_registry.get_all_tool_schemas", lambda: schemas)
     _privileges_mod.running_privileges = Privileges(READ=True, WRITE=False, EXEC=False)
 
     names = {s["function"]["name"] for s in get_read_write_exec_tool_schemas()}
@@ -184,9 +180,7 @@ def test_rx_cmd_excludes_write_tools(monkeypatch):
         "janito.tooling.tools_registry.get_all_tool_permissions",
         lambda: permissions,
     )
-    monkeypatch.setattr(
-        "janito.tooling.tools_registry.get_all_tool_schemas", lambda: schemas
-    )
+    monkeypatch.setattr("janito.tooling.tools_registry.get_all_tool_schemas", lambda: schemas)
 
     names = {s["function"]["name"] for s in get_read_exec_tool_schemas()}
     assert names == {"ReadFile", "RunBashCode"}
@@ -206,9 +200,7 @@ def test_run_tool_rejects_tool_not_offered(monkeypatch):
             "CreateFile": _fake_tool("CreateFile", "w"),
         },
     )
-    result, error, exec_ms = run_tool(
-        "CreateFile", {"filepath": "/tmp/x"}, allowed_tools={"ReadFile"}
-    )
+    result, error, exec_ms = run_tool("CreateFile", {"filepath": "/tmp/x"}, allowed_tools={"ReadFile"})
     assert error is not None
     assert "offered" in error.lower()
     assert result["success"] is False
@@ -223,12 +215,8 @@ def test_run_tool_allows_offered_tool(monkeypatch):
         calls.append(kwargs)
         return {"success": True}
 
-    monkeypatch.setattr(
-        "janito.tooling.executor.get_tool_by_name", lambda name: fake_tool
-    )
-    result, error, _ = run_tool(
-        "ReadFile", {"path": "/tmp/x"}, allowed_tools={"ReadFile"}
-    )
+    monkeypatch.setattr("janito.tooling.executor.get_tool_by_name", lambda name: fake_tool)
+    result, error, _ = run_tool("ReadFile", {"path": "/tmp/x"}, allowed_tools={"ReadFile"})
     assert error is None
     assert result == {"success": True}
     assert calls == [{"path": "/tmp/x"}]
@@ -242,9 +230,7 @@ def test_run_tool_no_gate_by_default(monkeypatch):
         calls.append(kwargs)
         return {"success": True}
 
-    monkeypatch.setattr(
-        "janito.tooling.executor.get_tool_by_name", lambda name: fake_tool
-    )
+    monkeypatch.setattr("janito.tooling.executor.get_tool_by_name", lambda name: fake_tool)
     result, error, _ = run_tool("Whatever", {"x": 1})
     assert error is None
     assert result == {"success": True}
@@ -282,9 +268,7 @@ def test_run_tool_reports_not_found_with_available_tools(monkeypatch):
             "CreateFile": _fake_tool("CreateFile", "w"),
         },
     )
-    result, error, exec_ms = run_tool(
-        "Grep", {"pattern": "x"}, allowed_tools={"ReadFile", "CreateFile"}
-    )
+    result, error, exec_ms = run_tool("Grep", {"pattern": "x"}, allowed_tools={"ReadFile", "CreateFile"})
     assert "not found" in error.lower()
     assert result["success"] is False
     assert result["available_tools"] == ["CreateFile", "ReadFile"]
@@ -295,9 +279,7 @@ def test_run_tool_mcp_tool_not_offered_is_not_not_found(monkeypatch):
     """An MCP tool that exists but was not offered keeps the 'not offered'
     message (it is a real tool, so 'not found' would be wrong)."""
     _patch_registry(monkeypatch, {"ReadFile": _fake_tool("ReadFile", "r")})
-    monkeypatch.setattr(
-        "janito.tooling.executor.is_mcp_tool", lambda name: name == "svc_read"
-    )
+    monkeypatch.setattr("janito.tooling.executor.is_mcp_tool", lambda name: name == "svc_read")
     result, error, _ = run_tool("svc_read", {"path": "x"}, allowed_tools={"ReadFile"})
     assert "offered" in error.lower()
     assert result["success"] is False
@@ -519,9 +501,7 @@ def test_setup_privileges_config_default_is_full_privileges_when_unset(monkeypat
 
     _privileges_mod.running_privileges = None
     _privileges_mod.full_privileges_warning_pending = False
-    monkeypatch.setattr(
-        "janito.config_loaders.load_privileges_from_config", lambda: None
-    )
+    monkeypatch.setattr("janito.config_loaders.load_privileges_from_config", lambda: None)
     main_mod._setup_privileges(_privilege_args())
 
     priv = _privileges_mod.running_privileges
@@ -595,9 +575,7 @@ def test_print_privileges_notice_silent_with_write_exec_flags(capsys):
     chat_mod._print_privileges_notice(_privilege_args(write=True, exec_=True))
     assert capsys.readouterr().out == ""
 
-    chat_mod._print_privileges_notice(
-        _privilege_args(read=True, write=True, exec_=True)
-    )
+    chat_mod._print_privileges_notice(_privilege_args(read=True, write=True, exec_=True))
     assert capsys.readouterr().out == ""
 
 
@@ -607,13 +585,9 @@ def test_print_privileges_notice_silent_with_write_exec_flags(capsys):
 
 
 def test_extract_tool_names_handles_both_formats():
-    assert extract_tool_names(
-        [{"type": "function", "function": {"name": "ReadFile"}}]
-    ) == {"ReadFile"}
+    assert extract_tool_names([{"type": "function", "function": {"name": "ReadFile"}}]) == {"ReadFile"}
     # Responses / Anthropic top-level shape.
-    assert extract_tool_names([{"name": "ReadFile", "input_schema": {}}]) == {
-        "ReadFile"
-    }
+    assert extract_tool_names([{"name": "ReadFile", "input_schema": {}}]) == {"ReadFile"}
     assert extract_tool_names(None) == set()
     assert extract_tool_names([]) == set()
 

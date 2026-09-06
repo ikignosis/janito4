@@ -69,9 +69,7 @@ if pytest is not None:
             _chunk(
                 content="world",
                 finish_reason="stop",
-                usage=SimpleNamespace(
-                    input_tokens=10, output_tokens=20, total_tokens=30
-                ),
+                usage=SimpleNamespace(input_tokens=10, output_tokens=20, total_tokens=30),
             ),
         ]
         full, reasoning, tool_blocks, usage, raw_attrs = _consume_stream(chunks)
@@ -111,9 +109,7 @@ if pytest is not None:
         ]
         full, reasoning, tool_blocks, usage, raw_attrs = _consume_stream(chunks)
         assert full == "Final answer"
-        assert tool_blocks == [
-            {"id": "call_1", "name": "read_file", "arguments": '{"filepath": "a.txt"}'}
-        ]
+        assert tool_blocks == [{"id": "call_1", "name": "read_file", "arguments": '{"filepath": "a.txt"}'}]
 
     def test_consume_stream_error_chunk_raises():
         """A non-200 chunk surfaces the API's code/message."""
@@ -179,9 +175,7 @@ if pytest is not None:
 
         monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
         with pytest.raises(RuntimeError) as exc:
-            dashscope_api._create_client(
-                "https://dashscope-intl.aliyuncs.com/api/v1", "sk-test"
-            )
+            dashscope_api._create_client("https://dashscope-intl.aliyuncs.com/api/v1", "sk-test")
         assert "pip install dashscope" in str(exc.value)
 
     def test_run_turn_aborts_without_dashscope_package(monkeypatch):
@@ -243,9 +237,7 @@ if pytest is not None:
         ]
         full, reasoning, tool_blocks, usage, raw_attrs = _consume_stream(chunks)
         assert full == "Final"
-        assert tool_blocks == [
-            {"id": "call_1", "name": "get_weather", "arguments": '{"city": "Lisbon"}'}
-        ]
+        assert tool_blocks == [{"id": "call_1", "name": "get_weather", "arguments": '{"city": "Lisbon"}'}]
 
     def test_consume_stream_url_error_raises_endpoint_mismatch():
         """A url-error chunk (model/endpoint mismatch) raises _ModelEndpointMismatch."""
@@ -330,14 +322,10 @@ if pytest is not None:
             "model": "qwen3.8-max",
             "messages": [{"role": "user", "content": "hi"}],
         }
-        full, reasoning, tool_blocks, usage, raw_attrs = dashscope_api._stream_response(
-            client, call_kwargs, []
-        )
+        full, reasoning, tool_blocks, usage, raw_attrs = dashscope_api._stream_response(client, call_kwargs, [])
         assert full == "hi"
         assert [name for name, _ in calls] == ["MultiModalConversation"]
-        assert calls[0][1]["messages"] == [
-            {"role": "user", "content": [{"text": "hi"}]}
-        ]
+        assert calls[0][1]["messages"] == [{"role": "user", "content": [{"text": "hi"}]}]
 
     def test_stream_response_text_model_uses_generation(monkeypatch):
         """A plain-text model goes to Generation with untouched messages."""
@@ -351,9 +339,7 @@ if pytest is not None:
             "model": "qwen-plus",
             "messages": [{"role": "user", "content": "hi"}],
         }
-        full, reasoning, tool_blocks, usage, raw_attrs = dashscope_api._stream_response(
-            client, call_kwargs, []
-        )
+        full, reasoning, tool_blocks, usage, raw_attrs = dashscope_api._stream_response(client, call_kwargs, [])
         assert full == "hello"
         assert [name for name, _ in calls] == ["Generation"]
         assert calls[0][1]["messages"] == [{"role": "user", "content": "hi"}]
@@ -377,9 +363,7 @@ if pytest is not None:
             "model": "qwen-plus",
             "messages": [{"role": "user", "content": "hi"}],
         }
-        full, reasoning, tool_blocks, usage, raw_attrs = dashscope_api._stream_response(
-            client, call_kwargs, []
-        )
+        full, reasoning, tool_blocks, usage, raw_attrs = dashscope_api._stream_response(client, call_kwargs, [])
         assert full == "recovered"
         assert [name for name, _ in calls] == ["Generation", "MultiModalConversation"]
 

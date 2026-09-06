@@ -163,9 +163,7 @@ def promote(
     text = changelog_path.read_text(encoding="utf-8")
     match = UNRELEASED_RE.search(text)
     if not match:
-        raise PromotionError(
-            "No '## [Unreleased]' heading found in the changelog; nothing to promote."
-        )
+        raise PromotionError("No '## [Unreleased]' heading found in the changelog; nothing to promote.")
 
     # --- Determine last tag, base URL and new version --------------------
     base_url, last_tag = _resolve_release_refs(match)
@@ -189,10 +187,7 @@ def promote(
         f"## [Unreleased]({base_url}/compare/{new_version}...HEAD)\n\n"
         f"Changes since `{new_version}` ({release_date})."
     )
-    release_block = (
-        f"## [{new_version}]({base_url}/compare/{last_tag}...{new_version}) "
-        f"- {release_date}"
-    )
+    release_block = f"## [{new_version}]({base_url}/compare/{last_tag}...{new_version}) " f"- {release_date}"
 
     new_text = prefix_text + unreleased_block + "\n\n" + release_block + "\n\n"
     if body:

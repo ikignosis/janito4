@@ -70,14 +70,10 @@ def load_janitoignore_spec(directory: str):
     Returns:
         A PathSpec object, or None if no .janitoignore file exists.
     """
-    return load_ignore_spec(
-        directory, ".janitoignore", extra_patterns=[".janitoignore\n"]
-    )
+    return load_ignore_spec(directory, ".janitoignore", extra_patterns=[".janitoignore\n"])
 
 
-def is_ignored_by_gitignore(
-    rel_path: str, gitignore_spec, is_dir: bool = False
-) -> bool:
+def is_ignored_by_gitignore(rel_path: str, gitignore_spec, is_dir: bool = False) -> bool:
     """
     Check if a path is ignored by ignore-file patterns.
 

@@ -30,9 +30,7 @@ class ReplaceTextInFile(BaseTool):
       all occurrences
     """
 
-    def run(
-        self, filepath: str, old_str: str, new_str: str, replace_all: bool = False
-    ) -> dict[str, Any]:
+    def run(self, filepath: str, old_str: str, new_str: str, replace_all: bool = False) -> dict[str, Any]:
         """
         Replace text in a file. Exact text matches are supported.
 
@@ -124,9 +122,7 @@ class ReplaceTextInFile(BaseTool):
 
             # Perform the replacement
             if replace_all:
-                new_content = content.replace(
-                    old_str, new_str
-                )  # Replace all occurrences
+                new_content = content.replace(old_str, new_str)  # Replace all occurrences
                 replacements = occurrences
                 success_msg = (
                     f"Text replaced successfully"
@@ -143,9 +139,7 @@ class ReplaceTextInFile(BaseTool):
                     "replacements": replacements,
                 }
             else:
-                new_content = content.replace(
-                    old_str, new_str, 1
-                )  # Replace only first occurrence
+                new_content = content.replace(old_str, new_str, 1)  # Replace only first occurrence
                 success_msg = "Text replaced successfully"
                 result_dict = {
                     "success": True,
@@ -193,9 +187,7 @@ def main():
         dest="replace_all",
         help="Replace all occurrences (default: only replace if exactly one occurrence)",
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
 
     args = parser.parse_args()
 

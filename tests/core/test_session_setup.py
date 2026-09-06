@@ -33,9 +33,7 @@ def _patch_config_start(monkeypatch, start):
     """Pin load_system_prompt_start so tests never touch the real config."""
     import janito.config_loaders as config_loaders_mod
 
-    monkeypatch.setattr(
-        config_loaders_mod, "load_system_prompt_start", lambda: (start, None)
-    )
+    monkeypatch.setattr(config_loaders_mod, "load_system_prompt_start", lambda: (start, None))
 
 
 if pytest is not None:
@@ -46,9 +44,7 @@ if pytest is not None:
         setup = SessionSetup()
         from janito.system_prompt import default_system_prompt_manager
 
-        assert (
-            setup.effective_system_prompt() == default_system_prompt_manager().render()
-        )
+        assert setup.effective_system_prompt() == default_system_prompt_manager().render()
         assert setup.no_tools is False
 
     def test_custom_system_prompt_wins():
@@ -78,10 +74,7 @@ if pytest is not None:
         _patch_config_start(monkeypatch, "configured start text")
         SessionSetup().effective_system_prompt()
         SessionSetup().effective_system_prompt()
-        sections = {
-            section.name: section
-            for section in SYSTEM_PROMPT_MANAGER.get_all_sections()
-        }
+        sections = {section.name: section for section in SYSTEM_PROMPT_MANAGER.get_all_sections()}
         # The shared manager's start stays at its lazy empty seed: the
         # configured (or built-in resource) start is only applied to a
         # per-call copy.
@@ -135,9 +128,7 @@ if pytest is not None:
         import janito.tooling.tools_registry as tools_registry
 
         added = []
-        monkeypatch.setattr(
-            tools_registry, "add_toolset", lambda name: added.append(name)
-        )
+        monkeypatch.setattr(tools_registry, "add_toolset", lambda name: added.append(name))
         SessionSetup().enable_toolsets(extra=["janitoweb"])
         assert added == ["janitoweb"]
 
@@ -145,9 +136,7 @@ if pytest is not None:
         import janito.tooling.tools_registry as tools_registry
 
         added = []
-        monkeypatch.setattr(
-            tools_registry, "add_toolset", lambda name: added.append(name)
-        )
+        monkeypatch.setattr(tools_registry, "add_toolset", lambda name: added.append(name))
         SessionSetup().enable_toolsets()
         assert added == []
 
@@ -188,9 +177,7 @@ if pytest is not None:
         from janito.web.backend.config import WebServerConfig
 
         added = []
-        monkeypatch.setattr(
-            tools_registry, "add_toolset", lambda name: added.append(name)
-        )
+        monkeypatch.setattr(tools_registry, "add_toolset", lambda name: added.append(name))
 
         chat_mod._enable_requested_toolsets(_args())
         cli_added = list(added)

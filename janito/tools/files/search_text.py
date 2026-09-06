@@ -42,9 +42,7 @@ class SearchText(SearchRunner):
     term_key = "query"
     error_label = "search"
 
-    def start_message(
-        self, term: str, paths_str: str, exclude_str: str | None = None
-    ) -> str:
+    def start_message(self, term: str, paths_str: str, exclude_str: str | None = None) -> str:
         """Return the report_start message for this tool."""
         message = f"\U0001f50d Searching for exact text '{term}' in {paths_str}"
         if exclude_str:
@@ -100,9 +98,7 @@ class SearchText(SearchRunner):
             exclude=exclude,
         )
 
-    def _line_matches(
-        self, query: str, line_content: str, case_sensitive: bool
-    ) -> bool:
+    def _line_matches(self, query: str, line_content: str, case_sensitive: bool) -> bool:
         """Return whether ``line_content`` contains ``query``."""
         if case_sensitive:
             return query in line_content
@@ -133,9 +129,7 @@ class SearchText(SearchRunner):
             # Skip files that can't be read (binary files, permission issues, etc.)
             return []
 
-    def _count_file_matches(
-        self, filepath: str, query: str, case_sensitive: bool
-    ) -> int:
+    def _count_file_matches(self, filepath: str, query: str, case_sensitive: bool) -> int:
         """Count matches in a single file."""
         try:
             with open(filepath, encoding="utf-8", errors="ignore") as f:
@@ -155,32 +149,20 @@ def main():
     """Command line interface for testing the SearchText tool."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Search text tool for AI function calling"
-    )
+    parser = argparse.ArgumentParser(description="Search text tool for AI function calling")
     parser.add_argument("paths", help="Space-separated paths to search in")
     parser.add_argument("query", help="Exact text to search for")
-    parser.add_argument(
-        "--ignore-case", "-i", action="store_true", help="Case insensitive search"
-    )
+    parser.add_argument("--ignore-case", "-i", action="store_true", help="Case insensitive search")
     parser.add_argument("--max-depth", "-d", type=int, help="Maximum directory depth")
-    parser.add_argument(
-        "--max-results", "-m", type=int, default=100, help="Maximum results"
-    )
-    parser.add_argument(
-        "--count-only", "-c", action="store_true", help="Return only counts"
-    )
-    parser.add_argument(
-        "--no-gitignore", action="store_true", help="Disable .gitignore filtering"
-    )
+    parser.add_argument("--max-results", "-m", type=int, default=100, help="Maximum results")
+    parser.add_argument("--count-only", "-c", action="store_true", help="Return only counts")
+    parser.add_argument("--no-gitignore", action="store_true", help="Disable .gitignore filtering")
     parser.add_argument(
         "--exclude",
         "-e",
         help="Space-separated glob patterns to exclude",
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
 
     args = parser.parse_args()
 

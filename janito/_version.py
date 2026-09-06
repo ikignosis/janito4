@@ -38,9 +38,7 @@ _FALLBACK_VERSION = "0.2.0"
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # ``git describe --tags --long`` output, e.g. ``v4.33.0-1-g6412eb8``.
-_DESCRIBE_RE = re.compile(
-    r"^v?(?P<tag>\d+\.\d+\.\d+)(?:-(?P<dist>\d+)-g(?P<sha>[0-9a-f]+))?$"
-)
+_DESCRIBE_RE = re.compile(r"^v?(?P<tag>\d+\.\d+\.\d+)(?:-(?P<dist>\d+)-g(?P<sha>[0-9a-f]+))?$")
 
 # A ``post<N>`` segment inside a version, e.g. ``post1`` in ``4.33.0.post1``.
 _POST_RE = re.compile(r"^post(?P<num>\d+)")

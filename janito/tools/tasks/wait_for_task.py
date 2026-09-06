@@ -98,19 +98,11 @@ def _describe_outcome(result: dict[str, Any]) -> str:
 
     if reason == EXIT_TIMEOUT:
         budget = result.get("timeout")
-        suffix = (
-            f"exit {exit_code} during shutdown"
-            if exit_code is not None
-            else "killed, no exit code"
-        )
+        suffix = f"exit {exit_code} during shutdown" if exit_code is not None else "killed, no exit code"
         after = f" after {budget:g}s" if budget else ""
         return f"TIMED OUT{after} ({suffix}{duration})"
     if reason == EXIT_STOPPED:
-        suffix = (
-            f"exit {exit_code} during shutdown"
-            if exit_code is not None
-            else "no exit code"
-        )
+        suffix = f"exit {exit_code} during shutdown" if exit_code is not None else "no exit code"
         return f"terminated (stopped, {suffix}{duration})"
     if reason == EXIT_KILLED:
         code = result.get("returncode")
@@ -141,11 +133,7 @@ def _summarize_outcomes(results: list[dict[str, Any]]) -> str:
     Returns:
         A comma-joined breakdown, or ``""`` when there is nothing to flag.
     """
-    failed = sum(
-        1
-        for r in results
-        if r.get("exit_reason") == EXIT_FINISHED and r.get("exit_code") not in (0, None)
-    )
+    failed = sum(1 for r in results if r.get("exit_reason") == EXIT_FINISHED and r.get("exit_code") not in (0, None))
     terminated = sum(1 for r in results if r.get("exit_reason") in TERMINATED_REASONS)
     unreported = sum(1 for r in results if r.get("exit_reason") == EXIT_ERROR)
     parts = []
@@ -320,9 +308,7 @@ class WaitForTask(BaseTool):
             def on_task_complete(result):
                 # Reason-aware line: a killed task has no exit code of its own,
                 # so report the outcome instead of a bare return code.
-                self.report_result(
-                    f"task {result['task_id']} {_describe_outcome(result)}"
-                )
+                self.report_result(f"task {result['task_id']} {_describe_outcome(result)}")
 
             # Announce each task up front with its one-line summary, e.g.
             # "Waiting for task 1/3 : Fix login page", so the user can see
@@ -330,9 +316,7 @@ class WaitForTask(BaseTool):
             # the Task by StartTask and looked up here via the manager.
             total = len(task_ids)
             for i, task_id in enumerate(task_ids, start=1):
-                self.report_start(
-                    f"Waiting for task {i}/{total} : {_task_summary(task_id)}"
-                )
+                self.report_start(f"Waiting for task {i}/{total} : {_task_summary(task_id)}")
 
             if _should_show_spinner():
                 # Interactive terminal: animate the wait with a Rich spinner
@@ -359,8 +343,7 @@ class WaitForTask(BaseTool):
             breakdown = _summarize_outcomes(info.get("tasks") or [])
             if info.get("timed_out"):
                 self.report_result(
-                    f"wait budget of {timeout:g}s expired; "
-                    f"{len(info['pending_task_ids'])} task(s) still running"
+                    f"wait budget of {timeout:g}s expired; " f"{len(info['pending_task_ids'])} task(s) still running"
                 )
             elif breakdown:
                 self.report_result(f"all tasks finished: {breakdown}")
@@ -402,9 +385,7 @@ def main():
     """Command line interface for testing the WaitForTask tool."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Wait for one or more tasks (started with StartTask) to finish"
-    )
+    parser = argparse.ArgumentParser(description="Wait for one or more tasks (started with StartTask) to finish")
     parser.add_argument(
         "task_ids",
         nargs="+",
@@ -421,24 +402,17 @@ def main():
         "--max-lines",
         type=int,
         default=None,
-        help=(
-            "Maximum number of lines of each task's stdout/stderr to "
-            "return inline (default: the manager's cap)"
-        ),
+        help=("Maximum number of lines of each task's stdout/stderr to " "return inline (default: the manager's cap)"),
     )
     parser.add_argument(
         "--show-output",
         action="store_true",
         help="Print each task's captured stdout/stderr content",
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
     args = parser.parse_args()
 
-    result = WaitForTask().run(
-        task_ids=args.task_ids, timeout=args.timeout, max_lines=args.max_lines
-    )
+    result = WaitForTask().run(task_ids=args.task_ids, timeout=args.timeout, max_lines=args.max_lines)
 
     if args.json:
         print(json.dumps(result, indent=2))

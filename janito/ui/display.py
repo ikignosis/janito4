@@ -46,9 +46,7 @@ def _print_verbose_info(
 
     # Show MCP status in verbose mode
     if mcp_manager and mcp_manager.connected_services:
-        services_text = Text(
-            f"----- MCP Services: {', '.join(mcp_manager.connected_services)}"
-        )
+        services_text = Text(f"----- MCP Services: {', '.join(mcp_manager.connected_services)}")
         services_text.stylize("white on green")
         console.print(services_text, highlight=False)
 
@@ -119,9 +117,7 @@ def _print_verbose_api_call(
         if isinstance(value, list) and value and isinstance(value[0], dict):
             display[key] = {
                 "_summary": (
-                    f"{len(value)} items (showing last {tail})"
-                    if len(value) > tail
-                    else f"{len(value)} items"
+                    f"{len(value)} items (showing last {tail})" if len(value) > tail else f"{len(value)} items"
                 ),
                 "tail": _truncate_list(value[-tail:]),
             }
@@ -131,10 +127,7 @@ def _print_verbose_api_call(
             display[key] = value
 
     if tools_schemas:
-        names = [
-            t.get("name") or (t.get("function") or {}).get("name") or t.get("type")
-            for t in tools_schemas
-        ]
+        names = [t.get("name") or (t.get("function") or {}).get("name") or t.get("type") for t in tools_schemas]
         display["tools"] = {"_summary": f"{len(names)} tools", "names": names}
 
     console.print(
@@ -151,10 +144,7 @@ def _raw_attrs_lines(raw_attrs: dict[str, Any] | None) -> list[str]:
     """Format raw response attributes as one ``Raw <key>:`` line each."""
     if not raw_attrs:
         return []
-    return [
-        f"Raw {key}: {_truncate_text(value, 120)}"
-        for key, value in sorted(raw_attrs.items())
-    ]
+    return [f"Raw {key}: {_truncate_text(value, 120)}" for key, value in sorted(raw_attrs.items())]
 
 
 def _print_verbose_api_response(
@@ -178,10 +168,7 @@ def _print_verbose_api_response(
     if reasoning_content:
         lines.append(f"Reasoning: {_truncate_text(reasoning_content, 300)}")
     if tool_calls:
-        calls = ", ".join(
-            f"{t.get('name', '?')}({_truncate_text(t.get('arguments', ''), 80)})"
-            for t in tool_calls
-        )
+        calls = ", ".join(f"{t.get('name', '?')}({_truncate_text(t.get('arguments', ''), 80)})" for t in tool_calls)
         lines.append(f"Tool calls: {calls}")
     if usage_info:
         stats = normalize_usage(usage_info)

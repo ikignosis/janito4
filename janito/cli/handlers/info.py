@@ -26,9 +26,7 @@ def _resolve_provider_source(args) -> tuple[str, str]:
     return "openai", "fallback"
 
 
-def _resolve_model_source(
-    provider: str, cli_model: str | None
-) -> tuple[str | None, str]:
+def _resolve_model_source(provider: str, cli_model: str | None) -> tuple[str | None, str]:
     """Resolve the model, with priority CLI > config."""
     if cli_model:
         return cli_model, "CLI argument"
@@ -54,9 +52,7 @@ def _resolve_endpoint_source(provider: str, api_type: str) -> tuple[str | None, 
     return None, "not set"
 
 
-def _resolve_effective_model(
-    provider: str | None, cli_model: str | None
-) -> tuple[str | None, str]:
+def _resolve_effective_model(provider: str | None, cli_model: str | None) -> tuple[str | None, str]:
     """Resolve the effective model, mirroring ``resolve_runtime_config``.
 
     Priority: ``--model``, then the provider's configured model in
@@ -103,9 +99,7 @@ def handle_info(args) -> int:
     # model-scoped configured api-type, then the effective model's built-in
     # default) so the built-in endpoint can be resolved per API type
     # (endpoint_by_api_type).
-    api_type = resolve_api_type(
-        getattr(args, "api_type", None), provider, getattr(args, "model", None)
-    )
+    api_type = resolve_api_type(getattr(args, "api_type", None), provider, getattr(args, "model", None))
 
     endpoint, endpoint_source = _resolve_endpoint_source(provider, api_type)
 
@@ -154,15 +148,11 @@ def handle_info(args) -> int:
 
     # Show source details
     if model_source == "not set":
-        print(
-            "Note: Model not configured. Use --model or set it in config.json (janito --set model=NAME)"
-        )
+        print("Note: Model not configured. Use --model or set it in config.json (janito --set model=NAME)")
     if api_key_source == "not set":
         print("Note: API key not configured. Use --set-api-key --provider NAME")
     if is_custom_provider(provider) and not endpoint:
-        print(
-            "Note: Endpoint not configured. Set endpoint in config.json (janito --set endpoint=URL)"
-        )
+        print("Note: Endpoint not configured. Set endpoint in config.json (janito --set endpoint=URL)")
 
     return 0
 
@@ -323,11 +313,7 @@ def handle_show_system_prompt(args) -> int:
     manager = default_system_prompt_manager()
     sections = list(manager.get_all_sections())
     has_skills = any(section.name == SECTION_SKILLS for section in sections)
-    title = (
-        "System prompt (default (with skills))"
-        if has_skills
-        else "System prompt (default)"
-    )
+    title = "System prompt (default (with skills))" if has_skills else "System prompt (default)"
     table = Table(
         title=title,
         title_style="bold",

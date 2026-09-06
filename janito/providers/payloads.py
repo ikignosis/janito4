@@ -61,9 +61,7 @@ def apply_builtin_tools_to_extra_body(call_kwargs: dict, tools) -> None:
         call_kwargs.setdefault("extra_body", {}).update(flags)
 
 
-def apply_thinking_to_extra_body(
-    call_kwargs: dict, thinking, provider: str | None = None
-) -> None:
+def apply_thinking_to_extra_body(call_kwargs: dict, thinking, provider: str | None = None) -> None:
     """Add the resolved thinking mode to ``call_kwargs``' ``extra_body``.
 
     Thinking values may be:
@@ -118,9 +116,7 @@ def format_thinking_display(thinking, provider: str | None = None) -> str:
     return "enabled" if thinking else "disabled"
 
 
-def resolve_thinking_display(
-    effective_thinking, explicit_thinking: bool = False, provider: str | None = None
-) -> str:
+def resolve_thinking_display(effective_thinking, explicit_thinking: bool = False, provider: str | None = None) -> str:
     """Render the effective thinking mode for session displays.
 
     ``effective_thinking`` is the resolved value (explicit flag or the

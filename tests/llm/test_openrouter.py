@@ -72,10 +72,7 @@ def test_provider_config_shape():
 def test_placeholder_model_entry_carries_defaults():
     """The placeholder 'custom' model entry provides the default API type,
     so API-type resolution works before a model is configured."""
-    assert (
-        get_provider("openrouter").model_config().get("default_api_type")
-        == "Completions"
-    )
+    assert get_provider("openrouter").model_config().get("default_api_type") == "Completions"
     assert get_provider("openrouter").default_model() == "custom"
 
 
@@ -176,9 +173,7 @@ def test_show_config_no_placeholder_model(monkeypatch, tmp_path, capsys):
     _use_temp_config(monkeypatch, tmp_path)
     cs.set_config_value("provider", "openrouter")
 
-    args = SimpleNamespace(
-        provider="openrouter", model=None, api_type=None, thinking=False
-    )
+    args = SimpleNamespace(provider="openrouter", model=None, api_type=None, thinking=False)
     rc = handle_show_config(args)
     out = capsys.readouterr().out
 

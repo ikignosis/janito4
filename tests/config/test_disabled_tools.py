@@ -25,9 +25,7 @@ def _use_temp_config(monkeypatch, tmp_path):
 if pytest is not None:
 
     def test_model_config_disabled_tools():
-        assert ModelConfig({"disabled_tools": ["WebSearch"]}).get("disabled_tools") == [
-            "WebSearch"
-        ]
+        assert ModelConfig({"disabled_tools": ["WebSearch"]}).get("disabled_tools") == ["WebSearch"]
         assert ModelConfig({}).get("disabled_tools") is None
 
     def test_resolve_derived_default_native_search():

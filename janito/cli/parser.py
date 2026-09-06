@@ -129,8 +129,7 @@ Note: --set and --set-api-key must be used in separate commands.
         "-c",
         "--config-dir",
         metavar="DIR",
-        help="Directory for all janito config (config, auth, secrets, MCP, skills). "
-        "Defaults to ~/.janito",
+        help="Directory for all janito config (config, auth, secrets, MCP, skills). " "Defaults to ~/.janito",
     )
 
     parser.add_argument(
@@ -242,13 +241,9 @@ Note: --set and --set-api-key must be used in separate commands.
         help="Grant READ privilege (the default when no -r/-w/-x flag is given)",
     )
 
-    parser.add_argument(
-        "-w", "--write", action="store_true", help="Grant WRITE privilege"
-    )
+    parser.add_argument("-w", "--write", action="store_true", help="Grant WRITE privilege")
 
-    parser.add_argument(
-        "-x", "--exec", action="store_true", help="Grant EXEC privilege"
-    )
+    parser.add_argument("-x", "--exec", action="store_true", help="Grant EXEC privilege")
 
     parser.add_argument(
         "--list-tools",
@@ -263,15 +258,12 @@ Note: --set and --set-api-key must be used in separate commands.
         "(--provider, or the provider defined in config.json) and exit",
     )
 
-    parser.add_argument(
-        "--list-mcp", action="store_true", help="List all MCP services and their tools"
-    )
+    parser.add_argument("--list-mcp", action="store_true", help="List all MCP services and their tools")
 
     parser.add_argument(
         "--set-api-key",
         metavar="KEY",
-        help="Set API key for a provider (uses --provider, or the configured "
-        "default provider when omitted)",
+        help="Set API key for a provider (uses --provider, or the configured " "default provider when omitted)",
     )
 
     parser.add_argument(
@@ -295,9 +287,7 @@ Note: --set and --set-api-key must be used in separate commands.
         help="Provider name (e.g., openai, custom)",
     )
 
-    parser.add_argument(
-        "--list-keys", action="store_true", help="List configured providers and keys"
-    )
+    parser.add_argument("--list-keys", action="store_true", help="List configured providers and keys")
 
     parser.add_argument(
         "--show-providers",
@@ -375,9 +365,7 @@ Note: --set and --set-api-key must be used in separate commands.
         "    janito --delete-secret mykey --delete-secret old_secret",
     )
 
-    parser.add_argument(
-        "--list-secrets", action="store_true", help="List all configured secrets"
-    )
+    parser.add_argument("--list-secrets", action="store_true", help="List all configured secrets")
 
     parser.add_argument(
         "--config",
@@ -409,13 +397,9 @@ Note: --set and --set-api-key must be used in separate commands.
         help="Install a skill from a GitHub URL (e.g., https://github.com/user/awesome-copilot/tree/main/skills/git-commit)",
     )
 
-    parser.add_argument(
-        "--list-skills", action="store_true", help="List all installed skills"
-    )
+    parser.add_argument("--list-skills", action="store_true", help="List all installed skills")
 
-    parser.add_argument(
-        "--uninstall-skill", metavar="NAME", help="Uninstall a skill by name"
-    )
+    parser.add_argument("--uninstall-skill", metavar="NAME", help="Uninstall a skill by name")
 
     parser.add_argument(
         "--version",
@@ -496,8 +480,7 @@ Note: --set and --set-api-key must be used in separate commands.
     parser.add_argument(
         "--web",
         action="store_true",
-        help="Start the web UI server instead of the terminal chat "
-        "(alpha: interface and behavior may change)",
+        help="Start the web UI server instead of the terminal chat " "(alpha: interface and behavior may change)",
     )
 
     parser.add_argument(

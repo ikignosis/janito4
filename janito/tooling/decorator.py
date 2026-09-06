@@ -10,9 +10,7 @@ from collections.abc import Callable
 from typing import Any
 
 
-def tool(
-    obj: Callable | type | None = None, *, permissions: str = ""
-) -> Callable | type:
+def tool(obj: Callable | type | None = None, *, permissions: str = "") -> Callable | type:
     """
     Decorator to explicitly mark a function or class as an AI tool.
 

@@ -84,9 +84,7 @@ if pytest is not None:
                 thinking=True,
             )
         )
-        thinking, max_out, max_in, reasoning = c._resolve_model_settings(
-            "openai", "gpt-4"
-        )
+        thinking, max_out, max_in, reasoning = c._resolve_model_settings("openai", "gpt-4")
         assert (thinking, max_out, max_in, reasoning) == (True, 64000, 200000, "high")
 
     # ---- concrete subclasses: identity ----------------------------------
@@ -103,20 +101,11 @@ if pytest is not None:
         assert issubclass(DashScopeClient, Client)
 
         assert CompletionsClient(make_config()).api_type == "Completions"
-        assert (
-            ResponsesClient(make_config(api_type="Responses")).api_type == "Responses"
-        )
-        assert (
-            AnthropicClient(make_config(api_type="Anthropic")).api_type == "Anthropic"
-        )
-        assert (
-            DashScopeClient(make_config(api_type="DashScope")).api_type == "DashScope"
-        )
+        assert ResponsesClient(make_config(api_type="Responses")).api_type == "Responses"
+        assert AnthropicClient(make_config(api_type="Anthropic")).api_type == "Anthropic"
+        assert DashScopeClient(make_config(api_type="DashScope")).api_type == "DashScope"
 
-        assert (
-            AnthropicClient(make_config(api_type="Anthropic")).backend_default
-            == "https://api.anthropic.com"
-        )
+        assert AnthropicClient(make_config(api_type="Anthropic")).backend_default == "https://api.anthropic.com"
         assert (
             DashScopeClient(make_config(api_type="DashScope")).backend_default
             == "https://dashscope-intl.aliyuncs.com/api/v1"
@@ -130,9 +119,7 @@ if pytest is not None:
 
         c = CompletionsClient(make_config())
         history: list = []
-        state = c._init_conversation_state(
-            "hi", "openai", "gpt-4", previous_messages=history
-        )
+        state = c._init_conversation_state("hi", "openai", "gpt-4", previous_messages=history)
         # The same list object is used and the user turn is appended to it.
         assert state is history
         assert state == [{"role": "user", "content": "hi"}]
@@ -141,9 +128,7 @@ if pytest is not None:
         from janito.llm_clients.openai.completions_api import CompletionsClient
 
         c = CompletionsClient(make_config())
-        state = c._init_conversation_state(
-            "hi", "openai", "gpt-4", previous_messages=None
-        )
+        state = c._init_conversation_state("hi", "openai", "gpt-4", previous_messages=None)
         assert state == [{"role": "user", "content": "hi"}]
 
     def test_anthropic_state_keeps_system_parameter():
@@ -215,9 +200,7 @@ if pytest is not None:
             reasoning_effort=None,
         )
         c = anthropic_api.AnthropicClient(config)
-        thinking, max_out, max_in, reasoning = c._resolve_model_settings(
-            "anthropic", "claude-sonnet-5"
-        )
+        thinking, max_out, max_in, reasoning = c._resolve_model_settings("anthropic", "claude-sonnet-5")
         # thinking comes from the resolved config (make_config defaults it
         # to False).
         assert thinking is False
@@ -252,9 +235,7 @@ if pytest is not None:
             thinking=True,
         )
         c = dsa.DashScopeClient(config)
-        thinking, max_out, max_in, reasoning = c._resolve_model_settings(
-            "alibaba", "qwen3.8-max"
-        )
+        thinking, max_out, max_in, reasoning = c._resolve_model_settings("alibaba", "qwen3.8-max")
         assert (thinking, max_out, max_in) == (True, 8192, 128000)
         # reasoning_effort is dropped (not used by the native SDK).
         assert reasoning is None
@@ -504,9 +485,7 @@ if pytest is not None:
 
         assert _classify_error(Exception("Model not exist: `gpt-4`")) == "not_found"
         assert _classify_error(Exception("model not found")) == "not_found"
-        assert (
-            _classify_error(Exception("previous response id not found")) == "not_found"
-        )
+        assert _classify_error(Exception("previous response id not found")) == "not_found"
 
     def test_classify_error_recognizes_auth_payloads():
         from janito.llm_clients.client_support import _classify_error

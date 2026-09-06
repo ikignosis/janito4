@@ -48,9 +48,7 @@ class DiffTheme(Style):
 # level is one of: "start", "progress", "output", "diff", "result", "error", "warning", "info"
 ReportHandler = Callable[[str, str, str], None]
 
-_report_handler: ContextVar[ReportHandler | None] = ContextVar(
-    "_report_handler", default=None
-)
+_report_handler: ContextVar[ReportHandler | None] = ContextVar("_report_handler", default=None)
 
 
 def set_report_handler(handler: ReportHandler | None) -> None:

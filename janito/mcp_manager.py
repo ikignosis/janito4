@@ -44,9 +44,7 @@ class MCPManager:
         """
         # Get services to load
         if service_names:
-            services = {
-                name: get_service(name) for name in service_names if get_service(name)
-            }
+            services = {name: get_service(name) for name in service_names if get_service(name)}
         else:
             services = list_services()
 
@@ -123,9 +121,7 @@ class MCPManager:
                 mcp_tools = client.list_tools()
 
                 # Cache the tool names so call_tool doesn't re-list on every call
-                self._service_tool_names[service_name] = {
-                    tool.get("name") for tool in mcp_tools
-                }
+                self._service_tool_names[service_name] = {tool.get("name") for tool in mcp_tools}
 
                 # Convert MCP tools to OpenAI format with service prefix
                 for tool in mcp_tools:
@@ -139,9 +135,7 @@ class MCPManager:
         self._tools_cache = all_tools
         self._cache_valid = True
 
-        logger.info(
-            f"Retrieved {len(all_tools)} tools from {len(self._clients)} MCP services"
-        )
+        logger.info(f"Retrieved {len(all_tools)} tools from {len(self._clients)} MCP services")
         return all_tools
 
     def _convert_tool_to_openai(self, service_name: str, mcp_tool: dict) -> dict:
@@ -355,11 +349,7 @@ class MCPManager:
         Returns:
             List[str]: Prefixed tool names (e.g. ``["svc_read"]``), sorted.
         """
-        return [
-            f"{service}_{name}"
-            for service, names in self._service_tool_names.items()
-            for name in sorted(names)
-        ]
+        return [f"{service}_{name}" for service, names in self._service_tool_names.items() for name in sorted(names)]
 
     def get_service_for_tool(self, prefixed_name: str) -> str | None:
         """

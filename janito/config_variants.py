@@ -40,11 +40,7 @@ def load_variants() -> dict[str, dict]:
     providers = get_config_value("providers")
     if not isinstance(providers, dict):
         return {}
-    return {
-        name: entry
-        for name, entry in providers.items()
-        if is_variant_style_name(name) and isinstance(entry, dict)
-    }
+    return {name: entry for name, entry in providers.items() if is_variant_style_name(name) and isinstance(entry, dict)}
 
 
 def is_registered_variant(name: str) -> bool:
@@ -96,16 +92,12 @@ def create_variant(name: str) -> str:
 
     normalized = normalize_provider(name)
     if not normalized:
-        raise ValueError(
-            "A variant name is required, e.g. --create-variant alibaba-tokenplan "
-            "(<provider>-<word>)."
-        )
+        raise ValueError("A variant name is required, e.g. --create-variant alibaba-tokenplan " "(<provider>-<word>).")
 
     parsed = parse_variant_name(normalized)
     if parsed is None:
         raise ValueError(
-            f"Invalid provider variant '{name}'. "
-            "A variant must be named <provider>-<word>, e.g. alibaba-tokenplan."
+            f"Invalid provider variant '{name}'. " "A variant must be named <provider>-<word>, e.g. alibaba-tokenplan."
         )
     base, _ = parsed
 
@@ -113,10 +105,7 @@ def create_variant(name: str) -> str:
     # configs), not another variant, so variants cannot be nested.
     if not is_supported_provider(base):
         supported = ", ".join(sorted(list_supported_providers()))
-        raise ValueError(
-            f"Unknown base provider '{base}' for variant '{name}'. "
-            f"Supported providers: {supported}"
-        )
+        raise ValueError(f"Unknown base provider '{base}' for variant '{name}'. " f"Supported providers: {supported}")
 
     if is_registered_variant(normalized):
         raise ValueError(f"Provider variant '{normalized}' already exists.")

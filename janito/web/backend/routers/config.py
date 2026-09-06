@@ -115,11 +115,7 @@ async def patch_config(request: Request):
     # still be toggled for the running server only via POST /api/config/thinking.
     updated = {}
 
-    mutable_fields = [
-        field
-        for field in ("model", "endpoint", "api_type", "stateless_mode")
-        if field in body
-    ]
+    mutable_fields = [field for field in ("model", "endpoint", "api_type", "stateless_mode") if field in body]
     if not mutable_fields:
         return {"updated": updated}
 
@@ -319,9 +315,7 @@ async def set_session_provider(request: Request):
     config = _get_config(request)
     try:
         found = get_provider(provider)
-        selected_model = load_model_from_config(provider) or (
-            found.default_model() if found is not None else None
-        )
+        selected_model = load_model_from_config(provider) or (found.default_model() if found is not None else None)
         if session:
             session.provider = provider
             session.model = selected_model
@@ -338,9 +332,7 @@ async def set_session_provider(request: Request):
         config.model = None
 
     effective_model = session.model if session else config.model
-    logger.info(
-        f"Session provider set to '{provider}' (model: {effective_model}, not persisted)"
-    )
+    logger.info(f"Session provider set to '{provider}' (model: {effective_model}, not persisted)")
     return {"provider": provider, "model": effective_model, "persisted": False}
 
 
@@ -500,9 +492,7 @@ async def get_status(request: Request, provider: str | None = None):
     if not base_url:
         found = get_provider(target)
         if found is not None:
-            provider_default = found.endpoint_for(
-                found.model_config().get("default_api_type")
-            )
+            provider_default = found.endpoint_for(found.model_config().get("default_api_type"))
             if provider_default and provider_default != CUSTOM_ENDPOINT_MARKER:
                 base_url = provider_default
 

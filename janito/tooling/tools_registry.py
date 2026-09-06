@@ -99,9 +99,7 @@ class ToolsRegistry:
         _tools_initialized = True
 
         if _tools_loading_enabled:
-            toolset_names = [
-                name for name in AUTOLOAD_TOOLSETS if name not in _disabled_toolsets
-            ]
+            toolset_names = [name for name in AUTOLOAD_TOOLSETS if name not in _disabled_toolsets]
             AVAILABLE_TOOLS.update(discover_toolsets(toolset_names))
 
         # Add skill tools if enabled. Never gated by _tools_loading_enabled:
@@ -193,10 +191,7 @@ class ToolsRegistry:
             Dict[str, str]: Dictionary mapping tool names to their permission strings
         """
         self.ensure_initialized()
-        return {
-            name: getattr(tool, "_tool_permissions", "")
-            for name, tool in AVAILABLE_TOOLS.items()
-        }
+        return {name: getattr(tool, "_tool_permissions", "") for name, tool in AVAILABLE_TOOLS.items()}
 
     def _disabled_tool_names(self) -> set[str]:
         """Names of external tools disabled for the active provider/model.
@@ -242,10 +237,7 @@ class ToolsRegistry:
         return [
             get_function_schema(tool)
             for name, tool in AVAILABLE_TOOLS.items()
-            if name not in disabled
-            and tool_is_allowed_by_privileges(
-                getattr(tool, "_tool_permissions", "") or ""
-            )
+            if name not in disabled and tool_is_allowed_by_privileges(getattr(tool, "_tool_permissions", "") or "")
         ]
 
     def session_tool_names(self) -> set[str]:
@@ -264,10 +256,7 @@ class ToolsRegistry:
         return {
             name
             for name, tool in AVAILABLE_TOOLS.items()
-            if name not in disabled
-            and tool_is_allowed_by_privileges(
-                getattr(tool, "_tool_permissions", "") or ""
-            )
+            if name not in disabled and tool_is_allowed_by_privileges(getattr(tool, "_tool_permissions", "") or "")
         }
 
     def get(self, name: str) -> Callable:
@@ -285,9 +274,7 @@ class ToolsRegistry:
         """
         self.ensure_initialized()
         if name not in AVAILABLE_TOOLS:
-            raise KeyError(
-                f"Tool '{name}' not found. Available tools: {list(AVAILABLE_TOOLS.keys())}"
-            )
+            raise KeyError(f"Tool '{name}' not found. Available tools: {list(AVAILABLE_TOOLS.keys())}")
         return AVAILABLE_TOOLS[name]
 
     def schema(self, name: str) -> dict[str, Any]:
@@ -320,9 +307,7 @@ class ToolsRegistry:
         """
         self.ensure_initialized()
         if name not in AVAILABLE_TOOLS:
-            raise KeyError(
-                f"Tool '{name}' not found. Available tools: {list(AVAILABLE_TOOLS.keys())}"
-            )
+            raise KeyError(f"Tool '{name}' not found. Available tools: {list(AVAILABLE_TOOLS.keys())}")
         return getattr(AVAILABLE_TOOLS[name], "_tool_permissions", "")
 
     def skills_section(self) -> str:

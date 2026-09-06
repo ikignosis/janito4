@@ -180,25 +180,17 @@ class FindFiles(_FindFilesWalker, BaseTool):
         """Validate file_type/sort_by; return an error result or None."""
         valid_types = {"file", "dir", "symlink"}
         if file_type is not None and file_type not in valid_types:
-            msg = (
-                f"Invalid file_type '{file_type}'. Must be one of: "
-                f"{', '.join(sorted(valid_types))}"
-            )
+            msg = f"Invalid file_type '{file_type}'. Must be one of: " f"{', '.join(sorted(valid_types))}"
             self.report_error(msg)
             return {"success": False, "error": msg, "paths": paths}
         valid_sorts = {"name", "size", "mtime"}
         if sort_by is not None and sort_by not in valid_sorts:
-            msg = (
-                f"Invalid sort_by '{sort_by}'. Must be one of: "
-                f"{', '.join(sorted(valid_sorts))}"
-            )
+            msg = f"Invalid sort_by '{sort_by}'. Must be one of: " f"{', '.join(sorted(valid_sorts))}"
             self.report_error(msg)
             return {"success": False, "error": msg, "paths": paths}
         return None
 
-    def _collect_valid_paths(
-        self, paths: str
-    ) -> tuple[list[str], dict[str, Any] | None]:
+    def _collect_valid_paths(self, paths: str) -> tuple[list[str], dict[str, Any] | None]:
         """Resolve the root paths; return (valid_paths, error_result)."""
         path_list = paths.strip().split()
         if not path_list:
@@ -252,16 +244,10 @@ def main():
     import argparse
     import json
 
-    parser = argparse.ArgumentParser(
-        description="Find files by name pattern and attributes"
-    )
+    parser = argparse.ArgumentParser(description="Find files by name pattern and attributes")
     parser.add_argument("paths", help="Space-separated root paths to search")
-    parser.add_argument(
-        "--pattern", "-p", help="Glob pattern for the full relative path"
-    )
-    parser.add_argument(
-        "--exclude", "-e", help="Space-separated glob patterns to exclude"
-    )
+    parser.add_argument("--pattern", "-p", help="Glob pattern for the full relative path")
+    parser.add_argument("--exclude", "-e", help="Space-separated glob patterns to exclude")
     parser.add_argument(
         "--type",
         "-t",
@@ -283,21 +269,15 @@ def main():
         help="Modified more than N days ago",
     )
     parser.add_argument("--max-depth", "-d", type=int, help="Maximum recursion depth")
-    parser.add_argument(
-        "--max-results", "-m", type=int, default=200, help="Maximum results"
-    )
+    parser.add_argument("--max-results", "-m", type=int, default=200, help="Maximum results")
     parser.add_argument(
         "--sort-by",
         "-s",
         choices=["name", "size", "mtime"],
         help="Sort order for results",
     )
-    parser.add_argument(
-        "--no-gitignore", action="store_true", help="Disable .gitignore filtering"
-    )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--no-gitignore", action="store_true", help="Disable .gitignore filtering")
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
 
     args = parser.parse_args()
 
@@ -326,13 +306,9 @@ def main():
             stats = result.get("stats", {})
             ignore_msgs = []
             if stats.get("gitignore_ignored", 0) > 0:
-                ignore_msgs.append(
-                    f"{stats['gitignore_ignored']} ignored by .gitignore"
-                )
+                ignore_msgs.append(f"{stats['gitignore_ignored']} ignored by .gitignore")
             if stats.get("janitoignore_ignored", 0) > 0:
-                ignore_msgs.append(
-                    f"{stats['janitoignore_ignored']} ignored by .janitoignore"
-                )
+                ignore_msgs.append(f"{stats['janitoignore_ignored']} ignored by .janitoignore")
             if ignore_msgs:
                 print(f"  ({', '.join(ignore_msgs)})")
             print("-" * 40)

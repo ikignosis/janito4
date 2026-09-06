@@ -27,9 +27,7 @@ try:
 except ModuleNotFoundError:
     _HAS_GENAI = False
 
-requires_genai = pytest.mark.skipif(
-    not _HAS_GENAI, reason="google-genai package is not installed"
-)
+requires_genai = pytest.mark.skipif(not _HAS_GENAI, reason="google-genai package is not installed")
 
 
 def _part(*, text=None, thought=False, thought_signature=None, function_call=None):
@@ -44,16 +42,12 @@ def _part(*, text=None, thought=False, thought_signature=None, function_call=Non
 
 def _function_call(call_id="", name="", args=None, will_continue=False):
     """Build a fake Gemini ``FunctionCall``."""
-    return SimpleNamespace(
-        id=call_id, name=name, args=args or {}, will_continue=will_continue
-    )
+    return SimpleNamespace(id=call_id, name=name, args=args or {}, will_continue=will_continue)
 
 
 def _chunk(parts, finish_reason=None, usage=None, model_version=None):
     """Build a fake Gemini ``GenerateContentResponse`` stream chunk."""
-    candidate = SimpleNamespace(
-        content=SimpleNamespace(parts=parts), finish_reason=finish_reason
-    )
+    candidate = SimpleNamespace(content=SimpleNamespace(parts=parts), finish_reason=finish_reason)
     return SimpleNamespace(
         candidates=[candidate],
         usage_metadata=usage,
@@ -70,9 +64,7 @@ if pytest is not None:
             _chunk(
                 [_part(text="world")],
                 finish_reason=SimpleNamespace(name="STOP"),
-                usage=SimpleNamespace(
-                    prompt_token_count=10, response_token_count=20, total_token_count=30
-                ),
+                usage=SimpleNamespace(prompt_token_count=10, response_token_count=20, total_token_count=30),
             ),
         ]
         (
@@ -136,9 +128,7 @@ if pytest is not None:
             _chunk(
                 [
                     _part(
-                        function_call=_function_call(
-                            "fc_1", "read_file", {"filepath": "a.txt"}
-                        ),
+                        function_call=_function_call("fc_1", "read_file", {"filepath": "a.txt"}),
                         thought_signature="sig-2",
                     )
                 ],
@@ -171,23 +161,11 @@ if pytest is not None:
         """Function-call args split across chunks are merged per call id."""
         chunks = [
             _chunk(
-                [
-                    _part(
-                        function_call=_function_call(
-                            "fc_1", "get_weather", {"city": "Lisbon"}
-                        )
-                    )
-                ],
+                [_part(function_call=_function_call("fc_1", "get_weather", {"city": "Lisbon"}))],
                 finish_reason=None,
             ),
             _chunk(
-                [
-                    _part(
-                        function_call=_function_call(
-                            "fc_1", "get_weather", {"unit": "C"}
-                        )
-                    )
-                ],
+                [_part(function_call=_function_call("fc_1", "get_weather", {"unit": "C"}))],
                 finish_reason=SimpleNamespace(name="STOP"),
             ),
         ]
@@ -219,9 +197,7 @@ if pytest is not None:
 
         monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
         with pytest.raises(RuntimeError) as exc:
-            gemini_api._create_client(
-                "https://generativelanguage.googleapis.com", "sk-test"
-            )
+            gemini_api._create_client("https://generativelanguage.googleapis.com", "sk-test")
         assert "pip install google-genai" in str(exc.value)
 
     def test_run_turn_aborts_without_google_genai_package(monkeypatch):
@@ -247,12 +223,8 @@ if pytest is not None:
     def test_create_client_builds_sdk_client_with_base_url():
         """With google-genai installed, _create_client returns a genai.Client
         carrying the resolved base URL and API key."""
-        client = gemini_api._create_client(
-            "https://generativelanguage.googleapis.com", "sk-test"
-        )
-        assert client._api_client._http_options.base_url == (
-            "https://generativelanguage.googleapis.com"
-        )
+        client = gemini_api._create_client("https://generativelanguage.googleapis.com", "sk-test")
+        assert client._api_client._http_options.base_url == ("https://generativelanguage.googleapis.com")
 
     def test_gemini_client_carries_resolved_config():
         """The Gemini client consumes the resolved APIConfig directly (issue
@@ -334,12 +306,7 @@ if pytest is not None:
         not function tools."""
         from janito.llm_adapters.gemini import _convert_tools_to_gemini_format
 
-        assert (
-            _convert_tools_to_gemini_format(
-                [{"type": "code_interpreter"}, {"type": "web_search"}]
-            )
-            is None
-        )
+        assert _convert_tools_to_gemini_format([{"type": "code_interpreter"}, {"type": "web_search"}]) is None
 
     def test_gemini_helpers_messages_to_contents_roundtrip():
         """OpenAI-format history converts to Gemini contents, keeping the
@@ -556,11 +523,7 @@ if pytest is not None:
         declarations and the model emits MALFORMED_FUNCTION_CALL (empty
         answer)."""
         stop = _chunk(
-            [
-                _part(
-                    function_call=_function_call("c1", "ListFiles", {"directory": "."})
-                )
-            ],
+            [_part(function_call=_function_call("c1", "ListFiles", {"directory": "."}))],
             finish_reason=SimpleNamespace(name="STOP"),
         )
         calls = []

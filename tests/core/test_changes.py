@@ -55,9 +55,7 @@ if pytest is not None:
 
     def test_records_change_when_first_arg_is_filepath():
         changes.record_change("CreateFile", {"filepath": "a.py", "content": "x"})
-        assert changes.load_changes() == [
-            {"tool": "CreateFile", "params": {"filepath": "a.py", "content": "x"}}
-        ]
+        assert changes.load_changes() == [{"tool": "CreateFile", "params": {"filepath": "a.py", "content": "x"}}]
 
     def test_read_only_tool_with_filepath_is_ignored():
         # Read-only tools (permissions "r") also take a "filepath" first arg
@@ -96,9 +94,7 @@ if pytest is not None:
         # not tagged with permission flags) fail open so genuine changes are
         # never silently dropped.
         assert changes._has_write_permission("SomeUnknownMcpTool") is True
-        changes.record_change(
-            "SomeUnknownMcpTool", {"filepath": "a.py", "content": "x"}
-        )
+        changes.record_change("SomeUnknownMcpTool", {"filepath": "a.py", "content": "x"})
         assert [r["tool"] for r in changes.load_changes()] == ["SomeUnknownMcpTool"]
 
     def test_multiple_records_keep_insertion_order():
@@ -131,9 +127,7 @@ if pytest is not None:
         path = changes.get_changes_file_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
-            '{"tool": "CreateFile", "params": {"filepath": "a.py"}}\n'
-            "not json\n"
-            "\n",
+            '{"tool": "CreateFile", "params": {"filepath": "a.py"}}\n' "not json\n" "\n",
             encoding="utf-8",
         )
         records = changes.load_changes()
@@ -146,9 +140,7 @@ if pytest is not None:
         assert "no changes" in output.lower()
 
     def test_render_create_file_shows_content():
-        changes.record_change(
-            "CreateFile", {"filepath": "a.py", "content": "def hello():\n    pass"}
-        )
+        changes.record_change("CreateFile", {"filepath": "a.py", "content": "def hello():\n    pass"})
         output = _capture_render()
         assert output.strip() != ""
         assert "CreateFile" in output
@@ -173,9 +165,7 @@ if pytest is not None:
             {"filepath": "a.py", "old_str": "foo = 1", "new_str": "foo = 2"},
         )
         buf = io.StringIO()
-        console = Console(
-            width=100, force_terminal=True, color_system="truecolor", file=buf
-        )
+        console = Console(width=100, force_terminal=True, color_system="truecolor", file=buf)
         changes.render_changes(console)
         out = buf.getvalue()
         assert out.strip() != ""

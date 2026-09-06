@@ -71,9 +71,7 @@ def test_search_text_excludes_single_file_root(search_tree):
 
 
 def test_search_text_count_only_respects_exclude(search_tree):
-    result = SearchText().run(
-        paths=".", query="needle", count_only=True, exclude="skip"
-    )
+    result = SearchText().run(paths=".", query="needle", count_only=True, exclude="skip")
 
     assert result["success"] is True
     assert {Path(k).name for k in result["counts"]} == {"a.txt", "top.txt"}
@@ -112,9 +110,7 @@ def test_search_regex_excludes_single_file_root(search_tree):
 
 
 def test_search_regex_count_only_respects_exclude(search_tree):
-    result = SearchRegex().run(
-        paths=".", pattern="needle", count_only=True, exclude="skip"
-    )
+    result = SearchRegex().run(paths=".", pattern="needle", count_only=True, exclude="skip")
 
     assert result["success"] is True
     assert {Path(k).name for k in result["counts"]} == {"a.txt", "top.txt"}
@@ -170,9 +166,7 @@ def test_exclude_still_prunes_with_gitignore_disabled(tmp_path, monkeypatch):
     (tmp_path / "skip" / "b.txt").write_text("needle\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
 
-    result = SearchText().run(
-        paths=".", query="needle", exclude="skip", respect_gitignore=False
-    )
+    result = SearchText().run(paths=".", query="needle", exclude="skip", respect_gitignore=False)
 
     assert result["success"] is True
     assert _match_paths(result["matches"]) == {"a.txt"}

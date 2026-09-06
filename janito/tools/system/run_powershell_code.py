@@ -40,9 +40,7 @@ def _well_known_powershell_paths() -> list[str]:
 
     if os.name == "nt":
         program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
-        program_files_x86 = os.environ.get(
-            "ProgramFiles(x86)", r"C:\Program Files (x86)"
-        )
+        program_files_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
         local_app_data = os.environ.get("LOCALAPPDATA", "")
         paths.extend(
             [
@@ -51,9 +49,7 @@ def _well_known_powershell_paths() -> list[str]:
             ]
         )
         if local_app_data:
-            paths.append(
-                os.path.join(local_app_data, "Programs", "PowerShell", "7", "pwsh.exe")
-            )
+            paths.append(os.path.join(local_app_data, "Programs", "PowerShell", "7", "pwsh.exe"))
     elif sys.platform == "darwin":
         paths.extend(
             [
@@ -206,9 +202,7 @@ class RunPowerShellCode(BaseTool):
             if abs_working_dir is None:
                 return {
                     "success": False,
-                    "error": (
-                        f"Working directory does not exist: {os.path.abspath(working_directory)}"
-                    ),
+                    "error": (f"Working directory does not exist: {os.path.abspath(working_directory)}"),
                     "exit_code": -1,
                     "working_directory": working_directory,
                 }
@@ -310,9 +304,7 @@ class RunPowerShellCode(BaseTool):
         code_preview = code
         if len(code) > 200:
             code_preview = code[:200] + "..."
-        self.report_start(
-            f"⚙️ Executing PowerShell code in {norm_working_dir}:\n{code_preview}"
-        )
+        self.report_start(f"⚙️ Executing PowerShell code in {norm_working_dir}:\n{code_preview}")
 
     def _build_result(
         self,
@@ -347,14 +339,10 @@ class RunPowerShellCode(BaseTool):
         if capture_errors:
             output_result["stderr"] = stderr_text
         if success:
-            self._report_success(
-                execution_time_ms, capture_output, stdout_lines, stderr_lines
-            )
+            self._report_success(execution_time_ms, capture_output, stdout_lines, stderr_lines)
         else:
             self._report_failure(exit_code, capture_errors, stderr_lines, stdout_lines)
-            output_result[
-                "error"
-            ] = f"PowerShell execution failed with exit code {exit_code}"
+            output_result["error"] = f"PowerShell execution failed with exit code {exit_code}"
         return output_result
 
     def _report_success(

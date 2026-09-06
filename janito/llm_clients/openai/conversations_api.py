@@ -333,12 +333,8 @@ class ResponsesClient(Client):
                 reasoning_items,
                 web_search_calls,
                 web_search_citations,
-            ) = self._invoke_stream_runner(
-                _stream_response, client, call_kwargs, tools_schemas
-            )
-            _emit_web_search_events(
-                self.observer, web_search_calls, web_search_citations
-            )
+            ) = self._invoke_stream_runner(_stream_response, client, call_kwargs, tools_schemas)
+            _emit_web_search_events(self.observer, web_search_calls, web_search_citations)
             # Only server-side conversations chain with the returned id;
             # stateless providers never send previous_response_id.
             if not state["stateless_mode"]:
@@ -405,9 +401,7 @@ class ResponsesClient(Client):
             raise
         return full_content, reasoning_content, tool_calls, usage_info, raw_attrs
 
-    def _handle_tool_calls(
-        self, tool_calls, full_content, reasoning_content, state, tool_executor
-    ):
+    def _handle_tool_calls(self, tool_calls, full_content, reasoning_content, state, tool_executor):
         # Record the assistant's tool calls in the client-side history
         # (stateless providers) and execute every call, sending the results
         # back as function_call_output items chained to the response that

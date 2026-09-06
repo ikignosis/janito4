@@ -145,9 +145,5 @@ def resolve_api_type(
             raise
 
     found = get_provider(provider)
-    default = (
-        found.model_config(effective_model).get("default_api_type")
-        if found is not None
-        else None
-    )
+    default = found.model_config(effective_model).get("default_api_type") if found is not None else None
     return default or "Completions"

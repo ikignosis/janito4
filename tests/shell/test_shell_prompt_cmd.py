@@ -24,9 +24,7 @@ SKILLS_SECTION = "## Available Skills\n(fake skills section)"
 
 def _patch_skills_section(monkeypatch):
     """Patch the skills section so the test is isolated from the tool registry."""
-    monkeypatch.setattr(
-        tools_registry_mod, "get_skills_section", lambda: SKILLS_SECTION
-    )
+    monkeypatch.setattr(tools_registry_mod, "get_skills_section", lambda: SKILLS_SECTION)
 
 
 def _patch_no_skills(monkeypatch):
@@ -38,9 +36,7 @@ def _patch_config_start(monkeypatch, start, label=None):
     """Pin load_system_prompt_start so tests never touch the real config."""
     import janito.config_loaders as config_loaders_mod
 
-    monkeypatch.setattr(
-        config_loaders_mod, "load_system_prompt_start", lambda: (start, label)
-    )
+    monkeypatch.setattr(config_loaders_mod, "load_system_prompt_start", lambda: (start, label))
 
 
 def test_prompt_cmd_shows_section_table(monkeypatch, tmp_path, capfd):
@@ -138,9 +134,7 @@ def test_prompt_cmd_config_start_keeps_section_table(monkeypatch, tmp_path, capf
     from janito.session_setup import SessionSetup
 
     _patch_skills_section(monkeypatch)
-    _patch_config_start(
-        monkeypatch, "configured start text", label="(config) ~/base.md"
-    )
+    _patch_config_start(monkeypatch, "configured start text", label="(config) ~/base.md")
     monkeypatch.chdir(tmp_path)
 
     shell = InteractiveShell(model="test-model", no_history=True)
@@ -156,9 +150,7 @@ def test_prompt_cmd_config_start_keeps_section_table(monkeypatch, tmp_path, capf
     assert "configured start text" in out  # test input text
 
 
-def test_prompt_cmd_preserves_leading_whitespace_of_sections(
-    monkeypatch, tmp_path, capfd
-):
+def test_prompt_cmd_preserves_leading_whitespace_of_sections(monkeypatch, tmp_path, capfd):
     """Leading whitespace of a section is kept in the table display.
 
     The start section and plugin sections may start with a newline; ``rstrip``

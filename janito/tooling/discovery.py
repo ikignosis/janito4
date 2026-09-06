@@ -188,9 +188,7 @@ def _make_class_tool(cls: type) -> Callable:
     class_tool_wrapper.should_load = getattr(cls, "should_load", None)
 
     # Preserve type hints (excluding 'self')
-    class_tool_wrapper.__annotations__ = {
-        k: v for k, v in run_type_hints.items() if k != "self"
-    }
+    class_tool_wrapper.__annotations__ = {k: v for k, v in run_type_hints.items() if k != "self"}
 
     return class_tool_wrapper
 

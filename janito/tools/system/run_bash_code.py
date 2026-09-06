@@ -43,9 +43,7 @@ def _well_known_bash_paths() -> list[str]:
     if os.name == "nt":
         # Git Bash and WSL locations on Windows
         program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
-        program_files_x86 = os.environ.get(
-            "ProgramFiles(x86)", r"C:\Program Files (x86)"
-        )
+        program_files_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
         system_root = os.environ.get("SystemRoot", r"C:\Windows")
         local_app_data = os.environ.get("LOCALAPPDATA", "")
         paths.extend(
@@ -57,9 +55,7 @@ def _well_known_bash_paths() -> list[str]:
             ]
         )
         if local_app_data:
-            paths.append(
-                os.path.join(local_app_data, "Programs", "Git", "bin", "bash.exe")
-            )
+            paths.append(os.path.join(local_app_data, "Programs", "Git", "bin", "bash.exe"))
     elif sys.platform == "darwin":
         paths.extend(
             [
@@ -168,8 +164,7 @@ class RunBashCode(BaseTool):
         """
         if cls._find_shell() is None:
             cls._load_skip_reason = (
-                "no Bash executable found (looked for 'bash' and 'sh' on "
-                "PATH and in well-known install locations)"
+                "no Bash executable found (looked for 'bash' and 'sh' on " "PATH and in well-known install locations)"
             )
             return False
         return True
@@ -225,9 +220,7 @@ class RunBashCode(BaseTool):
             self.report_error("Bash not found")
             return {
                 "success": False,
-                "error": (
-                    "No Bash executable found. Install bash or ensure a POSIX shell (sh) is on PATH."
-                ),
+                "error": ("No Bash executable found. Install bash or ensure a POSIX shell (sh) is on PATH."),
                 "exit_code": -1,
                 "command": code,
                 "working_directory": working_directory or os.getcwd(),
@@ -239,9 +232,7 @@ class RunBashCode(BaseTool):
             if abs_working_dir is None:
                 return {
                     "success": False,
-                    "error": (
-                        f"Working directory does not exist: {os.path.abspath(working_directory)}"
-                    ),
+                    "error": (f"Working directory does not exist: {os.path.abspath(working_directory)}"),
                     "exit_code": -1,
                     "working_directory": working_directory,
                 }
@@ -327,9 +318,7 @@ class RunBashCode(BaseTool):
         code_preview = code
         if len(code) > 200:
             code_preview = code[:200] + "..."
-        self.report_start(
-            f"⚙️ Executing Bash code in {norm_working_dir}:\n{code_preview}"
-        )
+        self.report_start(f"⚙️ Executing Bash code in {norm_working_dir}:\n{code_preview}")
 
     def _build_shell_command(self, shell_path: str, code: str) -> list[str]:
         """Build the shell argv; bash gets --noprofile/--norc, sh does not."""
@@ -370,9 +359,7 @@ class RunBashCode(BaseTool):
         if capture_errors:
             output_result["stderr"] = stderr_text
         if success:
-            self._report_success(
-                execution_time_ms, capture_output, stdout_lines, stderr_lines
-            )
+            self._report_success(execution_time_ms, capture_output, stdout_lines, stderr_lines)
         else:
             self._report_failure(exit_code, capture_errors, stderr_lines, stdout_lines)
             output_result["error"] = f"Bash execution failed with exit code {exit_code}"

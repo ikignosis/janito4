@@ -16,11 +16,7 @@ class PushCmdHandler(CmdHandler):
     def handle(self, shell, user_input: str) -> bool:
         stripped = user_input.strip()
         lowered = stripped.lower()
-        if (
-            lowered == self.name
-            or lowered.startswith(self.name + " ")
-            or lowered.startswith(self.name + "\t")
-        ):
+        if lowered == self.name or lowered.startswith(self.name + " ") or lowered.startswith(self.name + "\t"):
             msg = stripped[len(self.name) :].strip()
             stack = shell.conversation_stack
             depth = stack.push(shell)

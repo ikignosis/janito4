@@ -247,11 +247,7 @@ class SessionManager:
         now = time.time()
         with self._lock:
             if ttl:
-                expired = [
-                    sid
-                    for sid, s in self._sessions.items()
-                    if (now - s.last_active) > ttl
-                ]
+                expired = [sid for sid, s in self._sessions.items() if (now - s.last_active) > ttl]
                 for sid in expired:
                     del self._sessions[sid]
             return list(self._sessions.values())

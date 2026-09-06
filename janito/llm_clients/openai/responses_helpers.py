@@ -50,16 +50,12 @@ def _pending_items_for_cancel(state: dict[str, Any]) -> list[dict[str, Any]] | N
     return None
 
 
-def _resolve_tools(
-    tools: list[dict[str, Any]] | None, mcp_tools: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+def _resolve_tools(tools: list[dict[str, Any]] | None, mcp_tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Resolve the tool schemas (built-in + MCP) and convert to Responses format."""
     if tools is None:
         built_in_tools = get_session_tool_schemas()
         tools_schemas = built_in_tools + mcp_tools
-        logger.debug(
-            f"Using {len(built_in_tools)} built-in tools + {len(mcp_tools)} MCP tools"
-        )
+        logger.debug(f"Using {len(built_in_tools)} built-in tools + {len(mcp_tools)} MCP tools")
     else:
         tools_schemas = tools
         logger.debug(f"Using {len(tools_schemas)} provided tools")
@@ -78,12 +74,7 @@ def _validate_stream_result(
     model: str,
 ) -> None:
     """Raise a clear error when a server-side response came back empty."""
-    if (
-        not stateless_mode
-        and stream_response_id is None
-        and not full_content
-        and not tool_calls
-    ):
+    if not stateless_mode and stream_response_id is None and not full_content and not tool_calls:
         raise RuntimeError(
             f"The Responses API returned an empty response for model "
             f"'{model}'. The model may not be supported by this "

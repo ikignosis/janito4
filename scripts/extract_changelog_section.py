@@ -43,9 +43,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("version", help="release version, e.g. v4.19.0")
     parser.add_argument("--changelog", default=str(DEFAULT_CHANGELOG))
-    parser.add_argument(
-        "--output", default=None, help="write to file instead of stdout"
-    )
+    parser.add_argument("--output", default=None, help="write to file instead of stdout")
     args = parser.parse_args(argv)
 
     path = Path(args.changelog)

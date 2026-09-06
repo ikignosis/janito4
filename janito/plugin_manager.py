@@ -110,10 +110,7 @@ def _validate_plugin_module(plugin_dir: Path, module: ModuleType) -> str | None:
     """Validate the plugin contract; return an error string or ``None``."""
     missing = [sym for sym in REQUIRED_SYMBOLS if not hasattr(module, sym)]
     if missing:
-        return (
-            f"plugin at {plugin_dir} is missing required symbols: "
-            f"{', '.join(missing)}"
-        )
+        return f"plugin at {plugin_dir} is missing required symbols: " f"{', '.join(missing)}"
     if not callable(getattr(module, "on_start")):
         return f"plugin at {plugin_dir}: 'on_start' must be callable"
     if not isinstance(getattr(module, "name"), str):
@@ -234,15 +231,9 @@ def load_plugin(plugin_dir: str | Path) -> Plugin:
     # --plugin path produces a clear, actionable error instead of a
     # confusing "No module named ..." from importlib.
     if not plugin_path.is_dir():
-        plugin.load_error = (
-            f"plugin directory not found: {plugin_path} "
-            "(check the path passed to --plugin)"
-        )
+        plugin.load_error = f"plugin directory not found: {plugin_path} " "(check the path passed to --plugin)"
     elif not (plugin_path / "__init__.py").is_file():
-        plugin.load_error = (
-            f"plugin directory has no __init__.py: {plugin_path} "
-            "(a plugin must be a Python package)"
-        )
+        plugin.load_error = f"plugin directory has no __init__.py: {plugin_path} " "(a plugin must be a Python package)"
 
     if plugin.load_error is None:
         with _plugin_parent_on_sys_path(plugin_path):

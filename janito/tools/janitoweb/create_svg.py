@@ -79,9 +79,7 @@ def main():
     import argparse
     import json
 
-    parser = argparse.ArgumentParser(
-        description="Create an SVG graphic for inline display in the web UI"
-    )
+    parser = argparse.ArgumentParser(description="Create an SVG graphic for inline display in the web UI")
     parser.add_argument("svg_text", help="Raw SVG markup to echo back")
     parser.add_argument(
         "--view-width",
@@ -95,9 +93,7 @@ def main():
         default=_DEFAULT_VIEW_HEIGHT,
         help="Display height in pixels (default: %(default)s)",
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
     args = parser.parse_args()
 
     result = CreateSVG().run(

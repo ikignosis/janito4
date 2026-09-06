@@ -85,9 +85,7 @@ def _domain_of(module: str) -> str:
     return "root"
 
 
-def _resolve_target(
-    package_parts: list[str], level: int, module: str | None
-) -> str | None:
+def _resolve_target(package_parts: list[str], level: int, module: str | None) -> str | None:
     """Resolve an ImportFrom target to an absolute module name."""
     if level == 0 and module:
         return module
@@ -145,9 +143,7 @@ def test_import_graph_respects_domain_boundaries():
     violations = _collect_edges()
     assert not violations, (
         "Cross-domain imports violate the allowed dependency matrix (issue #90):\n"
-        + "\n".join(
-            f"  {where}: {source} -> {target}" for where, source, target in violations
-        )
+        + "\n".join(f"  {where}: {source} -> {target}" for where, source, target in violations)
         + "\nUpdate the code (or, only after a deliberate boundary decision, "
         "the ALLOWED_EDGES matrix in this test and dev-docs/ARCHITECTURE.md)."
     )

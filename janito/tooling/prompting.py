@@ -67,9 +67,7 @@ class browser_prompts:
         _browser_prompts_enabled = self._previous
 
 
-_prompt_handler: ContextVar[PromptHandler | None] = ContextVar(
-    "_prompt_handler", default=None
-)
+_prompt_handler: ContextVar[PromptHandler | None] = ContextVar("_prompt_handler", default=None)
 
 
 def set_prompt_handler(handler: PromptHandler | None) -> None:

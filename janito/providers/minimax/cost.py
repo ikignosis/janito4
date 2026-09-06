@@ -67,7 +67,5 @@ def get_cost(
         input_miss *= input_multiplier
         input_hit *= input_multiplier
         output_rate *= output_multiplier
-    cost = (
-        (input - cached) * input_miss + cached * input_hit + output * output_rate
-    ) / 1_000_000
+    cost = ((input - cached) * input_miss + cached * input_hit + output * output_rate) / 1_000_000
     return f"{cost:.6f}$"

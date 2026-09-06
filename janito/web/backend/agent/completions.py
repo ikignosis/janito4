@@ -57,9 +57,7 @@ def build_call_kwargs(
     return call_kwargs
 
 
-async def stream_turn_events(
-    client, call_kwargs: dict, acc: CompletionsTurnAccumulator
-):
+async def stream_turn_events(client, call_kwargs: dict, acc: CompletionsTurnAccumulator):
     """Stream one Chat Completions turn, yielding reasoning/token events.
 
     The caller owns ``acc``; on completion it holds the full turn state for

@@ -267,9 +267,7 @@ class GeminiClient(Client):
                 usage_info,
                 raw_attrs,
                 thought_parts,
-            ) = self._invoke_stream_runner(
-                _stream_response, client, call_kwargs, tools_schemas
-            )
+            ) = self._invoke_stream_runner(_stream_response, client, call_kwargs, tools_schemas)
         except Exception as e:
             # The google-genai SDK raises its own exception types (APIError);
             # classify the failure explicitly (auth / not-found / unknown) so
@@ -290,9 +288,7 @@ class GeminiClient(Client):
         state["thought_parts"] = thought_parts
         return full_content, reasoning_content, tool_calls, usage_info, raw_attrs
 
-    def _handle_tool_calls(
-        self, tool_calls, full_content, reasoning_content, state, tool_executor
-    ):
+    def _handle_tool_calls(self, tool_calls, full_content, reasoning_content, state, tool_executor):
         # Record the assistant's message with its content blocks (text +
         # function_call parts) in the client-side history, then execute every
         # call and send the results back as function_response parts before

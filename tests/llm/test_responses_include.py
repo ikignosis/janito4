@@ -26,9 +26,7 @@ def test_meta_models_declare_stateless_and_include():
     assert found is not None
     for model in ("muse-spark-1.3", "muse-spark-1.3-contributor"):
         assert bool(found.model_config(model).get("stateless_mode", False)) is True
-        assert found.model_config(model).get("responses_include") == [
-            "reasoning.encrypted_content"
-        ]
+        assert found.model_config(model).get("responses_include") == ["reasoning.encrypted_content"]
 
 
 def test_models_without_declaration_default_to_no_include():
@@ -36,9 +34,7 @@ def test_models_without_declaration_default_to_no_include():
     assert found is not None
     # OpenAI models declare no include values (the API default applies).
     assert found.model_config("gpt-5.6-luna").get("responses_include") is None
-    assert (
-        bool(found.model_config("gpt-5.6-luna").get("stateless_mode", False)) is False
-    )
+    assert bool(found.model_config("gpt-5.6-luna").get("stateless_mode", False)) is False
 
 
 def test_responses_include_malformed_value_returns_none():

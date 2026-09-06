@@ -103,7 +103,5 @@ class CommandCompleter(Completer):
     def _matching_command_names(self, prefix: str) -> list[str]:
         """Return sorted command names that start with ``prefix`` (case-insensitive)."""
         lowered = prefix.lower()
-        names = [
-            cmd.name for cmd in self._commands() if cmd.name.lower().startswith(lowered)
-        ]
+        names = [cmd.name for cmd in self._commands() if cmd.name.lower().startswith(lowered)]
         return sorted(names)

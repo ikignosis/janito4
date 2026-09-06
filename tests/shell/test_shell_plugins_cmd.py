@@ -83,9 +83,7 @@ if pytest is not None:
             )
         ]
 
-        handled, output = _run_handler(
-            installed, loaded=loaded, plugins_dir=plugins_dir
-        )
+        handled, output = _run_handler(installed, loaded=loaded, plugins_dir=plugins_dir)
 
         assert handled is True
         assert "codesearch" in output

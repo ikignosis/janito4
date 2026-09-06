@@ -122,9 +122,7 @@ def _provider_cost_raw(
         get_cost = getattr(_cost_module(base), "get_cost")
         if now is None:
             return get_cost(model, input, output, cached, is_reference=is_reference)
-        return get_cost(
-            model, input, output, cached, now=now, is_reference=is_reference
-        )
+        return get_cost(model, input, output, cached, now=now, is_reference=is_reference)
     except (ImportError, AttributeError, TypeError):
         return None
 
@@ -173,9 +171,7 @@ def get_provider_cost(
         rate-band annotation, or ``"N/A"`` when the provider is unknown or
         has no cost module.
     """
-    raw = _provider_cost_raw(
-        provider, model, input, output, cached, now=now, is_reference=is_reference
-    )
+    raw = _provider_cost_raw(provider, model, input, output, cached, now=now, is_reference=is_reference)
     if raw is None:
         return "N/A"
     return _adapt_cost_string(raw)
@@ -213,9 +209,7 @@ def get_provider_cost_value(
         provider is unknown, has no cost module, or the cost could not be
         parsed as a number.
     """
-    raw = _provider_cost_raw(
-        provider, model, input, output, cached, now=now, is_reference=is_reference
-    )
+    raw = _provider_cost_raw(provider, model, input, output, cached, now=now, is_reference=is_reference)
     if raw is None:
         return None
     value, sep, _ = raw.partition("$")

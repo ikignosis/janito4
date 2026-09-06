@@ -190,9 +190,7 @@ async def _run_turn(
             stream_fn=stream_fn,
         )
     )
-    cancel_task = asyncio.ensure_future(
-        _await_cancel(websocket, pending_prompts, prompt_registry)
-    )
+    cancel_task = asyncio.ensure_future(_await_cancel(websocket, pending_prompts, prompt_registry))
     done, pending = await asyncio.wait(
         {stream_task, cancel_task},
         return_when=asyncio.FIRST_COMPLETED,

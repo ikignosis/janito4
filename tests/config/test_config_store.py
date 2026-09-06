@@ -54,9 +54,7 @@ if pytest is not None:
         store = ConfigStore()
         store.set("openai.model", "gpt-4")
         assert store.get("openai.model") == "gpt-4"
-        assert json.loads((base / "config.json").read_text()) == {
-            "providers": {"openai": {"model": "gpt-4"}}
-        }
+        assert json.loads((base / "config.json").read_text()) == {"providers": {"openai": {"model": "gpt-4"}}}
         # Unsetting the last key removes the empty provider dict entirely.
         assert store.unset("openai.model") is True
         assert store.get("openai.model") is None
@@ -69,9 +67,7 @@ if pytest is not None:
         # "unknown.key" is not in PROVIDER_SCOPED_KEYS -> stored as a flat key.
         store.set("unknown.key", "value")
         assert store.get("unknown.key") == "value"
-        assert json.loads((base / "config.json").read_text()) == {
-            "unknown.key": "value"
-        }
+        assert json.loads((base / "config.json").read_text()) == {"unknown.key": "value"}
         assert "unknown.key" not in PROVIDER_SCOPED_KEYS
 
     def test_flat_set_after_provider_scoped(monkeypatch, tmp_path):

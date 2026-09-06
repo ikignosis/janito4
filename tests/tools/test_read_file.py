@@ -82,9 +82,7 @@ def test_start_line_out_of_range_still_errors(sample_file):
     result = ReadFile().run(filepath=sample_file, start_line=99, max_lines=100)
 
     assert result["success"] is False
-    assert (
-        "error" in result["error"].lower() or "out of range" in result["error"].lower()
-    )
+    assert "error" in result["error"].lower() or "out of range" in result["error"].lower()
     assert result["total_lines"] == 5
 
 

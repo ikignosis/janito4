@@ -114,9 +114,7 @@ class RichTurnObserver(NullObserver):
         nothing (the caller always re-raises).
         """
         if error_kind == "not_found":
-            _handle_not_found_error(
-                e, base_url, model, self.console, response_id=response_id
-            )
+            _handle_not_found_error(e, base_url, model, self.console, response_id=response_id)
         elif error_kind == "auth":
             _handle_auth_error(e, provider, api_key, base_url, model, self.console)
         # else: unknown failure -- nothing to explain; the caller re-raises.
@@ -214,21 +212,9 @@ def _record_accounting(token_stats: TurnInfo | None, api_config: APIConfig) -> N
     """
     if token_stats is None:
         return
-    input_tokens = (
-        token_stats.turn_input
-        if token_stats.turn_input is not None
-        else token_stats.last_input
-    )
-    cached_tokens = (
-        token_stats.turn_cached
-        if token_stats.turn_cached is not None
-        else token_stats.last_cached
-    )
-    output_tokens = (
-        token_stats.turn_output
-        if token_stats.turn_output is not None
-        else token_stats.last_output
-    )
+    input_tokens = token_stats.turn_input if token_stats.turn_input is not None else token_stats.last_input
+    cached_tokens = token_stats.turn_cached if token_stats.turn_cached is not None else token_stats.last_cached
+    output_tokens = token_stats.turn_output if token_stats.turn_output is not None else token_stats.last_output
     cost = None
     if api_config.provider and api_config.model:
         cost = get_provider_cost_value(

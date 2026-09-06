@@ -32,10 +32,7 @@ def _tools_display(provider: str, model: str) -> str | None:
     for api_type in found.model_config(model).get("supported_api_types") or []:
         tools = found.tools(model, api_type=api_type)
         if tools:
-            joined = ", ".join(
-                tool.get("type") if isinstance(tool, dict) else str(tool)
-                for tool in tools
-            )
+            joined = ", ".join(tool.get("type") if isinstance(tool, dict) else str(tool) for tool in tools)
             segments.append(f"{joined} ({api_type})")
     return "; ".join(segments) or None
 
@@ -65,9 +62,7 @@ def _resolve_endpoint_display(provider: str) -> tuple[str, str]:
     return built_in, "built-in"
 
 
-def _model_rows(
-    provider: str, model: str, *, default_model: str | None
-) -> list[tuple[str, str]]:
+def _model_rows(provider: str, model: str, *, default_model: str | None) -> list[tuple[str, str]]:
     """Build the (key, value) rows describing one built-in model entry."""
     rows: list[tuple[str, str]] = []
     label = model
@@ -75,29 +70,18 @@ def _model_rows(
         label += " (default)"
 
     found = get_provider(provider)
-    api_types = (
-        found.model_config(model).get("supported_api_types")
-        if found is not None
-        else None
-    ) or []
-    default_api_type = (
-        found.model_config(model).get("default_api_type") if found is not None else None
-    )
+    api_types = (found.model_config(model).get("supported_api_types") if found is not None else None) or []
+    default_api_type = found.model_config(model).get("default_api_type") if found is not None else None
     if api_types:
         api_types_display = ", ".join(
-            f"{api_type} (default)" if api_type == default_api_type else api_type
-            for api_type in api_types
+            f"{api_type} (default)" if api_type == default_api_type else api_type for api_type in api_types
         )
     else:
         api_types_display = "(none)"
     rows.append((f"{label} API types", api_types_display))
 
-    thinking = (
-        found.model_config(model).get("thinking", False) if found is not None else False
-    )
-    rows.append(
-        (f"{label} thinking", format_thinking_display(thinking, provider=provider))
-    )
+    thinking = found.model_config(model).get("thinking", False) if found is not None else False
+    rows.append((f"{label} thinking", format_thinking_display(thinking, provider=provider)))
 
     # Built-in (native) tools are resolved per API type: each supported
     # API type that declares tools is shown as "type1, type2 (API Type)".
@@ -107,22 +91,12 @@ def _model_rows(
     if tools_display:
         rows.append((f"{label} tools", tools_display))
 
-    reasoning = (
-        found.model_config(model).get("default_reasoning_effort")
-        if found is not None
-        else None
-    )
+    reasoning = found.model_config(model).get("default_reasoning_effort") if found is not None else None
     if reasoning:
         rows.append((f"{label} reasoning", f"{reasoning} (default)"))
 
-    max_input = (
-        found.model_config(model).get("max_input_tokens") if found is not None else None
-    )
-    max_output = (
-        found.model_config(model).get("max_output_tokens")
-        if found is not None
-        else None
-    )
+    max_input = found.model_config(model).get("max_input_tokens") if found is not None else None
+    max_output = found.model_config(model).get("max_output_tokens") if found is not None else None
     if max_input is not None or max_output is not None:
         rows.append(
             (
@@ -206,9 +180,7 @@ def handle_show_providers(args) -> int:
     # Built-in providers, in registry order; variants appended afterwards
     # (sorted), matching the web UI's provider list.
     entries = [(name, None) for name in list_supported_providers()]
-    entries += [
-        (variant, parse_variant_name(variant)[0]) for variant in list_variants()
-    ]
+    entries += [(variant, parse_variant_name(variant)[0]) for variant in list_variants()]
 
     total = len(entries)
     print(f"Supported Providers ({total}):")
@@ -241,7 +213,5 @@ def handle_show_providers(args) -> int:
     if auth_path.exists():
         print(f"Auth file:    {auth_path}")
     print()
-    print(
-        "Use --provider <name> to select one, or janito --create-variant <provider>-<word> to add a variant."
-    )
+    print("Use --provider <name> to select one, or janito --create-variant <provider>-<word> to add a variant.")
     return 0

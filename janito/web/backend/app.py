@@ -112,9 +112,7 @@ def create_app(config: WebServerConfig) -> FastAPI:
             # the server (Jinja2's FileSystemLoader auto-reloads on mtime
             # changes), and send ``no-store`` so browsers never serve a
             # stale shell.
-            html = template_env.get_template("base.html").render(
-                auth_token=config.auth_token
-            )
+            html = template_env.get_template("base.html").render(auth_token=config.auth_token)
             # Cache-bust local /js/ + /css/ assets by fingerprinting each
             # reference with its file mtime. Browsers aggressively cache
             # these scripts, so without this a frontend edit (e.g. a new
@@ -185,9 +183,7 @@ def run_web(args) -> None:
     print("  Press Ctrl+C to stop.")
 
     try:
-        uvicorn.run(
-            app, host=config.web_host, port=config.web_port, log_level="warning"
-        )
+        uvicorn.run(app, host=config.web_host, port=config.web_port, log_level="warning")
     finally:
         from janito.mcp_manager import shutdown_mcp_manager
 

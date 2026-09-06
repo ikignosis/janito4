@@ -59,9 +59,7 @@ if pytest is not None:
 
         buf = io.StringIO()
         orig = reporter._console
-        reporter._console = Console(
-            width=100, force_terminal=True, color_system="truecolor", file=buf
-        )
+        reporter._console = Console(width=100, force_terminal=True, color_system="truecolor", file=buf)
         try:
             reporter.report_diff("foo = 1", "foo = 2")
         finally:
@@ -77,9 +75,7 @@ if pytest is not None:
 
         buf = io.StringIO()
         orig = reporter._console
-        reporter._console = Console(
-            width=100, force_terminal=True, color_system="truecolor", file=buf
-        )
+        reporter._console = Console(width=100, force_terminal=True, color_system="truecolor", file=buf)
         try:
             reporter.report_diff("foo = 1", "foo = 2")
         finally:
@@ -105,9 +101,7 @@ if pytest is not None:
 
     def test_report_diff_routes_to_handler():
         events = []
-        reporter.set_report_handler(
-            lambda level, message, end: events.append((level, message, end))
-        )
+        reporter.set_report_handler(lambda level, message, end: events.append((level, message, end)))
         try:
             reporter.report_diff("a\nb", "a\nc")
         finally:
@@ -133,13 +127,9 @@ if pytest is not None:
         f.write_text("foo = 1\nbar = 2\n", encoding="utf-8")
 
         events = []
-        reporter.set_report_handler(
-            lambda level, message, end: events.append((level, message))
-        )
+        reporter.set_report_handler(lambda level, message, end: events.append((level, message)))
         try:
-            result = ReplaceTextInFile().run(
-                filepath=str(f), old_str="foo = 1", new_str="foo = 2"
-            )
+            result = ReplaceTextInFile().run(filepath=str(f), old_str="foo = 1", new_str="foo = 2")
         finally:
             reporter.set_report_handler(None)
 
@@ -160,13 +150,9 @@ if pytest is not None:
         f.write_text("foo = 1\n", encoding="utf-8")
 
         events = []
-        reporter.set_report_handler(
-            lambda level, message, end: events.append((level, message))
-        )
+        reporter.set_report_handler(lambda level, message, end: events.append((level, message)))
         try:
-            result = ReplaceTextInFile().run(
-                filepath=str(f), old_str="missing", new_str="x"
-            )
+            result = ReplaceTextInFile().run(filepath=str(f), old_str="missing", new_str="x")
         finally:
             reporter.set_report_handler(None)
 

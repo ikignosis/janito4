@@ -176,9 +176,7 @@ def test_cleanup_removes_temp_files(server):
 # ---------------------------------------------------------------------------
 
 
-def _set_routes(
-    routes=None, *, default_status=200, default_payload=SMALL_PAYLOAD, llms_404=True
-):
+def _set_routes(routes=None, *, default_status=200, default_payload=SMALL_PAYLOAD, llms_404=True):
     """Re-configure the handler class attributes for one test."""
     _Handler.routes = dict(routes or {})
     _Handler.default_status = default_status
@@ -203,9 +201,7 @@ def test_discovery_found_at_root(server):
     # Discovery probed with HEAD, then fetched with GET - never GET the page.
     assert ("HEAD", "/llms.txt") in _Handler.requests
     assert ("GET", "/llms.txt") in _Handler.requests
-    assert all(
-        method != "GET" or path != "/guide" for method, path in _Handler.requests
-    )
+    assert all(method != "GET" or path != "/guide" for method, path in _Handler.requests)
 
 
 def test_discovery_well_known_fallback(server):
@@ -302,9 +298,7 @@ def test_llms_txt_never_truncated(server):
     tool = GetUrl()
     # Tiny max_length/max_lines and the default threshold must not truncate or
     # store the site map - it is always returned inline in full.
-    result = tool.run(
-        url=f"{server}/guide", max_length=100, max_lines=5, check_llms_txt=True
-    )
+    result = tool.run(url=f"{server}/guide", max_length=100, max_lines=5, check_llms_txt=True)
 
     assert result["success"] is True
     assert result.get("llms_txt") is True

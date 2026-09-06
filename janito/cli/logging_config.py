@@ -28,9 +28,7 @@ def setup_logging(log_levels: str = None):
                 handler.setLevel(getattr(logging, level))
                 handler.setFormatter(
                     logging.Formatter(
-                        "%(levelname)s: %(message)s"
-                        if level == "INFO"
-                        else "%(levelname)s: %(name)s: %(message)s"
+                        "%(levelname)s: %(message)s" if level == "INFO" else "%(levelname)s: %(name)s: %(message)s"
                     )
                 )
                 logger.addHandler(handler)

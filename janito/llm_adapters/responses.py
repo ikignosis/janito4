@@ -109,9 +109,7 @@ def _save_base64_image(b64_data: str) -> str | None:
         logger.warning(f"Failed to decode base64 image data: {e}")
         return None
     try:
-        tmp = tempfile.NamedTemporaryFile(
-            suffix=".png", prefix="janito_image_", delete=False
-        )
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", prefix="janito_image_", delete=False)
         tmp_path = tmp.name
         with open(tmp_path, "wb") as fh:
             fh.write(image_bytes)
@@ -125,23 +123,11 @@ def _citations_from_output(output) -> list[dict]:
     """Collect ``url_citation`` annotations from a completed response output."""
     citations: list[dict] = []
     for entry in output or []:
-        content = (
-            entry.get("content")
-            if isinstance(entry, dict)
-            else getattr(entry, "content", None)
-        )
+        content = entry.get("content") if isinstance(entry, dict) else getattr(entry, "content", None)
         for block in content or []:
-            anns = (
-                block.get("annotations")
-                if isinstance(block, dict)
-                else getattr(block, "annotations", None)
-            )
+            anns = block.get("annotations") if isinstance(block, dict) else getattr(block, "annotations", None)
             for ann in anns or []:
-                atype = (
-                    ann.get("type")
-                    if isinstance(ann, dict)
-                    else getattr(ann, "type", None)
-                )
+                atype = ann.get("type") if isinstance(ann, dict) else getattr(ann, "type", None)
                 if atype != "url_citation":
                     continue
                 if isinstance(ann, dict):
@@ -223,9 +209,7 @@ def _messages_to_input_items(messages: list[dict]) -> list[dict]:
                 {
                     "type": "message",
                     "role": role,
-                    "content": [
-                        {"type": text_type, "text": _text_of(m.get("content"))}
-                    ],
+                    "content": [{"type": text_type, "text": _text_of(m.get("content"))}],
                 }
             )
     return items
@@ -280,18 +264,14 @@ def build_call_kwargs(
         call_kwargs["reasoning"] = reasoning
 
     if preserve_thinking is not None:
-        call_kwargs.setdefault("extra_body", {})[
-            "preserve_thinking"
-        ] = preserve_thinking
+        call_kwargs.setdefault("extra_body", {})["preserve_thinking"] = preserve_thinking
 
     # Pass the thinking mode in extra_body: enable_thinking for flag-style
     # defaults, or the raw dict for providers with a structured thinking
     # parameter (e.g. MiniMax-M3's {"type": "adaptive"}).  Gemini-flavored
     # providers (google) skip enable_thinking -- the field does not exist on
     # their OpenAI-compatibility API.
-    apply_thinking_to_extra_body(
-        call_kwargs, config.effective_thinking, provider=provider
-    )
+    apply_thinking_to_extra_body(call_kwargs, config.effective_thinking, provider=provider)
 
     # Native model capabilities enabled through the Responses ``tools`` array:
     #
@@ -390,9 +370,7 @@ class ResponsesTurnAccumulator:
         if getattr(event, "type", None) == "response.completed":
             # Search grounding (issue #131): url_citation annotations live
             # on the assembled message output, not in stream deltas.
-            self.web_search_citations.extend(
-                _citations_from_output(getattr(response, "output", None))
-            )
+            self.web_search_citations.extend(_citations_from_output(getattr(response, "output", None)))
 
     def handle_text_delta(self, event) -> str | None:
         """Collect one text/reasoning delta; returns the delta (or ``None``)."""

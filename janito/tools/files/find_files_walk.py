@@ -50,14 +50,10 @@ class _FindFilesWalker:
 
         def is_ignored(rel_to_cwd: str, is_dir: bool = False) -> bool:
             """Check a path against .janitoignore then .gitignore."""
-            if janitoignore_spec and is_ignored_by_gitignore(
-                rel_to_cwd, janitoignore_spec, is_dir=is_dir
-            ):
+            if janitoignore_spec and is_ignored_by_gitignore(rel_to_cwd, janitoignore_spec, is_dir=is_dir):
                 stats["janitoignore_ignored"] += 1
                 return True
-            if gitignore_spec and is_ignored_by_gitignore(
-                rel_to_cwd, gitignore_spec, is_dir=is_dir
-            ):
+            if gitignore_spec and is_ignored_by_gitignore(rel_to_cwd, gitignore_spec, is_dir=is_dir):
                 stats["gitignore_ignored"] += 1
                 return True
             return False
@@ -154,9 +150,7 @@ class _FindFilesWalker:
                 if depth > max_depth:
                     dirnames.clear()
                     continue
-            dirnames[:] = self._prune_dirs(
-                dirpath, dirnames, cwd, root_path, exclude_patterns, is_ignored
-            )
+            dirnames[:] = self._prune_dirs(dirpath, dirnames, cwd, root_path, exclude_patterns, is_ignored)
             self._collect_dirs(
                 dirpath,
                 dirnames,

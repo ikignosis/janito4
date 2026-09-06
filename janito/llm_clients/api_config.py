@@ -121,40 +121,18 @@ def build_api_config(
     from janito.runtime_config import resolve_runtime_config
 
     provider = cli_provider or get_active_provider()
-    base_url, api_key, model = resolve_runtime_config(
-        cli_model, cli_provider, cli_api_type=api_type
-    )
+    base_url, api_key, model = resolve_runtime_config(cli_model, cli_provider, cli_api_type=api_type)
 
     found = get_provider(provider)
-    found_max_output = (
-        found.model_config(model).get("max_output_tokens")
-        if found is not None
-        else None
-    )
-    found_max_input = (
-        found.model_config(model).get("max_input_tokens") if found is not None else None
-    )
-    found_reasoning = (
-        found.model_config(model).get("default_reasoning_effort")
-        if found is not None
-        else None
-    )
-    found_thinking = (
-        found.model_config(model).get("thinking", False) if found is not None else False
-    )
-    found_preserve_thinking = (
-        found.model_config(model).get("preserve_thinking")
-        if found is not None
-        else None
-    )
+    found_max_output = found.model_config(model).get("max_output_tokens") if found is not None else None
+    found_max_input = found.model_config(model).get("max_input_tokens") if found is not None else None
+    found_reasoning = found.model_config(model).get("default_reasoning_effort") if found is not None else None
+    found_thinking = found.model_config(model).get("thinking", False) if found is not None else False
+    found_preserve_thinking = found.model_config(model).get("preserve_thinking") if found is not None else None
 
-    max_output_tokens = (
-        load_max_output_tokens(provider, model) or found_max_output or 100_000
-    )
+    max_output_tokens = load_max_output_tokens(provider, model) or found_max_output or 100_000
     max_input_tokens = load_max_input_tokens(provider, model) or found_max_input
-    reasoning_effort = (
-        reasoning_effort or load_reasoning_effort(provider, model) or found_reasoning
-    )
+    reasoning_effort = reasoning_effort or load_reasoning_effort(provider, model) or found_reasoning
     thinking = thinking or found_thinking
 
     return APIConfig(

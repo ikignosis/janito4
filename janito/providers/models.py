@@ -105,20 +105,15 @@ class Provider:
             Defaults to ``None`` (``name`` is a built-in provider).
     """
 
-    def __init__(
-        self, name: str, data: dict | None = None, variant_of: str | None = None
-    ):
+    def __init__(self, name: str, data: dict | None = None, variant_of: str | None = None):
         data = _PROVIDER_CONFIGS if data is None else data
         if name not in data and variant_of is None:
             supported = ", ".join(sorted(data.keys()))
-            raise ValueError(
-                f"Unknown provider '{name}'. Supported providers: {supported}"
-            )
+            raise ValueError(f"Unknown provider '{name}'. Supported providers: {supported}")
         if variant_of is not None and variant_of not in data:
             supported = ", ".join(sorted(data.keys()))
             raise ValueError(
-                f"Unknown base provider '{variant_of}' for variant '{name}'. "
-                f"Supported providers: {supported}"
+                f"Unknown base provider '{variant_of}' for variant '{name}'. " f"Supported providers: {supported}"
             )
         self._data = data
         self._name = name
@@ -218,9 +213,7 @@ class Provider:
             return ModelConfig(models[default])
         return ModelConfig({})
 
-    def tools(
-        self, model: str | None = None, api_type: str | None = None
-    ) -> list | None:
+    def tools(self, model: str | None = None, api_type: str | None = None) -> list | None:
         """The model's built-in (native) tool entries, or ``None``.
 
         See :meth:`ModelConfig.tools` for the value shape (e.g.

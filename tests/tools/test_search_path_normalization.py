@@ -72,9 +72,7 @@ def test_search_regex_matches_are_relative(searchable_tree):
 
 
 def test_search_regex_count_only_keys_are_relative(searchable_tree):
-    result = SearchRegex().run(
-        paths="subdir", pattern=r"needle_token_\w+", count_only=True
-    )
+    result = SearchRegex().run(paths="subdir", pattern=r"needle_token_\w+", count_only=True)
     assert result["success"]
     assert result["counts"], "expected at least one counted file"
     for key in result["counts"]:

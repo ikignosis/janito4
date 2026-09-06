@@ -155,9 +155,7 @@ def test_parser_exposes_plugin_flags():
 def test_parser_exposes_install_plugin_and_no_plugins_flags():
     from janito.cli.parser import create_parser
 
-    args = create_parser().parse_args(
-        ["--install-plugin", "https://github.com/user/plugin-repo"]
-    )
+    args = create_parser().parse_args(["--install-plugin", "https://github.com/user/plugin-repo"])
     assert args.install_plugin == "https://github.com/user/plugin-repo"
 
     args = create_parser().parse_args(["--no-plugins", "prompt"])
@@ -170,9 +168,7 @@ def test_parser_exposes_install_plugin_and_no_plugins_flags():
 def test_parser_exposes_uninstall_plugin_flag():
     from janito.cli.parser import create_parser
 
-    args = create_parser().parse_args(
-        ["--uninstall-plugin", "janito-codesearch-plugin"]
-    )
+    args = create_parser().parse_args(["--uninstall-plugin", "janito-codesearch-plugin"])
     assert args.uninstall_plugin == "janito-codesearch-plugin"
 
     args = create_parser().parse_args(["prompt"])
@@ -234,9 +230,7 @@ def test_load_plugin_prints_failed_message(tmp_path, capsys):
     assert "error" in out.lower() or "FAILED" in out
 
 
-def test_main_prints_version_banner_before_loading_plugins(
-    toy_plugin, monkeypatch, capsys
-):
+def test_main_prints_version_banner_before_loading_plugins(toy_plugin, monkeypatch, capsys):
     """main() shows the version banner before any plugin loading message."""
     from janito.__main__ import main
 
@@ -290,9 +284,7 @@ def test_load_plugin_failing_on_start_registers_no_content(tmp_path, monkeypatch
 
     plugin_dir = tmp_path / "failing_content"
     plugin_dir.mkdir()
-    (plugin_dir / "__init__.py").write_text(
-        FAILING_CONTENT_PLUGIN_SRC, encoding="utf-8"
-    )
+    (plugin_dir / "__init__.py").write_text(FAILING_CONTENT_PLUGIN_SRC, encoding="utf-8")
     _purge_module("failing_content")
     monkeypatch.setattr(plugin_manager, "LOADED_PLUGINS", [])
 
@@ -414,9 +406,7 @@ def test_load_installed_plugins_skips_non_packages(tmp_path, monkeypatch):
 def test_load_installed_plugins_empty_dir(tmp_path, monkeypatch):
     """Nonexistent or empty plugins dir returns []."""
     monkeypatch.setattr(plugin_manager, "LOADED_PLUGINS", [])
-    monkeypatch.setattr(
-        plugin_manager, "get_default_plugins_dir", lambda: tmp_path / "nope"
-    )
+    monkeypatch.setattr(plugin_manager, "get_default_plugins_dir", lambda: tmp_path / "nope")
     assert plugin_manager.load_installed_plugins() == []
 
     empty = tmp_path / "empty"
@@ -432,9 +422,7 @@ def test_get_default_plugins_dir_honors_config_dir(monkeypatch, tmp_path):
         "get_config_dir",
         lambda: tmp_path / "custom" / ".janito",
     )
-    assert plugin_manager.get_default_plugins_dir() == (
-        tmp_path / "custom" / ".janito" / "plugins"
-    )
+    assert plugin_manager.get_default_plugins_dir() == (tmp_path / "custom" / ".janito" / "plugins")
 
 
 # ---------------------------------------------------------------------------
@@ -548,15 +536,11 @@ def test_uninstall_plugin_not_found(tmp_path, monkeypatch, capsys):
     assert "error" in out.lower()
 
 
-def test_uninstall_plugin_missing_dir_without_plugins_dir(
-    tmp_path, monkeypatch, capsys
-):
+def test_uninstall_plugin_missing_dir_without_plugins_dir(tmp_path, monkeypatch, capsys):
     """A nonexistent plugins dir reports the plugin as not found."""
     from janito.cli.handlers.plugins import handle_uninstall_plugin
 
-    monkeypatch.setattr(
-        plugin_manager, "get_default_plugins_dir", lambda: tmp_path / "nope"
-    )
+    monkeypatch.setattr(plugin_manager, "get_default_plugins_dir", lambda: tmp_path / "nope")
 
     rc = handle_uninstall_plugin("whatever")
 
@@ -564,9 +548,7 @@ def test_uninstall_plugin_missing_dir_without_plugins_dir(
     assert "error" in capsys.readouterr().out.lower()
 
 
-def test_uninstall_plugin_broken_plugin_falls_back_to_dir_name(
-    tmp_path, monkeypatch, capsys
-):
+def test_uninstall_plugin_broken_plugin_falls_back_to_dir_name(tmp_path, monkeypatch, capsys):
     """A plugin that cannot be imported is matched by its directory name."""
     from janito.cli.handlers.plugins import handle_uninstall_plugin
 
@@ -574,9 +556,7 @@ def test_uninstall_plugin_broken_plugin_falls_back_to_dir_name(
     plugin_dir = plugins_dir / "broken-plugin"
     plugin_dir.mkdir(parents=True)
     # __init__.py raises at import time, so the plugin name is unreadable.
-    (plugin_dir / "__init__.py").write_text(
-        "raise RuntimeError('boom')\n", encoding="utf-8"
-    )
+    (plugin_dir / "__init__.py").write_text("raise RuntimeError('boom')\n", encoding="utf-8")
     monkeypatch.setattr(plugin_manager, "get_default_plugins_dir", lambda: plugins_dir)
 
     rc = handle_uninstall_plugin("broken-plugin")
@@ -599,9 +579,7 @@ def test_codesearch_plugin_loads_and_creates_index(tmp_path, monkeypatch):
     """Loading the codesearch plugin auto-creates .janito/codesearch.db."""
     from janito.shell.cmds import get_registered_commands
 
-    (tmp_path / "hello.py").write_text(
-        "def hello_world():\n    print('hello world')\n", encoding="utf-8"
-    )
+    (tmp_path / "hello.py").write_text("def hello_world():\n    print('hello world')\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
     _purge_module("janito-codesearch-plugin")
 
@@ -626,18 +604,11 @@ def test_codesearch_plugin_loads_and_creates_index(tmp_path, monkeypatch):
     manager = sync_default_sections()
     prompt = manager.render()
     assert "## Plugin:" not in prompt
-    assert (
-        "When searching text on files use the CodeSearch tool before the "
-        "other search tools" in prompt
-    )
+    assert "When searching text on files use the CodeSearch tool before the " "other search tools" in prompt
 
     # The plugin prompt is registered as its own ``plugins:codesearch``
     # section; render() provides the newline separation between sections.
-    plugin_sections = [
-        section
-        for section in manager.get_all_sections()
-        if section.name == "plugins:codesearch"
-    ]
+    plugin_sections = [section for section in manager.get_all_sections() if section.name == "plugins:codesearch"]
     assert len(plugin_sections) == 1
     assert (
         "When searching text on files use the CodeSearch tool before the "

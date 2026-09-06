@@ -16,9 +16,7 @@ from __future__ import annotations
 import importlib.util
 
 
-def require_optional_package(
-    find_spec_name: str, api_type: str, pip_package: str
-) -> None:
+def require_optional_package(find_spec_name: str, api_type: str, pip_package: str) -> None:
     """Refuse to run when an optional SDK package is missing.
 
     Args:

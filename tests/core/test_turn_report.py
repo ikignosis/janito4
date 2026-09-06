@@ -298,9 +298,7 @@ class TestRunTurnDeliversTurnReport:
         from janito.ui.observer import RichTurnObserver
 
         buf = StringIO()
-        observer = RichTurnObserver(
-            console=Console(file=buf, width=120, force_terminal=False)
-        )
+        observer = RichTurnObserver(console=Console(file=buf, width=120, force_terminal=False))
         u = _token_stats(elapsed_time=12.34)
         observer.on_turn_complete(
             u,
@@ -323,13 +321,9 @@ class TestRunTurnDeliversTurnReport:
         from janito.ui.observer import RichTurnObserver
 
         buf = StringIO()
-        observer = RichTurnObserver(
-            console=Console(file=buf, width=120, force_terminal=False)
-        )
+        observer = RichTurnObserver(console=Console(file=buf, width=120, force_terminal=False))
         u = _token_stats()
-        observer.on_turn_complete(
-            u, _config(provider="deepseek", model="deepseek-v4-flash")
-        )
+        observer.on_turn_complete(u, _config(provider="deepseek", model="deepseek-v4-flash"))
         records = accounting.get_records()
         assert len(records) == 1
         row = records[0]
@@ -346,9 +340,7 @@ class TestRunTurnDeliversTurnReport:
         from janito.ui.observer import RichTurnObserver
 
         buf = StringIO()
-        observer = RichTurnObserver(
-            console=Console(file=buf, width=120, force_terminal=False)
-        )
+        observer = RichTurnObserver(console=Console(file=buf, width=120, force_terminal=False))
         observer.on_turn_complete(None, _config())
         assert accounting.get_records() == []
         assert buf.getvalue() == ""

@@ -67,18 +67,14 @@ def build_call_kwargs(
         call_kwargs["reasoning_effort"] = reasoning_effort
 
     if preserve_thinking is not None:
-        call_kwargs.setdefault("extra_body", {})[
-            "preserve_thinking"
-        ] = preserve_thinking
+        call_kwargs.setdefault("extra_body", {})["preserve_thinking"] = preserve_thinking
 
     # Pass the thinking mode in extra_body: enable_thinking for flag-style
     # defaults, or the raw dict for providers with a structured thinking
     # parameter (e.g. MiniMax-M3's {"type": "adaptive"}).  Gemini-flavored
     # providers (google) skip enable_thinking -- the field does not exist on
     # their OpenAI-compatibility API.
-    apply_thinking_to_extra_body(
-        call_kwargs, config.effective_thinking, provider=provider
-    )
+    apply_thinking_to_extra_body(call_kwargs, config.effective_thinking, provider=provider)
 
     # Pass the effective model's built-in tools (e.g. Alibaba/Qwen's
     # code_interpreter / web_search / web_extractor) as request-body
@@ -87,9 +83,7 @@ def build_call_kwargs(
     # whenever the model declares them for this API type -- even with
     # no_tools / an empty function-tools list.  Models without built-in
     # tools send nothing.
-    apply_builtin_tools_to_extra_body(
-        call_kwargs, config.effective_tools_for("Completions")
-    )
+    apply_builtin_tools_to_extra_body(call_kwargs, config.effective_tools_for("Completions"))
 
     call_kwargs["stream"] = True
     call_kwargs["stream_options"] = {"include_usage": True}

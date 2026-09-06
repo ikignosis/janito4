@@ -68,12 +68,8 @@ if pytest is not None:
             json.dumps(
                 {
                     "providers": {
-                        "openai": {
-                            "models": {"gpt-5.6-luna": {"max-input-tokens": 128000}}
-                        },
-                        "minimax": {
-                            "models": {"MiniMax-M3": {"max_input_tokens": 4096}}
-                        },
+                        "openai": {"models": {"gpt-5.6-luna": {"max-input-tokens": 128000}}},
+                        "minimax": {"models": {"MiniMax-M3": {"max_input_tokens": 4096}}},
                     }
                 }
             )
@@ -107,12 +103,8 @@ if pytest is not None:
             json.dumps(
                 {
                     "providers": {
-                        "openai": {
-                            "models": {"gpt-5.6-luna": {"stateless-mode": "true"}}
-                        },
-                        "deepseek": {
-                            "models": {"deepseek-v4-flash": {"stateless-mode": "FALSE"}}
-                        },
+                        "openai": {"models": {"gpt-5.6-luna": {"stateless-mode": "true"}}},
+                        "deepseek": {"models": {"deepseek-v4-flash": {"stateless-mode": "FALSE"}}},
                         "xai": {"models": {"grok-4.6": {"stateless-mode": True}}},
                         "zai": {"models": {"glm-5.3-flash": {"stateless-mode": False}}},
                     }
@@ -194,9 +186,7 @@ if pytest is not None:
             f"(config) {prompt_file}",
         )
 
-    def test_load_system_prompt_start_relative_path_resolved_against_cwd(
-        monkeypatch, tmp_path
-    ):
+    def test_load_system_prompt_start_relative_path_resolved_against_cwd(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
         from janito.config_loaders import load_system_prompt_start
 
@@ -207,9 +197,7 @@ if pytest is not None:
         # The label keeps the key's value as written (issue #86).
         assert load_system_prompt_start() == ("relative", "(config) prompt.md")
 
-    def test_load_system_prompt_start_empty_file_falls_back_to_default(
-        monkeypatch, tmp_path
-    ):
+    def test_load_system_prompt_start_empty_file_falls_back_to_default(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
         from janito.config_loaders import load_system_prompt_start
 
@@ -337,9 +325,7 @@ if pytest is not None:
 
         assert load_privileges_from_config() is None
 
-    def test_load_privileges_from_config_invalid_handwritten_returns_none(
-        monkeypatch, tmp_path
-    ):
+    def test_load_privileges_from_config_invalid_handwritten_returns_none(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
         from janito.config_loaders import load_privileges_from_config
 

@@ -95,25 +95,13 @@ class PriceCmdHandler(CmdHandler):
             if found is None:
                 continue
             for model in sorted(found.model_names()):
-                cost_in = get_provider_cost(
-                    provider, model, _MILLION, 0, 0, is_reference=True
-                )
-                cost_cache = get_provider_cost(
-                    provider, model, _MILLION, 0, _MILLION, is_reference=True
-                )
-                cost_output = get_provider_cost(
-                    provider, model, 0, _MILLION, 0, is_reference=True
-                )
+                cost_in = get_provider_cost(provider, model, _MILLION, 0, 0, is_reference=True)
+                cost_cache = get_provider_cost(provider, model, _MILLION, 0, _MILLION, is_reference=True)
+                cost_output = get_provider_cost(provider, model, 0, _MILLION, 0, is_reference=True)
                 values = [
-                    get_provider_cost_value(
-                        provider, model, _MILLION, 0, 0, is_reference=True
-                    ),
-                    get_provider_cost_value(
-                        provider, model, _MILLION, 0, _MILLION, is_reference=True
-                    ),
-                    get_provider_cost_value(
-                        provider, model, 0, _MILLION, 0, is_reference=True
-                    ),
+                    get_provider_cost_value(provider, model, _MILLION, 0, 0, is_reference=True),
+                    get_provider_cost_value(provider, model, _MILLION, 0, _MILLION, is_reference=True),
+                    get_provider_cost_value(provider, model, 0, _MILLION, 0, is_reference=True),
                 ]
                 if all(value is not None for value in values):
                     total = format_cost(sum(values))

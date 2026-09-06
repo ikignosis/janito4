@@ -201,9 +201,7 @@ class GetUrl(BaseTool):
             # The probes are silent; only a successful retrieval is reported.
             llms_url = None
             if check_llms_txt:
-                llms_url = _discover_llms_txt(
-                    url, timeout=timeout, follow_redirects=follow_redirects
-                )
+                llms_url = _discover_llms_txt(url, timeout=timeout, follow_redirects=follow_redirects)
             if llms_url:
                 self.report_result(f"Retrieved llms.txt from {llms_url}")
                 return self._fetch_content(
@@ -288,9 +286,7 @@ class GetUrl(BaseTool):
         content = response.read().decode("utf-8", errors="replace")
         status_code = response.getcode()
         content_length = len(content.encode("utf-8"))
-        total_lines = content.count("\n") + (
-            1 if content and not content.endswith("\n") else 0
-        )
+        total_lines = content.count("\n") + (1 if content and not content.endswith("\n") else 0)
 
         execution_time_ms = int((time.time() - start_time) * 1000)
 
@@ -346,9 +342,7 @@ class GetUrl(BaseTool):
         lines_returned = len(content.split("\n"))
 
         if report_fetch_result:
-            self.report_result(
-                f"Fetched {content_length} bytes ({lines_returned} lines)"
-            )
+            self.report_result(f"Fetched {content_length} bytes ({lines_returned} lines)")
 
         return {
             "success": True,
@@ -406,20 +400,14 @@ Examples:
             "pass -1 to disable)"
         ),
     )
-    parser.add_argument(
-        "--no-follow-redirects", action="store_true", help="Don't follow HTTP redirects"
-    )
+    parser.add_argument("--no-follow-redirects", action="store_true", help="Don't follow HTTP redirects")
     parser.add_argument(
         "--check-llms-txt",
         action="store_true",
         help="Probe for an llms.txt site map before fetching the URL",
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
-    parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Show verbose output"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show verbose output")
 
     args = parser.parse_args()
 
@@ -432,9 +420,7 @@ Examples:
         timeout=args.timeout,
         follow_redirects=not args.no_follow_redirects,
         check_llms_txt=args.check_llms_txt,
-        threshold=None
-        if args.threshold is not None and args.threshold < 0
-        else args.threshold,
+        threshold=None if args.threshold is not None and args.threshold < 0 else args.threshold,
     )
 
     # Output results
@@ -447,31 +433,23 @@ Examples:
                 print("? Content too big - stored to a temporary file")
                 print(f"  URL: {result['url']}")
                 if result.get("llms_txt"):
-                    print(
-                        f"  Source: llms.txt (site map) for {result.get('original_url', 'N/A')}"
-                    )
+                    print(f"  Source: llms.txt (site map) for {result.get('original_url', 'N/A')}")
                 print(f"  Status: {result.get('status_code', 'N/A')}")
                 print(f"  Content length: {result.get('content_length', 'N/A')} bytes")
                 print(f"  Lines: {result.get('lines_returned', 'N/A')}")
                 print(f"  Temp file: {result.get('tmp_filename', 'N/A')}")
-                print(
-                    f"  Execution time: {format_duration_ms(result.get('execution_time_ms', 'N/A'))}"
-                )
+                print(f"  Execution time: {format_duration_ms(result.get('execution_time_ms', 'N/A'))}")
                 print(f"\n  {result.get('message', '')}")
                 return 0
 
             print("? URL fetch successful")
             if result.get("llms_txt"):
-                print(
-                    f"  Source: llms.txt (site map) for {result.get('original_url', 'N/A')}"
-                )
+                print(f"  Source: llms.txt (site map) for {result.get('original_url', 'N/A')}")
             print(f"  URL: {result['url']}")
             print(f"  Status: {result.get('status_code', 'N/A')}")
             print(f"  Content length: {result.get('content_length', 'N/A')} bytes")
             print(f"  Lines returned: {result.get('lines_returned', 'N/A')}")
-            print(
-                f"  Execution time: {format_duration_ms(result.get('execution_time_ms', 'N/A'))}"
-            )
+            print(f"  Execution time: {format_duration_ms(result.get('execution_time_ms', 'N/A'))}")
 
             if args.verbose:
                 print("\nContent:")

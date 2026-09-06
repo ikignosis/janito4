@@ -33,9 +33,7 @@ def handle_set_secret(values: list[str]) -> int:
     errors = False
     for item in values:
         if "=" not in item:
-            print(
-                f"[ERROR] Invalid format '{item}': requires key=value", file=sys.stderr
-            )
+            print(f"[ERROR] Invalid format '{item}': requires key=value", file=sys.stderr)
             errors = True
             continue
 

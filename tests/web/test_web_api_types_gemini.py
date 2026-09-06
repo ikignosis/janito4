@@ -26,9 +26,7 @@ try:
 except ModuleNotFoundError:
     _HAS_GENAI = False
 
-requires_genai = pytest.mark.skipif(
-    not _HAS_GENAI, reason="google-genai package is not installed"
-)
+requires_genai = pytest.mark.skipif(not _HAS_GENAI, reason="google-genai package is not installed")
 
 FRONTEND = Path(__file__).parent.parent.parent / "janito" / "web" / "frontend"
 
@@ -65,9 +63,7 @@ def _function_call(call_id="", name="", args=None):
 
 
 def _chunk(parts, finish_reason=None, usage=None):
-    candidate = SimpleNamespace(
-        content=SimpleNamespace(parts=parts), finish_reason=finish_reason
-    )
+    candidate = SimpleNamespace(content=SimpleNamespace(parts=parts), finish_reason=finish_reason)
     return SimpleNamespace(candidates=[candidate], usage_metadata=usage)
 
 
@@ -98,9 +94,7 @@ def test_gemini_build_call_kwargs_converts_history_and_tools():
             },
         }
     ]
-    kwargs = gemini.build_call_kwargs(
-        "gemini-3.7-flash", messages, tools, _cfg(thinking=False), None, None, "high"
-    )
+    kwargs = gemini.build_call_kwargs("gemini-3.7-flash", messages, tools, _cfg(thinking=False), None, None, "high")
     # The OpenAI chat shape is converted to Gemini contents; the leading
     # system message is folded into the top-level system_instruction.
     assert kwargs["model"] == "gemini-3.7-flash"
@@ -150,9 +144,7 @@ def test_gemini_accumulator_folds_chunks():
             [
                 _part(text="Hi ", thought=False),
                 _part(
-                    function_call=_function_call(
-                        "c1", "ReadFile", {"filepath": "/tmp/x"}
-                    ),
+                    function_call=_function_call("c1", "ReadFile", {"filepath": "/tmp/x"}),
                     thought_signature="sig-2",
                 ),
             ],
@@ -161,9 +153,7 @@ def test_gemini_accumulator_folds_chunks():
         _chunk(
             [_part(text="there")],
             finish_reason=SimpleNamespace(name="STOP"),
-            usage=SimpleNamespace(
-                prompt_token_count=3, response_token_count=7, total_token_count=10
-            ),
+            usage=SimpleNamespace(prompt_token_count=3, response_token_count=7, total_token_count=10),
         ),
     ]
     deltas = [acc.handle(c) for c in chunks]
@@ -213,12 +203,8 @@ def test_gemini_create_client_builds_sdk_client():
     """With google-genai installed, create_client returns a genai.Client."""
     from janito.web.backend.agent import gemini
 
-    client = gemini.create_client(
-        "https://generativelanguage.googleapis.com", "sk-test"
-    )
-    assert client._api_client._http_options.base_url == (
-        "https://generativelanguage.googleapis.com"
-    )
+    client = gemini.create_client("https://generativelanguage.googleapis.com", "sk-test")
+    assert client._api_client._http_options.base_url == ("https://generativelanguage.googleapis.com")
 
 
 def test_gemini_stream_turn_events_consumes_sync_stream(monkeypatch):

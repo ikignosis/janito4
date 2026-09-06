@@ -155,33 +155,20 @@ def _stateless_shell_with_tools():
     shell.messages_history = []
     LONG2 = "y" * 5000
     shell.conversation_items = [
-        {"type": "message", "role": "system",
-         "content": [{"type": "input_text", "text": "sys"}]},
+        {"type": "message", "role": "system", "content": [{"type": "input_text", "text": "sys"}]},
         {"type": "reasoning", "encrypted_content": "opaque"},
-        {"type": "message", "role": "user",
-         "content": [{"type": "input_text", "text": LONG}]},
-        {"type": "message", "role": "assistant",
-         "content": [{"type": "output_text", "text": LONG2}]},
-        {"type": "function_call", "call_id": "call_1",
-         "name": "read", "arguments": "{}"},
-        {"type": "function_call_output", "call_id": "call_1",
-         "output": "file contents"},
-        {"type": "message", "role": "user",
-         "content": [{"type": "input_text", "text": "u2"}]},
-        {"type": "message", "role": "assistant",
-         "content": [{"type": "output_text", "text": "a2"}]},
-        {"type": "function_call", "call_id": "call_2",
-         "name": "read", "arguments": "{}"},
-        {"type": "function_call_output", "call_id": "call_2",
-         "output": "more contents"},
-        {"type": "message", "role": "user",
-         "content": [{"type": "input_text", "text": "u3"}]},
-        {"type": "message", "role": "assistant",
-         "content": [{"type": "output_text", "text": "a3"}]},
-        {"type": "message", "role": "user",
-         "content": [{"type": "input_text", "text": "u4"}]},
-        {"type": "message", "role": "assistant",
-         "content": [{"type": "output_text", "text": "a4"}]},
+        {"type": "message", "role": "user", "content": [{"type": "input_text", "text": LONG}]},
+        {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": LONG2}]},
+        {"type": "function_call", "call_id": "call_1", "name": "read", "arguments": "{}"},
+        {"type": "function_call_output", "call_id": "call_1", "output": "file contents"},
+        {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "u2"}]},
+        {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "a2"}]},
+        {"type": "function_call", "call_id": "call_2", "name": "read", "arguments": "{}"},
+        {"type": "function_call_output", "call_id": "call_2", "output": "more contents"},
+        {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "u3"}]},
+        {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "a3"}]},
+        {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "u4"}]},
+        {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "a4"}]},
     ]
     # rows: sys(0) user(1) asst(2) fc1(3) fco1(4) u2(5) a2(6) fc2(7) fco2(8)
     #   u3(9) a3(10) u4(11) a4(12). The compact zone ends at the u3 row, right
@@ -209,8 +196,7 @@ def test_compact_stateless_keeps_tool_pairs(capsys):
     assert captured, "compaction LLM call was not made"
     sent = captured.get("previous_items") or []
     calls = {e.get("call_id") for e in sent if e.get("type") == "function_call"}
-    outputs = {e.get("call_id") for e in sent
-               if e.get("type") == "function_call_output"}
+    outputs = {e.get("call_id") for e in sent if e.get("type") == "function_call_output"}
     assert calls, "expected the tool round in the compaction payload"
     assert calls == outputs, f"unpaired calls: {calls} vs {outputs}"
 
@@ -219,10 +205,8 @@ def test_compact_stateless_drops_orphan_call():
     from janito.shell.cmds.compact import _sanitize_response_items
 
     entries = [
-        {"type": "function_call", "call_id": "orphan",
-         "name": "read", "arguments": "{}"},
-        {"type": "message", "role": "user",
-         "content": [{"type": "input_text", "text": "hi"}]},
+        {"type": "function_call", "call_id": "orphan", "name": "read", "arguments": "{}"},
+        {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "hi"}]},
     ]
     assert _sanitize_response_items(entries) == [entries[1]]
 
@@ -231,8 +215,11 @@ def test_compact_completions_drops_orphan_tool_call():
     from janito.shell.cmds.compact import _sanitize_messages
 
     entries = [
-        {"role": "assistant", "content": "hi",
-         "tool_calls": [{"id": "tc1", "function": {"name": "f", "arguments": "{}"}}]},
+        {
+            "role": "assistant",
+            "content": "hi",
+            "tool_calls": [{"id": "tc1", "function": {"name": "f", "arguments": "{}"}}],
+        },
         {"role": "user", "content": "next"},
     ]
     out = _sanitize_messages(entries)

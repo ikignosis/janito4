@@ -100,21 +100,11 @@ def _build_parser(
     parser.add_argument("-d", "--directory", help="Working directory for execution")
     if add_shell_arg:
         parser.add_argument("-s", "--shell", help=shell_help)
-    parser.add_argument(
-        "-t", "--timeout", type=int, default=60, help="Timeout in seconds (default: 60)"
-    )
-    parser.add_argument(
-        "--no-capture-output", action="store_true", help="Don't capture standard output"
-    )
-    parser.add_argument(
-        "--no-capture-errors", action="store_true", help="Don't capture standard error"
-    )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
-    parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Show verbose output"
-    )
+    parser.add_argument("-t", "--timeout", type=int, default=60, help="Timeout in seconds (default: 60)")
+    parser.add_argument("--no-capture-output", action="store_true", help="Don't capture standard output")
+    parser.add_argument("--no-capture-errors", action="store_true", help="Don't capture standard error")
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show verbose output")
     return parser
 
 
@@ -140,14 +130,10 @@ def _read_code(args, parser) -> str | None:
     return code
 
 
-def _print_result(
-    result: dict[str, Any], args, tool_name: str, result_key: str
-) -> None:
+def _print_result(result: dict[str, Any], args, tool_name: str, result_key: str) -> None:
     """Pretty-print the tool result."""
     if result["success"]:
-        print(
-            f"\u2713 {tool_name} execution successful (exit code {result['exit_code']})"
-        )
+        print(f"\u2713 {tool_name} execution successful (exit code {result['exit_code']})")
         print(f"  Working directory: {norm_path(result['working_directory'])}")
         print(f"  Execution time: {format_duration_ms(result['execution_time_ms'])}")
 

@@ -197,9 +197,7 @@ if pytest is not None:
         _make_skill(local, "project-skill")
 
         # Point config_dir to our fake home
-        monkeypatch.setattr(
-            config_dir_mod, "_config_dir", tmp_path / "fake_home" / ".janito"
-        )
+        monkeypatch.setattr(config_dir_mod, "_config_dir", tmp_path / "fake_home" / ".janito")
         # Point CWD to our fake project
         monkeypatch.chdir(tmp_path / "project")
 

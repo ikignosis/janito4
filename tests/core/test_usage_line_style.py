@@ -39,9 +39,7 @@ class _RecordingConsole(Console):
 
 def _usage_summary_line(console):
     """Return the ``=== ... ===`` Text renderable printed by a render call."""
-    texts = [
-        r for r in console.printed if isinstance(r, Text) and r.plain.startswith("=== ")
-    ]
+    texts = [r for r in console.printed if isinstance(r, Text) and r.plain.startswith("=== ")]
     assert len(texts) == 1, f"expected one usage summary line, got {len(texts)}"
     return texts[0]
 

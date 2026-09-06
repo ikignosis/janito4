@@ -227,9 +227,7 @@ def handle_list_skills(args) -> int:
         print("No skills installed.")
         print()
         print("Install a skill using:")
-        print(
-            "  janito --install-skill https://github.com/user/repo/tree/main/skills/skill-name"
-        )
+        print("  janito --install-skill https://github.com/user/repo/tree/main/skills/skill-name")
         return 0
 
     print(f"Installed skills ({len(skills)}):")

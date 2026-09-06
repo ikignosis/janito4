@@ -184,9 +184,7 @@ def _make_turn_factory(
             model = cli_model
         else:
             found = get_provider(provider)
-            model = load_model_from_config(provider) or (
-                found.default_model() if found is not None else None
-            )
+            model = load_model_from_config(provider) or (found.default_model() if found is not None else None)
         # Thinking is resolved into the config at build time (issue #70): the
         # shell's runtime /thinking toggle passes thinking_override (the
         # shell's current flag) so a mid-session flip takes effect by
@@ -226,10 +224,7 @@ def print_version_banner(console=None):
 
     if console is None:
         console = Console()
-    console.print(
-        f"Janito [cyan]{__version__}[/cyan] - Working at "
-        f"[magenta]{display_path(os.getcwd())}[/magenta]"
-    )
+    console.print(f"Janito [cyan]{__version__}[/cyan] - Working at " f"[magenta]{display_path(os.getcwd())}[/magenta]")
     _banner_printed = True
 
 
@@ -345,20 +340,14 @@ def _resolve_resume(args, provider, model, api_type) -> tuple[dict | None, bool]
     if not getattr(args, "continue_session", False):
         return None, persist_session
     if getattr(args, "no_history", False):
-        print(
-            "Nothing to resume: --no-history disables the conversation "
-            "snapshot used by -C/--continue."
-        )
+        print("Nothing to resume: --no-history disables the conversation " "snapshot used by -C/--continue.")
         print("Starting a new conversation.")
         return None, persist_session
     from ..shell.persistence import load_conversation_state
 
     resume_state = load_conversation_state()
     if resume_state is None:
-        print(
-            "No previous conversation found to resume in this directory "
-            "(./.janito/session.json)."
-        )
+        print("No previous conversation found to resume in this directory " "(./.janito/session.json).")
         print("Starting a new conversation.")
         return None, persist_session
     if not _resume_identity_matches(resume_state, provider, model, api_type):
@@ -376,8 +365,7 @@ def _resolve_resume(args, provider, model, api_type) -> tuple[dict | None, bool]
             "run 'janito -C' without --provider/--model/--api-type."
         )
         print(
-            "This new conversation will not be saved, so the saved "
-            "snapshot above stays available for 'janito -C'."
+            "This new conversation will not be saved, so the saved " "snapshot above stays available for 'janito -C'."
         )
         return None, False
     Console().print(
@@ -469,12 +457,9 @@ def run_interactive_chat(args):
         f"API: [yellow]{api_type}[/yellow] [green]({state})[/green]"
     )
     Console().print(
-        "Keys: [bold green]F2[/bold green] - Clear conversation, "
-        '[bold green]F12[/bold green] - Send "Do It"'
+        "Keys: [bold green]F2[/bold green] - Clear conversation, " '[bold green]F12[/bold green] - Send "Do It"'
     )
-    print(
-        "Starting interactive chat session. Type '/exit' or CTRL-D to end the session"
-    )
+    print("Starting interactive chat session. Type '/exit' or CTRL-D to end the session")
 
     # -C/--continue: decide whether to restore the conversation this shell
     # saves to ./.janito/session.json after every interaction.
@@ -526,9 +511,7 @@ def run_interactive_chat(args):
     # is not overwritten by the throwaway fresh session.
     shell.persist_history = persist_session
     shell.run(
-        turn_func=shell.turn_factory(
-            cli_provider, effort_override=cli_reasoning_effort
-        ),
+        turn_func=shell.turn_factory(cli_provider, effort_override=cli_reasoning_effort),
         verbose=args.verbose,
         no_tools=no_tools,
         thinking=args.thinking,

@@ -159,15 +159,9 @@ def main():
     """Command line interface for testing the ReadMultipleFilesTool."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Read multiple files tool for AI function calling"
-    )
-    parser.add_argument(
-        "filepaths", nargs="+", help="File paths to read (multiple arguments)"
-    )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser = argparse.ArgumentParser(description="Read multiple files tool for AI function calling")
+    parser.add_argument("filepaths", nargs="+", help="File paths to read (multiple arguments)")
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
 
     args = parser.parse_args()
 
@@ -178,9 +172,7 @@ def main():
         print(json.dumps(result, indent=2))
     else:
         if result["success"]:
-            print(
-                f"Successfully read {result['successful_files']} out of {result['total_files']} files:"
-            )
+            print(f"Successfully read {result['successful_files']} out of {result['total_files']} files:")
             print("-" * 50)
             for file_result in result["files"]:
                 if file_result["success"]:
@@ -189,9 +181,7 @@ def main():
                     print("=" * 40)
                     print(file_result["content"])
                 else:
-                    print(
-                        f"\n? Error reading '{file_result['filepath']}': {file_result['error']}"
-                    )
+                    print(f"\n? Error reading '{file_result['filepath']}': {file_result['error']}")
         else:
             print(f"Error: {result['error']}")
 

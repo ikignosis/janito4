@@ -43,10 +43,7 @@ class ThinkingCmdHandler(CmdHandler):
         """Print the current thinking status and usage."""
         provider = getattr(shell, "provider", None)
         if provider and _is_gemini_flavor(provider):
-            print(
-                "Thinking mode is N/A for this session "
-                "(controlled via Reasoning Effort for Gemini models)."
-            )
+            print("Thinking mode is N/A for this session " "(controlled via Reasoning Effort for Gemini models).")
             print("Usage: /thinking on|off")
             return
         current = getattr(shell, "thinking", False)
@@ -67,10 +64,7 @@ class ThinkingCmdHandler(CmdHandler):
         mode_lower = mode.lower()
         if mode_lower == "on":
             shell.thinking = True
-            print(
-                "[OK] Thinking mode enabled for this session "
-                "(config default unchanged)."
-            )
+            print("[OK] Thinking mode enabled for this session " "(config default unchanged).")
             provider = getattr(shell, "provider", None)
             if provider and _is_gemini_flavor(provider):
                 print(
@@ -79,10 +73,7 @@ class ThinkingCmdHandler(CmdHandler):
                 )
         elif mode_lower == "off":
             shell.thinking = False
-            print(
-                "[OK] Thinking mode disabled for this session "
-                "(config default unchanged)."
-            )
+            print("[OK] Thinking mode disabled for this session " "(config default unchanged).")
             provider = getattr(shell, "provider", None)
             if provider and _is_gemini_flavor(provider):
                 print(
@@ -90,9 +81,7 @@ class ThinkingCmdHandler(CmdHandler):
                     "via reasoning level rather than the thinking flag."
                 )
         else:
-            print(
-                f"Error: Invalid option '{mode}'. Use '/thinking on' or '/thinking off'."
-            )
+            print(f"Error: Invalid option '{mode}'. Use '/thinking on' or '/thinking off'.")
             return
         _rebind_send_function(shell)
 

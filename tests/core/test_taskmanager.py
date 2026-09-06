@@ -360,9 +360,7 @@ def test_wait_for_task_timeout_expiry_returns_pending(monkeypatch):
 
     # Never release the procs: both tasks stay running.
     try:
-        result = manager.wait_for_task(
-            [info1["task_id"], info2["task_id"]], timeout=0.15
-        )
+        result = manager.wait_for_task([info1["task_id"], info2["task_id"]], timeout=0.15)
     finally:
         # Let the wait threads finish so the test exits cleanly.
         for proc in procs.values():
@@ -370,9 +368,7 @@ def test_wait_for_task_timeout_expiry_returns_pending(monkeypatch):
             proc.release.set()
 
     assert result["timed_out"] is True
-    assert sorted(result["pending_task_ids"]) == sorted(
-        [info1["task_id"], info2["task_id"]]
-    )
+    assert sorted(result["pending_task_ids"]) == sorted([info1["task_id"], info2["task_id"]])
     assert result["tasks"] == []
 
 
@@ -388,9 +384,7 @@ def test_wait_for_task_timeout_returns_partial_results(monkeypatch):
     procs[info1["pid"]].release.set()
 
     try:
-        result = manager.wait_for_task(
-            [info1["task_id"], info2["task_id"]], timeout=0.25
-        )
+        result = manager.wait_for_task([info1["task_id"], info2["task_id"]], timeout=0.25)
     finally:
         # Let the wait threads finish so the test exits cleanly.
         for proc in procs.values():
@@ -508,9 +502,7 @@ class _CappedProc:
       it with ``None`` (what a real reaped child does).
     """
 
-    def __init__(
-        self, pid, *, term_exit_code=-15, kill_exit_code=-9, ignores_term=False
-    ):
+    def __init__(self, pid, *, term_exit_code=-15, kill_exit_code=-9, ignores_term=False):
         self.pid = pid
         self.stdin = _FakeStdin()
         self.returncode = None

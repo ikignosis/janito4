@@ -232,9 +232,7 @@ def report_search_start(
     tool.report_start(f"\U0001f50e Finding files in {paths_str}{criteria_str}", end="")
 
 
-def report_result(
-    tool, files: list[str], stats: dict[str, int], truncated: bool
-) -> None:
+def report_result(tool, files: list[str], stats: dict[str, int], truncated: bool) -> None:
     """Report the final summary line.
 
     Args:
@@ -250,6 +248,4 @@ def report_result(
     if stats["janitoignore_ignored"]:
         ignore_msgs.append(f"{stats['janitoignore_ignored']} ignored by .janitoignore")
     ignore_msg = f", {', '.join(ignore_msgs)}" if ignore_msgs else ""
-    tool.report_result(
-        f"Found {len(files)} matches from {stats['entries_scanned']} entries{extra}{ignore_msg}"
-    )
+    tool.report_result(f"Found {len(files)} matches from {stats['entries_scanned']} entries{extra}{ignore_msg}")

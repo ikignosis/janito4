@@ -94,9 +94,7 @@ def test_rx_switches_session_privileges(monkeypatch):
     """Bare /rx sets running_privileges to read + execute."""
     handler = RxCmdHandler()
     shell = _shell()
-    monkeypatch.setattr(
-        _privileges_mod, "running_privileges", _privileges_mod.Privileges()
-    )
+    monkeypatch.setattr(_privileges_mod, "running_privileges", _privileges_mod.Privileges())
     assert handler.handle(shell, "/rx") is True
     assert format_privileges(_privileges_mod.running_privileges) == "rx"
 
@@ -105,9 +103,7 @@ def test_rx_ignores_extra_text(monkeypatch):
     """Extra text after /rx is ignored; the switch still happens."""
     handler = RxCmdHandler()
     shell = _shell()
-    monkeypatch.setattr(
-        _privileges_mod, "running_privileges", _privileges_mod.Privileges()
-    )
+    monkeypatch.setattr(_privileges_mod, "running_privileges", _privileges_mod.Privileges())
     assert handler.handle(shell, "/rx list the files") is True
     assert format_privileges(_privileges_mod.running_privileges) == "rx"
 
@@ -115,9 +111,7 @@ def test_rx_ignores_extra_text(monkeypatch):
 def test_rx_prints_confirmation(monkeypatch, capfd):
     handler = RxCmdHandler()
     shell = _shell()
-    monkeypatch.setattr(
-        _privileges_mod, "running_privileges", _privileges_mod.Privileges()
-    )
+    monkeypatch.setattr(_privileges_mod, "running_privileges", _privileges_mod.Privileges())
     assert handler.handle(shell, "/rx") is True
     out = capfd.readouterr().out
     assert out.strip(), "switch printed nothing"
@@ -168,9 +162,7 @@ def test_get_read_exec_tool_schemas_filters_by_r_and_x_permissions(monkeypatch):
         "janito.tooling.tools_registry.get_all_tool_permissions",
         lambda: permissions,
     )
-    monkeypatch.setattr(
-        "janito.tooling.tools_registry.get_all_tool_schemas", lambda: schemas
-    )
+    monkeypatch.setattr("janito.tooling.tools_registry.get_all_tool_schemas", lambda: schemas)
 
     result = get_read_exec_tool_schemas()
     names = [s["function"]["name"] for s in result]
@@ -186,9 +178,7 @@ def test_get_read_exec_tool_schemas_empty_without_r_or_x_tools(monkeypatch):
         "janito.tooling.tools_registry.get_all_tool_permissions",
         lambda: {"CreateFile": "w", "MoveFile": "rw"},
     )
-    monkeypatch.setattr(
-        "janito.tooling.tools_registry.get_all_tool_schemas", lambda: [WRITE_SCHEMA]
-    )
+    monkeypatch.setattr("janito.tooling.tools_registry.get_all_tool_schemas", lambda: [WRITE_SCHEMA])
 
     assert get_read_exec_tool_schemas() == []
 

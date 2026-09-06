@@ -258,10 +258,7 @@ class WebSearch(BaseTool):
             count = _normalize_count(count)
 
             if safesearch is not None and safesearch not in _VALID_SAFESEARCH:
-                msg = (
-                    f"Invalid safesearch {safesearch!r}; must be one of "
-                    f"{', '.join(_VALID_SAFESEARCH)}"
-                )
+                msg = f"Invalid safesearch {safesearch!r}; must be one of " f"{', '.join(_VALID_SAFESEARCH)}"
                 self.report_error(msg)
                 return {"success": False, "error": msg, "query": query}
 
@@ -277,9 +274,7 @@ class WebSearch(BaseTool):
             self.report_start(f"\U0001f50d Searching the web for: {query}", end="")
 
             # Build query parameters (only include the ones that were set).
-            params = self._build_params(
-                query, count, country, search_lang, safesearch, freshness
-            )
+            params = self._build_params(query, count, country, search_lang, safesearch, freshness)
 
             url = f"{_BRAVE_BASE_URL}{_SEARCH_PATH}?{urllib.parse.urlencode(params)}"
 
@@ -303,9 +298,7 @@ class WebSearch(BaseTool):
 
             execution_time_ms = int((time.time() - start_time) * 1000)
             self.report_result(
-                f"{len(results)} web results"
-                + (f", {len(news)} news" if news else "")
-                + f" ({execution_time_ms}ms)"
+                f"{len(results)} web results" + (f", {len(news)} news" if news else "") + f" ({execution_time_ms}ms)"
             )
 
             return {

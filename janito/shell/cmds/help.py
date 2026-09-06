@@ -90,8 +90,7 @@ class HelpCmdHandler(CmdHandler):
         tool_modes.add_row(
             "/notools <message>",
             "none",
-            "Send the prompt using the main history but without any tools "
-            "(this message only)",
+            "Send the prompt using the main history but without any tools " "(this message only)",
         )
         console.print(tool_modes)
 

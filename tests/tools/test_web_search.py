@@ -114,9 +114,7 @@ def brave_server(monkeypatch):
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
 
-    monkeypatch.setattr(
-        web_search_module, "_BRAVE_BASE_URL", f"http://127.0.0.1:{port}/res"
-    )
+    monkeypatch.setattr(web_search_module, "_BRAVE_BASE_URL", f"http://127.0.0.1:{port}/res")
     monkeypatch.setattr(web_search_module, "_resolve_api_key", lambda: "test-token")
 
     yield server

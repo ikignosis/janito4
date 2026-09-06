@@ -38,14 +38,10 @@ class _IgnoreCounter:
         if not self.cwd:
             return False
         rel_to_cwd = os.path.relpath(abs_path, self.cwd)
-        if self.janitoignore_spec and is_ignored_by_gitignore(
-            rel_to_cwd, self.janitoignore_spec, is_dir=is_dir
-        ):
+        if self.janitoignore_spec and is_ignored_by_gitignore(rel_to_cwd, self.janitoignore_spec, is_dir=is_dir):
             self.janitoignore_ignored += 1
             return True
-        if self.gitignore_spec and is_ignored_by_gitignore(
-            rel_to_cwd, self.gitignore_spec, is_dir=is_dir
-        ):
+        if self.gitignore_spec and is_ignored_by_gitignore(rel_to_cwd, self.gitignore_spec, is_dir=is_dir):
             self.files_ignored += 1
             return True
         return False
@@ -66,10 +62,7 @@ def print_search_result(result: dict[str, Any], count_only: bool) -> None:
             for filepath, count in result["counts"].items():
                 print(f"  {norm_path(filepath)}: {count}")
     else:
-        print(
-            f"Found {len(result['matches'])} matches in "
-            f"{result['files_searched']} files:"
-        )
+        print(f"Found {len(result['matches'])} matches in " f"{result['files_searched']} files:")
         _print_ignore_stats(result)
         for match in result["matches"]:
             print(f"  {match}")
@@ -117,9 +110,7 @@ class _SearchWalker:
                 if matches_any_pattern(os.path.basename(path), exclude_patterns):
                     continue
                 # Search single file
-                file_matches = self._search_file(
-                    path, term, case_sensitive, max_results
-                )
+                file_matches = self._search_file(path, term, case_sensitive, max_results)
                 if file_matches:
                     matches.extend(file_matches)
                     if max_results and len(matches) >= max_results:
@@ -286,9 +277,7 @@ class _SearchWalker:
                         continue
 
                     # Skip if excluded by glob patterns (match relative to search root)
-                    if matches_any_pattern(
-                        os.path.relpath(filepath, dirpath), exclude_patterns
-                    ):
+                    if matches_any_pattern(os.path.relpath(filepath, dirpath), exclude_patterns):
                         continue
 
                     file_matches = self._search_file(
@@ -356,14 +345,10 @@ class _SearchWalker:
                         continue
 
                     # Skip if excluded by glob patterns (match relative to search root)
-                    if matches_any_pattern(
-                        os.path.relpath(filepath, dirpath), exclude_patterns
-                    ):
+                    if matches_any_pattern(os.path.relpath(filepath, dirpath), exclude_patterns):
                         continue
 
-                    file_count = self._count_file_matches(
-                        filepath, term, case_sensitive
-                    )
+                    file_count = self._count_file_matches(filepath, term, case_sensitive)
                     if file_count > 0:
                         counts[norm_path(filepath)] = file_count
                         total_matches += file_count

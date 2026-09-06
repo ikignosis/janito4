@@ -158,14 +158,9 @@ class UsedFilesTracker:
         text.append("\nUsed files", style="cyan")
         text.append("\n----------")
         if read_paths:
-            text.append(
-                f"\n{len(read_paths)} read : {', '.join(_display(p) for p in read_paths)}"
-            )
+            text.append(f"\n{len(read_paths)} read : {', '.join(_display(p) for p in read_paths)}")
         if write_paths:
-            text.append(
-                f"\n{len(write_paths)} write : "
-                f"{', '.join(_display(p) for p in write_paths)}"
-            )
+            text.append(f"\n{len(write_paths)} write : " f"{', '.join(_display(p) for p in write_paths)}")
         return text
 
     @staticmethod

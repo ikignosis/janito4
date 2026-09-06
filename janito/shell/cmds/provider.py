@@ -26,9 +26,7 @@ from .base import CmdHandler
 from .registry import register_command
 
 
-def available_provider_names(
-    prefix: str = "", *, only_with_api_key: bool = False
-) -> Iterable[str]:
+def available_provider_names(prefix: str = "", *, only_with_api_key: bool = False) -> Iterable[str]:
     """Return provider names (built-in + registered variants) matching ``prefix``.
 
     Matching is case-insensitive and the result is sorted
@@ -137,10 +135,7 @@ class ProviderCmdHandler(CmdHandler):
         if model:
             shell.model = model
 
-        print(
-            f"[OK] Provider switched to '{canonical}' for this session "
-            "(config default unchanged)."
-        )
+        print(f"[OK] Provider switched to '{canonical}' for this session " "(config default unchanged).")
 
         # The switch takes effect in real time: rebind the shell's send
         # function to the new provider (its API type re-resolved), so
@@ -163,9 +158,7 @@ class ProviderCmdHandler(CmdHandler):
             # A session model switch (/model) was scoped to the previous
             # provider: the new provider resolves its own effective model.
             shell.model_override = None
-            shell.initialize_history(
-                system_prompt=getattr(shell, "_system_prompt", None)
-            )
+            shell.initialize_history(system_prompt=getattr(shell, "_system_prompt", None))
             print("Conversation history cleared (provider changed).")
 
 

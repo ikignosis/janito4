@@ -71,14 +71,9 @@ def test_resolve_from_tool_schemas_union(monkeypatch):
     _install_fake_permissions(monkeypatch)
 
     # /rx offers the read and execute tools.
-    assert (
-        tp.resolve_turn_privileges([_schema("ReadTool"), _schema("ExecTool")]) == "rx"
-    )
+    assert tp.resolve_turn_privileges([_schema("ReadTool"), _schema("ExecTool")]) == "rx"
     # /rwx offers every read/write/execute combination.
-    assert (
-        tp.resolve_turn_privileges([_schema("ReadWriteTool"), _schema("ExecTool")])
-        == "rwx"
-    )
+    assert tp.resolve_turn_privileges([_schema("ReadWriteTool"), _schema("ExecTool")]) == "rwx"
     # /write offers the write-only tools.
     assert tp.resolve_turn_privileges([_schema("WriteTool")]) == "w"
 

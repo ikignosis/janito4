@@ -117,9 +117,7 @@ def test_prompt_max_input_tokens_defaults_to_provider_builtin(monkeypatch):
     )
     monkeypatch.setattr(
         "janito.cli.handlers.config.get_provider",
-        lambda provider: Mock(
-            model_config=lambda model=None: ModelConfig({"max_input_tokens": 200000})
-        ),
+        lambda provider: Mock(model_config=lambda model=None: ModelConfig({"max_input_tokens": 200000})),
     )
     result = _prompt_max_input_tokens("openai", "gpt-5.6-luna", None)
     assert result == 200000

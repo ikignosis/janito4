@@ -22,9 +22,7 @@ try:
 except ModuleNotFoundError:
     _HAS_DASHSCOPE = False
 
-requires_dashscope = pytest.mark.skipif(
-    not _HAS_DASHSCOPE, reason="dashscope package is not installed"
-)
+requires_dashscope = pytest.mark.skipif(not _HAS_DASHSCOPE, reason="dashscope package is not installed")
 
 FRONTEND = Path(__file__).parent.parent.parent / "janito" / "web" / "frontend"
 
@@ -67,16 +65,12 @@ def test_anthropic_build_call_kwargs_extracts_system_and_converts_tools():
             "function": {"name": "ReadFile", "description": "read", "parameters": {}},
         }
     ]
-    kwargs = anthropic.build_call_kwargs(
-        "claude", messages, tools, _cfg(thinking=False), None, None, None
-    )
+    kwargs = anthropic.build_call_kwargs("claude", messages, tools, _cfg(thinking=False), None, None, None)
     assert kwargs["model"] == "claude"
     assert kwargs["system"] == "Be helpful."
     assert kwargs["max_tokens"] == 100000  # the Messages API requires max_tokens
     assert kwargs["messages"] == [{"role": "user", "content": "Hello"}]
-    assert kwargs["tools"] == [
-        {"name": "ReadFile", "description": "read", "input_schema": {}}
-    ]
+    assert kwargs["tools"] == [{"name": "ReadFile", "description": "read", "input_schema": {}}]
     assert kwargs["stream"] is True
 
 

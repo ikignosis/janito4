@@ -98,9 +98,7 @@ def _run_with_progress_bar(func, *args, **kwargs):
         TimeElapsedColumn(),
         transient=True,
     ) as progress:
-        task = progress.add_task(
-            "Waiting for response from the API server...", total=None
-        )
+        task = progress.add_task("Waiting for response from the API server...", total=None)
         while thread.is_alive():
             if _is_enter_pressed():
                 cancel_event.set()

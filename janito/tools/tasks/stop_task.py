@@ -65,13 +65,9 @@ def main():
     """Command line interface for testing the StopTask tool."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Stop a running task started with the StartTask tool"
-    )
+    parser = argparse.ArgumentParser(description="Stop a running task started with the StartTask tool")
     parser.add_argument("task_id", type=int, help="The id of the task to stop")
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
     args = parser.parse_args()
 
     result = StopTask().run(task_id=args.task_id)

@@ -62,14 +62,10 @@ class ProviderConfigLoader:
         # Same resolution as general_config.determine_provider, inlined here
         # so this module never imports general_config (issue #110): the
         # config fan-in stays one-way (general_config -> this module).
-        return normalize_provider(cli_provider) or normalize_provider(
-            get_config_value("provider")
-        )
+        return normalize_provider(cli_provider) or normalize_provider(get_config_value("provider"))
 
     @staticmethod
-    def _resolve_model(
-        cli_provider: str | None, model: str | None = None
-    ) -> str | None:
+    def _resolve_model(cli_provider: str | None, model: str | None = None) -> str | None:
         """Resolve the model used for model-scoped config lookups.
 
         Priority: the explicit ``model`` argument, then the provider's
@@ -84,9 +80,7 @@ class ProviderConfigLoader:
         if not provider:
             return None
         found = get_provider(provider)
-        return load_model_from_config(provider) or (
-            found.default_model() if found is not None else None
-        )
+        return load_model_from_config(provider) or (found.default_model() if found is not None else None)
 
     def load_model(self, cli_provider: str | None = None) -> str | None:
         """Load the model name for the active provider from config.json.
@@ -109,9 +103,7 @@ class ProviderConfigLoader:
             return None
         return get_config_value(model_config_key(provider))
 
-    def load_max_output_tokens(
-        self, cli_provider: str | None = None, model: str | None = None
-    ) -> int | None:
+    def load_max_output_tokens(self, cli_provider: str | None = None, model: str | None = None) -> int | None:
         """Load max output tokens from ~/.janito/config.json if it exists.
 
         This value is used as the maximum output-token limit (``max_tokens`` /
@@ -137,16 +129,12 @@ class ProviderConfigLoader:
         model = self._resolve_model(cli_provider, model)
         if not model:
             return None
-        value = get_config_value(
-            model_scoped_config_key(provider, model, "max-output-tokens")
-        )
+        value = get_config_value(model_scoped_config_key(provider, model, "max-output-tokens"))
         if value is not None:
             return int(value)
         return None
 
-    def load_max_input_tokens(
-        self, cli_provider: str | None = None, model: str | None = None
-    ) -> int | None:
+    def load_max_input_tokens(self, cli_provider: str | None = None, model: str | None = None) -> int | None:
         """Load max input tokens from ~/.janito/config.json if it exists.
 
         This value is the maximum input-token (context window) limit used for
@@ -172,16 +160,12 @@ class ProviderConfigLoader:
         model = self._resolve_model(cli_provider, model)
         if not model:
             return None
-        value = get_config_value(
-            model_scoped_config_key(provider, model, "max-input-tokens")
-        )
+        value = get_config_value(model_scoped_config_key(provider, model, "max-input-tokens"))
         if value is not None:
             return int(value)
         return None
 
-    def load_reasoning_effort(
-        self, cli_provider: str | None = None, model: str | None = None
-    ) -> str | None:
+    def load_reasoning_effort(self, cli_provider: str | None = None, model: str | None = None) -> str | None:
         """Load the reasoning level for the active provider/model from config.json.
 
         The reasoning level is stored under a model-scoped key
@@ -207,16 +191,12 @@ class ProviderConfigLoader:
         model = self._resolve_model(cli_provider, model)
         if not model:
             return None
-        value = get_config_value(
-            model_scoped_config_key(provider, model, "reasoning-effort")
-        )
+        value = get_config_value(model_scoped_config_key(provider, model, "reasoning-effort"))
         if value is not None:
             return str(value)
         return None
 
-    def load_api_type(
-        self, cli_provider: str | None = None, model: str | None = None
-    ) -> str | None:
+    def load_api_type(self, cli_provider: str | None = None, model: str | None = None) -> str | None:
         """Load the API type for the active provider/model from config.json.
 
         The API type is stored under a model-scoped key
@@ -247,9 +227,7 @@ class ProviderConfigLoader:
             return str(value)
         return None
 
-    def load_stateless_mode(
-        self, cli_provider: str | None = None, model: str | None = None
-    ) -> bool | None:
+    def load_stateless_mode(self, cli_provider: str | None = None, model: str | None = None) -> bool | None:
         """Load the Stateless-mode override for a provider/model from config.json.
 
         The override is stored under a model-scoped key
@@ -276,9 +254,7 @@ class ProviderConfigLoader:
         model = self._resolve_model(cli_provider, model)
         if not model:
             return None
-        value = get_config_value(
-            model_scoped_config_key(provider, model, "stateless-mode")
-        )
+        value = get_config_value(model_scoped_config_key(provider, model, "stateless-mode"))
         if value is None:
             return None
         # Tolerate string forms written by hand/older configs ("true"/"false").
@@ -286,9 +262,7 @@ class ProviderConfigLoader:
             return value.strip().lower() in ("true", "1", "yes", "on")
         return bool(value)
 
-    def load_disabled_tools(
-        self, cli_provider: str | None = None, model: str | None = None
-    ) -> list[str] | None:
+    def load_disabled_tools(self, cli_provider: str | None = None, model: str | None = None) -> list[str] | None:
         """Load the disabled-tools override for a provider/model.
 
         Stored under ``providers.<provider>.models.<model>.disabled-tools``
@@ -308,9 +282,7 @@ class ProviderConfigLoader:
         model = self._resolve_model(cli_provider, model)
         if not model:
             return None
-        value = get_config_value(
-            model_scoped_config_key(provider, model, "disabled-tools")
-        )
+        value = get_config_value(model_scoped_config_key(provider, model, "disabled-tools"))
         if value is None:
             return None
         if isinstance(value, str):
@@ -367,9 +339,7 @@ def load_model_from_config(cli_provider: str | None = None) -> str | None:
     return _loader.load_model(cli_provider)
 
 
-def load_max_output_tokens(
-    cli_provider: str | None = None, model: str | None = None
-) -> int | None:
+def load_max_output_tokens(cli_provider: str | None = None, model: str | None = None) -> int | None:
     """Load max output tokens from ~/.janito/config.json if it exists.
 
     This value is used as the maximum output-token limit (``max_tokens`` /
@@ -389,9 +359,7 @@ def load_max_output_tokens(
     return _loader.load_max_output_tokens(cli_provider, model)
 
 
-def load_max_input_tokens(
-    cli_provider: str | None = None, model: str | None = None
-) -> int | None:
+def load_max_input_tokens(cli_provider: str | None = None, model: str | None = None) -> int | None:
     """Load max input tokens from ~/.janito/config.json if it exists.
 
     This value is the maximum input-token (context window) limit used for
@@ -411,9 +379,7 @@ def load_max_input_tokens(
     return _loader.load_max_input_tokens(cli_provider, model)
 
 
-def load_reasoning_effort(
-    cli_provider: str | None = None, model: str | None = None
-) -> str | None:
+def load_reasoning_effort(cli_provider: str | None = None, model: str | None = None) -> str | None:
     """Load the reasoning level for the active provider/model from config.json.
 
     The reasoning level is stored under a model-scoped key
@@ -433,9 +399,7 @@ def load_reasoning_effort(
     return _loader.load_reasoning_effort(cli_provider, model)
 
 
-def load_api_type(
-    cli_provider: str | None = None, model: str | None = None
-) -> str | None:
+def load_api_type(cli_provider: str | None = None, model: str | None = None) -> str | None:
     """Load the API type for the active provider/model from config.json.
 
     The API type is stored under a model-scoped key
@@ -498,10 +462,7 @@ _NATIVE_SEARCH_TOOL_TYPES = {"web_search", "web_extractor"}
 def _has_native_search(entries) -> bool:
     """Whether native tool entries include server-side search."""
     for entry in entries or []:
-        if (
-            isinstance(entry, dict)
-            and str(entry.get("type", "")).lower() in _NATIVE_SEARCH_TOOL_TYPES
-        ):
+        if isinstance(entry, dict) and str(entry.get("type", "")).lower() in _NATIVE_SEARCH_TOOL_TYPES:
             return True
     return False
 
@@ -659,17 +620,12 @@ def load_system_prompt_start() -> tuple[str | None, str | None]:
             with open(path, encoding="utf-8") as f:
                 content = f.read().strip()
         except OSError as e:
-            raise ValueError(
-                f"Cannot read config key 'system-prompt-file': " f"{file_value!r}: {e}"
-            )
+            raise ValueError(f"Cannot read config key 'system-prompt-file': " f"{file_value!r}: {e}")
         return (content or None), f"{LABEL_CONFIG_PREFIX}{file_value_str}"
 
     literal = get_config_value("system-prompt")
     if literal is not None:
-        label = (
-            f"{LABEL_CONFIG_PREFIX}"
-            f"{_display_config_path(get_config_path())}:system-prompt"
-        )
+        label = f"{LABEL_CONFIG_PREFIX}" f"{_display_config_path(get_config_path())}:system-prompt"
         return str(literal), label
     return None, None
 
@@ -750,8 +706,5 @@ def validate_system_prompt_file_path(file_value: str) -> str:
     """
     path = os.path.expanduser(str(file_value).strip())
     if not os.path.isfile(path):
-        raise ValueError(
-            f"Cannot read config key 'system-prompt-file': "
-            f"{file_value!r}: file does not exist"
-        )
+        raise ValueError(f"Cannot read config key 'system-prompt-file': " f"{file_value!r}: file does not exist")
     return path

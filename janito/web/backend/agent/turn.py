@@ -101,9 +101,7 @@ async def run_tool_turn(
                 "tool_call_id": tool_call_id,
                 "role": "tool",
                 "name": tool_name,
-                "content": json.dumps(result)
-                if not isinstance(result, str)
-                else result,
+                "content": json.dumps(result) if not isinstance(result, str) else result,
             }
         )
 

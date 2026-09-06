@@ -34,9 +34,7 @@ def normalize_usage(usage: Any) -> dict[str, Any] | None:
             "output": usage.last_output,
             "cached": usage.last_cached,
         }
-    details = getattr(usage, "prompt_tokens_details", None) or getattr(
-        usage, "input_tokens_details", None
-    )
+    details = getattr(usage, "prompt_tokens_details", None) or getattr(usage, "input_tokens_details", None)
     input_tokens = getattr(usage, "prompt_tokens", None)
     if input_tokens is None:
         input_tokens = getattr(usage, "input_tokens", None)

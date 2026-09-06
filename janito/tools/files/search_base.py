@@ -32,9 +32,7 @@ class SearchRunner(_SearchWalker, BaseTool):
     #: Label used in error messages (e.g. "regex search").
     error_label: str = "search"
 
-    def start_message(
-        self, term: str, paths_str: str, exclude_str: str | None = None
-    ) -> str:
+    def start_message(self, term: str, paths_str: str, exclude_str: str | None = None) -> str:
         """Return the report_start message for this tool."""
         raise NotImplementedError
 
@@ -131,15 +129,11 @@ class SearchRunner(_SearchWalker, BaseTool):
             if result["success"]:
                 if count_only:
                     self.report_result(
-                        f"Found {result['total_matches']} matches in "
-                        f"{result['files_searched']} files"
+                        f"Found {result['total_matches']} matches in " f"{result['files_searched']} files"
                     )
                 else:
                     match_count = len(result["matches"])
-                    self.report_result(
-                        f"Found {match_count} matches in "
-                        f"{result['files_searched']} files"
-                    )
+                    self.report_result(f"Found {match_count} matches in " f"{result['files_searched']} files")
 
             return result
 

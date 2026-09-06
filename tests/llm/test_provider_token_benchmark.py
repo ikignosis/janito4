@@ -16,9 +16,7 @@ from pathlib import Path
 import pytest
 
 # scripts/ is not a package, so load the script directly from its path.
-_SCRIPT = (
-    Path(__file__).parent.parent.parent / "scripts" / "provider_token_benchmark.py"
-)
+_SCRIPT = Path(__file__).parent.parent.parent / "scripts" / "provider_token_benchmark.py"
 _spec = importlib.util.spec_from_file_location("provider_token_benchmark", _SCRIPT)
 pbm = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pbm)
@@ -141,10 +139,7 @@ def test_build_result_ok_sums_multi_round():
 
 
 def test_build_result_ok_falls_back_to_display():
-    stdout = (
-        "----- Model: glm-5.3 | Backend: https://api.z.ai\n"
-        "=== Total: 1.5k | Out: 1.5k | Cost: N/A ===\n"
-    )
+    stdout = "----- Model: glm-5.3 | Backend: https://api.z.ai\n" "=== Total: 1.5k | Out: 1.5k | Cost: N/A ===\n"
     result = pbm.build_result("zai", 0, stdout, "")
     assert result["status"] == "ok"
     assert result["out_tokens"] == 1500
@@ -289,9 +284,7 @@ def test_render_chart_writes_valid_png(tmp_path):
         ("glm-5.3", 512),
     ]
     out = tmp_path / "chart.png"
-    pbm.render_chart(
-        entries, out, "What is this project about", "2026-08-09T10:00:00+01:00"
-    )
+    pbm.render_chart(entries, out, "What is this project about", "2026-08-09T10:00:00+01:00")
     data = out.read_bytes()
     assert data[:8] == b"\x89PNG\r\n\x1a\n"
     chunks = dict(_png_chunks(data))
@@ -301,9 +294,7 @@ def test_render_chart_writes_valid_png(tmp_path):
 
     # The chart must contain more than just the white background.
     raw = zlib.decompress(chunks[b"IDAT"])
-    non_white = sum(
-        1 for i in range(0, len(raw), 3) if raw[i : i + 3] != bytes((255, 255, 255))
-    )
+    non_white = sum(1 for i in range(0, len(raw), 3) if raw[i : i + 3] != bytes((255, 255, 255)))
     assert non_white > 1000
 
 
@@ -335,10 +326,7 @@ def test_nice_max():
 
 def test_resolve_artifact_path(tmp_path):
     # Explicit paths always win.
-    assert (
-        pbm.resolve_artifact_path(str(tmp_path / "a.json"), "provider_tokens.json")
-        == tmp_path / "a.json"
-    )
+    assert pbm.resolve_artifact_path(str(tmp_path / "a.json"), "provider_tokens.json") == tmp_path / "a.json"
     # Defaults land in the system temp dir, kept across runs.
     import tempfile
 
@@ -378,11 +366,7 @@ def test_render_chart_bars_grow_left_to_right(tmp_path):
 
     label_w = max(
         110,
-        max(
-            pbm.text_width(label, pbm.CHAR_SCALE, pbm.CHAR_SPACING)
-            for label, _ in entries
-        )
-        + 16,
+        max(pbm.text_width(label, pbm.CHAR_SCALE, pbm.CHAR_SPACING) for label, _ in entries) + 16,
     )
     chart_x0 = pbm.MARGIN_L + label_w + 16
     y = pbm.MARGIN_T + pbm.BAR_H // 2

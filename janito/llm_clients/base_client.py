@@ -139,9 +139,7 @@ class Client:
     #: Fallback backend label shown in verbose mode when ``base_url`` is None.
     backend_default: str = "api.openai.com"
 
-    def __init__(
-        self, api_config: APIConfig, ui_config: UIConfig | None = None
-    ) -> None:
+    def __init__(self, api_config: APIConfig, ui_config: UIConfig | None = None) -> None:
         self.api_config = api_config
         # Convenience aliases (unchanged attribute names for the hooks).
         ui_config = ui_config or _DEFAULT_UI_CONFIG
@@ -347,9 +345,7 @@ class Client:
                 # Record the assistant's tool calls, execute every call and
                 # append the tool responses to the history, then loop to get
                 # the final response after the tool calls.
-                state = self._handle_tool_calls(
-                    tool_calls, full_content, reasoning_content, state, tool_executor
-                )
+                state = self._handle_tool_calls(tool_calls, full_content, reasoning_content, state, tool_executor)
                 continue
 
             # No more tool calls, return the final response.  The end-of-turn
@@ -358,13 +354,9 @@ class Client:
             # ``on_turn_complete`` renders the usage summary (with the turn's
             # elapsed wall-clock time, issue #99) and records the overall-use
             # accounting row (see RichTurnObserver).
-            return self._finish_turn(
-                full_content, reasoning_content, state, token_stats, turn_started
-            )
+            return self._finish_turn(full_content, reasoning_content, state, token_stats, turn_started)
 
-    def _finish_turn(
-        self, full_content, reasoning_content, state, token_stats, turn_started=None
-    ):
+    def _finish_turn(self, full_content, reasoning_content, state, token_stats, turn_started=None):
         """Finalize the turn and deliver the end-of-turn report.
 
         Runs the concrete client's :meth:`_finalize` hook and then hands the
@@ -386,9 +378,7 @@ class Client:
     # Shared helpers (base implementation; not monkeypatched by tests)
     # ------------------------------------------------------------------
 
-    def _run_stream_round_with_retry(
-        self, client, call_kwargs, tools_schemas, state, *, base_url, api_key, model
-    ):
+    def _run_stream_round_with_retry(self, client, call_kwargs, tools_schemas, state, *, base_url, api_key, model):
         """Run one streaming round, retrying HTTP 429 rate limits (issue #116).
 
         Starts at a 1s interval, doubles after each consecutive 429 (capped
@@ -528,9 +518,7 @@ class Client:
         """
         raise NotImplementedError
 
-    def _handle_tool_calls(
-        self, tool_calls, full_content, reasoning_content, state, tool_executor
-    ):
+    def _handle_tool_calls(self, tool_calls, full_content, reasoning_content, state, tool_executor):
         """Record + execute tool calls; return the updated conversation state."""
         raise NotImplementedError
 

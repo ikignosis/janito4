@@ -54,12 +54,7 @@ def get_builtin_system_prompt() -> str:
     without its own newlines: :meth:`SysPromptManager.render` appends one
     newline at the end of every section for visual separation.
     """
-    return (
-        files("janito")
-        .joinpath(BUILTIN_SYSTEM_PROMPT_RESOURCE)
-        .read_text(encoding="utf-8")
-        .strip()
-    )
+    return files("janito").joinpath(BUILTIN_SYSTEM_PROMPT_RESOURCE).read_text(encoding="utf-8").strip()
 
 
 # Section names used when building the default prompt.
@@ -100,9 +95,7 @@ class SysPromptManager:
     """
 
     def __init__(self, start_prompt: str, start_label: str | None = None) -> None:
-        self._sections: list[Section] = [
-            Section(SECTION_START, start_prompt, start_label)
-        ]
+        self._sections: list[Section] = [Section(SECTION_START, start_prompt, start_label)]
 
     def add_section(self, name: str, prompt: str, label: str | None = None) -> None:
         """Append a new section.

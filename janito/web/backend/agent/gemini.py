@@ -59,9 +59,7 @@ async def stream_turn_events(client, call_kwargs: dict, acc: GeminiTurnAccumulat
     The caller owns ``acc``; on completion it holds the full turn state for
     end-of-turn assembly (``run_tool_turn`` / ``DoneEvent``).
     """
-    async for ev in emit_stream_events(
-        _gemini_chunks(client, call_kwargs), acc, break_on_done=True
-    ):
+    async for ev in emit_stream_events(_gemini_chunks(client, call_kwargs), acc, break_on_done=True):
         yield ev
 
 

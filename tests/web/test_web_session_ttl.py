@@ -39,18 +39,14 @@ try:
 except ModuleNotFoundError:
     _HAS_FASTAPI = False
 
-requires_fastapi = pytest.mark.skipif(
-    not _HAS_FASTAPI, reason="fastapi (web extra) is not installed"
-)
+requires_fastapi = pytest.mark.skipif(not _HAS_FASTAPI, reason="fastapi (web extra) is not installed")
 
 
 def _patch_config_start(monkeypatch, start=None):
     """Pin load_system_prompt_start so tests never touch the real config."""
     import janito.config_loaders as config_loaders_mod
 
-    monkeypatch.setattr(
-        config_loaders_mod, "load_system_prompt_start", lambda: (start, None)
-    )
+    monkeypatch.setattr(config_loaders_mod, "load_system_prompt_start", lambda: (start, None))
 
 
 @pytest.fixture()
@@ -70,9 +66,7 @@ def _make_client(isolated_cwd, **config_kwargs):
     from janito.web.backend.app import create_app
     from janito.web.backend.config import WebServerConfig
 
-    config = WebServerConfig(
-        web_host="127.0.0.1", web_port=0, no_web_open=True, **config_kwargs
-    )
+    config = WebServerConfig(web_host="127.0.0.1", web_port=0, no_web_open=True, **config_kwargs)
     return TestClient(create_app(config))
 
 
@@ -111,9 +105,7 @@ def test_manager_reload_restores_full_history(isolated_cwd):
     from janito.web.backend.config import WebServerConfig
     from janito.web.backend.session import SessionManager
 
-    config = WebServerConfig(
-        web_host="127.0.0.1", web_port=0, no_web_open=True, session_ttl=50
-    )
+    config = WebServerConfig(web_host="127.0.0.1", web_port=0, no_web_open=True, session_ttl=50)
     manager = SessionManager(config)
     session = manager.create()
     session.messages.append({"role": "user", "content": "hello"})

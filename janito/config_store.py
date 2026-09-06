@@ -165,10 +165,7 @@ class ConfigStore:
                         model_config = models.get(model)
                         if isinstance(model_config, dict):
                             value = model_config.get(leaf)
-                            logger.debug(
-                                f"Getting config '{key}': "
-                                f"{value if value is None else '(set)'}"
-                            )
+                            logger.debug(f"Getting config '{key}': " f"{value if value is None else '(set)'}")
                             return value
             return None
 
@@ -182,9 +179,7 @@ class ConfigStore:
                     provider_config = providers[provider]
                     if isinstance(provider_config, dict):
                         value = provider_config.get(subkey)
-                        logger.debug(
-                            f"Getting config '{key}': {value if value is None else '(set)'}"
-                        )
+                        logger.debug(f"Getting config '{key}': {value if value is None else '(set)'}")
                         return value
 
         # Fall back to flat key lookup
@@ -204,9 +199,7 @@ class ConfigStore:
             providers[provider] = provider_config
         return provider_config
 
-    def _set_model_scoped(
-        self, config: dict, provider: str, model: str, leaf: str, value: Any
-    ) -> None:
+    def _set_model_scoped(self, config: dict, provider: str, model: str, leaf: str, value: Any) -> None:
         """Write a model-scoped value into the nested providers/models map."""
         provider_config = self._ensure_provider(config, provider)
         models = provider_config.get("models")
@@ -300,9 +293,7 @@ class ConfigStore:
         logger.debug(f"Config key not found for removal: {key}")
         return False
 
-    def _prune_provider_entry(
-        self, config: dict[str, Any], providers: dict[str, Any], provider: str
-    ) -> None:
+    def _prune_provider_entry(self, config: dict[str, Any], providers: dict[str, Any], provider: str) -> None:
         """Prune an emptied provider entry (variant marker rule) and the map.
 
         A variant's registration marker lives in the providers map itself, so
@@ -321,9 +312,7 @@ class ConfigStore:
         if not providers:
             config.pop("providers", None)
 
-    def _unset_provider_scoped(
-        self, config: dict[str, Any], provider: str, subkey: str
-    ) -> bool:
+    def _unset_provider_scoped(self, config: dict[str, Any], provider: str, subkey: str) -> bool:
         """Remove a provider-scoped key from the nested providers map.
 
         Args:
@@ -351,9 +340,7 @@ class ConfigStore:
         logger.info(f"Removed config key: {provider}.{subkey}")
         return True
 
-    def _unset_model_scoped(
-        self, config: dict[str, Any], provider: str, model: str, leaf: str
-    ) -> bool:
+    def _unset_model_scoped(self, config: dict[str, Any], provider: str, model: str, leaf: str) -> bool:
         """Remove a model-scoped key from the nested providers/models map.
 
         When the model's dict becomes empty it is pruned; an emptied
@@ -370,18 +357,11 @@ class ConfigStore:
             bool: True if the key was removed, False if it didn't exist.
         """
         providers = config.get("providers")
-        provider_config = (
-            providers.get(provider) if isinstance(providers, dict) else None
-        )
-        models = (
-            provider_config.get("models") if isinstance(provider_config, dict) else None
-        )
+        provider_config = providers.get(provider) if isinstance(providers, dict) else None
+        models = provider_config.get("models") if isinstance(provider_config, dict) else None
         model_config = models.get(model) if isinstance(models, dict) else None
         if not isinstance(model_config, dict) or leaf not in model_config:
-            logger.debug(
-                f"Config key not found for removal: "
-                f"{provider}.models.{model}.{leaf}"
-            )
+            logger.debug(f"Config key not found for removal: " f"{provider}.models.{model}.{leaf}")
             return False
         del model_config[leaf]
         if not model_config:

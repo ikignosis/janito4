@@ -60,9 +60,7 @@ if pytest is not None:
             parts.append(f"Total: {format_tokens(total_tokens)}")
         if input_tokens is not None:
             if max_input_tokens is not None:
-                parts.append(
-                    f"In: {format_tokens(input_tokens)}/{format_tokens(max_input_tokens)}"
-                )
+                parts.append(f"In: {format_tokens(input_tokens)}/{format_tokens(max_input_tokens)}")
             else:
                 parts.append(f"In: {format_tokens(input_tokens)}")
         if output_tokens is not None:
@@ -145,9 +143,7 @@ if pytest is not None:
             "janito.providers.deepseek.cost._utcnow",
             lambda: datetime(2026, 8, 17, 12, 0, tzinfo=timezone.utc),
         )
-        text = _display_usage_text(
-            "deepseek", "deepseek-v4-flash", _usage(1_000_000, 1_000_000, 0)
-        )
+        text = _display_usage_text("deepseek", "deepseek-v4-flash", _usage(1_000_000, 1_000_000, 0))
         assert "Cost: 88.0¢ (off-peak)" in text
 
     def test_usage_line_cost_bills_cached_input_at_cache_hit(monkeypatch):
@@ -158,16 +154,12 @@ if pytest is not None:
             "janito.providers.deepseek.cost._utcnow",
             lambda: datetime(2026, 8, 17, 12, 0, tzinfo=timezone.utc),
         )
-        text = _display_usage_text(
-            "deepseek", "deepseek-v4-flash", _usage(1_000_000, 1_000_000, 500_000)
-        )
+        text = _display_usage_text("deepseek", "deepseek-v4-flash", _usage(1_000_000, 1_000_000, 500_000))
         assert "Cost: 77.3¢ (off-peak)" in text
 
     def test_usage_line_cost_google_provider():
         """Google Gemini usage calculates cost using google.cost module."""
-        text = _display_usage_text(
-            "google", "gemini-3.7-flash", _usage(1_000_000, 1_000_000, 0)
-        )
+        text = _display_usage_text("google", "gemini-3.7-flash", _usage(1_000_000, 1_000_000, 0))
         assert "Cost: 4.5$" in text
 
     def test_usage_line_cost_minimax_provider():
@@ -179,24 +171,18 @@ if pytest is not None:
         """OpenAI GPT-5.6 Luna usage calculates cost using openai.cost module."""
         # 100k input tokens (<= 272K threshold): standard rates
         # (100k * $0.20 + 1M * $1.20) / 1M = 1.22.
-        text = _display_usage_text(
-            "openai", "gpt-5.6-luna", _usage(100_000, 1_000_000, 0)
-        )
+        text = _display_usage_text("openai", "gpt-5.6-luna", _usage(100_000, 1_000_000, 0))
         assert "Cost: 1.2$" in text
 
     def test_usage_line_cost_openai_high_context():
         """High-context OpenAI requests (> 272K input tokens) bill at 2x/1.5x."""
-        text = _display_usage_text(
-            "openai", "gpt-5.6-luna", _usage(300_000, 1_000_000, 0)
-        )
+        text = _display_usage_text("openai", "gpt-5.6-luna", _usage(300_000, 1_000_000, 0))
         assert "Cost: 1.9$" in text
 
     def test_usage_line_cost_anthropic_provider():
         """Anthropic usage calculates cost using anthropic.cost module."""
         # 1M input (cache miss) at $2 + 1M output at $10 per 1M tokens.
-        text = _display_usage_text(
-            "anthropic", "claude-sonnet-5", _usage(1_000_000, 1_000_000, 0)
-        )
+        text = _display_usage_text("anthropic", "claude-sonnet-5", _usage(1_000_000, 1_000_000, 0))
         assert "Cost: 12.0$" in text
 
     def test_usage_line_cost_without_provider_model_is_na():
@@ -243,34 +229,24 @@ if pytest is not None:
 
     def test_usage_warning_when_input_over_80_percent():
         """A warning is printed when In tokens exceed 80% of max input."""
-        text = _display_usage_text(
-            None, None, _usage(90_000, 10_000, 0), max_input_tokens=100_000
-        )
-        assert (
-            "Reached 80% of input capacity, consider running /compact or /clear" in text
-        )
+        text = _display_usage_text(None, None, _usage(90_000, 10_000, 0), max_input_tokens=100_000)
+        assert "Reached 80% of input capacity, consider running /compact or /clear" in text
 
     def test_usage_warning_printed_before_usage_line():
         """The capacity warning appears before the usage summary line."""
-        text = _display_usage_text(
-            None, None, _usage(90_000, 10_000, 0), max_input_tokens=100_000
-        )
+        text = _display_usage_text(None, None, _usage(90_000, 10_000, 0), max_input_tokens=100_000)
         lines = text.splitlines()
         assert "Reached 80% of input capacity" in lines[0]
         assert lines[1].startswith("=== In:")
 
     def test_usage_no_warning_at_exactly_80_percent():
         """Exactly 80% of capacity does not trigger the warning."""
-        text = _display_usage_text(
-            None, None, _usage(80_000, 20_000, 0), max_input_tokens=100_000
-        )
+        text = _display_usage_text(None, None, _usage(80_000, 20_000, 0), max_input_tokens=100_000)
         assert "Reached 80% of input capacity" not in text
 
     def test_usage_no_warning_below_80_percent():
         """Input below 80% of capacity does not trigger the warning."""
-        text = _display_usage_text(
-            None, None, _usage(79_999, 20_001, 0), max_input_tokens=100_000
-        )
+        text = _display_usage_text(None, None, _usage(79_999, 20_001, 0), max_input_tokens=100_000)
         assert "Reached 80% of input capacity" not in text
 
     def test_usage_no_warning_without_max_input_tokens():
@@ -297,9 +273,7 @@ if pytest is not None:
     def test_usage_event_to_dict_with_max():
         from janito.web.backend.events import UsageEvent
 
-        ev = UsageEvent(
-            total=100, last_input=80, last_output=20, last_cached=0, max_tokens=65536
-        )
+        ev = UsageEvent(total=100, last_input=80, last_output=20, last_cached=0, max_tokens=65536)
         d = ev.to_dict()
         assert d["max_tokens"] == 65536
 

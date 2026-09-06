@@ -20,9 +20,7 @@ from ...tooling import BaseTool, norm_path
 from ...tooling.decorator import tool
 
 
-def _determine_operation(
-    source_dir: str, dest_dir: str, source_name: str, dest_name: str
-) -> str:
+def _determine_operation(source_dir: str, dest_dir: str, source_name: str, dest_name: str) -> str:
     """Classify the move as ``move``/``rename``/``move_rename``."""
     if source_dir == dest_dir:
         if source_name == dest_name:
@@ -81,9 +79,7 @@ class MoveFile(BaseTool):
         return created_dirs
 
     @staticmethod
-    def _build_success_message(
-        operation: str, is_directory: bool, overwritten: bool
-    ) -> str:
+    def _build_success_message(operation: str, is_directory: bool, overwritten: bool) -> str:
         """Build the human-readable success message."""
         item_type = "directory" if is_directory else "file"
 
@@ -159,9 +155,7 @@ class MoveFile(BaseTool):
         overwritten = False
         if os.path.exists(abs_destination):
             if not overwrite:
-                self.report_error(
-                    f"Destination already exists: {norm_dest} (use overwrite=True to replace)"
-                )
+                self.report_error(f"Destination already exists: {norm_dest} (use overwrite=True to replace)")
                 return {
                     "success": False,
                     "error": f"Destination already exists: {norm_dest} (use overwrite=True to replace)",
@@ -246,9 +240,7 @@ class MoveFile(BaseTool):
                 - 'error': error message if operation failed (only present if success=False)
         """
         try:
-            return self._do_move(
-                source, destination, overwrite, create_dirs, preserve_metadata
-            )
+            return self._do_move(source, destination, overwrite, create_dirs, preserve_metadata)
         except PermissionError as e:
             self.report_error(f"Permission denied: {e!s}")
             return {
@@ -288,14 +280,10 @@ def main():
     """Command line interface for testing the MoveFile tool."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Move file tool for AI function calling"
-    )
+    parser = argparse.ArgumentParser(description="Move file tool for AI function calling")
     parser.add_argument("source", help="Source file or directory path")
     parser.add_argument("destination", help="Destination path")
-    parser.add_argument(
-        "--overwrite", "-o", action="store_true", help="Overwrite existing destination"
-    )
+    parser.add_argument("--overwrite", "-o", action="store_true", help="Overwrite existing destination")
     parser.add_argument(
         "--create-dirs",
         "-c",
@@ -307,9 +295,7 @@ def main():
         action="store_true",
         help="Don't preserve file metadata",
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
 
     args = parser.parse_args()
 

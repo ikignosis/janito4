@@ -17,18 +17,12 @@ from .registry import register_command
 CLEAR_KEYWORDS = {"clear", "default", "none", "auto"}
 
 
-def available_effort_names(
-    provider: str | None, model: str | None, prefix: str = ""
-) -> list[str]:
+def available_effort_names(provider: str | None, model: str | None, prefix: str = "") -> list[str]:
     """Return supported reasoning efforts for provider/model matching prefix."""
     from janito.providers.registry import get_provider
 
     found = get_provider(provider) if provider else None
-    supported = (
-        found.model_config(model).get("supported_reasoning_efforts")
-        if found is not None
-        else None
-    )
+    supported = found.model_config(model).get("supported_reasoning_efforts") if found is not None else None
     names: list[str] = []
     for entry in supported or []:
         if isinstance(entry, dict):
@@ -55,11 +49,7 @@ def _effective_effort(shell) -> tuple[str | None, str]:
     if configured:
         return configured, "config"
     found = get_provider(provider) if provider else None
-    default = (
-        found.model_config(model).get("default_reasoning_effort")
-        if found is not None
-        else None
-    )
+    default = found.model_config(model).get("default_reasoning_effort") if found is not None else None
     if default:
         return default, "default"
     return None, "unset"
@@ -99,9 +89,7 @@ class EffortCmdHandler(CmdHandler):
             print(f"Reasoning effort is currently '{effort}'{suffix} for this session.")
         else:
             print("Reasoning effort is currently not set for this session.")
-        supported = available_effort_names(
-            getattr(shell, "provider", None), getattr(shell, "model", None)
-        )
+        supported = available_effort_names(getattr(shell, "provider", None), getattr(shell, "model", None))
         if supported:
             print(f"Supported levels: {', '.join(supported)}")
         print("Usage: /effort <level> | /effort clear")
@@ -120,15 +108,11 @@ class EffortCmdHandler(CmdHandler):
         if supported:
             matches = [s for s in supported if s.lower() == level.lower()]
             if not matches:
-                print(
-                    f"Error: Invalid effort '{level}'. Supported: {', '.join(supported)}"
-                )
+                print(f"Error: Invalid effort '{level}'. Supported: {', '.join(supported)}")
                 return
             canonical = matches[0]
         shell.reasoning_effort = canonical
-        print(
-            f"[OK] Reasoning effort set to '{canonical}' for this session (config default unchanged)."
-        )
+        print(f"[OK] Reasoning effort set to '{canonical}' for this session (config default unchanged).")
         _rebind_send_function(shell)
 
 

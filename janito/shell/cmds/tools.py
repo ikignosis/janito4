@@ -41,12 +41,8 @@ def _load_builtin_tools():
 
         all_tools = get_all_tools()
         session_names = get_session_tool_names()
-        offered_tools = {
-            name: tool for name, tool in all_tools.items() if name in session_names
-        }
-        offered_schemas = {
-            s["function"]["name"]: s["function"] for s in get_session_tool_schemas()
-        }
+        offered_tools = {name: tool for name, tool in all_tools.items() if name in session_names}
+        offered_schemas = {s["function"]["name"]: s["function"] for s in get_session_tool_schemas()}
         restricted = {}
         disabled = {}
         disabled_names = get_disabled_tool_names()

@@ -44,9 +44,7 @@ try:
 except ModuleNotFoundError:
     _HAS_FASTAPI = False
 
-requires_fastapi = pytest.mark.skipif(
-    not _HAS_FASTAPI, reason="fastapi (web extra) is not installed"
-)
+requires_fastapi = pytest.mark.skipif(not _HAS_FASTAPI, reason="fastapi (web extra) is not installed")
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -106,17 +104,12 @@ def test_patch_model_with_provider_persists_per_provider(client):
     # Make sure the config.json has no stale model for the target provider.
     cs.unset_config_value("minimax.model")
 
-    resp = client.patch(
-        "/api/config", json={"model": "MiniMax-M3", "provider": "minimax"}
-    )
+    resp = client.patch("/api/config", json={"model": "MiniMax-M3", "provider": "minimax"})
     assert resp.status_code == 200
     assert resp.json()["updated"]["model"] == "MiniMax-M3"
 
     # Persisted per-provider on disk (the core of the fix).
-    assert (
-        cs.load_config().get("providers", {}).get("minimax", {}).get("model")
-        == "MiniMax-M3"
-    )
+    assert cs.load_config().get("providers", {}).get("minimax", {}).get("model") == "MiniMax-M3"
     # ...and readable through the per-provider loader too.
     assert cl.load_model_from_config("minimax") == "MiniMax-M3"
 
@@ -133,10 +126,7 @@ def test_patch_model_without_provider_targets_active_provider(client):
     assert resp.status_code == 200
 
     # Applied to the persisted default (openai), not any other provider.
-    assert (
-        cs.load_config().get("providers", {}).get("openai", {}).get("model")
-        == "gpt-5.6-luna"
-    )
+    assert cs.load_config().get("providers", {}).get("openai", {}).get("model") == "gpt-5.6-luna"
     assert cl.load_model_from_config("minimax") in (None, "MiniMax-M3")
 
 
@@ -174,10 +164,7 @@ def test_patch_model_unknown_model_rejected(client):
         json={"model": "anthropic/claude-3.5-sonnet", "provider": "openrouter"},
     )
     assert resp.status_code == 200
-    assert (
-        cs.load_config().get("providers", {}).get("openrouter", {}).get("model")
-        == "anthropic/claude-3.5-sonnet"
-    )
+    assert cs.load_config().get("providers", {}).get("openrouter", {}).get("model") == "anthropic/claude-3.5-sonnet"
 
 
 @requires_fastapi
@@ -190,16 +177,11 @@ def test_patch_model_for_other_provider_keeps_server_model(client):
     client.app.state.config.model = "gpt-4o-mini"
 
     # Persist a model for a *different* provider (deepseek).
-    resp = client.patch(
-        "/api/config", json={"model": "deepseek-v4-flash", "provider": "deepseek"}
-    )
+    resp = client.patch("/api/config", json={"model": "deepseek-v4-flash", "provider": "deepseek"})
     assert resp.status_code == 200
 
     # On disk for deepseek...
-    assert (
-        cs.load_config().get("providers", {}).get("deepseek", {}).get("model")
-        == "deepseek-v4-flash"
-    )
+    assert cs.load_config().get("providers", {}).get("deepseek", {}).get("model") == "deepseek-v4-flash"
     # ...but the running server (openai) keeps its current model.
     assert client.get("/api/config").json()["model"] == "gpt-4o-mini"
 
@@ -221,9 +203,7 @@ def test_patch_empty_model_clears_override(client):
 def test_patch_model_unknown_provider_rejected(client):
     """An unknown provider name is rejected with 400 and nothing is written."""
     before = cs.load_config()
-    resp = client.patch(
-        "/api/config", json={"model": "whatever", "provider": "not-a-provider"}
-    )
+    resp = client.patch("/api/config", json={"model": "whatever", "provider": "not-a-provider"})
     assert resp.status_code == 400
     assert resp.json()["detail"]
     assert cs.load_config() == before

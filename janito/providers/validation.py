@@ -156,10 +156,7 @@ def validate_model_name(provider: str, model: str) -> str:
                         return name
 
     available = ", ".join(sorted(found.model_names(), key=str.lower))
-    raise ValueError(
-        f"Unknown model '{model}' for provider '{found.name}'. "
-        f"Available models: {available}"
-    )
+    raise ValueError(f"Unknown model '{model}' for provider '{found.name}'. " f"Available models: {available}")
 
 
 def list_supported_providers() -> list:

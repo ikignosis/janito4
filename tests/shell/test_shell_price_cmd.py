@@ -107,15 +107,9 @@ def test_price_cost_columns_match_provider_cost(monkeypatch, tmp_path, capsys):
     for provider in list_supported_providers():
         found = get_provider(provider)
         for model in found.model_names():
-            cost_in = get_provider_cost(
-                provider, model, 1_000_000, 0, 0, is_reference=True
-            )
-            cost_cache = get_provider_cost(
-                provider, model, 1_000_000, 0, 1_000_000, is_reference=True
-            )
-            cost_output = get_provider_cost(
-                provider, model, 0, 1_000_000, 0, is_reference=True
-            )
+            cost_in = get_provider_cost(provider, model, 1_000_000, 0, 0, is_reference=True)
+            cost_cache = get_provider_cost(provider, model, 1_000_000, 0, 1_000_000, is_reference=True)
+            cost_output = get_provider_cost(provider, model, 0, 1_000_000, 0, is_reference=True)
             assert cost_in in out
             assert cost_cache in out
             assert cost_output in out
@@ -123,15 +117,9 @@ def test_price_cost_columns_match_provider_cost(monkeypatch, tmp_path, capsys):
             from janito.providers.costing import get_provider_cost_value
 
             values = [
-                get_provider_cost_value(
-                    provider, model, 1_000_000, 0, 0, is_reference=True
-                ),
-                get_provider_cost_value(
-                    provider, model, 1_000_000, 0, 1_000_000, is_reference=True
-                ),
-                get_provider_cost_value(
-                    provider, model, 0, 1_000_000, 0, is_reference=True
-                ),
+                get_provider_cost_value(provider, model, 1_000_000, 0, 0, is_reference=True),
+                get_provider_cost_value(provider, model, 1_000_000, 0, 1_000_000, is_reference=True),
+                get_provider_cost_value(provider, model, 0, 1_000_000, 0, is_reference=True),
             ]
             if all(value is not None for value in values):
                 assert format_cost(sum(values)) in out
@@ -150,18 +138,8 @@ def test_price_shows_na_for_models_without_cost_module(monkeypatch, tmp_path, ca
     # Numbers over words (Rule 6): numeric source of truth, one smoke assert.
     from janito.providers.costing import get_provider_cost_value
 
-    assert (
-        get_provider_cost_value(
-            "anthropic", "claude-sonnet-5", 1_000_000, 0, 0, is_reference=True
-        )
-        is not None
-    )
-    assert (
-        get_provider_cost_value(
-            "openai", "gpt-5.6-luna", 1_000_000, 0, 0, is_reference=True
-        )
-        is not None
-    )
+    assert get_provider_cost_value("anthropic", "claude-sonnet-5", 1_000_000, 0, 0, is_reference=True) is not None
+    assert get_provider_cost_value("openai", "gpt-5.6-luna", 1_000_000, 0, 0, is_reference=True) is not None
     assert out.strip() != ""
     assert "anthropic" in out
     # OpenAI ships a cost module, so its model shows a real cost, not N/A.

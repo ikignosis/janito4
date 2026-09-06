@@ -93,10 +93,7 @@ class StartTask(BaseTool):
                 - 'error': error message (only present if success is False)
         """
         try:
-            self.report_start(
-                f"Starting task: {summary}"
-                + (f" (timeout {timeout:g}s)" if timeout else "")
-            )
+            self.report_start(f"Starting task: {summary}" + (f" (timeout {timeout:g}s)" if timeout else ""))
 
             # Mirror the running task's current (turn) privileges by default:
             # the child starts with the same -r/-w/-x flags the current turn
@@ -144,17 +141,12 @@ def main():
     """Command line interface for testing the StartTask tool."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Start a new task that runs in parallel with other tasks"
-    )
+    parser = argparse.ArgumentParser(description="Start a new task that runs in parallel with other tasks")
     parser.add_argument("description", help="What needs to be done in this task")
     parser.add_argument(
         "--summary",
         default=None,
-        help=(
-            "One-line summary of the task, presented to the user "
-            "(default: the description)"
-        ),
+        help=("One-line summary of the task, presented to the user " "(default: the description)"),
     )
     parser.add_argument(
         "--working-dir",
@@ -179,9 +171,7 @@ def main():
             "terminated when it is exceeded (default: no cap)"
         ),
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
     args = parser.parse_args()
 
     result = StartTask().run(

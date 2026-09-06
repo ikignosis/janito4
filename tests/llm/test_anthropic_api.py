@@ -99,16 +99,12 @@ if pytest is not None:
             _event(
                 "content_block_start",
                 index=1,
-                content_block=SimpleNamespace(
-                    type="tool_use", id="toolu_1", name="read_file"
-                ),
+                content_block=SimpleNamespace(type="tool_use", id="toolu_1", name="read_file"),
             ),
             _event(
                 "content_block_delta",
                 index=1,
-                delta=SimpleNamespace(
-                    type="input_json_delta", partial_json='{"filepath": "'
-                ),
+                delta=SimpleNamespace(type="input_json_delta", partial_json='{"filepath": "'),
             ),
             _event(
                 "content_block_delta",
@@ -127,9 +123,7 @@ if pytest is not None:
         full, reasoning, tool_blocks, usage, raw_attrs = _consume_stream(events)
         assert full == "Hello world"
         assert reasoning is None
-        assert tool_blocks == [
-            {"id": "toolu_1", "name": "read_file", "input": {"filepath": "a.txt"}}
-        ]
+        assert tool_blocks == [{"id": "toolu_1", "name": "read_file", "input": {"filepath": "a.txt"}}]
         assert usage.total_tokens == 30
         assert usage.input_tokens == 10
         assert usage.output_tokens == 20
@@ -149,9 +143,7 @@ if pytest is not None:
             _event(
                 "content_block_delta",
                 index=0,
-                delta=SimpleNamespace(
-                    type="thinking_delta", thinking="Let me think..."
-                ),
+                delta=SimpleNamespace(type="thinking_delta", thinking="Let me think..."),
             ),
             _event("content_block_stop", index=0),
             _event(

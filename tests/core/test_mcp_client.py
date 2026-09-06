@@ -264,9 +264,7 @@ def test_create_transport_keeps_pre_split_list_command():
 def test_stdio_transport_end_to_end(tmp_path):
     """Connect, list tools and call tools through a real stdio subprocess."""
     server = _write_fake_stdio_server(tmp_path)
-    transport = create_transport(
-        {"transport": "stdio", "command": f"{sys.executable} {server}"}
-    )
+    transport = create_transport({"transport": "stdio", "command": f"{sys.executable} {server}"})
 
     assert transport.connect()
     try:
@@ -288,9 +286,7 @@ def test_stdio_transport_drains_stderr_under_flood(tmp_path):
     """A server flooding stderr must not deadlock requests; diagnostics are kept."""
     server = tmp_path / "fake_mcp_server_flood.py"
     server.write_text(FAKE_STDIO_SERVER_STDERR_FLOOD, encoding="utf-8")
-    transport = create_transport(
-        {"transport": "stdio", "command": f"{sys.executable} {server}"}
-    )
+    transport = create_transport({"transport": "stdio", "command": f"{sys.executable} {server}"})
 
     assert transport.connect()
     try:
@@ -360,9 +356,7 @@ def test_mcp_manager_reconnect_keeps_tools(tmp_path, _isolate):
         assert not client.is_connected
 
         # A forced refresh reconnects AND still lists the service's tools
-        names_after = [
-            t["function"]["name"] for t in manager.get_all_tools(force_refresh=True)
-        ]
+        names_after = [t["function"]["name"] for t in manager.get_all_tools(force_refresh=True)]
         assert names_after == ["loc_echo", "loc_add"]
     finally:
         manager.shutdown()

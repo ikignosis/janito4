@@ -23,9 +23,7 @@ class CreateFile(BaseTool):
     Tool for creating a new file with specified content.
     """
 
-    def run(
-        self, filepath: str, content: str = "", overwrite: bool = False
-    ) -> dict[str, Any]:
+    def run(self, filepath: str, content: str = "", overwrite: bool = False) -> dict[str, Any]:
         """
         Create a new file with specified content.
 
@@ -51,9 +49,7 @@ class CreateFile(BaseTool):
 
             # Check if file exists and overwrite is not allowed
             if os.path.exists(abs_filepath) and not overwrite:
-                self.report_error(
-                    "File already exists; (use overwrite=True to replace)"
-                )
+                self.report_error("File already exists; (use overwrite=True to replace)")
                 return {
                     "success": False,
                     "error": f"File already exists: {norm_path_str} (use overwrite=True to replace)",
@@ -70,9 +66,7 @@ class CreateFile(BaseTool):
             with open(abs_filepath, "w", encoding="utf-8") as f:
                 f.write(content)
                 bytes_written = len(content.encode("utf-8"))
-                lines_written = (
-                    content.count("\n") + (1 if content else 0) if content else 0
-                )
+                lines_written = content.count("\n") + (1 if content else 0) if content else 0
 
             self.report_result(f"Wrote {bytes_written} bytes ({lines_written} lines)")
 
@@ -99,26 +93,16 @@ def main():
     """Command line interface for testing the CreateFileTool."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Create file tool for AI function calling"
-    )
+    parser = argparse.ArgumentParser(description="Create file tool for AI function calling")
     parser.add_argument("filepath", help="File path to create")
-    parser.add_argument(
-        "--content", "-c", default="", help="Content to write to the file"
-    )
-    parser.add_argument(
-        "--overwrite", "-o", action="store_true", help="Overwrite existing file"
-    )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--content", "-c", default="", help="Content to write to the file")
+    parser.add_argument("--overwrite", "-o", action="store_true", help="Overwrite existing file")
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
 
     args = parser.parse_args()
 
     tool_instance = CreateFile()
-    result = tool_instance.run(
-        filepath=args.filepath, content=args.content, overwrite=args.overwrite
-    )
+    result = tool_instance.run(filepath=args.filepath, content=args.content, overwrite=args.overwrite)
 
     if args.json:
         print(json.dumps(result, indent=2))
@@ -126,9 +110,7 @@ def main():
         if result["success"]:
             norm_path_str = norm_path(result["filepath"])
             print(f"Successfully created file '{norm_path_str}'")
-            print(
-                f"Wrote {result['bytes_written']} bytes ({result['lines_written']} lines)"
-            )
+            print(f"Wrote {result['bytes_written']} bytes ({result['lines_written']} lines)")
         else:
             print(f"Error: {result['error']}")
 

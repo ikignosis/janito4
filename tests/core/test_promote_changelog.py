@@ -48,9 +48,7 @@ def test_promote_when_unreleased_is_last_section(tmp_path):
     assert result.endswith("- Some new feature.\n")
     assert not result.endswith("\n\n")
     assert "## [v1.3.0]" in result
-    assert (
-        "## [Unreleased](https://example.com/org/repo/compare/v1.3.0...HEAD)" in result
-    )
+    assert "## [Unreleased](https://example.com/org/repo/compare/v1.3.0...HEAD)" in result
 
 
 def test_promote_with_following_sections(tmp_path):
@@ -63,10 +61,7 @@ def test_promote_with_following_sections(tmp_path):
 
 
 def test_promote_empty_unreleased_as_last_section(tmp_path):
-    text = (
-        "# Changelog\n\n"
-        "## [Unreleased](https://example.com/org/repo/compare/v1.2.3...HEAD)\n"
-    )
+    text = "# Changelog\n\n" "## [Unreleased](https://example.com/org/repo/compare/v1.2.3...HEAD)\n"
     path = _write_changelog(tmp_path, text)
     pc.promote(path, version="v1.3.0", bump="minor", date="2026-02-02", dry_run=False)
     result = path.read_text(encoding="utf-8")

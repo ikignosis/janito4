@@ -320,18 +320,14 @@ class ChangesTracker:
         except Exception:  # noqa: BLE001 - display must never break the report
             display_path = filepath or "<no filepath>"
 
-        title = (
-            f"[bold]#{index}[/bold] [green]{tool_name}[/green] {escape(display_path)}"
-        )
+        title = f"[bold]#{index}[/bold] [green]{tool_name}[/green] {escape(display_path)}"
         console.print()
         console.print(Panel(title, border_style="cyan", padding=(0, 1)))
 
         if tool_name == CREATE_FILE_TOOL:
             content = params.get("content", "")
             lexer = self._guess_lexer(str(filepath), content)
-            console.print(
-                Syntax(content or "", lexer, line_numbers=True, word_wrap=True)
-            )
+            console.print(Syntax(content or "", lexer, line_numbers=True, word_wrap=True))
         elif tool_name == REPLACE_TEXT_TOOL:
             old_str = params.get("old_str", "")
             new_str = params.get("new_str", "")
@@ -351,9 +347,7 @@ class ChangesTracker:
             # Show the parameters as a pretty-printed, syntax-highlighted
             # JSON block for a readable summary.
             params_json = json.dumps(params, ensure_ascii=False, indent=2)
-            console.print(
-                Syntax(params_json, "json", line_numbers=False, word_wrap=True)
-            )
+            console.print(Syntax(params_json, "json", line_numbers=False, word_wrap=True))
 
 
 # Module-level singleton tracker backing the functions below.

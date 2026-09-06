@@ -205,9 +205,7 @@ class DashScopeTurnAccumulator:
         if isinstance(content, list):
             # Multimodal responses carry content as a list of modality items
             # (e.g. [{"text": "..."}]); join the text parts.
-            content = "".join(
-                item.get("text", "") for item in content if isinstance(item, dict)
-            )
+            content = "".join(item.get("text", "") for item in content if isinstance(item, dict))
         reasoning = _get(message, "reasoning_content") or ""
 
         for tc in _get(message, "tool_calls") or []:
@@ -254,9 +252,7 @@ class DashScopeTurnAccumulator:
             # The model was sent to the wrong generation endpoint
             # (multimodal vs text): signal the stream opener to retry once on
             # the other endpoint.
-            raise _ModelEndpointMismatch(
-                f"DashScope API error (code={code}): {message}{detail}"
-            )
+            raise _ModelEndpointMismatch(f"DashScope API error (code={code}): {message}{detail}")
         raise RuntimeError(f"DashScope API error (code={code}): {message}{detail}")
 
     # ------------------------------------------------------------------
@@ -289,11 +285,7 @@ class DashScopeTurnAccumulator:
         Uniform accessor used by the web loop to fold each round's usage into
         the turn-level cumulative totals (:class:`TurnInfo`).
         """
-        if (
-            self.input_tokens is None
-            and self.output_tokens is None
-            and self.total_tokens is None
-        ):
+        if self.input_tokens is None and self.output_tokens is None and self.total_tokens is None:
             return None
         return SimpleNamespace(
             total_tokens=self.total_tokens,

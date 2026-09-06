@@ -116,9 +116,7 @@ Examples:
         action="store_true",
         help="Return the time in UTC instead of local time",
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
 
     args = parser.parse_args()
 

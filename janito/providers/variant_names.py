@@ -112,7 +112,5 @@ def registered_variant_names() -> set[str]:
         The set of registered variant names.
     """
     return {
-        name
-        for name, entry in read_providers_map().items()
-        if isinstance(entry, dict) and is_variant_style_name(name)
+        name for name, entry in read_providers_map().items() if isinstance(entry, dict) and is_variant_style_name(name)
     }

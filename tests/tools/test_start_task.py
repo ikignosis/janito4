@@ -34,9 +34,7 @@ class _FakeTaskManager:
         # Mirror the real manager's contract so the tool's error path can be
         # exercised without spawning a subprocess.
         if timeout is not None and timeout <= 0:
-            raise ValueError(
-                f"timeout must be a positive number of seconds, got {timeout:g}"
-            )
+            raise ValueError(f"timeout must be a positive number of seconds, got {timeout:g}")
         # Records kwargs (not a positional tuple) so adding a manager argument
         # does not churn every assertion in this file.
         self.calls.append(
@@ -106,9 +104,7 @@ def test_run_defaults_to_current_turn_privileges(monkeypatch):
 
     token = set_turn_privileges("rx")  # e.g. a /rx turn
     try:
-        result = start_task_module.StartTask().run(
-            summary="Write docs", description="Write docs"
-        )
+        result = start_task_module.StartTask().run(summary="Write docs", description="Write docs")
     finally:
         reset_turn_privileges(token)
 
@@ -138,9 +134,7 @@ def test_run_defaults_to_session_privileges(monkeypatch):
         Privileges(READ=True, WRITE=True),
     )
 
-    result = start_task_module.StartTask().run(
-        summary="Write docs", description="Write docs"
-    )
+    result = start_task_module.StartTask().run(summary="Write docs", description="Write docs")
 
     assert fake.calls == [
         {
@@ -164,9 +158,7 @@ def test_run_explicit_privileges_override_turn(monkeypatch):
 
     token = set_turn_privileges("r")
     try:
-        result = start_task_module.StartTask().run(
-            summary="Write docs", description="Write docs", privileges="rwx"
-        )
+        result = start_task_module.StartTask().run(summary="Write docs", description="Write docs", privileges="rwx")
     finally:
         reset_turn_privileges(token)
 
@@ -198,9 +190,7 @@ def test_run_returns_error_on_failure(monkeypatch):
 
     monkeypatch.setattr(start_task_module, "task_manager", _BoomManager())
 
-    result = start_task_module.StartTask().run(
-        summary="Do something", description="Do something", working_dir="/nope"
-    )
+    result = start_task_module.StartTask().run(summary="Do something", description="Do something", working_dir="/nope")
 
     assert result["success"] is False
     assert result["error"].strip() != ""
@@ -213,9 +203,7 @@ def test_run_forwards_timeout(monkeypatch):
     """The lifetime cap is forwarded to the manager and echoed back."""
     fake = _install_fake_manager(monkeypatch)
 
-    result = start_task_module.StartTask().run(
-        summary="Index the repo", description="Index the repo", timeout=120
-    )
+    result = start_task_module.StartTask().run(summary="Index the repo", description="Index the repo", timeout=120)
 
     assert fake.calls[0]["timeout"] == 120
     assert result["success"] is True
@@ -236,9 +224,7 @@ def test_run_rejects_non_positive_timeout(monkeypatch):
     """A bad cap surfaces as success=False (the manager validates it)."""
     _install_fake_manager(monkeypatch)
 
-    result = start_task_module.StartTask().run(
-        summary="Bad cap", description="Bad cap", timeout=0
-    )
+    result = start_task_module.StartTask().run(summary="Bad cap", description="Bad cap", timeout=0)
 
     assert result["success"] is False
     assert result["error"].strip() != ""

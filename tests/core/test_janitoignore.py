@@ -142,9 +142,7 @@ def test_search_text_skips_janitoignore_files(project_dir):
 
 def test_search_text_count_only_skips_janitoignore_files(project_dir):
     """count_only mode also respects .janitoignore."""
-    result = SearchText().run(
-        paths=".", query="needle", count_only=True, respect_gitignore=False
-    )
+    result = SearchText().run(paths=".", query="needle", count_only=True, respect_gitignore=False)
 
     assert result["success"] is True
     counted_names = _basenames(result["counts"].keys())
@@ -194,23 +192,14 @@ def test_janitoignore_file_itself_auto_ignored(project_dir):
     # Content matches the search query below, so any result would show it.
     (project_dir / ".janitoignore").write_text("needle\n", encoding="utf-8")
 
-    listed = _basenames(
-        ListFiles().run(directory=".", respect_gitignore=False)["files"]
-    )
+    listed = _basenames(ListFiles().run(directory=".", respect_gitignore=False)["files"])
     assert ".janitoignore" not in listed
 
-    found = _basenames(
-        FindFiles().run(paths=".", pattern=".janitoignore", respect_gitignore=False)[
-            "files"
-        ]
-    )
+    found = _basenames(FindFiles().run(paths=".", pattern=".janitoignore", respect_gitignore=False)["files"])
     assert ".janitoignore" not in found
 
     searched = _basenames(
-        m.split(":")[0]
-        for m in SearchText().run(paths=".", query="needle", respect_gitignore=False)[
-            "matches"
-        ]
+        m.split(":")[0] for m in SearchText().run(paths=".", query="needle", respect_gitignore=False)["matches"]
     )
     assert "visible.txt" in searched
     assert ".janitoignore" not in searched

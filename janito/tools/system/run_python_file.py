@@ -91,24 +91,18 @@ class RunPythonFile(BaseTool):
                     "file_path": file_path,
                 }
 
-            abs_working_dir = self._resolve_working_dir(
-                working_directory, abs_file_path
-            )
+            abs_working_dir = self._resolve_working_dir(working_directory, abs_file_path)
             if abs_working_dir is None:
                 return {
                     "success": False,
-                    "error": (
-                        f"Working directory does not exist: {os.path.abspath(working_directory)}"
-                    ),
+                    "error": (f"Working directory does not exist: {os.path.abspath(working_directory)}"),
                     "exit_code": -1,
                     "file_path": file_path,
                     "working_directory": working_directory,
                 }
 
             python_executable = python_executable or sys.executable
-            python_command = self._build_command(
-                python_executable, abs_file_path, additional_args
-            )
+            python_command = self._build_command(python_executable, abs_file_path, additional_args)
             self._report_exec_start(
                 python_command,
                 norm_path(abs_file_path),
@@ -144,9 +138,7 @@ class RunPythonFile(BaseTool):
                 "success": False,
                 "error": f"Python file execution timed out after {timeout} seconds",
                 "exit_code": -1,
-                "command": " ".join(python_command)
-                if "python_command" in locals()
-                else "",
+                "command": " ".join(python_command) if "python_command" in locals() else "",
                 "file_path": file_path,
                 "working_directory": working_directory or os.getcwd(),
                 "execution_time_ms": execution_time_ms,
@@ -179,9 +171,7 @@ class RunPythonFile(BaseTool):
             return None
         return os.path.abspath(file_path)
 
-    def _resolve_working_dir(
-        self, working_directory: str | None, abs_file_path: str
-    ) -> str | None:
+    def _resolve_working_dir(self, working_directory: str | None, abs_file_path: str) -> str | None:
         """Return the absolute working dir, or None when it does not exist."""
         if working_directory:
             abs_working_dir = os.path.abspath(working_directory)
@@ -215,9 +205,7 @@ class RunPythonFile(BaseTool):
         command_preview = " ".join(cmd_parts)
         if len(command_preview) > 200:
             command_preview = command_preview[:200] + "..."
-        self.report_start(
-            f"🐍 Executing Python file in {norm_working_dir}:\n{command_preview}"
-        )
+        self.report_start(f"🐍 Executing Python file in {norm_working_dir}:\n{command_preview}")
 
     def _build_result(
         self,
@@ -252,14 +240,10 @@ class RunPythonFile(BaseTool):
         if capture_errors:
             output_result["stderr"] = stderr_text
         if success:
-            self._report_success(
-                execution_time_ms, capture_output, stdout_lines, stderr_lines
-            )
+            self._report_success(execution_time_ms, capture_output, stdout_lines, stderr_lines)
         else:
             self._report_failure(exit_code, capture_errors, stderr_lines, stdout_lines)
-            output_result[
-                "error"
-            ] = f"Python file execution failed with exit code {exit_code}"
+            output_result["error"] = f"Python file execution failed with exit code {exit_code}"
         return output_result
 
     def _report_success(
@@ -308,24 +292,12 @@ Examples:
 
     parser.add_argument("file", help="Python file to execute")
     parser.add_argument("-d", "--directory", help="Working directory for execution")
-    parser.add_argument(
-        "-p", "--python", help="Python executable to use (default: current interpreter)"
-    )
-    parser.add_argument(
-        "-t", "--timeout", type=int, default=60, help="Timeout in seconds (default: 60)"
-    )
-    parser.add_argument(
-        "--no-capture-output", action="store_true", help="Don't capture standard output"
-    )
-    parser.add_argument(
-        "--no-capture-errors", action="store_true", help="Don't capture standard error"
-    )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
-    parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Show verbose output"
-    )
+    parser.add_argument("-p", "--python", help="Python executable to use (default: current interpreter)")
+    parser.add_argument("-t", "--timeout", type=int, default=60, help="Timeout in seconds (default: 60)")
+    parser.add_argument("--no-capture-output", action="store_true", help="Don't capture standard output")
+    parser.add_argument("--no-capture-errors", action="store_true", help="Don't capture standard error")
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show verbose output")
     parser.add_argument(
         "--",
         dest="additional_args",
@@ -352,14 +324,10 @@ Examples:
         print(json.dumps(result, indent=2))
     else:
         if result["success"]:
-            print(
-                f"? Python file execution successful (exit code {result['exit_code']})"
-            )
+            print(f"? Python file execution successful (exit code {result['exit_code']})")
             print(f"  File: {norm_path(result['file_path'])}")
             print(f"  Working directory: {norm_path(result['working_directory'])}")
-            print(
-                f"  Execution time: {format_duration_ms(result['execution_time_ms'])}"
-            )
+            print(f"  Execution time: {format_duration_ms(result['execution_time_ms'])}")
 
             if args.verbose:
                 print("\nCommand:")

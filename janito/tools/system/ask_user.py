@@ -77,9 +77,7 @@ class AskUser(BaseTool):
         try:
             answer = self.prompt_user(question)
 
-            self.report_result(
-                f"User answered: {answer}" if answer else "User provided no answer"
-            )
+            self.report_result(f"User answered: {answer}" if answer else "User provided no answer")
 
             return {
                 "success": True,
@@ -112,9 +110,7 @@ Examples:
     )
 
     parser.add_argument("question", help="The question to ask the user")
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
 
     args = parser.parse_args()
 

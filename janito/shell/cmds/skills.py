@@ -112,10 +112,7 @@ class SkillsCmdHandler(CmdHandler):
         )
         summary.add_column("Key", style="green", no_wrap=True)
         summary.add_column("Value")
-        source_summary = (
-            f"{len(home_skills)} home, {len(agent_skills)} agents, "
-            f"{len(local_skills)} local"
-        )
+        source_summary = f"{len(home_skills)} home, {len(agent_skills)} agents, " f"{len(local_skills)} local"
         summary.add_row("Total", f"{total} skill(s) ({source_summary})")
         Console(markup=False).print(summary)
 

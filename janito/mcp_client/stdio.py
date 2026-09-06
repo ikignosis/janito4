@@ -64,9 +64,7 @@ class StdioTransport(MCPTransport):
         # Bounded buffer of the server's most recent stderr lines, drained by
         # a background thread so an over-verbose server can never fill the OS
         # pipe buffer and deadlock the request/response cycle.
-        self._stderr_lines: collections.deque[str] = collections.deque(
-            maxlen=STDERR_LOG_LINES
-        )
+        self._stderr_lines: collections.deque[str] = collections.deque(maxlen=STDERR_LOG_LINES)
         self._running = False
 
     @property
@@ -194,9 +192,7 @@ class StdioTransport(MCPTransport):
         """
         if "id" not in message:
             # Notification - no response needed
-            self._handle_notification(
-                message.get("method", ""), message.get("params", {})
-            )
+            self._handle_notification(message.get("method", ""), message.get("params", {}))
         elif message["id"] in self._response_queues:
             # Response to a request we sent
             self._response_queues[message["id"]].put(message)

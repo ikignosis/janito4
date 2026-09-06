@@ -67,9 +67,7 @@ if pytest is not None:
             reasoning_effort="xhigh",
             use_mcp=False,
         )
-        result = client_mod.run_turn(
-            config, "hello", ui_config=make_ui_config(stream_runner=fake_run)
-        )
+        result = client_mod.run_turn(config, "hello", ui_config=make_ui_config(stream_runner=fake_run))
 
         assert result == "hi"
         assert fake_run.captured_kwargs["reasoning_effort"] == "xhigh"
@@ -84,9 +82,7 @@ if pytest is not None:
             reasoning_effort="low",
             use_mcp=False,
         )
-        client_mod.run_turn(
-            config, "hello", ui_config=make_ui_config(stream_runner=fake_run)
-        )
+        client_mod.run_turn(config, "hello", ui_config=make_ui_config(stream_runner=fake_run))
         assert fake_run.captured_kwargs["reasoning_effort"] == "low"
 
     def test_run_turn_config_reasoning_effort_used(monkeypatch, tmp_path):
@@ -106,9 +102,7 @@ if pytest is not None:
             cli_model="qwen3.8-max",
             use_mcp=False,
         )
-        client_mod.run_turn(
-            config, "hello", ui_config=make_ui_config(stream_runner=fake_run)
-        )
+        client_mod.run_turn(config, "hello", ui_config=make_ui_config(stream_runner=fake_run))
 
         assert fake_run.captured_kwargs["reasoning_effort"] == "medium"
 
@@ -121,9 +115,7 @@ if pytest is not None:
             reasoning_effort=None,
             use_mcp=False,
         )
-        client_mod.run_turn(
-            config, "hello", ui_config=make_ui_config(stream_runner=fake_run)
-        )
+        client_mod.run_turn(config, "hello", ui_config=make_ui_config(stream_runner=fake_run))
 
         assert "reasoning_effort" not in fake_run.captured_kwargs
 
@@ -139,9 +131,7 @@ if pytest is not None:
             cli_model="deepseek-v4-flash",
             use_mcp=False,
         )
-        client_mod.run_turn(
-            config, "hello", ui_config=make_ui_config(stream_runner=fake_run)
-        )
+        client_mod.run_turn(config, "hello", ui_config=make_ui_config(stream_runner=fake_run))
 
         assert fake_run.captured_kwargs["extra_body"]["enable_thinking"] is True
 
@@ -158,9 +148,7 @@ if pytest is not None:
             reasoning_effort="xhigh",
             use_mcp=False,
         )
-        client_mod.run_turn(
-            config, "hello", ui_config=make_ui_config(stream_runner=fake_run)
-        )
+        client_mod.run_turn(config, "hello", ui_config=make_ui_config(stream_runner=fake_run))
 
         assert fake_run.captured_kwargs["extra_body"]["enable_thinking"] is True
 
@@ -175,9 +163,7 @@ if pytest is not None:
             reasoning_effort="xhigh",
             use_mcp=False,
         )
-        client_mod.run_turn(
-            config, "hello", ui_config=make_ui_config(stream_runner=fake_run)
-        )
+        client_mod.run_turn(config, "hello", ui_config=make_ui_config(stream_runner=fake_run))
 
         extra_body = fake_run.captured_kwargs.get("extra_body", {})
         assert "enable_code_interpreter" not in extra_body
@@ -191,13 +177,9 @@ if pytest is not None:
             model="gpt-4",
             use_mcp=False,
         )
-        client_mod.run_turn(
-            config, "hello", ui_config=make_ui_config(stream_runner=fake_run)
-        )
+        client_mod.run_turn(config, "hello", ui_config=make_ui_config(stream_runner=fake_run))
 
-        assert "enable_code_interpreter" not in fake_run.captured_kwargs.get(
-            "extra_body", {}
-        )
+        assert "enable_code_interpreter" not in fake_run.captured_kwargs.get("extra_body", {})
         assert "enable_search" not in fake_run.captured_kwargs.get("extra_body", {})
 
     def test_run_turn_thinking_defaults_on_for_minimax():
@@ -213,13 +195,9 @@ if pytest is not None:
             cli_model="MiniMax-M3",
             use_mcp=False,
         )
-        client_mod.run_turn(
-            config, "hello", ui_config=make_ui_config(stream_runner=fake_run)
-        )
+        client_mod.run_turn(config, "hello", ui_config=make_ui_config(stream_runner=fake_run))
 
-        assert fake_run.captured_kwargs["extra_body"]["thinking"] == {
-            "type": "adaptive"
-        }
+        assert fake_run.captured_kwargs["extra_body"]["thinking"] == {"type": "adaptive"}
 
     def test_run_turn_thinking_off_by_default_for_openai():
         """OpenAI has no default thinking: enable_thinking is not sent."""
@@ -229,9 +207,7 @@ if pytest is not None:
             model="gpt-4",
             use_mcp=False,
         )
-        client_mod.run_turn(
-            config, "hello", ui_config=make_ui_config(stream_runner=fake_run)
-        )
+        client_mod.run_turn(config, "hello", ui_config=make_ui_config(stream_runner=fake_run))
 
         assert "extra_body" not in fake_run.captured_kwargs
 
@@ -248,9 +224,7 @@ if pytest is not None:
             thinking=True,
             use_mcp=False,
         )
-        client_mod.run_turn(
-            config, "hello", ui_config=make_ui_config(stream_runner=fake_run)
-        )
+        client_mod.run_turn(config, "hello", ui_config=make_ui_config(stream_runner=fake_run))
         assert fake_run.captured_kwargs["extra_body"]["enable_thinking"] is True
 
     def test_run_turn_gemini_flavor_skips_enable_thinking():
@@ -268,9 +242,7 @@ if pytest is not None:
             thinking=True,
             use_mcp=False,
         )
-        client_mod.run_turn(
-            config, "hello", ui_config=make_ui_config(stream_runner=fake_run)
-        )
+        client_mod.run_turn(config, "hello", ui_config=make_ui_config(stream_runner=fake_run))
         extra_body = fake_run.captured_kwargs.get("extra_body")
         # enable_thinking must NOT be sent for Gemini-flavored providers.
         assert not extra_body or "enable_thinking" not in extra_body
@@ -289,9 +261,7 @@ if pytest is not None:
             reasoning_effort="high",
             use_mcp=False,
         )
-        client_mod.run_turn(
-            config, "hello", ui_config=make_ui_config(stream_runner=fake_run)
-        )
+        client_mod.run_turn(config, "hello", ui_config=make_ui_config(stream_runner=fake_run))
         assert fake_run.captured_kwargs["reasoning_effort"] == "high"
 
     def test_build_call_kwargs_forwards_reasoning_effort():

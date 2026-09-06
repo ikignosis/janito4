@@ -74,14 +74,10 @@ def _convert_tools_to_gemini_format(
     return [{"function_declarations": declarations}]
 
 
-def _resolve_system_instruction(
-    instructions: str | None, messages: list[dict[str, Any]]
-) -> str | None:
+def _resolve_system_instruction(instructions: str | None, messages: list[dict[str, Any]]) -> str | None:
     """Resolve the Gemini ``system_instruction`` from instructions/history."""
     system = instructions
-    system_messages = [
-        m for m in messages if m.get("role") == "system" and m.get("content")
-    ]
+    system_messages = [m for m in messages if m.get("role") == "system" and m.get("content")]
     if system is None and system_messages:
         system = "\n\n".join(str(m.get("content")) for m in system_messages)
     return system
@@ -316,9 +312,7 @@ class GeminiStreamConsumer:
         if usage is not None:
             self.usage = usage
 
-        self.raw_attrs.update(
-            _extract_raw_attrs(chunk, skip=("candidates", "usage_metadata"))
-        )
+        self.raw_attrs.update(_extract_raw_attrs(chunk, skip=("candidates", "usage_metadata")))
 
         reasoning_delta: str | None = None
         content_delta: str | None = None
@@ -359,9 +353,7 @@ class GeminiStreamConsumer:
 
         function_call = getattr(part, "function_call", None)
         if function_call is not None:
-            self._fold_function_call(
-                function_call, getattr(part, "thought_signature", None)
-            )
+            self._fold_function_call(function_call, getattr(part, "thought_signature", None))
             return None
 
         text = getattr(part, "text", None)
@@ -379,9 +371,7 @@ class GeminiStreamConsumer:
         model attached to the call part is kept so the next round can resend
         it (dropping it makes Gemini 3.x reject the follow-up request).
         """
-        call_id = getattr(function_call, "id", None) or getattr(
-            function_call, "name", None
-        )
+        call_id = getattr(function_call, "id", None) or getattr(function_call, "name", None)
         key = call_id or f"call_{len(self.tool_calls)}"
         entry = self.tool_calls.setdefault(
             key,
@@ -427,8 +417,7 @@ class GeminiStreamConsumer:
             call: dict[str, Any] = {
                 "id": entry["id"],
                 "name": entry["name"],
-                "arguments": entry["arguments"]
-                or (json.dumps(entry["args"]) if entry["args"] else "{}"),
+                "arguments": entry["arguments"] or (json.dumps(entry["args"]) if entry["args"] else "{}"),
             }
             if entry.get("thought_signature"):
                 call["thought_signature"] = entry["thought_signature"]
@@ -497,8 +486,7 @@ class GeminiTurnAccumulator(GeminiStreamConsumer):
                 "type": "function",
                 "function": {
                     "name": entry["name"],
-                    "arguments": entry["arguments"]
-                    or (json.dumps(entry["args"]) if entry["args"] else "{}"),
+                    "arguments": entry["arguments"] or (json.dumps(entry["args"]) if entry["args"] else "{}"),
                 },
             }
             if entry.get("thought_signature"):

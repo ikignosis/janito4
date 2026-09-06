@@ -53,34 +53,23 @@ def test_normalize_identity():
 
 
 def test_resume_identity_matches_case_insensitively():
-    assert (
-        _resume_identity_matches(_snapshot(), "OpenAI", "GPT-5.6-LUNA", "responses")
-        is True
-    )
+    assert _resume_identity_matches(_snapshot(), "OpenAI", "GPT-5.6-LUNA", "responses") is True
 
 
 def test_resume_identity_matches_requires_api_type():
     state = _snapshot()
     assert _resume_identity_matches(state, "openai", "gpt-5.6-luna", None) is False
-    assert (
-        _resume_identity_matches(state, "openai", "gpt-5.6-luna", "Completions")
-        is False
-    )
+    assert _resume_identity_matches(state, "openai", "gpt-5.6-luna", "Completions") is False
 
 
 def test_resume_identity_matches_false_on_provider_or_model_mismatch():
     state = _snapshot()
-    assert (
-        _resume_identity_matches(state, "anthropic", "gpt-5.6-luna", "Responses")
-        is False
-    )
+    assert _resume_identity_matches(state, "anthropic", "gpt-5.6-luna", "Responses") is False
     assert _resume_identity_matches(state, "openai", "gpt-4o", "Responses") is False
 
 
 def test_resume_identity_matches_when_both_none_api_types():
-    assert _resume_identity_matches(
-        {"provider": "openai", "model": "m", "api_type": None}, "openai", "m", None
-    )
+    assert _resume_identity_matches({"provider": "openai", "model": "m", "api_type": None}, "openai", "m", None)
 
 
 def test_apply_resume_noop_without_snapshot(monkeypatch):
@@ -207,10 +196,7 @@ def test_print_resume_recap_shows_last_messages(capsys):
     # Fixture content + numeric bound: tail shown, system prompt excluded.
     assert "a2" in out
     assert "SYS-PROMPT" not in out
-    assert (
-        len([m for m in shell.messages_history if m["role"] in ("user", "assistant")])
-        == 4
-    )
+    assert len([m for m in shell.messages_history if m["role"] in ("user", "assistant")]) == 4
 
 
 def test_print_resume_recap_limits_to_five(capsys):

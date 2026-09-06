@@ -322,9 +322,7 @@ def load_skill(skill_name: str) -> str:
             error_msg = f"Skill '{skill_name}' not found. Available skills: {', '.join(available)}"
             report_error(error_msg)
             return error_msg
-        error_msg = (
-            f"Skill '{skill_name}' not found. No skills are currently installed."
-        )
+        error_msg = f"Skill '{skill_name}' not found. No skills are currently installed."
         report_error(error_msg)
         return error_msg
 
@@ -353,9 +351,7 @@ def read_skill_resource(skill_name: str, resource_name: str) -> str:
     Returns:
         The resource content, or error message if not found
     """
-    report_start(
-        f"📄 Reading resource '{resource_name}' from skill '{skill_name}'...", end=""
-    )
+    report_start(f"📄 Reading resource '{resource_name}' from skill '{skill_name}'...", end="")
 
     provider = get_skills_provider()
     skill = provider.get_skill(skill_name)
@@ -366,9 +362,7 @@ def read_skill_resource(skill_name: str, resource_name: str) -> str:
             error_msg = f"Skill '{skill_name}' not found. Available skills: {', '.join(available)}"
             report_error(error_msg)
             return error_msg
-        error_msg = (
-            f"Skill '{skill_name}' not found. No skills are currently installed."
-        )
+        error_msg = f"Skill '{skill_name}' not found. No skills are currently installed."
         report_error(error_msg)
         return error_msg
 
@@ -385,17 +379,14 @@ def read_skill_resource(skill_name: str, resource_name: str) -> str:
             report_error(error_msg)
             return error_msg
         error_msg = (
-            f"Resource '{resource_name}' not found in skill"
-            f" '{skill_name}'. This skill has no additional resources."
+            f"Resource '{resource_name}' not found in skill" f" '{skill_name}'. This skill has no additional resources."
         )
         report_error(error_msg)
         return error_msg
 
     # Count lines for result message
     line_count = len(content.split("\n"))
-    report_result(
-        f"Read resource '{resource_name}' from '{skill_name}' ({line_count} lines)"
-    )
+    report_result(f"Read resource '{resource_name}' from '{skill_name}' ({line_count} lines)")
 
     return f"# {skill_name}/{resource_name}\n\n{content}"
 

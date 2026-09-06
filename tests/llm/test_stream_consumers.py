@@ -54,9 +54,7 @@ if pytest is not None:
         c.handle_event(
             _Event(
                 "response.created",
-                response=SimpleNamespace(
-                    id="r1", model="gpt-4o", created_at=1720000000, status="in_progress"
-                ),
+                response=SimpleNamespace(id="r1", model="gpt-4o", created_at=1720000000, status="in_progress"),
             )
         )
         c.handle_event(
@@ -128,14 +126,10 @@ if pytest is not None:
                 self.usage = usage
 
         c.handle_chunk(_Chunk(_Delta(content="Hello ")).choices[0].delta)
-        c.handle_chunk(
-            _Chunk(_Delta(content="world", reasoning="think")).choices[0].delta
-        )
+        c.handle_chunk(_Chunk(_Delta(content="world", reasoning="think")).choices[0].delta)
         assert c.full_content == "Hello world"
         assert c.reasoning_content == "think"
-        c.consume(
-            _stream([_Chunk(_Delta(content=" final"), usage=SimpleNamespace(total=5))])
-        )
+        c.consume(_stream([_Chunk(_Delta(content=" final"), usage=SimpleNamespace(total=5))]))
         assert c.usage_info.total == 5
 
     def test_completions_consumer_captures_raw_attrs():
@@ -152,9 +146,7 @@ if pytest is not None:
 
         class _Chunk:
             def __init__(self, delta, finish_reason=None, **attrs):
-                self.choices = [
-                    SimpleNamespace(delta=delta, finish_reason=finish_reason)
-                ]
+                self.choices = [SimpleNamespace(delta=delta, finish_reason=finish_reason)]
                 self.usage = None
                 for name, value in attrs.items():
                     setattr(self, name, value)

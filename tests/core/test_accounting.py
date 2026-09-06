@@ -64,10 +64,7 @@ if pytest is not None:
 
         conn = sqlite3.connect(str(db_path))
         try:
-            cols = {
-                row[1]
-                for row in conn.execute("PRAGMA table_info(accounting)").fetchall()
-            }
+            cols = {row[1] for row in conn.execute("PRAGMA table_info(accounting)").fetchall()}
             assert cols == EXPECTED_COLUMNS
         finally:
             conn.close()
@@ -114,17 +111,13 @@ if pytest is not None:
     def test_get_records_newest_first_with_limit(monkeypatch, tmp_path):
         _point_at(monkeypatch, tmp_path)
         for i in range(5):
-            accounting.record_turn(
-                "openai", "m", input_tokens=i, cached_tokens=0, output_tokens=i
-            )
+            accounting.record_turn("openai", "m", input_tokens=i, cached_tokens=0, output_tokens=i)
         limited = accounting.get_records(limit=2)
         assert [r["input_tokens"] for r in limited] == [4, 3]
 
     def test_empty_cwd_is_ignored(monkeypatch, tmp_path):
         _point_at(monkeypatch, tmp_path)
-        accounting.record_turn(
-            "openai", "m", input_tokens=1, cached_tokens=0, output_tokens=1, cwd=""
-        )
+        accounting.record_turn("openai", "m", input_tokens=1, cached_tokens=0, output_tokens=1, cwd="")
         assert accounting.get_records() == []
 
     def test_prune_removes_only_old_entries(monkeypatch, tmp_path):

@@ -53,7 +53,4 @@ def create_transport(config: dict[str, Any]) -> MCPTransport:
         return HttpTransport(url=url, headers=config.get("headers", {}))
 
     else:
-        raise ValueError(
-            f"Unknown transport type: '{transport_type}'. "
-            f"Supported types: 'stdio', 'http'"
-        )
+        raise ValueError(f"Unknown transport type: '{transport_type}'. " f"Supported types: 'stdio', 'http'")

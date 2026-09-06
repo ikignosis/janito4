@@ -65,9 +65,7 @@ class TestTurnObserverProtocol:
         # Every protocol method must be callable without raising.
         obs.on_reasoning("think")
         obs.on_message("hello")
-        obs.on_verbose_info(
-            base_url=None, model="m", mcp_manager=None, backend_default="api.openai.com"
-        )
+        obs.on_verbose_info(base_url=None, model="m", mcp_manager=None, backend_default="api.openai.com")
         obs.on_verbose_call({}, [])
         obs.on_verbose_response("hi", None, None, None, None)
         obs.on_error(ValueError("boom"), error_kind="unknown")
@@ -91,9 +89,7 @@ class TestTurnObserverProtocol:
 class TestRichTurnObserver:
     def _make(self):
         buf = _PlainBuffer()
-        observer = RichTurnObserver(
-            console=Console(file=buf._buf, width=120, force_terminal=True)
-        )
+        observer = RichTurnObserver(console=Console(file=buf._buf, width=120, force_terminal=True))
         return observer, buf
 
     def test_on_reasoning_renders_panel(self):
@@ -218,9 +214,7 @@ class TestSilentTurnObserver:
         obs = SilentTurnObserver()
         obs.on_reasoning("think")
         obs.on_message("hello")
-        obs.on_verbose_info(
-            base_url=None, model="m", mcp_manager=None, backend_default="api.openai.com"
-        )
+        obs.on_verbose_info(base_url=None, model="m", mcp_manager=None, backend_default="api.openai.com")
         obs.on_verbose_call({}, [])
         obs.on_verbose_response("hi", None, None, None, None)
         obs.on_error(ValueError("boom"), error_kind="not_found")

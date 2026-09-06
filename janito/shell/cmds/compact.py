@@ -101,10 +101,7 @@ def _history_mode(shell) -> str:
             getattr(shell, "previous_response_id", None)
             or getattr(shell, "mirrored_history", None)
             or getattr(shell, "response_chain", None)
-            or (
-                shell.messages_history
-                and shell.messages_history[0].get("role") == "system"
-            )
+            or (shell.messages_history and shell.messages_history[0].get("role") == "system")
         ):
             return "server_side"
         return "stateless"
@@ -128,15 +125,12 @@ def _sanitize_response_items(entries: list[dict[str, Any]]) -> list[dict[str, An
     items pass through untouched.
     """
     calls = {e.get("call_id") for e in entries if e.get("type") == "function_call"}
-    outputs = {
-        e.get("call_id") for e in entries if e.get("type") == "function_call_output"
-    }
+    outputs = {e.get("call_id") for e in entries if e.get("type") == "function_call_output"}
     complete = calls & outputs
     return [
         e
         for e in entries
-        if e.get("type") not in ("function_call", "function_call_output")
-        or e.get("call_id") in complete
+        if e.get("type") not in ("function_call", "function_call_output") or e.get("call_id") in complete
     ]
 
 
@@ -152,11 +146,9 @@ def _sanitize_messages(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     wanted: set[str] = set()
     for e in entries:
-        for tc in (e.get("tool_calls") or []):
+        for tc in e.get("tool_calls") or []:
             wanted.add(tc.get("id"))
-    have = {
-        e.get("tool_call_id") for e in entries if e.get("role") == "tool"
-    }
+    have = {e.get("tool_call_id") for e in entries if e.get("role") == "tool"}
     complete = wanted & have
     out: list[dict[str, Any]] = []
     for e in entries:
@@ -282,16 +274,12 @@ class _StatelessStrategy(_HistoryStrategy):
         return items_to_rows(shell.conversation_items or [])
 
     def compact_zone(self, shell, skip: int, keep_start: int) -> list[dict[str, Any]]:
-        return _sanitize_response_items(
-            slice_items_by_row_range(shell.conversation_items or [], skip, keep_start)
-        )
+        return _sanitize_response_items(slice_items_by_row_range(shell.conversation_items or [], skip, keep_start))
 
     def keep_zone(self, shell, keep_start: int) -> list[dict[str, Any]]:
         items = list(shell.conversation_items or [])
         rows = len(items_to_rows(items))
-        return _sanitize_response_items(
-            slice_items_by_row_range(items, keep_start, rows)
-        )
+        return _sanitize_response_items(slice_items_by_row_range(items, keep_start, rows))
 
     def compaction_call_args(
         self, compact_entries: list[dict[str, Any]]
@@ -579,9 +567,7 @@ class CompactCmdHandler(CmdHandler):
             return
 
         keep_zone = strategy.keep_zone(shell, keep_start)
-        new_context = _build_new_context(
-            shell.get_system_prompt(), compacted, keep_zone
-        )
+        new_context = _build_new_context(shell.get_system_prompt(), compacted, keep_zone)
         strategy.apply(shell, new_context, keep_zone)
         _console.print(
             f"Compacted: {len(compact_rows)} message(s) replaced by a recap "
@@ -589,9 +575,7 @@ class CompactCmdHandler(CmdHandler):
             f"History now has {len(strategy.effective_rows(shell))} message(s)."
         )
 
-    def _compact(
-        self, shell, strategy: _HistoryStrategy, compact_entries: list[dict[str, Any]]
-    ) -> Any:
+    def _compact(self, shell, strategy: _HistoryStrategy, compact_entries: list[dict[str, Any]]) -> Any:
         """Run the compression-engine LLM call; return the parsed JSON.
 
         The call reuses the session's ``turn_func`` (so the current
@@ -625,9 +609,7 @@ class CompactCmdHandler(CmdHandler):
         """
         turn_func = _compaction_turn_func(shell)
         if turn_func is None:
-            print(
-                "\nError: No prompt function available. Are you in an active session?\n"
-            )
+            print("\nError: No prompt function available. Are you in an active session?\n")
             return None
 
         compact_messages, compact_items = strategy.compaction_call_args(compact_entries)

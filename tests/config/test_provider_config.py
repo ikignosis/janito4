@@ -82,57 +82,37 @@ def get_default_model_from_provider(provider):
 def get_default_max_output_tokens_from_provider(provider, model=None):
     """The model's built-in max output tokens, or ``None``."""
     found = get_provider(provider)
-    return (
-        found.model_config(model).get("max_output_tokens")
-        if found is not None
-        else None
-    )
+    return found.model_config(model).get("max_output_tokens") if found is not None else None
 
 
 def get_default_max_input_tokens_from_provider(provider, model=None):
     """The model's built-in max input tokens, or ``None``."""
     found = get_provider(provider)
-    return (
-        found.model_config(model).get("max_input_tokens") if found is not None else None
-    )
+    return found.model_config(model).get("max_input_tokens") if found is not None else None
 
 
 def get_default_reasoning_effort_from_provider(provider, model=None):
     """The model's built-in default reasoning effort, or ``None``."""
     found = get_provider(provider)
-    return (
-        found.model_config(model).get("default_reasoning_effort")
-        if found is not None
-        else None
-    )
+    return found.model_config(model).get("default_reasoning_effort") if found is not None else None
 
 
 def get_supported_reasoning_efforts_from_provider(provider, model=None):
     """The model's supported reasoning efforts, or ``None``."""
     found = get_provider(provider)
-    return (
-        found.model_config(model).get("supported_reasoning_efforts")
-        if found is not None
-        else None
-    )
+    return found.model_config(model).get("supported_reasoning_efforts") if found is not None else None
 
 
 def get_default_thinking_from_provider(provider, model=None):
     """The model's built-in thinking default (``True`` / dict / ``False``)."""
     found = get_provider(provider)
-    return (
-        found.model_config(model).get("thinking", False) if found is not None else False
-    )
+    return found.model_config(model).get("thinking", False) if found is not None else False
 
 
 def get_preserve_thinking_from_provider(provider, model=None):
     """The model's built-in preserve_thinking default, or ``None``."""
     found = get_provider(provider)
-    return (
-        found.model_config(model).get("preserve_thinking")
-        if found is not None
-        else None
-    )
+    return found.model_config(model).get("preserve_thinking") if found is not None else None
 
 
 def get_default_tools_from_provider(provider, model=None, api_type=None):
@@ -150,19 +130,13 @@ def get_gemini_flavor_from_provider(provider):
 def get_supported_api_types_from_provider(provider, model=None):
     """The API types the model supports, or ``None``."""
     found = get_provider(provider)
-    return (
-        found.model_config(model).get("supported_api_types")
-        if found is not None
-        else None
-    )
+    return found.model_config(model).get("supported_api_types") if found is not None else None
 
 
 def get_default_api_type_from_provider(provider, model=None):
     """The model's built-in default API type, or ``None``."""
     found = get_provider(provider)
-    return (
-        found.model_config(model).get("default_api_type") if found is not None else None
-    )
+    return found.model_config(model).get("default_api_type") if found is not None else None
 
 
 def get_stateless_mode_from_provider(provider, model=None):
@@ -220,13 +194,8 @@ if pytest is not None:
         assert model_info == info["models"]["gpt-5.6-luna"]
         assert model_info["max_output_tokens"] == 128000
         # Case-insensitive provider lookup works with a model too.
-        assert get_provider_config("MiniMax", "MiniMax-M3")["thinking"] == {
-            "type": "adaptive"
-        }
-        assert (
-            get_provider_config("DeepSeek", "deepseek-v4-flash")["stateless_mode"]
-            is True
-        )
+        assert get_provider_config("MiniMax", "MiniMax-M3")["thinking"] == {"type": "adaptive"}
+        assert get_provider_config("DeepSeek", "deepseek-v4-flash")["stateless_mode"] is True
         # Unknown model -> None (no fallback to the default model's entry).
         assert get_provider_config("openai", "no-such-model") is None
         # Unknown provider -> None.
@@ -243,22 +212,14 @@ if pytest is not None:
         assert get_provider("openai").info is PACKAGE_PROVIDER_CONFIGS["openai"]
         # Provider-level fields and per-model entries come from that dict.
         assert get_provider("minimax").info["endpoint"] == "https://api.minimax.io/v1"
-        assert (
-            get_provider("openai").model_config("gpt-5.6-luna").get("max_output_tokens")
-            == 128000
-        )
-        assert get_provider("minimax").model_config("MiniMax-M3").get(
-            "thinking", False
-        ) == {"type": "adaptive"}
+        assert get_provider("openai").model_config("gpt-5.6-luna").get("max_output_tokens") == 128000
+        assert get_provider("minimax").model_config("MiniMax-M3").get("thinking", False) == {"type": "adaptive"}
         # Case-insensitive provider lookup works.
         assert get_provider("MiniMax").default_model() == "MiniMax-M3"
         # Unknown provider -> None.
         assert get_provider("bogus") is None
         # The "custom" provider has no built-in models (empty config -> None).
-        assert (
-            get_provider("custom").model_config("any-model").get("max_output_tokens")
-            is None
-        )
+        assert get_provider("custom").model_config("any-model").get("max_output_tokens") is None
 
     def test_deepseek_provider():
         info = get_provider_config("deepseek")
@@ -305,13 +266,8 @@ if pytest is not None:
             "Anthropic": "https://api.anthropic.com",
         }
         # Case-insensitive lookup.
-        assert (
-            get_provider_config("Anthropic")["endpoint"]
-            == "https://api.anthropic.com/v1/"
-        )
-        assert (
-            get_base_url_from_provider("anthropic") == "https://api.anthropic.com/v1/"
-        )
+        assert get_provider_config("Anthropic")["endpoint"] == "https://api.anthropic.com/v1/"
+        assert get_base_url_from_provider("anthropic") == "https://api.anthropic.com/v1/"
         assert get_default_model_from_provider("anthropic") == "claude-sonnet-5"
         assert get_default_max_input_tokens_from_provider("anthropic") == 200000
         assert get_default_max_output_tokens_from_provider("anthropic") == 64000
@@ -329,17 +285,9 @@ if pytest is not None:
             assert entry["default_api_type"] == "Completions"
             assert entry["max_input_tokens"] == max_input
             assert entry["max_output_tokens"] == max_output
-            assert (
-                get_provider_config("anthropic", name)["max_input_tokens"] == max_input
-            )
-            assert (
-                get_default_max_input_tokens_from_provider("anthropic", name)
-                == max_input
-            )
-            assert (
-                get_default_max_output_tokens_from_provider("anthropic", name)
-                == max_output
-            )
+            assert get_provider_config("anthropic", name)["max_input_tokens"] == max_input
+            assert get_default_max_input_tokens_from_provider("anthropic", name) == max_input
+            assert get_default_max_output_tokens_from_provider("anthropic", name) == max_output
 
     def test_meta_provider():
         info = get_provider_config("meta")
@@ -382,12 +330,7 @@ if pytest is not None:
         assert get_base_url_from_provider("meta") == "https://api.meta.ai/v1"
         assert get_default_model_from_provider("meta") == "muse-spark-1.3"
         assert get_default_max_input_tokens_from_provider("meta") == 1048576
-        assert (
-            get_default_max_input_tokens_from_provider(
-                "meta", "muse-spark-1.3-contributor"
-            )
-            == 1048576
-        )
+        assert get_default_max_input_tokens_from_provider("meta", "muse-spark-1.3-contributor") == 1048576
 
     def test_google_provider():
         info = get_provider_config("google")
@@ -396,10 +339,7 @@ if pytest is not None:
         model_entry = info["models"]["gemini-3.7-flash"]
         assert model_entry["max_input_tokens"] == 1048576  # 1M (2**20)
         assert model_entry["max_output_tokens"] == 65536
-        assert (
-            info["endpoint"]
-            == "https://generativelanguage.googleapis.com/v1beta/openai/"
-        )
+        assert info["endpoint"] == "https://generativelanguage.googleapis.com/v1beta/openai/"
         # The provider is Gemini-flavored: Google's OpenAI-compatibility layer
         # does not accept the enable_thinking flag, so thinking is handled
         # through reasoning_effort instead.
@@ -425,19 +365,10 @@ if pytest is not None:
             get_endpoint_for_api_type("google", "Completions")
             == "https://generativelanguage.googleapis.com/v1beta/openai/"
         )
-        assert (
-            get_endpoint_for_api_type("google", "Gemini")
-            == "https://generativelanguage.googleapis.com"
-        )
+        assert get_endpoint_for_api_type("google", "Gemini") == "https://generativelanguage.googleapis.com"
         # Case-insensitive lookup.
-        assert (
-            get_provider_config("Google")["endpoint"]
-            == "https://generativelanguage.googleapis.com/v1beta/openai/"
-        )
-        assert (
-            get_base_url_from_provider("google")
-            == "https://generativelanguage.googleapis.com/v1beta/openai/"
-        )
+        assert get_provider_config("Google")["endpoint"] == "https://generativelanguage.googleapis.com/v1beta/openai/"
+        assert get_base_url_from_provider("google") == "https://generativelanguage.googleapis.com/v1beta/openai/"
         assert get_default_model_from_provider("google") == "gemini-3.7-flash"
         assert get_default_max_input_tokens_from_provider("google") == 1048576
         assert get_default_max_output_tokens_from_provider("google") == 65536
@@ -465,14 +396,8 @@ if pytest is not None:
         assert get_default_max_output_tokens_from_provider("openai") == 128000
         # Alibaba's built-in models declare their token limits (qwen3.8-max
         # 1M input / 131K output; qwen3.8-flash 991K input / 131K output).
-        assert (
-            get_default_max_input_tokens_from_provider("alibaba", "qwen3.8-flash")
-            == 991000
-        )
-        assert (
-            get_default_max_output_tokens_from_provider("alibaba", "qwen3.8-flash")
-            == 131072
-        )
+        assert get_default_max_input_tokens_from_provider("alibaba", "qwen3.8-flash") == 991000
+        assert get_default_max_output_tokens_from_provider("alibaba", "qwen3.8-flash") == 131072
         # Z.ai's default is the GLM-5.3-Flash model (1M input / 128K output).
         assert get_default_model_from_provider("zai") == "glm-5.3-flash"
         assert get_default_max_input_tokens_from_provider("zai") == 1000000
@@ -493,32 +418,26 @@ if pytest is not None:
         # default is the lowest supported level (low) for both.
         assert get_default_reasoning_effort_from_provider("alibaba") == "low"
         assert get_supported_reasoning_efforts_from_provider("alibaba") is not None
-        assert [
-            entry["effort"]
-            for entry in get_supported_reasoning_efforts_from_provider("alibaba")
-        ] == ["low", "medium", "xhigh"]
-        assert (
-            get_default_reasoning_effort_from_provider("alibaba", "qwen3.8-max")
-            == "low"
-        )
+        assert [entry["effort"] for entry in get_supported_reasoning_efforts_from_provider("alibaba")] == [
+            "low",
+            "medium",
+            "xhigh",
+        ]
+        assert get_default_reasoning_effort_from_provider("alibaba", "qwen3.8-max") == "low"
         # The built-in default lives under the single
         # "default_reasoning_effort" key (the old "reasoning_level" alias is
         # not supported).
         qwen_entry = get_provider_config("alibaba")["models"]["qwen3.8-max"]
         assert qwen_entry["default_reasoning_effort"] == "low"
         assert "reasoning_level" not in qwen_entry
-        supported = get_supported_reasoning_efforts_from_provider(
-            "alibaba", "qwen3.8-max"
-        )
+        supported = get_supported_reasoning_efforts_from_provider("alibaba", "qwen3.8-max")
         assert supported is not None
         assert [entry["effort"] for entry in supported] == ["low", "medium", "xhigh"]
         for entry in supported:
             assert "effort" in entry
             assert "description" in entry
         # qwen3.8-flash (the default model) declares the same levels.
-        supported = get_supported_reasoning_efforts_from_provider(
-            "alibaba", "qwen3.8-flash"
-        )
+        supported = get_supported_reasoning_efforts_from_provider("alibaba", "qwen3.8-flash")
         assert supported is not None
         assert [entry["effort"] for entry in supported] == ["low", "medium", "xhigh"]
         for entry in supported:
@@ -545,20 +464,18 @@ if pytest is not None:
             assert "effort" in entry
             assert "description" in entry
         # Case-insensitive lookup works.
-        assert (
-            get_default_reasoning_effort_from_provider("Alibaba", "qwen3.8-max")
-            == "low"
-        )
+        assert get_default_reasoning_effort_from_provider("Alibaba", "qwen3.8-max") == "low"
         assert get_supported_reasoning_efforts_from_provider("DeepSeek") is not None
         assert get_supported_reasoning_efforts_from_provider("Moonshot") is not None
         # The OpenAI GPT models declare reasoning levels too
         # (low/medium/high), with the lowest (low) as the built-in default.
         assert get_default_reasoning_effort_from_provider("openai") == "low"
         assert get_supported_reasoning_efforts_from_provider("openai") is not None
-        assert [
-            entry["effort"]
-            for entry in get_supported_reasoning_efforts_from_provider("openai")
-        ] == ["low", "medium", "high"]
+        assert [entry["effort"] for entry in get_supported_reasoning_efforts_from_provider("openai")] == [
+            "low",
+            "medium",
+            "high",
+        ]
         for entry in get_supported_reasoning_efforts_from_provider("openai"):
             assert "effort" in entry
             assert "description" in entry
@@ -567,17 +484,17 @@ if pytest is not None:
         # cookbook), with the lowest (minimal) as the built-in default.
         assert get_default_reasoning_effort_from_provider("meta") == "minimal"
         assert get_supported_reasoning_efforts_from_provider("meta") is not None
-        assert [
-            entry["effort"]
-            for entry in get_supported_reasoning_efforts_from_provider("meta")
-        ] == ["minimal", "low", "medium", "high"]
+        assert [entry["effort"] for entry in get_supported_reasoning_efforts_from_provider("meta")] == [
+            "minimal",
+            "low",
+            "medium",
+            "high",
+        ]
         for entry in get_supported_reasoning_efforts_from_provider("meta"):
             assert "effort" in entry
             assert "description" in entry
         # The contributor-tier model declares the same levels.
-        supported = get_supported_reasoning_efforts_from_provider(
-            "meta", "muse-spark-1.3-contributor"
-        )
+        supported = get_supported_reasoning_efforts_from_provider("meta", "muse-spark-1.3-contributor")
         assert supported is not None
         assert [entry["effort"] for entry in supported] == [
             "minimal",
@@ -601,20 +518,10 @@ if pytest is not None:
         assert get_default_thinking_from_provider("Alibaba") is True
         assert get_default_thinking_from_provider("MiniMax") == {"type": "adaptive"}
         # The model info entries carry the flag.
-        assert (
-            get_provider_config("deepseek")["models"]["deepseek-v4-flash"]["thinking"]
-            is True
-        )
-        assert (
-            get_provider_config("alibaba")["models"]["qwen3.8-max"]["thinking"] is True
-        )
-        assert (
-            get_provider_config("alibaba")["models"]["qwen3.8-flash"]["thinking"]
-            is True
-        )
-        assert get_provider_config("minimax")["models"]["MiniMax-M3"]["thinking"] == {
-            "type": "adaptive"
-        }
+        assert get_provider_config("deepseek")["models"]["deepseek-v4-flash"]["thinking"] is True
+        assert get_provider_config("alibaba")["models"]["qwen3.8-max"]["thinking"] is True
+        assert get_provider_config("alibaba")["models"]["qwen3.8-flash"]["thinking"] is True
+        assert get_provider_config("minimax")["models"]["MiniMax-M3"]["thinking"] == {"type": "adaptive"}
         # Everyone else defaults to False (explicit or absent).
         for name in (
             "openai",
@@ -640,16 +547,8 @@ if pytest is not None:
         assert get_preserve_thinking_from_provider("alibaba") is True
         assert get_preserve_thinking_from_provider("alibaba", "qwen3.8-max") is True
         assert get_preserve_thinking_from_provider("alibaba", "qwen3.8-flash") is True
-        assert (
-            get_provider_config("alibaba")["models"]["qwen3.8-max"]["preserve_thinking"]
-            is True
-        )
-        assert (
-            get_provider_config("alibaba")["models"]["qwen3.8-flash"][
-                "preserve_thinking"
-            ]
-            is True
-        )
+        assert get_provider_config("alibaba")["models"]["qwen3.8-max"]["preserve_thinking"] is True
+        assert get_provider_config("alibaba")["models"]["qwen3.8-flash"]["preserve_thinking"] is True
         # Every other provider declares nothing (None) -> no flag is sent and
         # the API's own default applies.
         for name in (
@@ -712,21 +611,9 @@ if pytest is not None:
         the map resolve to None.
         """
         assert get_default_tools_from_provider("alibaba", "qwen3.8-max") is None
-        assert (
-            get_default_tools_from_provider(
-                "alibaba", "qwen3.8-max", api_type="Completions"
-            )
-            is None
-        )
-        assert (
-            get_default_tools_from_provider(
-                "alibaba", "qwen3.8-max", api_type="DashScope"
-            )
-            is None
-        )
-        assert get_default_tools_from_provider(
-            "alibaba", "qwen3.8-max", api_type="Responses"
-        ) == [
+        assert get_default_tools_from_provider("alibaba", "qwen3.8-max", api_type="Completions") is None
+        assert get_default_tools_from_provider("alibaba", "qwen3.8-max", api_type="DashScope") is None
+        assert get_default_tools_from_provider("alibaba", "qwen3.8-max", api_type="Responses") == [
             {"type": "code_interpreter"},
             {"type": "web_search"},
             {"type": "web_extractor"},
@@ -742,9 +629,7 @@ if pytest is not None:
             ]
         }
         # Case-insensitive provider lookup works.
-        assert get_default_tools_from_provider(
-            "Alibaba", "qwen3.8-max", api_type="Responses"
-        ) == [
+        assert get_default_tools_from_provider("Alibaba", "qwen3.8-max", api_type="Responses") == [
             {"type": "code_interpreter"},
             {"type": "web_search"},
             {"type": "web_extractor"},
@@ -760,9 +645,7 @@ if pytest is not None:
         provider's default model, so the no-model lookup resolves to it.
         """
         assert get_default_tools_from_provider("alibaba") is None
-        assert (
-            get_default_tools_from_provider("alibaba", api_type="Completions") is None
-        )
+        assert get_default_tools_from_provider("alibaba", api_type="Completions") is None
         assert get_default_tools_from_provider("alibaba", api_type="DashScope") is None
         assert get_default_tools_from_provider("alibaba", api_type="Responses") == [
             {"type": "code_interpreter"},
@@ -772,21 +655,9 @@ if pytest is not None:
             {"type": "web_search"},
         ]
         assert get_default_tools_from_provider("alibaba", "qwen3.8-flash") is None
-        assert (
-            get_default_tools_from_provider(
-                "alibaba", "qwen3.8-flash", api_type="Completions"
-            )
-            is None
-        )
-        assert (
-            get_default_tools_from_provider(
-                "alibaba", "qwen3.8-flash", api_type="DashScope"
-            )
-            is None
-        )
-        assert get_default_tools_from_provider(
-            "alibaba", "qwen3.8-flash", api_type="Responses"
-        ) == [
+        assert get_default_tools_from_provider("alibaba", "qwen3.8-flash", api_type="Completions") is None
+        assert get_default_tools_from_provider("alibaba", "qwen3.8-flash", api_type="DashScope") is None
+        assert get_default_tools_from_provider("alibaba", "qwen3.8-flash", api_type="Responses") == [
             {"type": "code_interpreter"},
             {"type": "i2i_search"},
             {"type": "t2i_search"},
@@ -858,9 +729,7 @@ if pytest is not None:
             "Completions",
         ]
         assert get_default_api_type_from_provider("openai") == "Responses"
-        assert get_provider_config("openai")["models"]["gpt-5.6-luna"][
-            "supported_api_types"
-        ] == [
+        assert get_provider_config("openai")["models"]["gpt-5.6-luna"]["supported_api_types"] == [
             "Responses",
             "Completions",
         ]
@@ -875,9 +744,7 @@ if pytest is not None:
             "DashScope",
         ]
         assert get_default_api_type_from_provider("alibaba") == "Responses"
-        assert get_provider_config("alibaba")["models"]["qwen3.8-max"][
-            "supported_api_types"
-        ] == [
+        assert get_provider_config("alibaba")["models"]["qwen3.8-max"]["supported_api_types"] == [
             "Completions",
             "Responses",
             "DashScope",
@@ -973,19 +840,10 @@ if pytest is not None:
     def test_get_endpoint_for_api_type_multi_entry_map():
         """A multi-entry map picks the URL of the requested API type."""
         # Anthropic: the OpenAI-compatible Completions URL and the native SDK URL.
-        assert (
-            get_endpoint_for_api_type("anthropic", "Completions")
-            == "https://api.anthropic.com/v1/"
-        )
-        assert (
-            get_endpoint_for_api_type("anthropic", "Anthropic")
-            == "https://api.anthropic.com"
-        )
+        assert get_endpoint_for_api_type("anthropic", "Completions") == "https://api.anthropic.com/v1/"
+        assert get_endpoint_for_api_type("anthropic", "Anthropic") == "https://api.anthropic.com"
         # An API type absent from the map falls back to the single built-in endpoint.
-        assert (
-            get_endpoint_for_api_type("anthropic", "Responses")
-            == "https://api.anthropic.com/v1/"
-        )
+        assert get_endpoint_for_api_type("anthropic", "Responses") == "https://api.anthropic.com/v1/"
         # Without an API type the single built-in endpoint applies.
         assert get_endpoint_for_api_type("anthropic") == "https://api.anthropic.com/v1/"
         # Alibaba: the OpenAI-compatible types keep the compatible-mode URL
@@ -998,45 +856,21 @@ if pytest is not None:
             get_endpoint_for_api_type("alibaba", "Responses")
             == "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
         )
-        assert (
-            get_endpoint_for_api_type("alibaba", "DashScope")
-            == "https://dashscope-intl.aliyuncs.com/api/v1"
-        )
+        assert get_endpoint_for_api_type("alibaba", "DashScope") == "https://dashscope-intl.aliyuncs.com/api/v1"
         # Without an API type the provider's single built-in endpoint applies.
-        assert (
-            get_endpoint_for_api_type("alibaba")
-            == "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-        )
+        assert get_endpoint_for_api_type("alibaba") == "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
         # DeepSeek: the OpenAI-compatible types share api.deepseek.com and the
         # native Anthropic SDK type uses the Anthropic-compatible base URL.
-        assert (
-            get_endpoint_for_api_type("deepseek", "Responses")
-            == "https://api.deepseek.com"
-        )
-        assert (
-            get_endpoint_for_api_type("deepseek", "Completions")
-            == "https://api.deepseek.com"
-        )
-        assert (
-            get_endpoint_for_api_type("deepseek", "Anthropic")
-            == "https://api.deepseek.com/anthropic"
-        )
+        assert get_endpoint_for_api_type("deepseek", "Responses") == "https://api.deepseek.com"
+        assert get_endpoint_for_api_type("deepseek", "Completions") == "https://api.deepseek.com"
+        assert get_endpoint_for_api_type("deepseek", "Anthropic") == "https://api.deepseek.com/anthropic"
         # Without an API type the single built-in endpoint applies.
         assert get_endpoint_for_api_type("deepseek") == "https://api.deepseek.com"
         # MiniMax: the OpenAI-compatible types share api.minimax.io/v1 and the
         # native Anthropic SDK type uses the Anthropic-compatible base URL.
-        assert (
-            get_endpoint_for_api_type("minimax", "Completions")
-            == "https://api.minimax.io/v1"
-        )
-        assert (
-            get_endpoint_for_api_type("minimax", "Responses")
-            == "https://api.minimax.io/v1"
-        )
-        assert (
-            get_endpoint_for_api_type("minimax", "Anthropic")
-            == "https://api.minimax.io/anthropic"
-        )
+        assert get_endpoint_for_api_type("minimax", "Completions") == "https://api.minimax.io/v1"
+        assert get_endpoint_for_api_type("minimax", "Responses") == "https://api.minimax.io/v1"
+        assert get_endpoint_for_api_type("minimax", "Anthropic") == "https://api.minimax.io/anthropic"
         # Without an API type the single built-in endpoint applies.
         assert get_endpoint_for_api_type("minimax") == "https://api.minimax.io/v1"
 
@@ -1060,21 +894,10 @@ if pytest is not None:
         pvd._PROVIDER_CONFIGS["fake-provider"] = fake
         try:
             # The single entry is used for any API type...
-            assert (
-                get_endpoint_for_api_type("fake-provider", "Anthropic")
-                == "https://native.example"
-            )
-            assert (
-                get_endpoint_for_api_type("fake-provider", "Completions")
-                == "https://native.example"
-            )
-            assert (
-                get_endpoint_for_api_type("fake-provider", "Responses")
-                == "https://native.example"
-            )
-            assert (
-                get_endpoint_for_api_type("fake-provider") == "https://native.example"
-            )
+            assert get_endpoint_for_api_type("fake-provider", "Anthropic") == "https://native.example"
+            assert get_endpoint_for_api_type("fake-provider", "Completions") == "https://native.example"
+            assert get_endpoint_for_api_type("fake-provider", "Responses") == "https://native.example"
+            assert get_endpoint_for_api_type("fake-provider") == "https://native.example"
         finally:
             pvd._PROVIDER_CONFIGS.clear()
             pvd._PROVIDER_CONFIGS.update(original)
@@ -1083,10 +906,7 @@ if pytest is not None:
         """Providers without the map keep their single built-in endpoint."""
         assert get_endpoint_for_api_type("openai") is None
         assert get_endpoint_for_api_type("openai", "Responses") is None
-        assert (
-            get_endpoint_for_api_type("xiaomi", "Completions")
-            == "https://api.xiaomimimo.com/v1"
-        )
+        assert get_endpoint_for_api_type("xiaomi", "Completions") == "https://api.xiaomimimo.com/v1"
         # Unknown provider returns None.
         assert get_endpoint_for_api_type("bogus", "Completions") is None
 
@@ -1168,18 +988,10 @@ if pytest is not None:
         with previous_response_id; stateless endpoints (DeepSeek) do not."""
         # OpenAI keeps the conversation server-side.
         assert get_stateless_mode_from_provider("openai") is False
-        assert (
-            get_provider_config("openai")["models"]["gpt-5.6-luna"]["stateless_mode"]
-            is False
-        )
+        assert get_provider_config("openai")["models"]["gpt-5.6-luna"]["stateless_mode"] is False
         # DeepSeek's /responses endpoint is stateless.
         assert get_stateless_mode_from_provider("deepseek") is True
-        assert (
-            get_provider_config("deepseek")["models"]["deepseek-v4-flash"][
-                "stateless_mode"
-            ]
-            is True
-        )
+        assert get_provider_config("deepseek")["models"]["deepseek-v4-flash"]["stateless_mode"] is True
         # Case-insensitive lookups work.
         assert get_stateless_mode_from_provider("DeepSeek") is True
         # Providers that do not declare the flag default to False (server-side,
@@ -1260,25 +1072,13 @@ if pytest is not None:
         }
         try:
             # Explicit model -> its own entry wins.
-            assert (
-                get_default_max_output_tokens_from_provider(
-                    "multi-model", "small-model"
-                )
-                == 16000
-            )
-            assert get_supported_api_types_from_provider(
-                "multi-model", "small-model"
-            ) == ["Completions"]
+            assert get_default_max_output_tokens_from_provider("multi-model", "small-model") == 16000
+            assert get_supported_api_types_from_provider("multi-model", "small-model") == ["Completions"]
             # Default model (None) -> the default model's entry.
             assert get_default_max_output_tokens_from_provider("multi-model") == 128000
             assert get_supported_api_types_from_provider("multi-model") == ["Responses"]
             # Unknown model -> falls back to the default model's entry.
-            assert (
-                get_default_max_output_tokens_from_provider(
-                    "multi-model", "unknown-model"
-                )
-                == 128000
-            )
+            assert get_default_max_output_tokens_from_provider("multi-model", "unknown-model") == 128000
         finally:
             pvd._PROVIDER_CONFIGS.clear()
             pvd._PROVIDER_CONFIGS.update(original)
@@ -1410,9 +1210,7 @@ if pytest is not None:
         )
         assert rc == 0
         config = json.loads((tmp_path / "config.json").read_text())
-        assert config == {
-            "providers": {"openrouter": {"model": "anthropic/claude-3.5-sonnet"}}
-        }
+        assert config == {"providers": {"openrouter": {"model": "anthropic/claude-3.5-sonnet"}}}
 
     def test_cli_canonicalizes_model_casing(monkeypatch, tmp_path):
         """--set model= with a case-insensitive match stores the canonical casing."""
@@ -1427,9 +1225,7 @@ if pytest is not None:
         config = json.loads((tmp_path / "config.json").read_text())
         assert config == {"providers": {"minimax": {"model": "MiniMax-M3"}}}
 
-    def test_web_mode_without_extra_prints_actionable_error(
-        monkeypatch, tmp_path, capsys
-    ):
+    def test_web_mode_without_extra_prints_actionable_error(monkeypatch, tmp_path, capsys):
         """`--web` without the optional [web] extra fails with the documented
         install hint instead of a defensive try/except ImportError fallback."""
         import importlib.util
@@ -1448,9 +1244,7 @@ if pytest is not None:
         assert "the web UI requires optional dependencies" in err
         assert "pip install janito[web]" in err
 
-    def test_cli_system_prompt_file_missing_fails_at_startup(
-        monkeypatch, tmp_path, capsys
-    ):
+    def test_cli_system_prompt_file_missing_fails_at_startup(monkeypatch, tmp_path, capsys):
         """A configured system-prompt-file that does not exist fails fast at
         startup (exit 1, actionable error) instead of a traceback from the
         prompt render."""
@@ -1463,9 +1257,7 @@ if pytest is not None:
         monkeypatch.setattr(main_mod, "validate_runtime_config", lambda args=None: None)
 
         missing = tmp_path / "does-not-exist.md"
-        (tmp_path / "config.json").write_text(
-            json.dumps({"system-prompt-file": str(missing)})
-        )
+        (tmp_path / "config.json").write_text(json.dumps({"system-prompt-file": str(missing)}))
 
         with pytest.raises(SystemExit) as exc:
             _run_main(monkeypatch, tmp_path, ["hello"])

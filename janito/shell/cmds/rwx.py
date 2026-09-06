@@ -41,9 +41,7 @@ class RwxCmdHandler(CmdHandler):
         # Match '/rwx' exactly or '/rwx ...' (extra text is ignored);
         # not '/rwxs', etc.
         text = user_input.strip()
-        if text.lower() != self.name.lower() and not text.lower().startswith(
-            self.name.lower() + " "
-        ):
+        if text.lower() != self.name.lower() and not text.lower().startswith(self.name.lower() + " "):
             return False
 
         from janito import privileges as _privileges_mod

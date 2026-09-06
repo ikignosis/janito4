@@ -151,9 +151,7 @@ def normalize_api_type(value: str, allowed_types: list[str] | None = None) -> st
     for api_type in known:
         if api_type.lower() == raw.lower():
             return api_type
-    raise ValueError(
-        f"Unsupported API type '{value}'. Supported values: " f"{', '.join(known)}"
-    )
+    raise ValueError(f"Unsupported API type '{value}'. Supported values: " f"{', '.join(known)}")
 
 
 def get_masked_api_key(api_key: str) -> str:

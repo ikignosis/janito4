@@ -67,9 +67,7 @@ def _load_mcp(use_mcp: bool) -> tuple[Any, list[dict[str, Any]]]:
         try:
             mcp_manager.load_services()
             mcp_tools = mcp_manager.get_all_tools()
-            logger.info(
-                f"Loaded {len(mcp_tools)} MCP tools from {len(mcp_manager.connected_services)} services"
-            )
+            logger.info(f"Loaded {len(mcp_tools)} MCP tools from {len(mcp_manager.connected_services)} services")
         except Exception as e:
             logger.warning(f"Failed to load MCP tools: {e}")
             mcp_tools = []
@@ -95,12 +93,7 @@ def _is_rate_limit(e: Exception) -> bool:
         except Exception:
             pass
     message = str(e).lower()
-    return (
-        "429" in message
-        or "rate limit" in message
-        or "rate_limit" in message
-        or "too many requests" in message
-    )
+    return "429" in message or "rate limit" in message or "rate_limit" in message or "too many requests" in message
 
 
 def _retry_after_seconds(e: Exception) -> float | None:
@@ -150,18 +143,10 @@ def _classify_error(e: Exception) -> str:
     ``except`` blocks pass the kind directly.
     """
     message = str(e).lower()
-    if (
-        "model not exist" in message
-        or "model not found" in message
-        or "previous response" in message
-    ):
+    if "model not exist" in message or "model not found" in message or "previous response" in message:
         return "not_found"
     status_code = getattr(e, "status_code", None)
     code = getattr(e, "code", None)
-    if (
-        status_code == 401
-        or code == 401
-        or (isinstance(code, str) and "InvalidApiKey" in code)
-    ):
+    if status_code == 401 or code == 401 or (isinstance(code, str) and "InvalidApiKey" in code):
         return "auth"
     return "unknown"

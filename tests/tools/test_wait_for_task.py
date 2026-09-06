@@ -24,9 +24,7 @@ class _FakeTaskManager:
         self.timeouts = []
         self.max_output_lines = []
 
-    def wait_for_task(
-        self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None
-    ):
+    def wait_for_task(self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None):
         self.calls.append(task_ids)
         self.callbacks.append(on_task_complete)
         self.timeouts.append(timeout)
@@ -133,9 +131,7 @@ def test_run_surfaces_timed_out_results(monkeypatch):
     """A timed-out manager result surfaces timed_out and pending ids."""
 
     class _TimeoutManager:
-        def wait_for_task(
-            self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None
-        ):
+        def wait_for_task(self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None):
             return {
                 "tasks": [],
                 "timed_out": True,
@@ -144,9 +140,7 @@ def test_run_surfaces_timed_out_results(monkeypatch):
 
     monkeypatch.setattr(wait_for_task_module, "task_manager", _TimeoutManager())
 
-    result = wait_for_task_module.WaitForTask().run(
-        task_ids=["task-1", "task-2"], timeout=1
-    )
+    result = wait_for_task_module.WaitForTask().run(task_ids=["task-1", "task-2"], timeout=1)
 
     assert result["success"] is True
     assert result["timed_out"] is True
@@ -160,9 +154,7 @@ class _ManagerWithOutcomes:
         self._tasks = tasks
         self._terminated = terminated
 
-    def wait_for_task(
-        self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None
-    ):
+    def wait_for_task(self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None):
         for task in self._tasks:
             if on_task_complete is not None:
                 on_task_complete(task)
@@ -170,9 +162,7 @@ class _ManagerWithOutcomes:
             "tasks": self._tasks,
             "timed_out": False,
             "pending_task_ids": [],
-            "terminated_task_ids": sorted(
-                t["task_id"] for t in self._tasks if t.get("exit_reason") != "finished"
-            )
+            "terminated_task_ids": sorted(t["task_id"] for t in self._tasks if t.get("exit_reason") != "finished")
             if self._terminated is None
             else self._terminated,
         }
@@ -203,9 +193,7 @@ def test_run_reports_exit_code_per_task(monkeypatch):
     """A finished task's line carries the exit code it produced."""
     monkeypatch.setattr(sys.stderr, "isatty", lambda: False)
     tasks = [_outcome_task("ok1"), _outcome_task("bad1", exit_code=1, returncode=1)]
-    monkeypatch.setattr(
-        wait_for_task_module, "task_manager", _ManagerWithOutcomes(tasks)
-    )
+    monkeypatch.setattr(wait_for_task_module, "task_manager", _ManagerWithOutcomes(tasks))
 
     tool = wait_for_task_module.WaitForTask()
     messages = []
@@ -233,9 +221,7 @@ def test_run_reports_timeout_termination(monkeypatch):
             error="task exceeded its timeout of 120s and was killed",
         )
     ]
-    monkeypatch.setattr(
-        wait_for_task_module, "task_manager", _ManagerWithOutcomes(tasks)
-    )
+    monkeypatch.setattr(wait_for_task_module, "task_manager", _ManagerWithOutcomes(tasks))
 
     tool = wait_for_task_module.WaitForTask()
     messages = []
@@ -264,9 +250,7 @@ def test_run_reports_a_timeout_task_that_still_exited(monkeypatch):
             duration_seconds=31.0,
         )
     ]
-    monkeypatch.setattr(
-        wait_for_task_module, "task_manager", _ManagerWithOutcomes(tasks)
-    )
+    monkeypatch.setattr(wait_for_task_module, "task_manager", _ManagerWithOutcomes(tasks))
 
     tool = wait_for_task_module.WaitForTask()
     messages = []
@@ -292,9 +276,7 @@ def test_run_reports_stopped_task(monkeypatch):
             duration_seconds=7.4,
         )
     ]
-    monkeypatch.setattr(
-        wait_for_task_module, "task_manager", _ManagerWithOutcomes(tasks)
-    )
+    monkeypatch.setattr(wait_for_task_module, "task_manager", _ManagerWithOutcomes(tasks))
 
     tool = wait_for_task_module.WaitForTask()
     messages = []
@@ -314,13 +296,9 @@ def test_run_mixed_outcomes_summary(monkeypatch):
     tasks = [
         _outcome_task("a"),
         _outcome_task("b", exit_code=2, returncode=2),
-        _outcome_task(
-            "c", exit_reason="timeout", exit_code=None, returncode=-9, timeout=60
-        ),
+        _outcome_task("c", exit_reason="timeout", exit_code=None, returncode=-9, timeout=60),
     ]
-    monkeypatch.setattr(
-        wait_for_task_module, "task_manager", _ManagerWithOutcomes(tasks)
-    )
+    monkeypatch.setattr(wait_for_task_module, "task_manager", _ManagerWithOutcomes(tasks))
 
     tool = wait_for_task_module.WaitForTask()
     messages = []
@@ -336,21 +314,15 @@ def test_describe_outcome_handles_missing_fields():
     """An older/fake result dict without status fields still renders sanely."""
     describe = wait_for_task_module._describe_outcome
     assert describe({"task_id": "x"}) == "finished (no exit code)"
-    assert describe({"exit_reason": "error", "error": "boom"}) == (
-        "failed to report (boom)"
-    )
-    assert describe({"exit_reason": "killed", "returncode": -11}) == (
-        "terminated (killed by signal -11, no exit code)"
-    )
+    assert describe({"exit_reason": "error", "error": "boom"}) == ("failed to report (boom)")
+    assert describe({"exit_reason": "killed", "returncode": -11}) == ("terminated (killed by signal -11, no exit code)")
 
 
 def test_run_returns_error_on_unknown_task(monkeypatch):
     """An unknown task id surfaces as success=False with the error message."""
 
     class _BoomManager:
-        def wait_for_task(
-            self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None
-        ):
+        def wait_for_task(self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None):
             raise KeyError(f"Unknown task id: {task_ids[0]}")
 
     monkeypatch.setattr(wait_for_task_module, "task_manager", _BoomManager())
@@ -448,9 +420,7 @@ def test_spinner_path_surfaces_manager_errors(monkeypatch):
     monkeypatch.setattr(sys.stderr, "isatty", lambda: True)
 
     class _BoomManager:
-        def wait_for_task(
-            self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None
-        ):
+        def wait_for_task(self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None):
             raise KeyError(f"Unknown task id: {task_ids[0]}")
 
     monkeypatch.setattr(wait_for_task_module, "task_manager", _BoomManager())
@@ -510,9 +480,7 @@ def test_start_lines_fall_back_to_id_for_unknown_task(monkeypatch):
     monkeypatch.setattr(sys.stderr, "isatty", lambda: False)
 
     class _ManagerWithoutTask:
-        def wait_for_task(
-            self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None
-        ):
+        def wait_for_task(self, task_ids, on_task_complete=None, timeout=None, max_output_lines=None):
             return {
                 "tasks": [],
                 "timed_out": False,

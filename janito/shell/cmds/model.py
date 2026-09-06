@@ -142,10 +142,7 @@ class ModelCmdHandler(CmdHandler):
         # session model override is in effect (and clears it).
         shell.model_override = canonical
 
-        print(
-            f"[OK] Model switched to '{canonical}' for this session "
-            "(config default unchanged)."
-        )
+        print(f"[OK] Model switched to '{canonical}' for this session " "(config default unchanged).")
 
         # The switch takes effect in real time: rebuild the turn function
         # with the new model so subsequent turns use it (the factory's
@@ -166,9 +163,7 @@ class ModelCmdHandler(CmdHandler):
                     thinking_override=getattr(shell, "thinking", None),
                     effort_override=getattr(shell, "reasoning_effort", None),
                 )
-            shell.initialize_history(
-                system_prompt=getattr(shell, "_system_prompt", None)
-            )
+            shell.initialize_history(system_prompt=getattr(shell, "_system_prompt", None))
             print("Conversation history cleared (model changed).")
 
 

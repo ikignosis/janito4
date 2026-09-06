@@ -74,9 +74,7 @@ def _make_observer():
         def on_error(self, e, **kwargs):  # pragma: no cover - protocol stub
             pass
 
-        def on_turn_complete(  # pragma: no cover - protocol stub
-            self, token_stats, api_config
-        ):
+        def on_turn_complete(self, token_stats, api_config):  # pragma: no cover - protocol stub
             pass
 
     return _Observer()
@@ -87,9 +85,7 @@ def _make_observer():
 
 def test_build_api_config_resolves_cli_args_for_completions():
     """CLI provider/model + auth-store key resolve into the config."""
-    config = build_api_config(
-        api_type="Completions", cli_provider="openai", cli_model="gpt-5.6-luna"
-    )
+    config = build_api_config(api_type="Completions", cli_provider="openai", cli_model="gpt-5.6-luna")
     assert config.provider == "openai"
     assert config.api_type == "Completions"
     assert config.model == "gpt-5.6-luna"
@@ -105,16 +101,10 @@ def test_build_api_config_api_type_selects_native_endpoint():
     Completions/Responses gateway and the native DashScope SDK URL to
     different base URLs; the resolved api_type must pick the right one.
     """
-    responses = build_api_config(
-        api_type="Responses", cli_provider="alibaba", cli_model="qwen3.8-max"
-    )
-    assert (
-        responses.base_url == "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-    )
+    responses = build_api_config(api_type="Responses", cli_provider="alibaba", cli_model="qwen3.8-max")
+    assert responses.base_url == "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 
-    native = build_api_config(
-        api_type="DashScope", cli_provider="alibaba", cli_model="qwen3.8-max"
-    )
+    native = build_api_config(api_type="DashScope", cli_provider="alibaba", cli_model="qwen3.8-max")
     assert native.base_url == "https://dashscope-intl.aliyuncs.com/api/v1"
     assert native.api_key == "sk-test-alibaba"  # pragma: allowlist secret
 
@@ -128,9 +118,7 @@ def test_build_api_config_gemini_api_type_selects_native_endpoint():
         "google": "sk-test-google",
     }.items():
         set_api_key(_provider, _key)
-    config = build_api_config(
-        api_type="Gemini", cli_provider="google", cli_model="gemini-3.7-flash"
-    )
+    config = build_api_config(api_type="Gemini", cli_provider="google", cli_model="gemini-3.7-flash")
     assert config.base_url == "https://generativelanguage.googleapis.com"
     assert config.api_key == "sk-test-google"  # pragma: allowlist secret
 
@@ -155,9 +143,7 @@ def test_build_api_config_raises_without_provider_or_key():
 
 def test_build_api_config_builtin_token_defaults():
     """Built-in provider-config defaults apply when no config override is set."""
-    config = build_api_config(
-        api_type="Responses", cli_provider="openai", cli_model="gpt-5.6-luna"
-    )
+    config = build_api_config(api_type="Responses", cli_provider="openai", cli_model="gpt-5.6-luna")
     assert config.max_output_tokens == 128000
     assert config.max_input_tokens == 1050000
 
@@ -166,18 +152,14 @@ def test_build_api_config_config_override_wins_over_builtin():
     """A model-scoped config override beats the built-in default."""
     set_config_value("openai.models.gpt-5.6-luna.max-output-tokens", 4096)
     set_config_value("openai.models.gpt-5.6-luna.reasoning-effort", "low")
-    config = build_api_config(
-        api_type="Responses", cli_provider="openai", cli_model="gpt-5.6-luna"
-    )
+    config = build_api_config(api_type="Responses", cli_provider="openai", cli_model="gpt-5.6-luna")
     assert config.max_output_tokens == 4096
     assert config.reasoning_effort == "low"
 
 
 def test_build_api_config_reasoning_falls_back_to_builtin(monkeypatch):
     """Built-in reasoning default (alibaba low) applies when not configured."""
-    config = build_api_config(
-        api_type="Responses", cli_provider="alibaba", cli_model="qwen3.8-max"
-    )
+    config = build_api_config(api_type="Responses", cli_provider="alibaba", cli_model="qwen3.8-max")
     assert config.reasoning_effort == "low"
     # CLI --reasoning-effort still wins over the built-in default.
     config = build_api_config(
@@ -191,9 +173,7 @@ def test_build_api_config_reasoning_falls_back_to_builtin(monkeypatch):
 
 def test_build_api_config_thinking_falls_back_to_builtin():
     """Built-in thinking default (deepseek True) applies when not forced."""
-    config = build_api_config(
-        api_type="Responses", cli_provider="deepseek", cli_model="deepseek-v4-flash"
-    )
+    config = build_api_config(api_type="Responses", cli_provider="deepseek", cli_model="deepseek-v4-flash")
     assert config.thinking is True
     # The explicit --thinking flag wins over the built-in default.
     config = build_api_config(
@@ -217,9 +197,7 @@ def test_build_api_config_thinking_falls_back_to_builtin():
 
 def test_build_api_config_thinking_pass_through_dict_default():
     """MiniMax-M3's structured thinking parameter is resolved into the config."""
-    config = build_api_config(
-        api_type="Completions", cli_provider="minimax", cli_model="minimax-m3"
-    )
+    config = build_api_config(api_type="Completions", cli_provider="minimax", cli_model="minimax-m3")
     assert config.thinking == {"type": "adaptive"}
 
 
@@ -253,23 +231,17 @@ def test_build_api_config_resolves_preserve_thinking_from_provider_config():
     None (the caller sends no flag and the API's own default applies).
     """
     # Alibaba/Qwen declare preserve_thinking True.
-    config = build_api_config(
-        api_type="Responses", cli_provider="alibaba", cli_model="qwen3.8-max"
-    )
+    config = build_api_config(api_type="Responses", cli_provider="alibaba", cli_model="qwen3.8-max")
     assert config.preserve_thinking is True
 
     # Models without a built-in declaration resolve to None.
-    config = build_api_config(
-        api_type="Completions", cli_provider="openai", cli_model="gpt-5.6-luna"
-    )
+    config = build_api_config(api_type="Completions", cli_provider="openai", cli_model="gpt-5.6-luna")
     assert config.preserve_thinking is None
 
     # A legacy flat config key no longer has any effect: the value is
     # resolved from the provider config, never from the config store.
     set_config_value("preserve_thinking", True)
-    config = build_api_config(
-        api_type="Completions", cli_provider="openai", cli_model="gpt-5.6-luna"
-    )
+    config = build_api_config(api_type="Completions", cli_provider="openai", cli_model="gpt-5.6-luna")
     assert config.preserve_thinking is None
 
 
@@ -291,9 +263,7 @@ def test_ui_config_injects_settings():
 
 def test_api_config_carries_no_ui_fields():
     """UI concerns live in UIConfig, not APIConfig (the split)."""
-    config = build_api_config(
-        api_type="Completions", cli_provider="openai", cli_model="gpt-5.6-luna"
-    )
+    config = build_api_config(api_type="Completions", cli_provider="openai", cli_model="gpt-5.6-luna")
     assert config.use_mcp is True
     assert not hasattr(config, "verbose")
     assert not hasattr(config, "stream_runner")
@@ -305,9 +275,7 @@ def test_api_config_carries_no_ui_fields():
 
 def test_api_config_is_frozen():
     """APIConfig is immutable: mutation raises FrozenInstanceError."""
-    config = build_api_config(
-        api_type="Completions", cli_provider="openai", cli_model="gpt-5.6-luna"
-    )
+    config = build_api_config(api_type="Completions", cli_provider="openai", cli_model="gpt-5.6-luna")
     with pytest.raises(FrozenInstanceError):
         config.model = "other-model"
 

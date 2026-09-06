@@ -77,9 +77,7 @@ def _build_http_config(args: list[str], warnings: list[str]) -> dict[str, Any]:
                 key, value = header_value.split(":", 1)
                 headers[key.strip()] = value.strip()
             else:
-                warnings.append(
-                    f"Warning: Ignoring invalid header format: {header_value}"
-                )
+                warnings.append(f"Warning: Ignoring invalid header format: {header_value}")
                 warnings.append("  Expected format: --header KEY:VALUE")
             i += 2
         else:
@@ -120,11 +118,7 @@ TRANSPORT_SPECS: dict[str, TransportSpec] = {
         confirm_lines=lambda config: [
             "  Transport: http",
             f"  URL:       {config.get('url', '')}",
-            *(
-                [f"  Headers:   {len(config.get('headers', {}))} header(s) set"]
-                if config.get("headers")
-                else []
-            ),
+            *([f"  Headers:   {len(config.get('headers', {}))} header(s) set"] if config.get("headers") else []),
         ],
     ),
 }
@@ -145,9 +139,7 @@ def get_transport_spec(transport: str) -> TransportSpec:
     spec = TRANSPORT_SPECS.get((transport or "").lower())
     if spec is None:
         supported = ", ".join(f"'{name}'" for name in TRANSPORT_SPECS)
-        raise ValueError(
-            f"Unknown transport type: '{transport}'. Supported types: {supported}"
-        )
+        raise ValueError(f"Unknown transport type: '{transport}'. Supported types: {supported}")
     return spec
 
 

@@ -186,9 +186,7 @@ def test_available_provider_names_filters_by_api_key(monkeypatch, tmp_path):
 
     # The typed prefix is still applied on top of the key filter.
     assert list(available_provider_names("al", only_with_api_key=True)) == []
-    assert list(available_provider_names("DEEP", only_with_api_key=True)) == [
-        "deepseek"
-    ]
+    assert list(available_provider_names("DEEP", only_with_api_key=True)) == ["deepseek"]
 
 
 def test_available_provider_names_default_ignores_api_key(monkeypatch, tmp_path):
@@ -245,9 +243,7 @@ def test_switch_to_same_provider_keeps_history(monkeypatch, tmp_path):
     assert shell.previous_response_id == "resp-123"
 
 
-def test_cli_bound_session_switch_to_other_provider_clears_history(
-    monkeypatch, tmp_path
-):
+def test_cli_bound_session_switch_to_other_provider_clears_history(monkeypatch, tmp_path):
     """In a --provider-bound session, a switch to another provider still
     rebinds the send function and clears the history immediately."""
     _use_temp_config(monkeypatch, tmp_path)

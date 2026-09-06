@@ -172,9 +172,7 @@ class HeadlessBrowse(BaseTool):
                     )
                 except subprocess.TimeoutExpired:
                     execution_time_ms = int((time.time() - start_time) * 1000)
-                    self.report_error(
-                        f"Chrome timed out after {timeout}s ({format_duration_ms(execution_time_ms)})"
-                    )
+                    self.report_error(f"Chrome timed out after {timeout}s ({format_duration_ms(execution_time_ms)})")
                     return {
                         "success": False,
                         "error": f"Chrome timed out after {timeout}s",
@@ -185,9 +183,7 @@ class HeadlessBrowse(BaseTool):
 
                 # Older Chromium builds reject "--headless=new"; fall back to the
                 # legacy flag rather than failing outright.
-                if proc.returncode != 0 and b"unknown command line flag" in (
-                    proc.stderr or b""
-                ):
+                if proc.returncode != 0 and b"unknown command line flag" in (proc.stderr or b""):
                     args[args.index("--headless=new")] = "--headless"
                     headless_mode = "legacy"
                     try:
@@ -211,14 +207,8 @@ class HeadlessBrowse(BaseTool):
                         }
 
                 if proc.returncode != 0:
-                    stderr_tail = (
-                        (proc.stderr or b"").decode("utf-8", errors="replace").strip()
-                    )
-                    detail = (
-                        stderr_tail[-500:]
-                        if stderr_tail
-                        else f"exit code {proc.returncode}"
-                    )
+                    stderr_tail = (proc.stderr or b"").decode("utf-8", errors="replace").strip()
+                    detail = stderr_tail[-500:] if stderr_tail else f"exit code {proc.returncode}"
                     self.report_error(f"Chrome failed ({detail})")
                     return {
                         "success": False,
@@ -230,9 +220,7 @@ class HeadlessBrowse(BaseTool):
 
                 content = proc.stdout.decode("utf-8", errors="replace")
                 content_length = len(content)
-                total_lines = content.count("\n") + (
-                    1 if content and not content.endswith("\n") else 0
-                )
+                total_lines = content.count("\n") + (1 if content and not content.endswith("\n") else 0)
                 execution_time_ms = int((time.time() - start_time) * 1000)
 
                 # If the rendered DOM is too big, store it in a temporary file
@@ -352,12 +340,8 @@ Examples:
             "pass -1 to disable)"
         ),
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
-    parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Show verbose output"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show verbose output")
     args = parser.parse_args()
 
     result = HeadlessBrowse().run(
@@ -366,9 +350,7 @@ Examples:
         max_lines=args.max_lines,
         timeout=args.timeout,
         wait_ms=args.wait_ms,
-        threshold=None
-        if args.threshold is not None and args.threshold < 0
-        else args.threshold,
+        threshold=None if args.threshold is not None and args.threshold < 0 else args.threshold,
     )
 
     if args.json:
@@ -381,9 +363,7 @@ Examples:
                 print(f"  Chrome: {result.get('chrome', 'N/A')}")
                 print(f"  Content length: {result.get('content_length', 'N/A')} chars")
                 print(f"  Temp file: {result.get('tmp_filename', 'N/A')}")
-                print(
-                    f"  Execution time: {format_duration_ms(result.get('execution_time_ms', 'N/A'))}"
-                )
+                print(f"  Execution time: {format_duration_ms(result.get('execution_time_ms', 'N/A'))}")
                 print(f"\n  {result.get('message', '')}")
                 return 0
 
@@ -392,9 +372,7 @@ Examples:
             print(f"  Chrome: {result.get('chrome', 'N/A')}")
             print(f"  Content length: {result.get('content_length', 'N/A')} chars")
             print(f"  Lines returned: {result.get('lines_returned', 'N/A')}")
-            print(
-                f"  Execution time: {format_duration_ms(result.get('execution_time_ms', 'N/A'))}"
-            )
+            print(f"  Execution time: {format_duration_ms(result.get('execution_time_ms', 'N/A'))}")
 
             if args.verbose:
                 print("\nContent:")

@@ -31,15 +31,11 @@ from janito.tools.net._chrome_utils import (
 from janito.tools.net.headless_browse import HeadlessBrowse
 
 CHROME = _find_chrome()
-requires_chrome = pytest.mark.skipif(
-    CHROME is None, reason="Google Chrome (or Chromium-based) browser not installed"
-)
+requires_chrome = pytest.mark.skipif(CHROME is None, reason="Google Chrome (or Chromium-based) browser not installed")
 
 # Newlines are significant: Chrome preserves source newlines as text nodes, so
 # the dumped DOM spans multiple lines (needed by the max_lines truncation test).
-STATIC_HTML = (
-    "<html><body>\n<h1>HelloJanito</h1>\n<p>static content</p>\n</body></html>"
-)
+STATIC_HTML = "<html><body>\n<h1>HelloJanito</h1>\n<p>static content</p>\n</body></html>"
 # Same page but with a script that rewrites the heading -- proves JS was run.
 JS_HTML = (
     "<!DOCTYPE html><html><head><title>Test</title></head>"

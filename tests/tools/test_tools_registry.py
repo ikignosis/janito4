@@ -83,9 +83,7 @@ if pytest is not None:
         assert registry.all_permissions() == {"ReadFile": "r", "CreateFile": "w"}
 
     def test_get_schema_permissions(monkeypatch):
-        registry = _fresh_registry(
-            monkeypatch, {"ReadFile": _fake_tool("ReadFile", "r")}
-        )
+        registry = _fresh_registry(monkeypatch, {"ReadFile": _fake_tool("ReadFile", "r")})
         assert registry.get("ReadFile") is not None
         assert registry.schema("ReadFile")["function"]["name"] == "ReadFile"
         assert registry.permissions("ReadFile") == "r"
@@ -102,9 +100,7 @@ if pytest is not None:
 
         def fake_discover(names):
             calls["n"] += 1
-            return (
-                {"ExtraTool": _fake_tool("ExtraTool", "r")} if "extra" in names else {}
-            )
+            return {"ExtraTool": _fake_tool("ExtraTool", "r")} if "extra" in names else {}
 
         monkeypatch.setattr(tools_registry, "discover_toolsets", fake_discover)
 
@@ -130,9 +126,7 @@ if pytest is not None:
         }
         registry = _fresh_registry(monkeypatch, {}, skills_enabled=True)
         monkeypatch.setattr(tools_registry, "get_skills_tools", lambda: skill_tools)
-        monkeypatch.setattr(
-            tools_registry, "get_skills_advertisement", lambda: "## Available Skills"
-        )
+        monkeypatch.setattr(tools_registry, "get_skills_advertisement", lambda: "## Available Skills")
 
         registry.ensure_initialized()
         assert "load_skill" in registry.all_tools()
@@ -285,16 +279,12 @@ if pytest is not None:
 
     def test_module_functions_delegate_to_registry(monkeypatch):
         """The module-level functions behave identically to the class API."""
-        registry = _fresh_registry(
-            monkeypatch, {"ReadFile": _fake_tool("ReadFile", "r")}
-        )
+        registry = _fresh_registry(monkeypatch, {"ReadFile": _fake_tool("ReadFile", "r")})
         assert tools_registry.get_all_tools() == registry.all_tools()
         assert tools_registry.get_all_tool_schemas() == registry.all_schemas()
         assert tools_registry.get_all_tool_permissions() == registry.all_permissions()
         assert tools_registry.get_tool_by_name("ReadFile") == registry.get("ReadFile")
-        assert tools_registry.get_tool_permissions("ReadFile") == registry.permissions(
-            "ReadFile"
-        )
+        assert tools_registry.get_tool_permissions("ReadFile") == registry.permissions("ReadFile")
 
     def test_module_singleton_is_a_registry():
         assert isinstance(tools_registry._registry, ToolsRegistry)

@@ -119,9 +119,7 @@ class WebPromptHandler:
         pending = self._registry.register(prompt_id, question)
 
         try:
-            send = asyncio.run_coroutine_threadsafe(
-                self._send_prompt(prompt_id, question), self._loop
-            )
+            send = asyncio.run_coroutine_threadsafe(self._send_prompt(prompt_id, question), self._loop)
             send.result(timeout=self._SEND_TIMEOUT)
         except Exception:
             # The socket is dead / the loop closed: nothing will ever answer
@@ -134,9 +132,7 @@ class WebPromptHandler:
         return pending.answer or ""
 
     async def _send_prompt(self, prompt_id: str, question: str) -> None:
-        await self._websocket.send_json(
-            {"type": "prompt", "prompt_id": prompt_id, "question": question}
-        )
+        await self._websocket.send_json({"type": "prompt", "prompt_id": prompt_id, "question": question})
 
 
 __all__ = [

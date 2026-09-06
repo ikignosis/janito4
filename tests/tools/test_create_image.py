@@ -33,9 +33,7 @@ try:
 except ModuleNotFoundError:
     _HAS_FASTAPI = False
 
-requires_fastapi = pytest.mark.skipif(
-    not _HAS_FASTAPI, reason="fastapi (web extra) is not installed"
-)
+requires_fastapi = pytest.mark.skipif(not _HAS_FASTAPI, reason="fastapi (web extra) is not installed")
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\nfakepngdata-1234567890"
 
@@ -69,9 +67,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                                 "finish_reason": "stop",
                                 "message": {
                                     "role": "assistant",
-                                    "content": [
-                                        {"image": f"{base}/img.png", "type": "image"}
-                                    ],
+                                    "content": [{"image": f"{base}/img.png", "type": "image"}],
                                 },
                             }
                         ],
@@ -155,9 +151,7 @@ def test_success_generates_and_stores_image(patched):
     sent = json.loads(_CAPTURED["last_post_body"].decode("utf-8"))
     assert sent["model"] == "wan2.7-image-pro"
     assert sent["input"]["messages"][0]["role"] == "user"
-    assert sent["input"]["messages"][0]["content"] == [
-        {"text": "a red apple on a table"}
-    ]
+    assert sent["input"]["messages"][0]["content"] == [{"text": "a red apple on a table"}]
     # wan2.7-image-pro text-to-image parameters.
     assert sent["parameters"]["size"] == "2K"
     assert sent["parameters"]["n"] == 1
@@ -211,9 +205,7 @@ def test_image_serving_route(tmp_path, monkeypatch):
 
     client = TestClient(create_app(WebServerConfig()))
 
-    tmp = tempfile.NamedTemporaryFile(
-        suffix=".png", prefix="janito_image_", delete=False
-    )
+    tmp = tempfile.NamedTemporaryFile(suffix=".png", prefix="janito_image_", delete=False)
     tmp.write(PNG_BYTES)
     tmp.close()
     name = os.path.basename(tmp.name)

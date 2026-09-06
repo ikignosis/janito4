@@ -206,16 +206,11 @@ def test_variant_inherits_base_defaults(monkeypatch, tmp_path):
     cv.create_variant("alibaba-tokenplan")
     # The base provider's built-in defaults apply to the variant.
     assert get_provider("alibaba-tokenplan").default_model() == "qwen3.8-flash"
-    assert (
-        get_provider("alibaba-tokenplan").model_config().get("default_api_type")
-        == "Responses"
-    )
-    assert (
-        get_provider("alibaba-tokenplan").model_config().get("thinking", False) is True
-    )
-    assert get_provider("alibaba-tokenplan").endpoint_for(
+    assert get_provider("alibaba-tokenplan").model_config().get("default_api_type") == "Responses"
+    assert get_provider("alibaba-tokenplan").model_config().get("thinking", False) is True
+    assert get_provider("alibaba-tokenplan").endpoint_for("Completions") == get_provider("alibaba").endpoint_for(
         "Completions"
-    ) == get_provider("alibaba").endpoint_for("Completions")
+    )
 
     # A registered variant of "custom" counts as custom.
     cv.create_variant("custom-local")
@@ -356,9 +351,7 @@ def test_resolve_runtime_config_variant_overrides(monkeypatch, tmp_path):
     cv.create_variant("alibaba-tokenplan")
     set_api_key("alibaba-tokenplan", "sk-variant")  # pragma: allowlist secret
     cc.set_config_from_cli("model=qwen3.8-flash", "alibaba-tokenplan")
-    cc.set_config_from_cli(
-        "endpoint=https://variant.example.com/v1", "alibaba-tokenplan"
-    )
+    cc.set_config_from_cli("endpoint=https://variant.example.com/v1", "alibaba-tokenplan")
 
     base_url, api_key, model = resolve_runtime_config(None, "alibaba-tokenplan")
     assert base_url == "https://variant.example.com/v1"
@@ -402,9 +395,7 @@ try:
 except ModuleNotFoundError:
     _HAS_FASTAPI = False
 
-requires_fastapi = pytest.mark.skipif(
-    not _HAS_FASTAPI, reason="fastapi (web extra) is not installed"
-)
+requires_fastapi = pytest.mark.skipif(not _HAS_FASTAPI, reason="fastapi (web extra) is not installed")
 
 
 @pytest.fixture(scope="module")

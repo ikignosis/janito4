@@ -54,9 +54,7 @@ def _object_items(obj: Any):
     return []
 
 
-def _extract_raw_attrs(
-    obj: Any, *, skip: tuple[str, ...] = (), max_list: int = 3
-) -> dict[str, Any]:
+def _extract_raw_attrs(obj: Any, *, skip: tuple[str, ...] = (), max_list: int = 3) -> dict[str, Any]:
     """Extract the scalar top-level attributes of an SDK response object.
 
     SDK response objects (pydantic models, ``SimpleNamespace``, DashScope's
@@ -79,15 +77,11 @@ def _extract_raw_attrs(
         if isinstance(value, (str, int, float, bool)):
             out[key] = value
             continue
-        if isinstance(value, (list, tuple)) and all(
-            isinstance(v, (str, int, float, bool)) for v in value
-        ):
+        if isinstance(value, (list, tuple)) and all(isinstance(v, (str, int, float, bool)) for v in value):
             if 0 < len(value) <= max_list:
                 out[key] = list(value)
             continue
-        if isinstance(value, dict) and all(
-            isinstance(v, (str, int, float, bool)) for v in value.values()
-        ):
+        if isinstance(value, dict) and all(isinstance(v, (str, int, float, bool)) for v in value.values()):
             if 0 < len(value) <= max_list:
                 out[key] = dict(value)
     return out

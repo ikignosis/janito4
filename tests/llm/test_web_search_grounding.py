@@ -1,8 +1,11 @@
 """Search grounding for Meta models (issue #131): behavior assertions."""
 
-from janito.llm_adapters.responses import ResponsesTurnAccumulator, _citations_from_output
+from janito.llm_adapters.responses import (
+    ResponsesTurnAccumulator,
+    _citations_from_output,
+)
+from janito.llm_clients.openai.responses_stream import ResponsesStreamConsumer
 from janito.llm_clients.openai.responses_stream import (
-    ResponsesStreamConsumer,
     _citations_from_output as _cli_citations,
 )
 from janito.providers.registry import get_provider
@@ -37,9 +40,7 @@ def test_cli_consumer_collects_search_call_and_citations():
                 {
                     "type": "output_text",
                     "text": "hello",
-                    "annotations": [
-                        {"type": "url_citation", "url": "https://x.test", "title": "X"}
-                    ],
+                    "annotations": [{"type": "url_citation", "url": "https://x.test", "title": "X"}],
                 }
             ],
         }
@@ -52,9 +53,7 @@ def test_cli_consumer_collects_search_call_and_citations():
     ]:
         c.handle_event(ev)
     assert c.web_search_calls == [{"id": "ws_1", "status": "completed"}]
-    assert c.web_search_citations == [
-        {"url": "https://x.test", "title": "X", "start_index": None, "end_index": None}
-    ]
+    assert c.web_search_citations == [{"url": "https://x.test", "title": "X", "start_index": None, "end_index": None}]
 
 
 def test_web_accumulator_collects_search_call_and_citations():

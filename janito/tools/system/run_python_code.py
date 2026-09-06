@@ -83,9 +83,7 @@ class RunPythonCode(BaseTool):
             if abs_working_dir is None:
                 return {
                     "success": False,
-                    "error": (
-                        f"Working directory does not exist: {os.path.abspath(working_directory)}"
-                    ),
+                    "error": (f"Working directory does not exist: {os.path.abspath(working_directory)}"),
                     "exit_code": -1,
                     "working_directory": working_directory,
                 }
@@ -171,9 +169,7 @@ class RunPythonCode(BaseTool):
         code_preview = code
         if len(code) > 200:
             code_preview = code[:200] + "..."
-        self.report_start(
-            f"🐍 Executing Python code in {norm_working_dir}:\n{code_preview}"
-        )
+        self.report_start(f"🐍 Executing Python code in {norm_working_dir}:\n{code_preview}")
 
     def _build_result(
         self,
@@ -206,14 +202,10 @@ class RunPythonCode(BaseTool):
         if capture_errors:
             output_result["stderr"] = stderr_text
         if success:
-            self._report_success(
-                execution_time_ms, capture_output, stdout_lines, stderr_lines
-            )
+            self._report_success(execution_time_ms, capture_output, stdout_lines, stderr_lines)
         else:
             self._report_failure(exit_code, capture_errors, stderr_lines, stdout_lines)
-            output_result[
-                "error"
-            ] = f"Python execution failed with exit code {exit_code}"
+            output_result["error"] = f"Python execution failed with exit code {exit_code}"
         return output_result
 
     def _report_success(
@@ -289,24 +281,12 @@ Examples:
     parser.add_argument("-c", "--code", help="Python code to execute")
     parser.add_argument("-f", "--file", help="File containing Python code")
     parser.add_argument("-d", "--directory", help="Working directory for execution")
-    parser.add_argument(
-        "-p", "--python", help="Python executable to use (default: current interpreter)"
-    )
-    parser.add_argument(
-        "-t", "--timeout", type=int, default=60, help="Timeout in seconds (default: 60)"
-    )
-    parser.add_argument(
-        "--no-capture-output", action="store_true", help="Don't capture standard output"
-    )
-    parser.add_argument(
-        "--no-capture-errors", action="store_true", help="Don't capture standard error"
-    )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
-    parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Show verbose output"
-    )
+    parser.add_argument("-p", "--python", help="Python executable to use (default: current interpreter)")
+    parser.add_argument("-t", "--timeout", type=int, default=60, help="Timeout in seconds (default: 60)")
+    parser.add_argument("--no-capture-output", action="store_true", help="Don't capture standard output")
+    parser.add_argument("--no-capture-errors", action="store_true", help="Don't capture standard error")
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show verbose output")
     return parser
 
 

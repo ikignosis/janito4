@@ -65,8 +65,7 @@ def _stream_response(client, call_kwargs, tools_schemas, cancel_event=None):
             config = dict(call_kwargs.get("config") or {})
             existing_tools = list(config.get("tools") or [])
             has_function_declarations = any(
-                isinstance(tool, dict) and tool.get("function_declarations")
-                for tool in existing_tools
+                isinstance(tool, dict) and tool.get("function_declarations") for tool in existing_tools
             )
             if not has_function_declarations:
                 config["tools"] = existing_tools + function_tools

@@ -26,9 +26,7 @@ def test_meta_models_request_thinking_summary():
 def test_models_without_declaration_default_to_false():
     found = get_provider("openai")
     assert found is not None
-    assert (
-        bool(found.model_config("gpt-5.6-luna").get("thinking_summary", False)) is False
-    )
+    assert bool(found.model_config("gpt-5.6-luna").get("thinking_summary", False)) is False
 
 
 def _cli_kwargs(provider, model, effort):
@@ -73,9 +71,7 @@ def test_web_adapter_kwargs_merge_effort_and_summary_for_meta():
         def effective_tools_for(self, api_type):
             return []
 
-    kwargs = build_call_kwargs(
-        "muse-spark-1.3", [], None, _Config(), None, None, "minimal"
-    )
+    kwargs = build_call_kwargs("muse-spark-1.3", [], None, _Config(), None, None, "minimal")
     assert kwargs["reasoning"] == {"effort": "minimal", "summary": "auto"}
 
 
@@ -85,12 +81,8 @@ def test_summary_deltas_surface_via_reasoning_buffer():
     from janito.llm_clients.openai.responses_stream import ResponsesStreamConsumer
 
     c = ResponsesStreamConsumer()
-    c.handle_event(
-        SimpleNamespace(type="response.reasoning_summary_text.delta", delta="thought ")
-    )
-    c.handle_event(
-        SimpleNamespace(type="response.reasoning_summary_text.delta", delta="summary")
-    )
+    c.handle_event(SimpleNamespace(type="response.reasoning_summary_text.delta", delta="thought "))
+    c.handle_event(SimpleNamespace(type="response.reasoning_summary_text.delta", delta="summary"))
     assert c.reasoning_content == "thought summary"
 
 

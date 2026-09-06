@@ -187,13 +187,9 @@ class CompletionsClient(Client):
                 tool_calls,
                 usage_info,
                 raw_attrs,
-            ) = self._invoke_stream_runner(
-                _stream_response, client, call_kwargs, tools_schemas
-            )
+            ) = self._invoke_stream_runner(_stream_response, client, call_kwargs, tools_schemas)
         except NotFoundError as e:
-            self.observer.on_error(
-                e, base_url=base_url, model=model, error_kind="not_found"
-            )
+            self.observer.on_error(e, base_url=base_url, model=model, error_kind="not_found")
             raise
         except AuthenticationError as e:
             self.observer.on_error(
@@ -207,9 +203,7 @@ class CompletionsClient(Client):
             raise
         return full_content, reasoning_content, tool_calls, usage_info, raw_attrs
 
-    def _handle_tool_calls(
-        self, tool_calls, full_content, reasoning_content, state, tool_executor
-    ):
+    def _handle_tool_calls(self, tool_calls, full_content, reasoning_content, state, tool_executor):
         # Build the assistant message (with tool_calls), execute every call
         # and append the tool responses to the history, then loop to get the
         # final response after the tool calls.

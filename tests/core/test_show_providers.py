@@ -77,9 +77,7 @@ def test_google_thinking_driven_from_registry(monkeypatch, tmp_path, capsys):
 
     found = get_provider("google")
     default_model = found.default_model()
-    expected = format_thinking_display(
-        found.model_config(default_model).get("thinking", False), provider="google"
-    )
+    expected = format_thinking_display(found.model_config(default_model).get("thinking", False), provider="google")
     _, out = _run(monkeypatch, tmp_path, capsys)
     assert out.strip() != ""
     assert default_model in out
@@ -106,19 +104,12 @@ def test_shows_configured_overrides_and_masked_key(monkeypatch, tmp_path, capsys
     _use_temp_config(monkeypatch, tmp_path)
     cv.create_variant("alibaba-tokenplan")
     cc.set_config_from_cli("model=qwen3.8-max", "alibaba-tokenplan")
-    cc.set_config_from_cli(
-        "endpoint=https://variant.example.com/v1", "alibaba-tokenplan"
-    )
-    set_api_key(
-        "alibaba-tokenplan", "sk-abcdef1234567890wxyz"  # pragma: allowlist secret
-    )
+    cc.set_config_from_cli("endpoint=https://variant.example.com/v1", "alibaba-tokenplan")
+    set_api_key("alibaba-tokenplan", "sk-abcdef1234567890wxyz")  # pragma: allowlist secret
 
     # State asserts (Rule 1), not rendering pins.
     assert load_model_from_config("alibaba-tokenplan") == "qwen3.8-max"
-    assert (
-        load_endpoint_from_config("alibaba-tokenplan")
-        == "https://variant.example.com/v1"
-    )
+    assert load_endpoint_from_config("alibaba-tokenplan") == "https://variant.example.com/v1"
 
     _, out = _run(monkeypatch, tmp_path, capsys)
     assert out.strip() != ""

@@ -262,12 +262,12 @@ def recent_conversation_rows(
     user_indexes = [i for i, (role, _) in enumerate(dialogue) if role == "user"]
     if limit < 2 or not user_indexes:
         return tail
-    anchored = dialogue[user_indexes[-1]:]
+    anchored = dialogue[user_indexes[-1] :]
     if len(anchored) <= limit:
         return anchored
     # Keep the question and the most recent replies, dropping the oldest
     # intermediate assistant rows so the recap stays bounded.
-    return [anchored[0]] + anchored[-(limit - 1):]
+    return [anchored[0]] + anchored[-(limit - 1) :]
 
 
 __all__ = [

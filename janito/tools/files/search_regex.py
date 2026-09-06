@@ -43,9 +43,7 @@ class SearchRegex(SearchRunner):
     term_key = "pattern"
     error_label = "regex search"
 
-    def start_message(
-        self, term: str, paths_str: str, exclude_str: str | None = None
-    ) -> str:
+    def start_message(self, term: str, paths_str: str, exclude_str: str | None = None) -> str:
         """Return the report_start message for this tool."""
         message = f"\U0001f50d Searching regex pattern '{term}' in {paths_str}"
         if exclude_str:
@@ -131,9 +129,7 @@ class SearchRegex(SearchRunner):
             # Skip files that can't be read (binary files, permission issues, etc.)
             return []
 
-    def _count_file_matches(
-        self, filepath: str, pattern: str, case_sensitive: bool
-    ) -> int:
+    def _count_file_matches(self, filepath: str, pattern: str, case_sensitive: bool) -> int:
         """Count matches in a single file."""
         try:
             flags = 0 if case_sensitive else re.IGNORECASE
@@ -158,32 +154,20 @@ def main():
     """Command line interface for testing the SearchRegex tool."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Search regex tool for AI function calling"
-    )
+    parser = argparse.ArgumentParser(description="Search regex tool for AI function calling")
     parser.add_argument("paths", help="Space-separated paths to search in")
     parser.add_argument("pattern", help="Regular expression pattern to search for")
-    parser.add_argument(
-        "--ignore-case", "-i", action="store_true", help="Case insensitive search"
-    )
+    parser.add_argument("--ignore-case", "-i", action="store_true", help="Case insensitive search")
     parser.add_argument("--max-depth", "-d", type=int, help="Maximum directory depth")
-    parser.add_argument(
-        "--max-results", "-m", type=int, default=100, help="Maximum results"
-    )
-    parser.add_argument(
-        "--count-only", "-c", action="store_true", help="Return only counts"
-    )
-    parser.add_argument(
-        "--no-gitignore", action="store_true", help="Disable .gitignore filtering"
-    )
+    parser.add_argument("--max-results", "-m", type=int, default=100, help="Maximum results")
+    parser.add_argument("--count-only", "-c", action="store_true", help="Return only counts")
+    parser.add_argument("--no-gitignore", action="store_true", help="Disable .gitignore filtering")
     parser.add_argument(
         "--exclude",
         "-e",
         help="Space-separated glob patterns to exclude",
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
 
     args = parser.parse_args()
 

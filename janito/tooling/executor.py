@@ -210,9 +210,7 @@ def run_tool(
     # argument is "filepath"; best-effort, never raises). A tool signals
     # logical failure via a falsy "success" key in its result dict; such
     # calls are not tracked.
-    if error is None and not (
-        isinstance(result, dict) and result.get("success") is False
-    ):
+    if error is None and not (isinstance(result, dict) and result.get("success") is False):
         record_used_file(tool_name, tool_args)
         # Log the execution to ./.janito/changes.jsonl so the /changes
         # command can replay it (best-effort, never raises).
@@ -263,9 +261,7 @@ class ToolExecutor:
             self._mcp_manager = get_mcp_manager()
         return self._mcp_manager
 
-    def build_assistant_message(
-        self, full_content: str, tool_calls_map: dict[int, dict[str, Any]]
-    ) -> dict[str, Any]:
+    def build_assistant_message(self, full_content: str, tool_calls_map: dict[int, dict[str, Any]]) -> dict[str, Any]:
         """Build the assistant message carrying the model's tool calls.
 
         The model streams tool-call *deltas* split across many chunks; the
@@ -335,9 +331,7 @@ class ToolExecutor:
         messages.append(assistant_msg)
         self.execute_tool_calls(assistant_msg["tool_calls"], messages)
 
-    def execute_tool_calls(
-        self, tool_calls: list[dict[str, Any]], messages: list[dict[str, Any]]
-    ) -> None:
+    def execute_tool_calls(self, tool_calls: list[dict[str, Any]], messages: list[dict[str, Any]]) -> None:
         """Execute every tool call and append its response to ``messages``.
 
         Args:

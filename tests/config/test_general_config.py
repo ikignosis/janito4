@@ -72,18 +72,14 @@ if pytest is not None:
         key, value = cc.set_config_from_cli("model=gpt-5.6-luna", "openai")
         assert key == "openai.model"
         assert value == "gpt-5.6-luna"
-        assert _read_config(config_path) == {
-            "providers": {"openai": {"model": "gpt-5.6-luna"}}
-        }
+        assert _read_config(config_path) == {"providers": {"openai": {"model": "gpt-5.6-luna"}}}
 
     def test_set_model_uses_configured_provider(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
         cc.set_config_from_cli("provider=minimax")
         key, _ = cc.set_config_from_cli("model=MiniMax-M3")
         assert key == "minimax.model"
-        assert (
-            _read_config(config_path)["providers"]["minimax"]["model"] == "MiniMax-M3"
-        )
+        assert _read_config(config_path)["providers"]["minimax"]["model"] == "MiniMax-M3"
 
     def test_cli_provider_overrides_configured_provider(monkeypatch, tmp_path):
         _use_temp_config(monkeypatch, tmp_path)
@@ -119,21 +115,15 @@ if pytest is not None:
         key, value = cc.set_config_from_cli("model=MINIMAX-M3", "minimax")
         assert key == "minimax.model"
         assert value == "MiniMax-M3"
-        assert (
-            _read_config(config_path)["providers"]["minimax"]["model"] == "MiniMax-M3"
-        )
+        assert _read_config(config_path)["providers"]["minimax"]["model"] == "MiniMax-M3"
 
-    def test_set_model_accepts_any_name_for_custom_and_openrouter(
-        monkeypatch, tmp_path
-    ):
+    def test_set_model_accepts_any_name_for_custom_and_openrouter(monkeypatch, tmp_path):
         """custom and openrouter have no built-in model list: any name is accepted."""
         _use_temp_config(monkeypatch, tmp_path)
         key, value = cc.set_config_from_cli("model=my-arbitrary-model", "custom")
         assert key == "custom.model"
         assert value == "my-arbitrary-model"
-        key, value = cc.set_config_from_cli(
-            "model=anthropic/claude-3.5-sonnet", "openrouter"
-        )
+        key, value = cc.set_config_from_cli("model=anthropic/claude-3.5-sonnet", "openrouter")
         assert key == "openrouter.model"
         assert value == "anthropic/claude-3.5-sonnet"
 
@@ -215,19 +205,14 @@ if pytest is not None:
         key, value = cc.set_config_from_cli("endpoint=http://x/v1", "custom")
         assert key == "custom.endpoint"
         assert value == "http://x/v1"
-        assert _read_config(config_path) == {
-            "providers": {"custom": {"endpoint": "http://x/v1"}}
-        }
+        assert _read_config(config_path) == {"providers": {"custom": {"endpoint": "http://x/v1"}}}
 
     def test_set_endpoint_uses_configured_provider(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
         cc.set_config_from_cli("provider=custom")
         key, _ = cc.set_config_from_cli("endpoint=http://x/v1")
         assert key == "custom.endpoint"
-        assert (
-            _read_config(config_path)["providers"]["custom"]["endpoint"]
-            == "http://x/v1"
-        )
+        assert _read_config(config_path)["providers"]["custom"]["endpoint"] == "http://x/v1"
 
     def test_get_endpoint_per_provider(monkeypatch, tmp_path):
         _use_temp_config(monkeypatch, tmp_path)
@@ -284,14 +269,8 @@ if pytest is not None:
         assert cl.load_max_output_tokens("minimax") == 4096
         # Verify storage structure (model-scoped path).
         config = _read_config(config_path)
-        assert (
-            config["providers"]["openai"]["models"]["gpt-5.6-luna"]["max-output-tokens"]
-            == 8192
-        )
-        assert (
-            config["providers"]["minimax"]["models"]["MiniMax-M3"]["max-output-tokens"]
-            == 4096
-        )
+        assert config["providers"]["openai"]["models"]["gpt-5.6-luna"]["max-output-tokens"] == 8192
+        assert config["providers"]["minimax"]["models"]["MiniMax-M3"]["max-output-tokens"] == 4096
 
     def test_unset_max_output_tokens_per_provider(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
@@ -300,10 +279,7 @@ if pytest is not None:
         assert cc.unset_config_key_from_cli("max-output-tokens", "openai") is True
         config = _read_config(config_path)
         assert "openai" not in config.get("providers", {})
-        assert (
-            config["providers"]["minimax"]["models"]["MiniMax-M3"]["max-output-tokens"]
-            == 4096
-        )
+        assert config["providers"]["minimax"]["models"]["MiniMax-M3"]["max-output-tokens"] == 4096
         # Removing again returns False (already gone)
         assert cc.unset_config_key_from_cli("max-output-tokens", "openai") is False
 
@@ -331,20 +307,9 @@ if pytest is not None:
         assert key == "deepseek.models.deepseek-v4-flash.max-input-tokens"
         assert value == 200000
         config = _read_config(config_path)
-        assert (
-            config["providers"]["openai"]["models"]["gpt-5.6-luna"]["max-input-tokens"]
-            == 128000
-        )
-        assert (
-            config["providers"]["minimax"]["models"]["MiniMax-M3"]["max-input-tokens"]
-            == 256000
-        )
-        assert (
-            config["providers"]["deepseek"]["models"]["deepseek-v4-flash"][
-                "max-input-tokens"
-            ]
-            == 200000
-        )
+        assert config["providers"]["openai"]["models"]["gpt-5.6-luna"]["max-input-tokens"] == 128000
+        assert config["providers"]["minimax"]["models"]["MiniMax-M3"]["max-input-tokens"] == 256000
+        assert config["providers"]["deepseek"]["models"]["deepseek-v4-flash"]["max-input-tokens"] == 200000
 
     def test_set_max_input_tokens_rejects_non_int(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
@@ -361,10 +326,7 @@ if pytest is not None:
         assert cc.unset_config_key_from_cli("max-input-tokens", "openai") is True
         config = _read_config(config_path)
         assert "openai" not in config.get("providers", {})
-        assert (
-            config["providers"]["minimax"]["models"]["MiniMax-M3"]["max-input-tokens"]
-            == 256000
-        )
+        assert config["providers"]["minimax"]["models"]["MiniMax-M3"]["max-input-tokens"] == 256000
         # Removing again returns False (already gone)
         assert cc.unset_config_key_from_cli("max-input-tokens", "openai") is False
 
@@ -382,14 +344,8 @@ if pytest is not None:
         assert cl.load_reasoning_effort("openai") == "low"
         # Verify storage structure (model-scoped path).
         config = _read_config(config_path)
-        assert (
-            config["providers"]["alibaba"]["models"]["qwen3.8-max"]["reasoning-effort"]
-            == "xhigh"
-        )
-        assert (
-            config["providers"]["openai"]["models"]["gpt-5.6-luna"]["reasoning-effort"]
-            == "low"
-        )
+        assert config["providers"]["alibaba"]["models"]["qwen3.8-max"]["reasoning-effort"] == "xhigh"
+        assert config["providers"]["openai"]["models"]["gpt-5.6-luna"]["reasoning-effort"] == "low"
         # Model-scoped set/get round-trips through the CLI helpers.
         assert cc.get_config_from_cli("reasoning-effort", "alibaba") == "xhigh"
 
@@ -404,22 +360,15 @@ if pytest is not None:
         """Model-scoped keys round-trip through set/get/unset when an
         explicit --model is given (stored under providers.<p>.models.<m>.<k>)."""
         config_path = _use_temp_config(monkeypatch, tmp_path)
-        key, value = cc.set_config_from_cli(
-            "max-output-tokens=64000", "openai", "my-model"
-        )
+        key, value = cc.set_config_from_cli("max-output-tokens=64000", "openai", "my-model")
         assert key == "openai.models.my-model.max-output-tokens"
         assert value == 64000
         # Reading with the same explicit model returns the stored value.
-        assert (
-            cc.get_config_from_cli("max-output-tokens", "openai", "my-model") == "64000"
-        )
+        assert cc.get_config_from_cli("max-output-tokens", "openai", "my-model") == "64000"
         # A different model for the same provider has no value.
         assert cl.load_max_output_tokens("openai", "other-model") is None
         # Unset removes the model-scoped key (and prunes the emptied dicts).
-        assert (
-            cc.unset_config_key_from_cli("max-output-tokens", "openai", "my-model")
-            is True
-        )
+        assert cc.unset_config_key_from_cli("max-output-tokens", "openai", "my-model") is True
         assert _read_config(config_path) == {}
 
     def test_model_scoped_unknown_model_uses_default_model_key(monkeypatch, tmp_path):
@@ -431,12 +380,7 @@ if pytest is not None:
         # is used as the target model.
         key, _ = cc.set_config_from_cli("max-output-tokens=32000", "openai")
         assert key == "openai.models.gpt-5.6-luna.max-output-tokens"
-        assert (
-            _read_config(config_path)["providers"]["openai"]["models"]["gpt-5.6-luna"][
-                "max-output-tokens"
-            ]
-            == 32000
-        )
+        assert _read_config(config_path)["providers"]["openai"]["models"]["gpt-5.6-luna"]["max-output-tokens"] == 32000
         # The custom provider has no default model -> ModelRequiredError.
         from janito.config_cli import ModelRequiredError
 
@@ -457,10 +401,7 @@ if pytest is not None:
         assert cc.unset_config_key_from_cli("reasoning-effort", "alibaba") is True
         config = _read_config(config_path)
         assert "alibaba" not in config.get("providers", {})
-        assert (
-            config["providers"]["openai"]["models"]["gpt-5.6-luna"]["reasoning-effort"]
-            == "low"
-        )
+        assert config["providers"]["openai"]["models"]["gpt-5.6-luna"]["reasoning-effort"] == "low"
         # Removing again returns False (already gone)
         assert cc.unset_config_key_from_cli("reasoning-effort", "alibaba") is False
 
@@ -498,13 +439,9 @@ if pytest is not None:
     # ---- API type (Responses / Completions) ------------------------------
 
     def test_api_type_config_key_helper():
+        assert ck.model_scoped_config_key("openai", "gpt-5.6-luna", "api-type") == "openai.models.gpt-5.6-luna.api-type"
         assert (
-            ck.model_scoped_config_key("openai", "gpt-5.6-luna", "api-type")
-            == "openai.models.gpt-5.6-luna.api-type"
-        )
-        assert (
-            ck.model_scoped_config_key("  OpenAI ", "gpt-5.6-luna", "api-type")
-            == "openai.models.gpt-5.6-luna.api-type"
+            ck.model_scoped_config_key("  OpenAI ", "gpt-5.6-luna", "api-type") == "openai.models.gpt-5.6-luna.api-type"
         )
 
     def test_set_api_type_per_provider(monkeypatch, tmp_path):
@@ -514,14 +451,8 @@ if pytest is not None:
         assert cl.load_api_type("openai") == "Responses"
         assert cl.load_api_type("minimax") == "Completions"
         config = _read_config(config_path)
-        assert (
-            config["providers"]["openai"]["models"]["gpt-5.6-luna"]["api-type"]
-            == "Responses"
-        )
-        assert (
-            config["providers"]["minimax"]["models"]["MiniMax-M3"]["api-type"]
-            == "Completions"
-        )
+        assert config["providers"]["openai"]["models"]["gpt-5.6-luna"]["api-type"] == "Responses"
+        assert config["providers"]["minimax"]["models"]["MiniMax-M3"]["api-type"] == "Completions"
 
     def test_set_api_type_normalizes_case(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
@@ -533,18 +464,9 @@ if pytest is not None:
         cc.set_config_from_cli("api-type=responses", "minimax")
         cc.set_config_from_cli("api-type=RESPONSES", "deepseek")
         config = _read_config(config_path)
-        assert (
-            config["providers"]["openai"]["models"]["gpt-5.6-luna"]["api-type"]
-            == "Completions"
-        )
-        assert (
-            config["providers"]["minimax"]["models"]["MiniMax-M3"]["api-type"]
-            == "Responses"
-        )
-        assert (
-            config["providers"]["deepseek"]["models"]["deepseek-v4-flash"]["api-type"]
-            == "Responses"
-        )
+        assert config["providers"]["openai"]["models"]["gpt-5.6-luna"]["api-type"] == "Completions"
+        assert config["providers"]["minimax"]["models"]["MiniMax-M3"]["api-type"] == "Responses"
+        assert config["providers"]["deepseek"]["models"]["deepseek-v4-flash"]["api-type"] == "Responses"
         assert cl.load_api_type("openai") == "Completions"
         assert cl.load_api_type("minimax") == "Responses"
 
@@ -639,9 +561,7 @@ if pytest is not None:
         assert "openai" not in config_path.read_text()
         assert cc.unset_config_key_from_cli("api-type", "openai") is False
 
-    def test_resolve_api_type_defaults_to_provider_default_api_type(
-        monkeypatch, tmp_path
-    ):
+    def test_resolve_api_type_defaults_to_provider_default_api_type(monkeypatch, tmp_path):
         _use_temp_config(monkeypatch, tmp_path)
         # OpenAI's model declares default_api_type "Responses" (the first of
         # its supported_api_types), so the default is the Responses API.
@@ -701,16 +621,8 @@ if pytest is not None:
         assert cl.load_stateless_mode_from_config("openai") is True
         assert cl.load_stateless_mode_from_config("deepseek") is False
         config = _read_config(config_path)
-        assert (
-            config["providers"]["openai"]["models"]["gpt-5.6-luna"]["stateless-mode"]
-            is True
-        )
-        assert (
-            config["providers"]["deepseek"]["models"]["deepseek-v4-flash"][
-                "stateless-mode"
-            ]
-            is False
-        )
+        assert config["providers"]["openai"]["models"]["gpt-5.6-luna"]["stateless-mode"] is True
+        assert config["providers"]["deepseek"]["models"]["deepseek-v4-flash"]["stateless-mode"] is False
 
     def test_set_stateless_mode_normalizes_bool_forms(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)
@@ -720,16 +632,8 @@ if pytest is not None:
         assert value is True
         cc.set_config_from_cli("stateless-mode=OFF", "deepseek")
         config = _read_config(config_path)
-        assert (
-            config["providers"]["openai"]["models"]["gpt-5.6-luna"]["stateless-mode"]
-            is True
-        )
-        assert (
-            config["providers"]["deepseek"]["models"]["deepseek-v4-flash"][
-                "stateless-mode"
-            ]
-            is False
-        )
+        assert config["providers"]["openai"]["models"]["gpt-5.6-luna"]["stateless-mode"] is True
+        assert config["providers"]["deepseek"]["models"]["deepseek-v4-flash"]["stateless-mode"] is False
 
     def test_set_stateless_mode_rejects_unknown_values(monkeypatch, tmp_path):
         config_path = _use_temp_config(monkeypatch, tmp_path)

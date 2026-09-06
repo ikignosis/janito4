@@ -87,9 +87,7 @@ async def _dashscope_chunks(handle, call_kwargs: dict):
             last_error = e
             if use_multimodal == attempts[-1]:
                 raise
-            logger.debug(
-                "DashScope rejected the model for this endpoint; retrying on the other generation endpoint"
-            )
+            logger.debug("DashScope rejected the model for this endpoint; retrying on the other generation endpoint")
     raise last_error
 
 
@@ -99,9 +97,7 @@ async def stream_turn_events(client, call_kwargs: dict, acc: DashScopeTurnAccumu
     The caller owns ``acc``; on completion it holds the full turn state for
     end-of-turn assembly (``run_tool_turn`` / ``DoneEvent``).
     """
-    async for ev in emit_stream_events(
-        _dashscope_chunks(client, call_kwargs), acc, break_on_done=True
-    ):
+    async for ev in emit_stream_events(_dashscope_chunks(client, call_kwargs), acc, break_on_done=True):
         yield ev
 
 

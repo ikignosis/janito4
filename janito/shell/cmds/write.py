@@ -39,9 +39,7 @@ class WriteCmdHandler(CmdHandler):
         # Match '/write' exactly or '/write ...' (extra text is ignored);
         # not '/writes', etc.
         text = user_input.strip()
-        if text.lower() != self.name.lower() and not text.lower().startswith(
-            self.name.lower() + " "
-        ):
+        if text.lower() != self.name.lower() and not text.lower().startswith(self.name.lower() + " "):
             return False
 
         from janito import privileges as _privileges_mod

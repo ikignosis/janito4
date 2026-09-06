@@ -167,9 +167,7 @@ def _setup_privileges(args) -> None:
 
         _privileges_mod.running_privileges = load_privileges_from_config()
         if _privileges_mod.running_privileges is None:
-            _privileges_mod.running_privileges = Privileges(
-                READ=True, WRITE=True, EXEC=True
-            )
+            _privileges_mod.running_privileges = Privileges(READ=True, WRITE=True, EXEC=True)
             # Deferred: printed after the version banner (see
             # cli.chat._print_privileges_notice).
             _privileges_mod.full_privileges_warning_pending = True
@@ -200,23 +198,15 @@ def _handle_batch_config(args) -> int | None:
     cli_provider = getattr(args, "provider", None)
 
     if args.set is not None:
-        exit_code = _track_rc(
-            exit_code, handle_set_config(_flatten(args.set), cli_provider)
-        )
+        exit_code = _track_rc(exit_code, handle_set_config(_flatten(args.set), cli_provider))
     if args.unset is not None:
-        exit_code = _track_rc(
-            exit_code, handle_unset_config(_flatten(args.unset), cli_provider)
-        )
+        exit_code = _track_rc(exit_code, handle_unset_config(_flatten(args.unset), cli_provider))
     if args.get is not None:
-        exit_code = _track_rc(
-            exit_code, handle_get_config(_flatten(args.get), cli_provider)
-        )
+        exit_code = _track_rc(exit_code, handle_get_config(_flatten(args.get), cli_provider))
     if args.set_secret is not None:
         exit_code = _track_rc(exit_code, handle_set_secret(_flatten(args.set_secret)))
     if args.delete_secret is not None:
-        exit_code = _track_rc(
-            exit_code, handle_delete_secret(_flatten(args.delete_secret))
-        )
+        exit_code = _track_rc(exit_code, handle_delete_secret(_flatten(args.delete_secret)))
 
     return exit_code
 
@@ -256,13 +246,9 @@ def _run_web(args) -> int:
     # The [web] extra (fastapi / uvicorn) is optional, so check its
     # availability explicitly instead of a defensive try/except
     # ImportError fallback, and fail with an actionable message.
-    if (
-        importlib.util.find_spec("fastapi") is None
-        or importlib.util.find_spec("uvicorn") is None
-    ):
+    if importlib.util.find_spec("fastapi") is None or importlib.util.find_spec("uvicorn") is None:
         print(
-            "Error: the web UI requires optional dependencies that "
-            "are not installed.",
+            "Error: the web UI requires optional dependencies that " "are not installed.",
             file=sys.stderr,
         )
         print("Install them with:\n\n    pip install janito[web]\n", file=sys.stderr)
@@ -319,15 +305,11 @@ def _reject_continue_with_input(args, *, piped: bool) -> int | None:
     Returns:
         ``1`` when the flag is misused, otherwise ``None``.
     """
-    if (
-        not getattr(args, "continue_session", False)
-        or getattr(args, "prompt", None) is None
-    ):
+    if not getattr(args, "continue_session", False) or getattr(args, "prompt", None) is None:
         return None
     source = "piped input" if piped else "a prompt argument"
     print(
-        "Error: -C/--continue applies to interactive chat sessions only "
-        f"(run 'janito -C' without {source}).",
+        "Error: -C/--continue applies to interactive chat sessions only " f"(run 'janito -C' without {source}).",
         file=sys.stderr,
     )
     return 1

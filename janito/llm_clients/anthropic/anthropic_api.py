@@ -227,9 +227,7 @@ class AnthropicClient(Client):
     ):
         # system is a top-level parameter that may be sent on every round (the
         # Messages API is stateless and the full history is re-sent each time).
-        return _build_call_kwargs(
-            model, state["messages"], max_output_tokens, state["system"]
-        )
+        return _build_call_kwargs(model, state["messages"], max_output_tokens, state["system"])
 
     def _run_stream_round(
         self,
@@ -249,9 +247,7 @@ class AnthropicClient(Client):
                 tool_calls,
                 usage_info,
                 raw_attrs,
-            ) = self._invoke_stream_runner(
-                _stream_response, client, call_kwargs, tools_schemas
-            )
+            ) = self._invoke_stream_runner(_stream_response, client, call_kwargs, tools_schemas)
         except Exception as e:
             # The anthropic SDK raises its own exception types; classify the
             # failure explicitly (auth / not-found / unknown) so the observer
@@ -267,9 +263,7 @@ class AnthropicClient(Client):
             raise
         return full_content, reasoning_content, tool_calls, usage_info, raw_attrs
 
-    def _handle_tool_calls(
-        self, tool_calls, full_content, reasoning_content, state, tool_executor
-    ):
+    def _handle_tool_calls(self, tool_calls, full_content, reasoning_content, state, tool_executor):
         # Record the assistant's message with its content blocks (text +
         # tool_use) in the client-side history, then execute every call and
         # send the results back as tool_result blocks before looping to get
@@ -287,17 +281,13 @@ class AnthropicClient(Client):
         return _finalize_response(full_content, state["messages"])
 
 
-def _resolve_tools(
-    tools: list[dict[str, Any]] | None, mcp_tools: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+def _resolve_tools(tools: list[dict[str, Any]] | None, mcp_tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Resolve the tool schemas and convert them to Anthropic format."""
     if tools is None:
         # Merge built-in tools with MCP tools
         built_in_tools = get_session_tool_schemas()
         tools_schemas = built_in_tools + mcp_tools
-        logger.debug(
-            f"Using {len(built_in_tools)} built-in tools + {len(mcp_tools)} MCP tools"
-        )
+        logger.debug(f"Using {len(built_in_tools)} built-in tools + {len(mcp_tools)} MCP tools")
     else:
         tools_schemas = tools
         logger.debug(f"Using {len(tools_schemas)} provided tools")
@@ -307,14 +297,10 @@ def _resolve_tools(
     return _convert_tools_to_anthropic_format(tools_schemas)
 
 
-def _resolve_system_prompt(
-    instructions: str | None, messages: list[dict[str, Any]]
-) -> str | None:
+def _resolve_system_prompt(instructions: str | None, messages: list[dict[str, Any]]) -> str | None:
     """Resolve the top-level ``system`` parameter from instructions/history."""
     system = instructions
-    system_messages = [
-        m for m in messages if m.get("role") == "system" and m.get("content")
-    ]
+    system_messages = [m for m in messages if m.get("role") == "system" and m.get("content")]
     if system is None and system_messages:
         system = "\n\n".join(str(m.get("content")) for m in system_messages)
     return system

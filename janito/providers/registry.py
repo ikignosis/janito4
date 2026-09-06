@@ -173,17 +173,13 @@ class ProviderRegistry:
                     f"(<provider>-<word>) but is not registered; create it "
                     f"with: janito --create-variant {name.strip()}"
                 )
-            raise ValueError(
-                f"Unknown provider '{name}'. Supported providers: {supported}.{hint}"
-            )
+            raise ValueError(f"Unknown provider '{name}'. Supported providers: {supported}.{hint}")
         if canonical in self._data:
             return Provider(canonical, self._data)
         base = self.variant_base(canonical)
         if base is None:  # pragma: no cover - canonical implies a match
             supported = ", ".join(sorted(self._data.keys()))
-            raise ValueError(
-                f"Unknown provider '{name}'. Supported providers: {supported}"
-            )
+            raise ValueError(f"Unknown provider '{name}'. Supported providers: {supported}")
         return Provider(canonical, self._data, variant_of=base)
 
     def names(self) -> list:

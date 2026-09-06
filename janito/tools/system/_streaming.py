@@ -60,9 +60,7 @@ def stream_execute(
     captured_stdout: list[str] = []
     captured_stderr: list[str] = []
 
-    process, output_queue = _launch(
-        command, working_dir, capture_output, capture_errors, popen_kwargs
-    )
+    process, output_queue = _launch(command, working_dir, capture_output, capture_errors, popen_kwargs)
     threads = _start_reader_threads(
         process,
         output_queue,
@@ -129,17 +127,9 @@ def _start_reader_threads(
     """Start reader threads for the captured streams."""
     threads: list[threading.Thread] = []
     if capture_output and process.stdout:
-        threads.append(
-            _start_reader_thread(
-                output_queue, process.stdout, "stdout", captured_stdout
-            )
-        )
+        threads.append(_start_reader_thread(output_queue, process.stdout, "stdout", captured_stdout))
     if capture_errors and process.stderr:
-        threads.append(
-            _start_reader_thread(
-                output_queue, process.stderr, "stderr", captured_stderr
-            )
-        )
+        threads.append(_start_reader_thread(output_queue, process.stderr, "stderr", captured_stderr))
     return threads
 
 

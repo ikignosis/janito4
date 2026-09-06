@@ -281,9 +281,7 @@ class InteractiveShell(_SessionMixin):
             return False
         # Clear screen before printing the message
         os.system("cls" if os.name == "nt" else "clear")
-        self._reset_conversation(
-            "[Keybinding F2] Conversation history cleared. Starting fresh conversation."
-        )
+        self._reset_conversation("[Keybinding F2] Conversation history cleared. Starting fresh conversation.")
         return True
 
     def _reset_conversation(self, message: str) -> None:
@@ -296,9 +294,7 @@ class InteractiveShell(_SessionMixin):
         if running:
             count = len(running)
             noun = "task" if count == 1 else "tasks"
-            _rich_console.print(
-                f"{count} {noun} still running, use /tasks for viewing."
-            )
+            _rich_console.print(f"{count} {noun} still running, use /tasks for viewing.")
 
     def _handle_command(self, user_input: str) -> bool:
         """Dispatch to registered command handlers; True when handled."""
@@ -381,9 +377,7 @@ class InteractiveShell(_SessionMixin):
             # Reset to a fresh conversation while preserving the system
             # prompt (matches startup behaviour). A plain .clear() would
             # drop the system prompt and leave an empty history.
-            self._reset_conversation(
-                "Conversation history cleared. Starting fresh conversation."
-            )
+            self._reset_conversation("Conversation history cleared. Starting fresh conversation.")
             return True
 
         # Handle registered commands
@@ -401,9 +395,7 @@ class InteractiveShell(_SessionMixin):
 
         return False
 
-    def _run_turn(
-        self, user_input: str, tools: list[dict[str, Any]] | None = None
-    ) -> None:
+    def _run_turn(self, user_input: str, tools: list[dict[str, Any]] | None = None) -> None:
         """Send a prompt to the AI and update the conversation state.
 
         Args:
@@ -423,9 +415,7 @@ class InteractiveShell(_SessionMixin):
         # history: /history marks the row each turn started at, and /rewind
         # / error-cancel recovery know where this turn began.
         self.history_turns.append(self._history_row_count())
-        self.conversation_turn = (
-            len(self.conversation_items) if self.conversation_items else 0
-        )
+        self.conversation_turn = len(self.conversation_items) if self.conversation_items else 0
         self.response_turn = len(self.response_chain)
         self.mirrored_turn = len(self.mirrored_history)
         # Track this turn's effective privileges so tools that spawn child
@@ -434,9 +424,7 @@ class InteractiveShell(_SessionMixin):
         # (e.g. /notools) must propagate that restriction to the children
         # (issue #94).  Reset when the turn ends so a restricted turn never
         # leaks into the next one.
-        turn_privileges_token = set_turn_privileges(
-            resolve_turn_privileges(tools_to_use)
-        )
+        turn_privileges_token = set_turn_privileges(resolve_turn_privileges(tools_to_use))
         try:
             result = self.turn_func(
                 user_input,
@@ -486,18 +474,14 @@ class InteractiveShell(_SessionMixin):
                 # them): persist the cancelled message so the next turn
                 # includes it.
                 self.conversation_items.append(message_item("user", user_input))
-            print(
-                "Request cancelled (Enter). The prompt stays in the conversation history."
-            )
+            print("Request cancelled (Enter). The prompt stays in the conversation history.")
         except KeyboardInterrupt:
             # Rollback any messages appended during this prompt; the
             # recorded turn start is dropped too, so the rolled-back turn no
             # longer counts (the pre-prompt rule derives Turn N from
             # history_turns, issue #78).
             self._rollback_history()
-            print(
-                "Request interrupted, previous prompt/answer removed from the conversation history."
-            )
+            print("Request interrupted, previous prompt/answer removed from the conversation history.")
         finally:
             reset_turn_privileges(turn_privileges_token)
         # Note: turn_func already appends user and assistant messages
@@ -539,8 +523,7 @@ class InteractiveShell(_SessionMixin):
             summary = task.get("summary") or task["task_id"]
             _rich_console.print(f"  {task['task_id']}  {summary}")
         _rich_console.print(
-            "You can ask about these tasks at any time (e.g list all "
-            "task, wait all tasks, kill all tasks)."
+            "You can ask about these tasks at any time (e.g list all " "task, wait all tasks, kill all tasks)."
         )
 
     def _history_row_count(self) -> int:
@@ -649,9 +632,7 @@ class InteractiveShell(_SessionMixin):
             history_turns=list(self.history_turns),
             previous_response_id=self.previous_response_id,
             conversation_items=(
-                copy.deepcopy(self.conversation_items)
-                if self.conversation_items is not None
-                else None
+                copy.deepcopy(self.conversation_items) if self.conversation_items is not None else None
             ),
             conversation_turn=self.conversation_turn,
             response_chain=list(self.response_chain),
@@ -742,9 +723,7 @@ class InteractiveShell(_SessionMixin):
             from ..privileges import privilege_badge
 
             _priv_label, _priv_style = privilege_badge()
-            _thread_depth = (
-                getattr(getattr(self, "conversation_stack", None), "depth", 0) or 0
-            )
+            _thread_depth = getattr(getattr(self, "conversation_stack", None), "depth", 0) or 0
             if _thread_depth:
                 _turn_title = Text.assemble(
                     "Turn ",
@@ -777,9 +756,7 @@ class InteractiveShell(_SessionMixin):
 
             # Check if F12 was pressed (Do It requested)
             if self.do_it_requested:
-                _rich_console.print(
-                    "\n[Keybinding F12] 'Do It' to continue existing plan..."
-                )
+                _rich_console.print("\n[Keybinding F12] 'Do It' to continue existing plan...")
                 user_input = "Do It"
 
             # Check if F2 was pressed (restart requested)

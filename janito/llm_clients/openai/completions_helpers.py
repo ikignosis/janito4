@@ -23,17 +23,13 @@ from janito.tooling.tools_registry import get_session_tool_schemas
 logger = logging.getLogger(__name__)
 
 
-def _resolve_tools(
-    tools: list[dict[str, Any]] | None, mcp_tools: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+def _resolve_tools(tools: list[dict[str, Any]] | None, mcp_tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Resolve the tool schemas (built-in + MCP)."""
     if tools is None:
         # Merge built-in tools with MCP tools
         built_in_tools = get_session_tool_schemas()
         tools_schemas = built_in_tools + mcp_tools
-        logger.debug(
-            f"Using {len(built_in_tools)} built-in tools + {len(mcp_tools)} MCP tools"
-        )
+        logger.debug(f"Using {len(built_in_tools)} built-in tools + {len(mcp_tools)} MCP tools")
     else:
         tools_schemas = tools
         logger.debug(f"Using {len(tools_schemas)} provided tools")
@@ -78,9 +74,7 @@ def _build_call_kwargs(
 
     # Pass preserve_thinking in extra_body if defined in config
     if preserve_thinking is not None:
-        call_kwargs.setdefault("extra_body", {})[
-            "preserve_thinking"
-        ] = preserve_thinking
+        call_kwargs.setdefault("extra_body", {})["preserve_thinking"] = preserve_thinking
 
     # Pass the thinking mode in extra_body: enable_thinking for flag-style
     # defaults, or the raw dict for providers with a structured thinking

@@ -90,17 +90,13 @@ def main():
     """Command line interface for testing the ListTasks tool."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="List all tasks (running and finished) known to the manager"
-    )
+    parser = argparse.ArgumentParser(description="List all tasks (running and finished) known to the manager")
     parser.add_argument(
         "--running-only",
         action="store_true",
         help="List only the tasks that are still running",
     )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
     args = parser.parse_args()
 
     result = ListTasks().run(running_only=args.running_only)
@@ -116,10 +112,7 @@ def main():
                 duration = task.get("duration_seconds")
                 duration_text = f", {duration:.1f}s" if duration is not None else ""
                 summary = task.get("summary") or task["task_id"]
-                print(
-                    f"  {task['task_id']}  [{state}{duration_text}]  {summary}  "
-                    f"(pid {task['pid']})"
-                )
+                print(f"  {task['task_id']}  [{state}{duration_text}]  {summary}  " f"(pid {task['pid']})")
         else:
             print(f"  ❌ Failed: {result.get('error', 'Unknown error')}")
 

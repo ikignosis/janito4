@@ -122,9 +122,7 @@ if pytest is not None:
         ]
         table = handler._build_table(stats)
         assert table.row_count == 2
-        assert stats[0]["cached_tokens"] / stats[0]["input_tokens"] == pytest.approx(
-            0.25
-        )
+        assert stats[0]["cached_tokens"] / stats[0]["input_tokens"] == pytest.approx(0.25)
         assert stats[1]["cost"] == pytest.approx(0.0017)
         assert _render(handler, stats).strip() != ""
 
@@ -228,9 +226,7 @@ if pytest is not None:
         ]
         totals = {(r["day"], r["model"]): r for r in stats}
         assert totals[("2026-08-28", "deepseek-v4-flash")]["input_tokens"] == 300
-        assert totals[("2026-08-28", "deepseek-v4-flash")]["cost"] == pytest.approx(
-            0.003
-        )
+        assert totals[("2026-08-28", "deepseek-v4-flash")]["cost"] == pytest.approx(0.003)
 
         table = handler._build_model_table(stats)
         assert table.row_count == len(stats)

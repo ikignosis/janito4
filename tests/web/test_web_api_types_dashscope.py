@@ -21,9 +21,7 @@ try:
 except ModuleNotFoundError:
     _HAS_DASHSCOPE = False
 
-requires_dashscope = pytest.mark.skipif(
-    not _HAS_DASHSCOPE, reason="dashscope package is not installed"
-)
+requires_dashscope = pytest.mark.skipif(not _HAS_DASHSCOPE, reason="dashscope package is not installed")
 
 FRONTEND = Path(__file__).parent.parent.parent / "janito" / "web" / "frontend"
 
@@ -64,9 +62,7 @@ def test_dashscope_build_call_kwargs_passes_history_and_thinking():
         {"role": "user", "content": "Hello"},
     ]
     tools = [{"type": "function", "function": {"name": "ReadFile", "parameters": {}}}]
-    kwargs = dashscope.build_call_kwargs(
-        "qwen3.8-max", messages, tools, _cfg(thinking=True), None, None, None
-    )
+    kwargs = dashscope.build_call_kwargs("qwen3.8-max", messages, tools, _cfg(thinking=True), None, None, None)
     # The OpenAI chat shape is accepted natively -- sent as-is.
     assert kwargs["messages"] == messages
     assert kwargs["tools"] == tools
@@ -131,11 +127,7 @@ def test_dashscope_accumulator_folds_chunks():
     chunks = [
         {
             "status_code": 200,
-            "output": {
-                "choices": [
-                    {"message": {"reasoning_content": "think"}, "finish_reason": None}
-                ]
-            },
+            "output": {"choices": [{"message": {"reasoning_content": "think"}, "finish_reason": None}]},
             "usage": {"input_tokens": 3},
         },
         {
@@ -167,11 +159,7 @@ def test_dashscope_accumulator_folds_chunks():
             "output": {
                 "choices": [
                     {
-                        "message": {
-                            "tool_calls": [
-                                {"index": 0, "function": {"arguments": ':"/tmp/x"}'}}
-                            ]
-                        },
+                        "message": {"tool_calls": [{"index": 0, "function": {"arguments": ':"/tmp/x"}'}}]},
                         "finish_reason": "stop",
                     }
                 ]
@@ -249,9 +237,7 @@ def test_dashscope_stream_retries_on_endpoint_mismatch(monkeypatch):
         return gen()
 
     monkeypatch.setattr(Generation, "call", staticmethod(fake_generation_call))
-    monkeypatch.setattr(
-        MultiModalConversation, "call", staticmethod(fake_multimodal_call)
-    )
+    monkeypatch.setattr(MultiModalConversation, "call", staticmethod(fake_multimodal_call))
     # create_client sets the module-level base URL; restore it on teardown.
     monkeypatch.setattr(
         dashscope_mod,

@@ -36,9 +36,7 @@ def _handle_not_found_error(
             f"[bold red]Error: Model not found.[/bold red] "
             f"Current model being used: [bold]{model}[/bold] | API URL: [bold]{api_url}[/bold]"
         )
-        console.print(
-            "[dim]Please check that the model name is correct and available for your API key/provider.[/dim]"
-        )
+        console.print("[dim]Please check that the model name is correct and available for your API key/provider.[/dim]")
         logger.error(f"Model '{model}' not found at API URL '{api_url}': {e}")
     elif "previous response" in message:
         console.print(
@@ -46,9 +44,7 @@ def _handle_not_found_error(
             "The server no longer holds the referenced previous response "
             "(it may have expired or the conversation was reset)."
         )
-        console.print(
-            "[dim]Start a fresh conversation by passing previous_response_id=None.[/dim]"
-        )
+        console.print("[dim]Start a fresh conversation by passing previous_response_id=None.[/dim]")
         logger.error(f"Previous response '{response_id}' not found: {e}")
 
 
@@ -75,26 +71,18 @@ def _handle_auth_error(
 
     status_code = getattr(e, "status_code", None)
     code = getattr(e, "code", None)
-    if (
-        status_code != 401
-        and code != 401
-        and not (isinstance(code, str) and "InvalidApiKey" in code)
-    ):
+    if status_code != 401 and code != 401 and not (isinstance(code, str) and "InvalidApiKey" in code):
         return
 
     provider = cli_provider or get_active_provider()
     masked_key = get_masked_api_key(api_key)
     api_url = base_url if base_url else "https://api.openai.com"
-    console.print(
-        "[bold red]Error: Authentication failed (invalid API key).[/bold red]"
-    )
+    console.print("[bold red]Error: Authentication failed (invalid API key).[/bold red]")
     console.print(f"  Provider: [bold]{provider}[/bold]")
     console.print(f"  Model:    [bold]{model}[/bold]")
     console.print(f"  API URL:  [bold]{api_url}[/bold]")
     console.print(f"  API Key:  [bold]{masked_key}[/bold]")
-    console.print(
-        f"[dim]Please verify your API key for the '{provider}' provider and try again.[/dim]"
-    )
+    console.print(f"[dim]Please verify your API key for the '{provider}' provider and try again.[/dim]")
     logger.error(
         f"Authentication failed - provider: {provider}, model: {model}, api_url: {api_url}, api_key: {masked_key}: {e}"
     )

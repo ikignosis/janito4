@@ -44,10 +44,7 @@ class RemoveDirectory(BaseTool):
         """Return a result dict when the target is missing/not a directory, else None."""
         if not os.path.exists(abs_directory):
             if force:
-                message = (
-                    f"Directory does not exist (ignored due to force=True): "
-                    f"{norm_path_str}"
-                )
+                message = f"Directory does not exist (ignored due to force=True): " f"{norm_path_str}"
                 self.report_result(message)
                 return {
                     "success": True,
@@ -68,10 +65,7 @@ class RemoveDirectory(BaseTool):
 
         if not os.path.isdir(abs_directory):
             if force:
-                message = (
-                    f"Path is not a directory (ignored due to force=True): "
-                    f"{norm_path_str}"
-                )
+                message = f"Path is not a directory (ignored due to force=True): " f"{norm_path_str}"
                 self.report_result(message)
                 return {
                     "success": True,
@@ -92,9 +86,7 @@ class RemoveDirectory(BaseTool):
 
         return None
 
-    def _remove_recursive(
-        self, abs_directory: str, norm_path_str: str, force: bool
-    ) -> tuple[str, int]:
+    def _remove_recursive(self, abs_directory: str, norm_path_str: str, force: bool) -> tuple[str, int]:
         """Remove a directory recursively; returns (message, items_removed)."""
         items_removed = _count_items(abs_directory)
         size_str = f"({items_removed} items)"
@@ -111,9 +103,7 @@ class RemoveDirectory(BaseTool):
             if not force:
                 raise e
             # Try alternative removal methods or just report and continue
-            self.report_warning(
-                f"Partial removal completed, some items may remain: {e!s}"
-            )
+            self.report_warning(f"Partial removal completed, some items may remain: {e!s}")
             return (
                 f"Partially removed directory {norm_path_str} (force mode)",
                 items_removed,
@@ -137,9 +127,7 @@ class RemoveDirectory(BaseTool):
 
             if not force:
                 self.report_error(
-                    f"Directory not empty: {norm_path_str}"
-                    f" (use recursive=True to remove"
-                    f" non-empty directories)"
+                    f"Directory not empty: {norm_path_str}" f" (use recursive=True to remove" f" non-empty directories)"
                 )
                 return {
                     "success": False,
@@ -153,24 +141,16 @@ class RemoveDirectory(BaseTool):
                     "force": force,
                 }
 
-            self.report_warning(
-                "Directory not empty, attempting recursive removal (force mode)"
-            )
+            self.report_warning("Directory not empty, attempting recursive removal (force mode)")
             # Count items before removal
             items_removed = _count_items(abs_directory)
             size_str = f"({items_removed} items)"
             self.report_progress(f" {size_str}", end="")
             shutil.rmtree(abs_directory)
-            message = (
-                f"Successfully removed directory"
-                f" recursively {norm_path_str}"
-                f" (force mode)"
-            )
+            message = f"Successfully removed directory" f" recursively {norm_path_str}" f" (force mode)"
             return message, items_removed
 
-    def run(
-        self, directory: str, recursive: bool = False, force: bool = False
-    ) -> dict[str, Any]:
+    def run(self, directory: str, recursive: bool = False, force: bool = False) -> dict[str, Any]:
         """
         Remove a directory from the filesystem.
 
@@ -200,23 +180,17 @@ class RemoveDirectory(BaseTool):
             )
 
             # Validate the target exists and is a directory
-            validation = self._validate_target(
-                abs_directory, norm_path_str, directory, recursive, force
-            )
+            validation = self._validate_target(abs_directory, norm_path_str, directory, recursive, force)
             if validation is not None:
                 return validation
 
             # Count items if recursive
             items_removed = 0
             if recursive:
-                message, items_removed = self._remove_recursive(
-                    abs_directory, norm_path_str, force
-                )
+                message, items_removed = self._remove_recursive(abs_directory, norm_path_str, force)
             else:
                 # Non-recursive removal (only empty directories)
-                result = self._remove_non_recursive(
-                    abs_directory, norm_path_str, force, directory, recursive
-                )
+                result = self._remove_non_recursive(abs_directory, norm_path_str, force, directory, recursive)
                 if isinstance(result, dict):
                     return result  # error result
                 message, items_removed = result
@@ -266,9 +240,7 @@ def main():
     """Command line interface for testing the RemoveDirectoryTool."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Remove directory tool for AI function calling"
-    )
+    parser = argparse.ArgumentParser(description="Remove directory tool for AI function calling")
     parser.add_argument("directory", help="Directory path to remove")
     parser.add_argument(
         "--recursive",
@@ -276,19 +248,13 @@ def main():
         action="store_true",
         help="Remove directory and all contents recursively",
     )
-    parser.add_argument(
-        "--force", "-f", action="store_true", help="Force removal, ignore errors"
-    )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--force", "-f", action="store_true", help="Force removal, ignore errors")
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
 
     args = parser.parse_args()
 
     tool_instance = RemoveDirectory()
-    result = tool_instance.run(
-        directory=args.directory, recursive=args.recursive, force=args.force
-    )
+    result = tool_instance.run(directory=args.directory, recursive=args.recursive, force=args.force)
 
     if args.json:
         print(json.dumps(result, indent=2))

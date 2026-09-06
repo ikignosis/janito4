@@ -42,10 +42,7 @@ if pytest is not None:
 
         conn = sqlite3.connect(str(db_path))
         try:
-            cols = {
-                row[1]
-                for row in conn.execute("PRAGMA table_info(tools_use)").fetchall()
-            }
+            cols = {row[1] for row in conn.execute("PRAGMA table_info(tools_use)").fetchall()}
             assert cols == {"tool_name", "use_count"}
         finally:
             conn.close()

@@ -61,14 +61,10 @@ class _IgnoreTracker:
     def is_ignored(self, abs_path: str, is_dir: bool = False) -> bool:
         """Check ``abs_path`` (matched relative to cwd) against the specs."""
         rel_to_cwd = os.path.relpath(abs_path, self.cwd)
-        if self.janitoignore_spec and is_ignored_by_gitignore(
-            rel_to_cwd, self.janitoignore_spec, is_dir=is_dir
-        ):
+        if self.janitoignore_spec and is_ignored_by_gitignore(rel_to_cwd, self.janitoignore_spec, is_dir=is_dir):
             self.janitoignore_ignored += 1
             return True
-        if self.gitignore_spec and is_ignored_by_gitignore(
-            rel_to_cwd, self.gitignore_spec, is_dir=is_dir
-        ):
+        if self.gitignore_spec and is_ignored_by_gitignore(rel_to_cwd, self.gitignore_spec, is_dir=is_dir):
             self.gitignore_ignored += 1
             return True
         return False
@@ -96,11 +92,7 @@ def _walk_recursive(
             continue
 
         # Filter out ignored directories (modify in-place to prevent walking into them)
-        dirs[:] = [
-            d
-            for d in dirs
-            if not tracker.is_ignored(os.path.join(root, d), is_dir=True)
-        ]
+        dirs[:] = [d for d in dirs if not tracker.is_ignored(os.path.join(root, d), is_dir=True)]
 
         dir_count += len(dirs)
         file_count += len(filenames)
@@ -120,9 +112,7 @@ def _walk_recursive(
     return files, dir_count, file_count
 
 
-def _walk_non_recursive(
-    abs_directory: str, pattern: str | None, tracker: _IgnoreTracker
-):
+def _walk_non_recursive(abs_directory: str, pattern: str | None, tracker: _IgnoreTracker):
     """List a single directory (non-recursive).
 
     Returns:
@@ -172,9 +162,7 @@ def _print_listing(result: dict[str, Any]) -> None:
     if stats.get("gitignore_ignored", 0) > 0:
         ignore_filters.append(f".gitignore filtered {stats['gitignore_ignored']} items")
     if stats.get("janitoignore_ignored", 0) > 0:
-        ignore_filters.append(
-            f".janitoignore filtered {stats['janitoignore_ignored']} items"
-        )
+        ignore_filters.append(f".janitoignore filtered {stats['janitoignore_ignored']} items")
     if ignore_filters:
         print("-" * 40)
         print(f"({', '.join(ignore_filters)})")
@@ -252,18 +240,12 @@ class ListFiles(BaseTool):
 
             # Report start of operation
             recursive_str = "recursively" if recursive else ""
-            self.report_start(
-                f"\U0001f4c1 Listing files at {norm_dir} {recursive_str}", end=""
-            )
+            self.report_start(f"\U0001f4c1 Listing files at {norm_dir} {recursive_str}", end="")
 
             if recursive:
-                files, dir_count, file_count = _walk_recursive(
-                    abs_directory, pattern, max_depth, tracker
-                )
+                files, dir_count, file_count = _walk_recursive(abs_directory, pattern, max_depth, tracker)
             else:
-                files, dir_count, file_count = _walk_non_recursive(
-                    abs_directory, pattern, tracker
-                )
+                files, dir_count, file_count = _walk_non_recursive(abs_directory, pattern, tracker)
 
             # Sort files for consistent output
             files.sort()
@@ -274,13 +256,9 @@ class ListFiles(BaseTool):
             if tracker.gitignore_ignored:
                 ignore_msgs.append(f"{tracker.gitignore_ignored} ignored by .gitignore")
             if tracker.janitoignore_ignored:
-                ignore_msgs.append(
-                    f"{tracker.janitoignore_ignored} ignored by .janitoignore"
-                )
+                ignore_msgs.append(f"{tracker.janitoignore_ignored} ignored by .janitoignore")
             ignore_msg = f", {', '.join(ignore_msgs)}" if ignore_msgs else ""
-            self.report_result(
-                f"Found {total_found} items ({file_count} files, {dir_count} dirs){ignore_msg}"
-            )
+            self.report_result(f"Found {total_found} items ({file_count} files, {dir_count} dirs){ignore_msg}")
 
             return {
                 "success": True,
@@ -319,30 +297,18 @@ def main():
     """Command line interface for testing the ListFilesTool."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="List files tool for AI function calling"
-    )
+    parser = argparse.ArgumentParser(description="List files tool for AI function calling")
     parser.add_argument(
         "directory",
         nargs="?",
         default=".",
         help="Directory to list (default: current directory)",
     )
-    parser.add_argument(
-        "--pattern", "-p", help="File pattern to filter results (e.g., '*.py')"
-    )
-    parser.add_argument(
-        "--recursive", "-r", action="store_true", help="List files recursively"
-    )
-    parser.add_argument(
-        "--max-depth", "-d", type=int, help="Maximum depth for recursive listing"
-    )
-    parser.add_argument(
-        "--no-gitignore", action="store_true", help="Disable .gitignore filtering"
-    )
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--pattern", "-p", help="File pattern to filter results (e.g., '*.py')")
+    parser.add_argument("--recursive", "-r", action="store_true", help="List files recursively")
+    parser.add_argument("--max-depth", "-d", type=int, help="Maximum depth for recursive listing")
+    parser.add_argument("--no-gitignore", action="store_true", help="Disable .gitignore filtering")
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
 
     args = parser.parse_args()
 

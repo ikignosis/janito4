@@ -167,9 +167,7 @@ def test_consume_stream_assembles_split_tool_call_arguments():
     ) = _consume_response_stream(events)
     assert content == "Let me check"
     assert reasoning == "thinking..."
-    assert tools == [
-        {"call_id": "call_1", "name": "read_file", "arguments": '{"path": "/tmp/a"}'}
-    ]
+    assert tools == [{"call_id": "call_1", "name": "read_file", "arguments": '{"path": "/tmp/a"}'}]
     assert response_id == "resp_2"
 
 
@@ -200,9 +198,7 @@ def test_consume_stream_raises_on_failed_response():
             _Event("response.created", response=_Response("resp_4")),
             _Event(
                 "response.failed",
-                response=_Response(
-                    "resp_4", error=type("E", (), {"message": "boom"})()
-                ),
+                response=_Response("resp_4", error=type("E", (), {"message": "boom"})()),
             ),
         ]
     )
@@ -354,9 +350,7 @@ def test_run_turn_stateless_replays_full_history(monkeypatch):
     as input items on every request and never chains with an id."""
     monkeypatch.setattr(
         "janito.llm_clients.openai.responses_state.get_provider",
-        lambda p: mock.Mock(
-            model_config=lambda model=None: ModelConfig({"stateless_mode": True})
-        ),
+        lambda p: mock.Mock(model_config=lambda model=None: ModelConfig({"stateless_mode": True})),
     )
     seen = []
 
@@ -435,9 +429,7 @@ def test_run_turn_stateless_replays_full_history(monkeypatch):
 
     _mock_run_turn(monkeypatch, create)
 
-    result = api.run_turn(
-        _responses_config(), "List files", instructions="Be helpful", tools=None
-    )
+    result = api.run_turn(_responses_config(), "List files", instructions="Be helpful", tools=None)
 
     assert result.content == "Here are the files"
     # Stateless: no server-side handle to chain with.
@@ -457,9 +449,7 @@ def test_run_turn_stateless_continues_with_previous_items(monkeypatch):
     """The next turn re-sends the previous turn's items plus the new prompt."""
     monkeypatch.setattr(
         "janito.llm_clients.openai.responses_state.get_provider",
-        lambda p: mock.Mock(
-            model_config=lambda model=None: ModelConfig({"stateless_mode": True})
-        ),
+        lambda p: mock.Mock(model_config=lambda model=None: ModelConfig({"stateless_mode": True})),
     )
     seen = []
 
@@ -692,9 +682,7 @@ def test_run_turn_plain_response(monkeypatch):
             [
                 _Event("response.created", response=_Response("resp_1")),
                 _Event("response.output_text.delta", delta="Hi there"),
-                _Event(
-                    "response.completed", response=_Response("resp_1", usage=_Usage())
-                ),
+                _Event("response.completed", response=_Response("resp_1", usage=_Usage())),
             ]
         )
 
@@ -1025,9 +1013,7 @@ def test_run_turn_server_side_turn_items_plain_response(monkeypatch):
             [
                 _Event("response.created", response=_Response("resp_1")),
                 _Event("response.output_text.delta", delta="Hi there"),
-                _Event(
-                    "response.completed", response=_Response("resp_1", usage=_Usage())
-                ),
+                _Event("response.completed", response=_Response("resp_1", usage=_Usage())),
             ]
         )
 
@@ -1076,9 +1062,7 @@ def test_run_turn_appends_builtin_tools_without_function_tools(monkeypatch):
         ],
         create,
     )
-    api.run_turn(
-        _responses_config(model="qwen3.8-max", provider="alibaba"), "Hello", tools=[]
-    )
+    api.run_turn(_responses_config(model="qwen3.8-max", provider="alibaba"), "Hello", tools=[])
     assert seen[-1]["tools"] == [
         {"type": "code_interpreter"},
         {"type": "web_search"},
@@ -1112,9 +1096,7 @@ def test_run_turn_merges_builtin_tools_with_function_tools(monkeypatch):
         ],
         create,
     )
-    api.run_turn(
-        _responses_config(model="qwen3.8-max", provider="alibaba"), "Hello", tools=None
-    )
+    api.run_turn(_responses_config(model="qwen3.8-max", provider="alibaba"), "Hello", tools=None)
     assert seen[-1]["tools"] == [
         {
             "type": "function",
@@ -1144,9 +1126,7 @@ def test_run_turn_no_builtin_tools_for_openai_responses(monkeypatch):
         )
 
     _mock_run_turn_for_model(monkeypatch, "gpt-4o", None, create)
-    api.run_turn(
-        _responses_config(model="gpt-4o", provider="openai"), "Hello", tools=None
-    )
+    api.run_turn(_responses_config(model="gpt-4o", provider="openai"), "Hello", tools=None)
     # Only the converted function tools; no code_interpreter / web_search.
     assert seen[-1]["tools"] == [
         {
@@ -1197,9 +1177,7 @@ def test_make_turn_func_responses_dispatch(monkeypatch):
 
     monkeypatch.setattr(conv_api, "ResponsesClient", FakeClient)
 
-    func = chat_mod._make_turn_func(
-        make_config(api_type="Responses", model="gpt-4", provider="openai")
-    )
+    func = chat_mod._make_turn_func(make_config(api_type="Responses", model="gpt-4", provider="openai"))
     result = func(
         "hello",
         previous_messages=[{"role": "system", "content": "x"}],
@@ -1213,9 +1191,7 @@ def test_make_turn_func_responses_dispatch(monkeypatch):
     assert result.response_id == "resp_z"
     assert captured["config"].api_type == "Responses"
     assert captured["previous_response_id"] == "resp_y"
-    assert captured["previous_items"] == [
-        {"type": "message", "role": "user", "content": []}
-    ]
+    assert captured["previous_items"] == [{"type": "message", "role": "user", "content": []}]
     assert captured["instructions"] == "sys"
     assert captured["tools"] == []
     # previous_messages IS forwarded by the union signature (the Responses
@@ -1246,9 +1222,7 @@ def test_make_turn_func_completions_dispatch(monkeypatch):
 
     monkeypatch.setattr(comp_api, "CompletionsClient", FakeClient)
 
-    func = chat_mod._make_turn_func(
-        make_config(api_type="Completions", model="gpt-4", provider="openai")
-    )
+    func = chat_mod._make_turn_func(make_config(api_type="Completions", model="gpt-4", provider="openai"))
     result = func(
         "hello",
         previous_messages=[{"role": "user", "content": "hello"}],
@@ -1657,9 +1631,7 @@ def test_shell_run_turn_records_server_side_response_chain():
 
     def turn_func(user_input, **kwargs):
         calls["n"] += 1
-        return ConversationResult(
-            content="hi", response_id=f"r{calls['n']}", input_items=None
-        )
+        return ConversationResult(content="hi", response_id=f"r{calls['n']}", input_items=None)
 
     shell.turn_func = turn_func
     shell.verbose = False

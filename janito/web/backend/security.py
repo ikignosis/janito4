@@ -53,9 +53,7 @@ class TokenAuthMiddleware:
             if not path.startswith("/api"):
                 await self.app(scope, receive, send)
                 return
-            if self._authorized(
-                request.headers.get("authorization"), request.query_params.get("token")
-            ):
+            if self._authorized(request.headers.get("authorization"), request.query_params.get("token")):
                 await self.app(scope, receive, send)
                 return
             logger.warning("[auth] HTTP 401 Unauthorized: %s %s", request.method, path)

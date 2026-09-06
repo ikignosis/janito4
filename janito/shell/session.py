@@ -104,15 +104,9 @@ class _SessionMixin:
                 from janito.providers.registry import get_provider
 
                 found = get_provider(provider) if provider else None
-                effort = (
-                    found.model_config(model).get("default_reasoning_effort")
-                    if found is not None
-                    else None
-                )
+                effort = found.model_config(model).get("default_reasoning_effort") if found is not None else None
             tokens.append(("", " \u2502 "))
-            tokens.append(
-                ("class:provider", f" effort: {effort if effort else '(not set)'} ")
-            )
+            tokens.append(("class:provider", f" effort: {effort if effort else '(not set)'} "))
         except Exception:  # noqa: BLE001 - toolbar is cosmetic; never break the shell
             logger.debug("Could not resolve effort for the toolbar", exc_info=True)
 

@@ -35,9 +35,7 @@ try:
 except ModuleNotFoundError:
     _HAS_FASTAPI = False
 
-requires_fastapi = pytest.mark.skipif(
-    not _HAS_FASTAPI, reason="fastapi (web extra) is not installed"
-)
+requires_fastapi = pytest.mark.skipif(not _HAS_FASTAPI, reason="fastapi (web extra) is not installed")
 
 
 def _patch_config_start(monkeypatch, start=None):
@@ -51,9 +49,7 @@ def _patch_config_start(monkeypatch, start=None):
     """
     import janito.config_loaders as config_loaders_mod
 
-    monkeypatch.setattr(
-        config_loaders_mod, "load_system_prompt_start", lambda: (start, None)
-    )
+    monkeypatch.setattr(config_loaders_mod, "load_system_prompt_start", lambda: (start, None))
 
 
 @pytest.fixture()
@@ -139,9 +135,7 @@ def test_sessions_restored_from_disk_on_fresh_manager(client, isolated_cwd):
     session.title = "restored title"
     sessions.persist(session)
 
-    fresh = SessionManager(
-        WebServerConfig(web_host="127.0.0.1", web_port=0, no_web_open=True)
-    )
+    fresh = SessionManager(WebServerConfig(web_host="127.0.0.1", web_port=0, no_web_open=True))
     assert fresh.load_from_disk() == 1
 
     restored = fresh.get(session_id)
@@ -165,9 +159,7 @@ def test_create_app_restores_sessions(client, isolated_cwd):
     sessions.persist(session)
 
     # A brand-new app instance is what a server restart produces.
-    app2 = create_app(
-        WebServerConfig(web_host="127.0.0.1", web_port=0, no_web_open=True)
-    )
+    app2 = create_app(WebServerConfig(web_host="127.0.0.1", web_port=0, no_web_open=True))
     with TestClient(app2) as c2:
         listed = c2.get("/api/chat/sessions").json()["sessions"]
         assert [s["session_id"] for s in listed] == [session_id]
@@ -214,9 +206,7 @@ def test_no_history_disables_persistence(isolated_cwd):
     from janito.web.backend.app import create_app
     from janito.web.backend.config import WebServerConfig
 
-    config = WebServerConfig(
-        web_host="127.0.0.1", web_port=0, no_web_open=True, no_history=True
-    )
+    config = WebServerConfig(web_host="127.0.0.1", web_port=0, no_web_open=True, no_history=True)
     app = create_app(config)
     with TestClient(app) as c:
         resp = c.post("/api/chat/sessions")
@@ -227,11 +217,7 @@ def test_no_history_disables_persistence(isolated_cwd):
         assert not _session_path(isolated_cwd, session_id).exists()
 
     # ...so a fresh app (server restart) has nothing to restore.
-    app2 = create_app(
-        WebServerConfig(
-            web_host="127.0.0.1", web_port=0, no_web_open=True, no_history=True
-        )
-    )
+    app2 = create_app(WebServerConfig(web_host="127.0.0.1", web_port=0, no_web_open=True, no_history=True))
     with TestClient(app2) as c2:
         assert c2.get("/api/chat/sessions").json()["sessions"] == []
 
@@ -273,7 +259,5 @@ def test_malformed_session_file_is_skipped(isolated_cwd):
     # Legacy jsonl files are ignored.
     (sessions_dir / "legacy.jsonl").write_text("not json\n", encoding="utf-8")
 
-    manager = SessionManager(
-        WebServerConfig(web_host="127.0.0.1", web_port=0, no_web_open=True)
-    )
+    manager = SessionManager(WebServerConfig(web_host="127.0.0.1", web_port=0, no_web_open=True))
     assert manager.load_from_disk() == 0

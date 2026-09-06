@@ -36,9 +36,7 @@ class PromptCmdHandler(CmdHandler):
         effective_prompt = shell.get_system_prompt()
 
         if effective_prompt is None:
-            Console(markup=False).print(
-                "No system prompt is active (--no-system-prompt)"
-            )
+            Console(markup=False).print("No system prompt is active (--no-system-prompt)")
             return
 
         # The config-aware default: the skills/agents.md sections plus the
@@ -55,11 +53,7 @@ class PromptCmdHandler(CmdHandler):
             # enabled and at least one skill advertised).
             sections = list(manager.get_all_sections())
             has_skills = any(section.name == SECTION_SKILLS for section in sections)
-            title = (
-                "System Prompt - Default (with Skills)"
-                if has_skills
-                else "System Prompt - Default"
-            )
+            title = "System Prompt - Default (with Skills)" if has_skills else "System Prompt - Default"
             table = Table(
                 title=title,
                 title_style="bold",

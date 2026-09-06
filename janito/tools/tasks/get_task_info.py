@@ -70,9 +70,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="Show full detail about a single task")
     parser.add_argument("task_id", type=int, help="The id of the task to inspect")
-    parser.add_argument(
-        "--json", "-j", action="store_true", help="Output in JSON format"
-    )
+    parser.add_argument("--json", "-j", action="store_true", help="Output in JSON format")
     args = parser.parse_args()
 
     result = GetTaskInfo().run(task_id=args.task_id)
