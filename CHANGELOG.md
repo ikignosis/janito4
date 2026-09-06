@@ -18,3 +18,6 @@ Changes since `v4.39.0` (2026-09-05).
   "tool_search"}` (Responses-only, off for non-Meta). New observer events
   `on_tool_search_call` / `on_tool_search_output` render as `Searching for
   tools on <paths>` / `Loaded (n) tools`.
+
+### Fixed
+- Corrected `ARCHITECTURE.md` path in `AGENTS.md` to `dev-docs/ARCHITECTURE.md`.
